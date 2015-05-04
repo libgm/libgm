@@ -1,0 +1,13 @@
+add_executable(array_domain array_domain.cpp)
+add_executable(basic_domain basic_domain.cpp)
+add_executable(finite_assignment_iterator finite_assignment_iterator.cpp)
+add_executable(process process.cpp)
+add_executable(variable variable.cpp)
+add_executable(vector_assignment vector_assignment.cpp)
+
+add_test(array_domain array_domain)
+add_test(basic_domain basic_domain)
+add_test(finite_assignment_iterator finite_assignment_iterator)
+add_test(process process)
+add_test(variable variable)
+add_test(vector_assignment vector_assignment)

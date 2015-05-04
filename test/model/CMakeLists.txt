@@ -1,0 +1,8 @@
+add_executable(bayesian_network bayesian_network.cpp)
+add_executable(decomposable decomposable.cpp)
+add_executable(factor_graph factor_graph.cpp)
+add_executable(pairwise_markov_network pairwise_markov_network.cpp)
+
+add_test(bayesian_network bayesian_network)
+add_test(decomposable decomposable)
+add_test(factor_graph factor_graph)

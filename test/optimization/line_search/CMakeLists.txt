@@ -1,0 +1,10 @@
+add_executable(backtracking_line_search backtracking_line_search.cpp)
+add_executable(exponential_decay_search exponential_decay_search.cpp)
+add_executable(line_search_builder line_search_builder.cpp)
+add_executable(slope_binary_search slope_binary_search.cpp)
+add_executable(value_binary_search value_binary_search.cpp)
+
+add_test(backtracking_line_search backtracking_line_search)
+add_test(exponential_decay_search exponential_decay_search)
+add_test(slope_binary_search slope_binary_search)
+add_test(value_binary_search value_binary_search)

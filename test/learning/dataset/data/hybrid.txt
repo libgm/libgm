@@ -1,0 +1,5 @@
+One dummy line
+Another dummy line
+id1 33 ? 2 ? 1.0
+id2 22 female 3 178 2.0
+id3 11 male 0 150 0.5

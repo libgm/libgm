@@ -1,0 +1,21 @@
+#!/bin/bash
+
+reldir="./release"
+debugdir="./debug"
+
+if [ ! -d $reldir ]; then
+    mkdir $reldir
+fi
+
+if [ ! -d $debugdir ]; then
+    mkdir $debugdir
+fi
+
+cd $reldir
+cmake -D CMAKE_BUILD_TYPE=Release ../.
+cd ..
+
+cd $debugdir
+cmake -D CMAKE_BUILD_TYPE=Debug ../.
+
+

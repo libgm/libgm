@@ -1,0 +1,5 @@
+add_executable(mean_field_bipartite mean_field_bipartite.cpp)
+add_executable(mean_field_pairwise mean_field_pairwise.cpp)
+
+add_test(mean_field_bipartite mean_field_bipartite)
+add_test(mean_field_pairwise mean_field_pairwise)

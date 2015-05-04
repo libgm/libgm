@@ -1,0 +1,15 @@
+subdirs(algorithm)
+
+add_executable(bipartite_graph bipartite_graph.cpp)
+add_executable(cluster_graph cluster_graph.cpp)
+add_executable(directed_graph directed_graph.cpp)
+add_executable(directed_multigraph directed_multigraph.cpp)
+add_executable(region_graph region_graph.cpp)
+add_executable(undirected_graph undirected_graph.cpp)
+
+add_test(bipartite_graph bipartite_graph)
+add_test(cluster_graph cluster_graph)
+add_test(directed_graph directed_graph)
+add_test(directed_multigraph directed_multigraph)
+add_test(region_graph region_graph)
+add_test(undirected_graph undirected_graph)

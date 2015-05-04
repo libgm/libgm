@@ -1,0 +1,5 @@
+One dummy line
+Another dummy line
+id1 <20 ? 2 1.0
+id2 >30 female 3 2.0
+id3 20-30 male 0 0.5

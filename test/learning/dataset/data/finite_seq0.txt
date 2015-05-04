@@ -1,0 +1,5 @@
+dummy1
+dummy2
+id1 adjective sk
+id2 noun sk
+id3 verb en

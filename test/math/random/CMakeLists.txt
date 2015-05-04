@@ -1,0 +1,11 @@
+add_executable(array_distribution array_distribution.cpp)
+add_executable(gaussian_distribution gaussian_distribution.cpp)
+add_executable(multinomial_distribution multinomial_distribution.cpp)
+add_executable(softmax_distribution softmax_distribution.cpp)
+add_executable(table_distribution table_distribution.cpp)
+
+add_test(array_distribution array_distribution)
+add_test(gaussian_distribution gaussian_distribution)
+add_test(multinomial_distribution multinomial_distribution)
+add_test(softmax_distribution softmax_distribution)
+add_test(table_distribution table_distribution)

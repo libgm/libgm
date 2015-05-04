@@ -1,0 +1,9 @@
+add_executable(graph_traversal graph_traversal.cpp)
+add_executable(tree_traversal tree_traversal.cpp)
+add_executable(triangulate triangulate.cpp)
+add_executable(triangulate_constrained triangulate_constrained.cpp)
+
+add_test(graph_traversal graph_traversal)
+add_test(tree_traversal tree_traversal)
+add_test(triangulate triangulate)
+add_test(triangulate_constrained triangulate_constrained)

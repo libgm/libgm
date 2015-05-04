@@ -1,0 +1,5 @@
+One dummy line
+Another dummy line
+id1 180   0 0 1.0
+id2 178.2 1 0 2.0
+id3 ?     2 2 0.5
