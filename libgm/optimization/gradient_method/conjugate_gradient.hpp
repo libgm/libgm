@@ -133,7 +133,7 @@ namespace libgm {
         result_.value = objective_->value(x_);
       }
       result_type result = search_->step(x_, dir_, result_.next(dot(g_, dir_)));
-      update(x_, dir_, result.step);
+      objective_->update_solution(x_, dir_, result.step);
       converged_ = (result_.value - result.value) < param_.convergence;
       result_ = result;
       return result;

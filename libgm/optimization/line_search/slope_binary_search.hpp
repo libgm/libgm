@@ -82,6 +82,9 @@ namespace libgm {
 
       // find the right bound s.t. the right derivative >= 0
       result_type right = f_(1);
+      if (!std::isinf(right.value) && wolfe_(init, right)) {
+        return right;
+      }
       while (right.slope < real_type(0)) {
         ++(this->bounding_steps_);
         right = f_(right.step * param_.multiplier);
@@ -103,7 +106,8 @@ namespace libgm {
         } else {
           right = mid;
         }
-        if (mid.slope == real_type(0) || wolfe_(init, mid)) {
+        if (!std::isinf(mid.value) &&
+            (mid.slope == real_type(0) || wolfe_(init, mid))) {
           return mid;
         }
         if (right.step < param_.min_step) {

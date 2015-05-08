@@ -36,7 +36,7 @@ namespace libgm {
     void objective(gradient_objective<Vec>* objective) {
       objective_ = objective;
     }
-    
+
     //! Restricts the objective to the line specified by origin and direction.
     void line(const Vec* origin, const Vec* direction) {
       origin_ = origin;
@@ -68,7 +68,7 @@ namespace libgm {
     void compute_input(real_type step) {
       input_ = *origin_;
       if (step != 0.0) {
-        update(input_, *direction_, step);
+        objective_->update_solution(input_, *direction_, step);
       }
     }
 

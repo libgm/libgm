@@ -80,6 +80,14 @@ namespace libgm {
     virtual gradient_objective_calls calls() const = 0;
 
     /**
+     * Updates the solution by taking a step along the given direction
+     * and possibly applying constraints. Defaults to update().
+     */
+    virtual void update_solution(Vec& x, const Vec& dir, real_type alpha) {
+      update(x, dir, alpha);
+    }
+
+    /**
      * Computes the gradient of the objective for the given input.
      */
     const Vec& gradient(const Vec& x) {

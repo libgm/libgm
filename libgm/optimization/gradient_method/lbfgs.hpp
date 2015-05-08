@@ -114,9 +114,9 @@ namespace libgm {
 
       // update the solution and compute the new values of s, y, and rho
       std::size_t index = iteration_ % param_.history;
-      shist_[index] = std::move(dir);
-      shist_[index] *= result.step;
-      x_ += shist_[index];
+      shist_[index] = -x_;
+      objective_->update_solution(x_, dir, result.step);
+      shist_[index] += x_;
       const Vec& g = objective_->gradient(x_);
       yhist_[index] = g;
       yhist_[index] -= g_;

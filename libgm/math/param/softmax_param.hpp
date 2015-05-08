@@ -211,7 +211,7 @@ namespace libgm {
       assert(x.rows() == weight_.cols());
       assert(x.cols() == 1);
       vec_type y(weight_ * x.derived() + bias_);
-      y = y.array().exp();
+      y = (y.array() - y.maxCoeff()).exp();
       y /= y.sum();
       return y;
     }
@@ -223,7 +223,7 @@ namespace libgm {
         assert(i < weight_.cols());
         y += weight_.col(i);
       }
-      y = y.array().exp();
+      y = (y.array() - y.maxCoeff()).exp();
       y /= y.sum();
       return y;
     }
@@ -334,6 +334,24 @@ namespace libgm {
 
     friend T dot(const softmax_param& f, const softmax_param& g) {
       return f.weight_.cwiseProduct(g.weight_).sum() + f.bias_.dot(g.bias_);
+    }
+
+    friend T norm1(const softmax_param& f) {
+      return f.weight_.cwiseAbs().sum() + f.bias_.cwiseAbs().sum();
+    }
+
+    friend softmax_param sign(const softmax_param& f) {
+      softmax_param result(f.labels(), f.features());
+      auto sign = [](T x) {
+        if (x == T(0)) {
+          return T(0);
+        } else {
+          return copysign(T(1), x);
+        }
+      };
+      result.weight() = f.weight().unaryExpr(sign);
+      result.bias() = f.bias().unaryExpr(sign);
+      return result;
     }
 
   private:
