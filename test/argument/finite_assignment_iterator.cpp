@@ -18,9 +18,9 @@ BOOST_AUTO_TEST_CASE(test_iteration) {
   // Test the assignment iterator
   finite_assignment_iterator<> it({v, x}), end;
   finite_assignment<> fa;
-  for (size_t i = 0; i < 3; ++i) {
+  for (std::size_t i = 0; i < 3; ++i) {
     fa[x] = i;
-    for (size_t j = 0; j < 2; ++j) {
+    for (std::size_t j = 0; j < 2; ++j) {
       fa[v] = j;
       BOOST_CHECK_NE(it, end);
       BOOST_CHECK_EQUAL(*it++, fa);

@@ -16,8 +16,10 @@ namespace libgm {
       converter<T>,
       typename boost::range_iterator<const Range>::type> >
   make_converted(const Range& range) {
-    return { boost::make_transform_iterator(boost::begin(range), converter<T>()),
-             boost::make_transform_iterator(boost::end(range), converter<T>()) };
+    return {
+      boost::make_transform_iterator(boost::begin(range), converter<T>()),
+      boost::make_transform_iterator(boost::end(range), converter<T>())
+    };
   }
 
 } // namespace libgm

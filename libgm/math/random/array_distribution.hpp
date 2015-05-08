@@ -15,7 +15,7 @@ namespace libgm {
    * A categorical distribution over multiple arguments,
    * whose probabilities are represented by an Eigen array.
    */
-  template <typename T, size_t N> class array_distribution { };  
+  template <typename T, std::size_t N> class array_distribution { };
 
   /**
    * A categorical distribution over a single argument,
@@ -28,7 +28,7 @@ namespace libgm {
     typedef Eigen::Array<T, Eigen::Dynamic, 1> param_type;
 
     //! The type representing the sample.
-    typedef size_t result_type;
+    typedef std::size_t result_type;
 
     //! Constructor for a distribution in the probability space.
     explicit array_distribution(const param_type& p)
@@ -44,10 +44,10 @@ namespace libgm {
 
     //! Draws a random sample from a marginal distribution.
     template <typename Generator>
-    size_t operator()(Generator& rng) const {
+    std::size_t operator()(Generator& rng) const {
       const T* begin = psum_.data();
       T p = std::uniform_real_distribution<T>()(rng);
-      size_t i  = std::upper_bound(begin, begin + psum_.size(), p) - begin;
+      std::size_t i  = std::upper_bound(begin, begin + psum_.size(), p) - begin;
       if (i < psum_.size()) {
         return i;
       } else {
@@ -70,12 +70,12 @@ namespace libgm {
   public:
     //! The underlying parameter type.
     typedef Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic> param_type;
-    
+
     //! The type representing the sample.
     typedef finite_index result_type;
 
     //! The type representing the assignment to the tail.
-    typedef size_t tail_type;
+    typedef std::size_t tail_type;
 
     //! Constructor for a distribution in the probability space.
     explicit array_distribution(const param_type& p)
@@ -94,7 +94,7 @@ namespace libgm {
     finite_index operator()(Generator& rng) const {
       const T* begin = psum_.data();
       T p = std::uniform_real_distribution<T>()(rng);
-      size_t i  = std::upper_bound(begin, begin + psum_.size(), p) - begin;
+      std::size_t i  = std::upper_bound(begin, begin + psum_.size(), p) - begin;
       if (i < psum_.size()) {
         return { i % psum_.rows(), i / psum_.rows() };
       } else {
@@ -104,11 +104,11 @@ namespace libgm {
 
     //! Draws a random sample from a conditional distribution.
     template <typename Generator>
-    size_t operator()(Generator& rng, size_t tail) const {
+    std::size_t operator()(Generator& rng, std::size_t tail) const {
       const T* begin = psum_.data() + tail * psum_.rows();
       T p = std::uniform_real_distribution<T>()(rng);
       if (tail > 0) { p += *(begin-1); }
-      size_t i = std::upper_bound(begin, begin + psum_.rows(), p) - begin;
+      std::size_t i = std::upper_bound(begin, begin + psum_.rows(), p) - begin;
       if (i < psum_.rows()) {
         return i;
       } else {

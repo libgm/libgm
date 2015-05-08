@@ -55,25 +55,25 @@ int main(int argc, char* argv[]) {
   string output_filename;
   double bound;
   double damping;
-  size_t splashv;
+  std::size_t splashv;
   bool adjonly;
-  size_t adjprop;
+  std::size_t adjprop;
   // Parse the input
   po::options_description desc("Allowed Options");
   desc.add_options()
-    ("infn", po::value<string>(&input_dir), 
+    ("infn", po::value<string>(&input_dir),
      "MLN Factor graph")
-    ("outfn", po::value<string>(&output_filename), 
+    ("outfn", po::value<string>(&output_filename),
      "file to write the beliefs")
     ("help", "produce help message")
-    ("bound", po::value<double>(&bound)->default_value(1E-5), 
+    ("bound", po::value<double>(&bound)->default_value(1E-5),
      "accuracy bound")
-    ("splashv", po::value<size_t>(&splashv)->default_value(100), 
+    ("splashv", po::value<std::size_t>(&splashv)->default_value(100),
      "volume of splash")
-    ("damping", po::value<double>(&damping)->default_value(0.6), 
+    ("damping", po::value<double>(&damping)->default_value(0.6),
      "volume of splash")
     ("adjonly", "Output adjacency file only")
-    ("adjprop", po::value<size_t>(&adjprop)->default_value(0),
+    ("adjprop", po::value<std::size_t>(&adjprop)->default_value(0),
      "number of MK propagations");
   po::positional_options_description pos_opts;
   pos_opts.add("infn",1).add("outfn",1);
@@ -104,18 +104,18 @@ int main(int argc, char* argv[]) {
   parse_protein(universe, fg, input_dir+"/network.bin");
   protein_truth_asg_type truth_asgs;
   protein_load_truth_data(input_dir, truth_asgs);
-  
+
   fg.print_degree_distribution();
   std::cout << "Simplifying..."; std::cout.flush();
   fg.simplify_stable();
   fg.normalize();
   std::cout << "done!" << std::endl;
-  
-  ofstream fout("adjacency.txt");  
+
+  ofstream fout("adjacency.txt");
   fout << fg;
   fout.close();
-  
-  cout << "Finished parsing: " << fg.arguments().size() 
+
+  cout << "Finished parsing: " << fg.arguments().size()
        << " variables and " << fg.size() << " factors."
        << endl;
 
@@ -125,16 +125,16 @@ int main(int argc, char* argv[]) {
   ti.start();
   cout << "Performing Inference:" << endl;
   engine_type engine(&fg,
-                              splashv, 
+                              splashv,
                               bound,
                               damping);
-                              
+
 
   engine.run();
-  
+
   fout.open("degcounts.txt");
   foreach(vertex_type v, fg.vertices()) {
-    fout << fg.num_neighbors(v) << ", " 
+    fout << fg.num_neighbors(v) << ", "
          << engine.update_count(v)  << std::endl;
   } // end of foreach vertex update count
   fout.close();
@@ -147,7 +147,7 @@ int main(int argc, char* argv[]) {
   std::cout.precision(10);
   std::cout << "Energy: " << fg.bethe(blfs) << std::endl;
   std::cout << "Log Likelihood: " << fg.log_likelihood(mapassg) << std::endl;
-  
+
   cout << "Saving beliefs:" << endl;
   save_beliefs(fg, engine, output_filename);
   double error = protein_compute_error(fg, engine, truth_asgs);

@@ -35,13 +35,13 @@ namespace libgm {
   //! Serializes a dynamic Eigen matrix. \relates oarchive
   template <typename T>
   iarchive& operator>>(iarchive& ar, dynamic_matrix<T>& mat) {
-    size_t rows = ar.deserialize_int();
-    size_t cols = ar.deserialize_int();
+    std::size_t rows = ar.deserialize_int();
+    std::size_t cols = ar.deserialize_int();
     mat.resize(rows, cols);
     ar.deserialize_buf(mat.data(), mat.size() * sizeof(T));
     return ar;
   }
-  
+
 } // namespace libgm
 
 #endif

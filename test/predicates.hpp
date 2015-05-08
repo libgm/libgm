@@ -24,7 +24,7 @@ boost::test_tools::predicate_result
 serialize_deserialize(const T& value) {
   std::string filename = temp_filename();
   using std::ios_base;
- 
+
   std::ofstream fout(filename.c_str(), ios_base::binary | ios_base::out);
   assert(fout);
   libgm::oarchive oa(fout);
@@ -56,7 +56,7 @@ boost::test_tools::predicate_result
 serialize_deserialize(const T& value, libgm::universe& u) {
   std::string filename = temp_filename();
   using std::ios_base;
- 
+
   std::ofstream fout(filename.c_str(), ios_base::binary | ios_base::out);
   assert(fout);
   libgm::oarchive oa(fout);

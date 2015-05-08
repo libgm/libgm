@@ -1,8 +1,6 @@
 #ifndef LIBGM_FUNCTIONAL_HASH_HPP
 #define LIBGM_FUNCTIONAL_HASH_HPP
 
-#include <libgm/global.hpp>
-
 #include <boost/functional/hash.hpp>
 
 #include <functional>
@@ -16,9 +14,9 @@ namespace libgm {
   template <typename T, typename U>
   struct pair_hash {
     typedef std::pair<T, U> argument_type;
-    typedef size_t          result_type;
-    size_t operator()(const argument_type& pair) const {
-      size_t seed = 0;
+    typedef std::size_t     result_type;
+    std::size_t operator()(const argument_type& pair) const {
+      std::size_t seed = 0;
       hash_combine(seed, pair.first);
       hash_combine(seed, pair.second);
       return seed;

@@ -11,7 +11,7 @@ namespace libgm {
 
   //! Serializes a C string. \relates oarchive
   inline oarchive& operator<<(oarchive& ar, const char* s) {
-    size_t length = strlen(s);
+    std::size_t length = strlen(s);
     ar << length;
     ar.serialize_buf(s, length);
     return ar;
@@ -19,7 +19,7 @@ namespace libgm {
 
   //! Serializes an STL string. \relates oarchive
   inline oarchive& operator<<(oarchive& ar, const std::string& s) {
-    size_t length = s.length();
+    std::size_t length = s.length();
     ar << length;
     ar.serialize_buf(s.data(), length);
     return ar;
@@ -27,7 +27,7 @@ namespace libgm {
 
   //! Deserializes a freshly allocated C string. \relates iarchive
   inline iarchive& operator>>(iarchive& ar, char*& s) {
-    size_t length;
+    std::size_t length;
     ar >> length;
     s = new char[length + 1];
     ar.deserialize_buf(s, length);
@@ -37,7 +37,7 @@ namespace libgm {
 
   //! Deserializes an STL string. \relates iarchive
   inline iarchive& operator>>(iarchive& ar, std::string& s) {
-    size_t length;
+    std::size_t length;
     ar >> length;
     s.resize(length);
     ar.deserialize_buf(&s[0], length);

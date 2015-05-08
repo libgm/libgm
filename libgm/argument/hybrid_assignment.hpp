@@ -100,12 +100,12 @@ namespace libgm {
     }
 
     //! Returns the total number of elements in this assignment.
-    size_t size() const {
+    std::size_t size() const {
       return finite().size() + vector().size();
     }
 
     //! Returns true if the assignment is empty.
-    size_t empty() const {
+    std::size_t empty() const {
       return finite().empty() && vector().empty();
     }
 
@@ -142,7 +142,7 @@ namespace libgm {
     //==========================================================================
 
     //! Removes a variable from the assignment.
-    size_t erase(variable v) {
+    std::size_t erase(variable v) {
       if (v.finite()) {
         return finite().erase(v);
       } else if (v.vector()) {
@@ -165,7 +165,7 @@ namespace libgm {
    * \relates hybrid_assignment
    */
   template <typename T, typename Var>
-  std::ostream& 
+  std::ostream&
   operator<<(std::ostream& out, const hybrid_assignment<T, Var>& a) {
     out << a.finite();
     out << a.vector();

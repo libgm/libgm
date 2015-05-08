@@ -16,7 +16,7 @@ namespace libgm {
 
 using namespace libgm;
 
-size_t nsamples = 1000;
+std::size_t nsamples = 1000;
 double tol = 0.1;
 
 BOOST_AUTO_TEST_CASE(test_mle) {
@@ -34,8 +34,8 @@ BOOST_AUTO_TEST_CASE(test_mle) {
   std::vector<std::pair<vec_type, double>> samples;
   samples.reserve(nsamples);
   vec_type sample(1, 4);
-  for (size_t i = 0; i < nsamples; ++i) {
-    for (size_t j = 0; j < 4; ++j) { sample.vector()[j] = unif(rng); }
+  for (std::size_t i = 0; i < nsamples; ++i) {
+    for (std::size_t j = 0; j < 4; ++j) { sample.vector()[j] = unif(rng); }
     sample.finite()[0] = dist(rng, sample.vector());
     samples.emplace_back(sample, 1.0);
   }
@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(test_mle) {
   softmax_mle<double> mle(0.01, 100, true);
   softmax_param<double> estim(3, 4);
   mle.estimate(samples, estim);
-  
+
   std::cout << "Solution: " << estim << std::endl;
 
   typedef range_ll<softmax_ll<double> > range_ll_type;

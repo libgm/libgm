@@ -32,7 +32,7 @@ namespace libgm {
   protected:
 
     //! The storage type of the index map
-    typedef std::map<T, size_t> index_map_type;
+    typedef std::map<T, std::size_t> index_map_type;
 
     //! The heap used to store the elements. The first element is unused.
     std::vector<heap_element> heap;
@@ -41,43 +41,43 @@ namespace libgm {
     index_map_type index_map;
 
     //! Returns the index of the left child of the supplied index.
-    size_t left(size_t i) const { 
-      return 2 * i; 
+    std::size_t left(std::size_t i) const {
+      return 2 * i;
     }
 
     //! Returns the index of the right child of the supplied index.
-    size_t right(size_t i) const { 
-      return 2 * i + 1; 
+    std::size_t right(std::size_t i) const {
+      return 2 * i + 1;
     }
 
     //! Returns the index of the parent of the supplied index.
-    size_t parent(size_t i) const { 
-      return i / 2; 
+    std::size_t parent(std::size_t i) const {
+      return i / 2;
     }
 
     //! Extracts the priority at a heap location.
-    Priority priority_at(size_t i) { 
-      return heap[i].second; 
+    Priority priority_at(std::size_t i) {
+      return heap[i].second;
     }
 
     //! Compares the priorities at two heap locations.
-    bool less(size_t i, size_t j) {
+    bool less(std::size_t i, std::size_t j) {
       return heap[i].second < heap[j].second;
     }
 
     //! Swaps the heap locations of two elements.
-    void swap(size_t i, size_t j) {
+    void swap(std::size_t i, std::size_t j) {
       std::swap(heap[i], heap[j]);
       index_map[heap[i].first] = i;
       index_map[heap[j].first] = j;
     }
 
     //! The traditional heapify function.
-    void heapify(size_t i) {
-      size_t l = left(i);
-      size_t r = right(i);
-      size_t s = size();
-      size_t largest = i;
+    void heapify(std::size_t i) {
+      std::size_t l = left(i);
+      std::size_t r = right(i);
+      std::size_t s = size();
+      std::size_t largest = i;
       if ((l <= s) && less(i, l))
         largest = l;
       if ((r <= s) && less(largest, r))
@@ -94,7 +94,7 @@ namespace libgm {
       : heap(1, std::make_pair(T(), Priority())) { }
 
     //! Returns the number of elements in the heap.
-    size_t size() const {
+    std::size_t size() const {
       return heap.size() - 1;
     }
 
@@ -111,7 +111,7 @@ namespace libgm {
     //! Enqueues a new item in the queue.
     void push(const T& item, Priority priority) {
       heap.push_back(std::make_pair(item, priority));
-      size_t i = size();
+      std::size_t i = size();
       index_map[item] = i;
       while ((i > 1) && (priority_at(parent(i)) < priority)) {
         swap(i, parent(i));
@@ -148,7 +148,7 @@ namespace libgm {
       return get(item);
     }
 
-    /** 
+    /**
      * Updates the priority associated with a item in the queue. This
      * function fails if the item is not already present.
     */
@@ -157,7 +157,7 @@ namespace libgm {
       typename index_map_type::const_iterator iter = index_map.find(item);
       assert(iter != index_map.end());
       // If it is already present update the priority
-      size_t i = iter->second;
+      std::size_t i = iter->second;
       heap[i].second = priority;
       while ((i > 1) && (priority_at(parent(i)) < priority)) {
         swap(i, parent(i));
@@ -196,7 +196,7 @@ namespace libgm {
 
     //! Returns the values (key-priority pairs) in the priority queue
     const std::vector<heap_element>& values() const {
-      return heap; 
+      return heap;
     }
 
     //! Clears all the values (equivalent to stl clear)
@@ -212,7 +212,7 @@ namespace libgm {
       // Ensure that the element is in the queue
       typename index_map_type::iterator iter = index_map.find(item);
       assert(iter != index_map.end());
-      size_t i = iter->second;
+      std::size_t i = iter->second;
       swap(i, size());
       heap.pop_back();
       heapify(i);
@@ -225,7 +225,7 @@ namespace libgm {
       typename index_map_type::iterator iter = index_map.find(item);
       if (iter == index_map.end())
         return;
-      size_t i = iter->second;
+      std::size_t i = iter->second;
       swap(i, size());
       heap.pop_back();
       heapify(i);
@@ -239,7 +239,7 @@ namespace libgm {
       typename index_map_type::iterator iter = index_map.find(item);
       if (iter == index_map.end())
         return false;
-      size_t i = iter->second;
+      std::size_t i = iter->second;
       Priority new_priority = heap[i].second + inc;
       heap[i].second = new_priority;
       while ((i > 1) && (priority_at(parent(i)) < new_priority)) {
@@ -254,23 +254,12 @@ namespace libgm {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
   template <typename Priority>
-  class mutable_queue<size_t, Priority> {
+  class mutable_queue<std::size_t, Priority> {
   public:
 
     //! An element of the heap.
-    typedef typename std::pair<size_t, Priority> heap_element;
+    typedef typename std::pair<std::size_t, Priority> heap_element;
 
   protected:
 
@@ -284,43 +273,43 @@ namespace libgm {
     index_map_type index_map;
 
     //! Returns the index of the left child of the supplied index.
-    size_t left(size_t i) const { 
-      return 2 * i; 
+    std::size_t left(std::size_t i) const {
+      return 2 * i;
     }
 
     //! Returns the index of the right child of the supplied index.
-    size_t right(size_t i) const { 
-      return 2 * i + 1; 
+    std::size_t right(std::size_t i) const {
+      return 2 * i + 1;
     }
 
     //! Returns the index of the parent of the supplied index.
-    size_t parent(size_t i) const { 
-      return i / 2; 
+    std::size_t parent(std::size_t i) const {
+      return i / 2;
     }
 
     //! Extracts the priority at a heap location.
-    Priority priority_at(size_t i) { 
-      return heap[i].second; 
+    Priority priority_at(std::size_t i) {
+      return heap[i].second;
     }
 
     //! Compares the priorities at two heap locations.
-    bool less(size_t i, size_t j) {
+    bool less(std::size_t i, std::size_t j) {
       return heap[i].second < heap[j].second;
     }
 
     //! Swaps the heap locations of two elements.
-    void swap(size_t i, size_t j) {
+    void swap(std::size_t i, std::size_t j) {
       std::swap(heap[i], heap[j]);
       index_map[heap[i].first] = i;
       index_map[heap[j].first] = j;
     }
 
     //! The traditional heapify function.
-    void heapify(size_t i) {
-      size_t l = left(i);
-      size_t r = right(i);
-      size_t s = size();
-      size_t largest = i;
+    void heapify(std::size_t i) {
+      std::size_t l = left(i);
+      std::size_t r = right(i);
+      std::size_t s = size();
+      std::size_t largest = i;
       if ((l <= s) && less(i, l))
         largest = l;
       if ((r <= s) && less(largest, r))
@@ -337,7 +326,7 @@ namespace libgm {
       : heap(1, std::make_pair(-1, Priority())) { }
 
     //! Returns the number of elements in the heap.
-    size_t size() const {
+    std::size_t size() const {
       return heap.size() - 1;
     }
 
@@ -347,7 +336,7 @@ namespace libgm {
     }
 
     //! Returns true if the queue contains the given value
-    bool contains(const size_t& item) const {
+    bool contains(const std::size_t& item) const {
       if (index_map.size() > item) {
         return index_map[item] >= 0;
       }
@@ -357,9 +346,9 @@ namespace libgm {
     }
 
     //! Enqueues a new item in the queue.
-    void push(size_t item, Priority priority) {
+    void push(std::size_t item, Priority priority) {
       heap.push_back(std::make_pair(item, priority));
-      size_t i = size();
+      std::size_t i = size();
       if (index_map.size() < item+1) {
         index_map.resize(item+1, -1);
       }
@@ -371,7 +360,7 @@ namespace libgm {
     }
 
     //! Accesses the item with maximum priority in the queue.
-    const std::pair<size_t, Priority>& top() const {
+    const std::pair<std::size_t, Priority>& top() const {
       return heap[1];
     }
 
@@ -379,7 +368,7 @@ namespace libgm {
      * Removes the item with maximum priority from the queue, and
      * returns it with its priority.
      */
-    std::pair<size_t, Priority> pop() {
+    std::pair<std::size_t, Priority> pop() {
       heap_element top = heap[1];
       if (size() != 1)
         swap(1, size());
@@ -390,21 +379,21 @@ namespace libgm {
     }
 
     //! Returns the weight associated with a key
-    Priority get(size_t item) const {
+    Priority get(std::size_t item) const {
       return heap[index_map[item]].second;
     }
 
     //! Returns the priority associated with a key
-    Priority operator[](size_t item) const {
+    Priority operator[](std::size_t item) const {
       return get(item);
     }
 
-    /** 
+    /**
      * Updates the priority associated with a item in the queue. This
      * function fails if the item is not already present.
     */
-    void update(size_t item, Priority priority) {
-      size_t i = index_map[item];
+    void update(std::size_t item, Priority priority) {
+      std::size_t i = index_map[item];
       heap[i].second = priority;
       while ((i > 1) && (priority_at(parent(i)) < priority)) {
         swap(i, parent(i));
@@ -418,7 +407,7 @@ namespace libgm {
      * of the old priority and the new one. If the item is not in the queue,
      * adds it to the queue.
      */
-    void updating_insert_max(size_t item, Priority priority) {
+    void updating_insert_max(std::size_t item, Priority priority) {
       if(!contains(item))
         push(item, priority);
       else{
@@ -429,7 +418,7 @@ namespace libgm {
 
     //! Returns the values (key-priority pairs) in the priority queue
     const std::vector<heap_element>& values() const {
-      return heap; 
+      return heap;
     }
 
     //! Clears all the values (equivalent to stl clear)
@@ -440,8 +429,8 @@ namespace libgm {
     }
 
     //! Remove an item from the queue
-    void remove(size_t item) {
-      size_t i = index_map[item];
+    void remove(std::size_t item) {
+      std::size_t i = index_map[item];
       swap(i, size());
       heap.pop_back();
       heapify(i);

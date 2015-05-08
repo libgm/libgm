@@ -57,14 +57,14 @@ BOOST_FIXTURE_TEST_CASE(test_serialization, fixture) {
 }
 */
 
-BOOST_AUTO_TEST_CASE(test_triangulated) {  
+BOOST_AUTO_TEST_CASE(test_triangulated) {
   // Build the graph. This graph must have no self-loops or parallel edges.
-  typedef std::pair<size_t, size_t> vpair;
+  typedef std::pair<std::size_t, std::size_t> vpair;
   std::vector<vpair> vpairs =
     {vpair(6, 2), vpair(1, 2), vpair(1, 3), vpair(1, 5),
      vpair(2, 3), vpair(3, 4), vpair(4, 6), vpair(4, 1)};
-  undirected_graph<size_t> g(vpairs);
-  typedef basic_domain<size_t> domain_type;
+  undirected_graph<std::size_t> g(vpairs);
+  typedef basic_domain<std::size_t> domain_type;
 
   // Build a junction tree using the min-degree strategy
   cluster_graph<domain_type> jt;
@@ -101,8 +101,8 @@ BOOST_AUTO_TEST_CASE(test_triangulated) {
   BOOST_CHECK(!jt.marked(jt.edge(2, 3)));
 
   // Make some changes and check if still valid
-  size_t v6 = jt.find_cluster_cover({6});
-  size_t v67 = jt.add_cluster({6, 7});
+  std::size_t v6 = jt.find_cluster_cover({6});
+  std::size_t v67 = jt.add_cluster({6, 7});
   jt.add_edge(v6, v67);
   BOOST_CHECK_EQUAL(jt.num_vertices(), 4);
   BOOST_CHECK_EQUAL(jt.num_edges(), 3);

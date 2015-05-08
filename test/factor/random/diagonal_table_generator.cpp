@@ -17,7 +17,7 @@ namespace libgm {
 
 using namespace libgm;
 
-size_t nsamples = 1000;
+std::size_t nsamples = 1000;
 const double lower = -0.7;
 const double upper = +0.5;
 
@@ -34,9 +34,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_all, F, factor_types) {
 
   // check the marginals
   double sum = 0.0;
-  size_t count = 0;
+  std::size_t count = 0;
   finite_index shape(2, 3);
-  for (size_t i = 0; i < nsamples; ++i) {
+  for (std::size_t i = 0; i < nsamples; ++i) {
     F f = gen(xy, rng);
     finite_index_iterator it(&shape), end(2);
     for (; it != end; ++it) {

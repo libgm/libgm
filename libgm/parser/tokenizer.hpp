@@ -1,8 +1,6 @@
 #ifndef LIBGM_TOKENIZER_HPP
 #define LIBGM_TOKENIZER_HPP
 
-#include <libgm/global.hpp>
-
 #include <string>
 
 namespace libgm {
@@ -13,7 +11,7 @@ namespace libgm {
   class tokenizer {
   private:
     const std::string s_, delims_;
-    size_t position_;
+    std::size_t position_;
 
   public:
     tokenizer(const std::string& s, const std::string& delims = " \t")
@@ -31,7 +29,7 @@ namespace libgm {
       //assert that the position_ points to a non-delimiter
       assert(delims_.find_first_of(s_[position_]) == std::string::npos);
 
-      size_t token_end_pos = s_.find_first_of(delims_, position_);
+      std::size_t token_end_pos = s_.find_first_of(delims_, position_);
       std::string result;
       if (token_end_pos == std::string::npos) {
         //no delimiters in the remainder, return the whole suffix

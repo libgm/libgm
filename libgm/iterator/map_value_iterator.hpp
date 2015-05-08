@@ -10,7 +10,7 @@ namespace libgm {
    * container.
    * \ingroup iterator
    */
-  template <class Map> 
+  template <class Map>
   class map_value_iterator :
     public std::iterator<typename Map::const_iterator::iterator_category,
                          typename Map::mapped_type,
@@ -21,10 +21,10 @@ namespace libgm {
   private:
     typename Map::const_iterator it;
     template <typename It>
-    friend bool operator<(const map_value_iterator<It>& it1, 
+    friend bool operator<(const map_value_iterator<It>& it1,
                           const map_value_iterator<It>& it2);
     template <typename It>
-    friend int operator-(const map_value_iterator<It>& it1, 
+    friend int operator-(const map_value_iterator<It>& it1,
                          const map_value_iterator<It>& it2);
 
   public:
@@ -32,7 +32,7 @@ namespace libgm {
 
     explicit map_value_iterator(typename Map::const_iterator it) : it(it) { }
 
-    reference operator*() const { 
+    reference operator*() const {
       return it->second;
     }
 
@@ -41,8 +41,8 @@ namespace libgm {
       return *this;
     }
 
-    map_value_iterator operator++(int) { 
-      return map_value_iterator(it++); 
+    map_value_iterator operator++(int) {
+      return map_value_iterator(it++);
     }
 
     bool operator==(const map_value_iterator& other) const {
@@ -72,4 +72,4 @@ namespace libgm {
 
 } // namespace libgm
 
-#endif 
+#endif

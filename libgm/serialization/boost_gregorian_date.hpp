@@ -7,7 +7,7 @@
 #include <boost/date_time/gregorian/gregorian.hpp>
 
 namespace libgm {
-  
+
   inline oarchive& operator<<(oarchive& ar, const boost::gregorian::date& date) {
     if (date.is_special()) {
       ar.serialize_char(0);

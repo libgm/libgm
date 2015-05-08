@@ -1,7 +1,6 @@
 #ifndef LIBGM_PROBABILITY_ARRAY_MLE_HPP
 #define LIBGM_PROBABILITY_ARRAY_MLE_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/datastructure/finite_index.hpp>
 
 #include <Eigen/Core>
@@ -16,7 +15,7 @@ namespace libgm {
    * \tparam T the real type representing the parameters
    * \tparam N the arity of the array
    */
-  template <typename T, size_t N>
+  template <typename T, std::size_t N>
   class probability_array_mle { };
 
   /**
@@ -48,7 +47,7 @@ namespace libgm {
      *
      * \return The total weight of the samples including the regularization
      * \tparam Range a range with values convertible to
-     *         std::pair<finite_index<T>, T> or std::pair<size_t, T>
+     *         std::pair<finite_index<T>, T> or std::pair<std::size_t, T>
      */
     template <typename Range>
     T estimate(const Range& samples, param_type& p) const {
@@ -58,7 +57,7 @@ namespace libgm {
       }
       return finalize(p);
     }
-                          
+
     /**
      * Initializes the maximum likelihood estimate of a probability array.
      * The array must have the desired length at the time of invocation.
@@ -71,7 +70,7 @@ namespace libgm {
      * Processes a single weighted data point, updating the parameters
      * in p incrementally.
      */
-    void process(size_t i, T weight, param_type& p) const {
+    void process(std::size_t i, T weight, param_type& p) const {
       p[i] += weight;
     }
 
@@ -92,7 +91,7 @@ namespace libgm {
       T weight = p.sum();
       p /= weight;
       return weight;
-    } 
+    }
 
   private:
     //! The regularization parameter.
@@ -143,7 +142,7 @@ namespace libgm {
       }
       return finalize(p);
     }
-                          
+
     /**
      * Initializes the maximum likelihood estimate of a probability array.
      * The array must have the desired dimensions at the time of invocation.
@@ -184,7 +183,7 @@ namespace libgm {
       T weight = p.sum();
       p /= weight;
       return weight;
-    } 
+    }
 
   private:
     //! The regularization parameter.

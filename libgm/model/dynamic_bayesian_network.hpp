@@ -1,7 +1,6 @@
 #ifndef LIBGM_DYNAMIC_BAYESIAN_NETWORK_HPP
 #define LIBGM_DYNAMIC_BAYESIAN_NETWORK_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/base/discrete_process.hpp>
 #include <libgm/graph/directed_graph.hpp>
 #include <libgm/model/bayesian_network.hpp>
@@ -29,7 +28,7 @@ namespace libgm {
 
     //! The type of processes used in this network
     typedef discrete_process<variable_type> process_type;
-   
+
     // Private data members
     // =========================================================================
   private:
@@ -80,7 +79,7 @@ namespace libgm {
     const F& operator[](variable_type v) const {
       return transition[v];
     }
-    
+
     // parents, graph information etc.?
 
     // Queries
@@ -95,9 +94,9 @@ namespace libgm {
 
     /**
      * Unrolls the dynamic Bayesian network over steps 0, ..., n.
-     * The unrolled network contains 
+     * The unrolled network contains
      */
-    bayesian_network<F> unroll(size_t n) const {
+    bayesian_network<F> unroll(std::size_t n) const {
       // Initialize the prior
       std::map<variable_type, variable_type> prior_var_map
         = make_process_var_map(processes(), current_step, 0);
@@ -107,9 +106,9 @@ namespace libgm {
         factor.subst_args(prior_var_map);
         bn.add_factor(p->at(0), factor);
       }
-      
+
       // Add the n transition models
-      for(size_t t = 0; t < n; t++) {
+      for(std::size_t t = 0; t < n; t++) {
         std::map<variable_type, variable_type> var_map
           = map_union(make_process_var_map(processes(), current_step, t),
                       make_process_var_map(processes(), next_step, t+1));
@@ -133,7 +132,7 @@ namespace libgm {
       assert(is_superset(transition.arguments(),vars_t1));
       assert(is_subset(transition.arguments(), set_union(vars_t, vars_t1)));
     }
-    
+
     // Modifiers
     // =========================================================================
     /**
@@ -143,8 +142,8 @@ namespace libgm {
      *        The arguments of this factor must be either time-t or time-t+1
      *        variables of one or more timed processes.
      * @param p
-     *        The process, for which the CPD is being added.  The argument 
-     *        factor must contain the t+1-step variable of process p. 
+     *        The process, for which the CPD is being added.  The argument
+     *        factor must contain the t+1-step variable of process p.
      */
     void add_factor(process_type p, const F& factor) {
       assert(factor.arguments().count(p->next()) > 0);
@@ -179,7 +178,7 @@ namespace libgm {
       transition.clear();
       processes_.clear();
     }
-       
+
 
   }; // class dynamic_bayesian_network
 
@@ -195,7 +194,7 @@ namespace libgm {
     out << dbn.transition_model();
     return out;
   }
-  
+
 }
 
 #endif

@@ -1,7 +1,6 @@
 #ifndef LIBGM_PROBABILITY_TABLE_HPP
 #define LIBGM_PROBABILITY_TABLE_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/factor/base/table_factor.hpp>
 #include <libgm/factor/traits.hpp>
 #include <libgm/functional/operators.hpp>
@@ -19,8 +18,8 @@ namespace libgm {
 
   // Forward declaration
   template <typename T, typename Var> class canonical_table;
-  template <typename T, size_t N, typename Var> class probability_array;
-  template <typename T, size_t N, typename Var> class canonical_array;
+  template <typename T, std::size_t N, typename Var> class probability_array;
+  template <typename T, std::size_t N, typename Var> class canonical_array;
 
   /**
    * A factor of a categorical probability distribution in the probability
@@ -38,7 +37,7 @@ namespace libgm {
    */
   template <typename T, typename Var>
   class probability_table : public table_factor<T, Var> {
-  public: 
+  public:
     // Public types
     //==========================================================================
 
@@ -53,7 +52,7 @@ namespace libgm {
     typedef table<T>     param_type;
     typedef finite_index index_type;
     typedef table_distribution<T> distribution_type;
-    
+
     // LearnableDistributionFactor types
     typedef probability_table_ll<T>  ll_type;
     typedef probability_table_mle<T> mle_type;
@@ -103,14 +102,14 @@ namespace libgm {
     }
 
     //! Conversion from a probability_array factor.
-    template <size_t N>
+    template <std::size_t N>
     explicit probability_table(const probability_array<T, N, Var>& f) {
       this->reset(f.arguments());
       std::copy(f.begin(), f.end(), this->begin());
     }
 
     //! Conversion from a canonical_array factor.
-    template <size_t N>
+    template <std::size_t N>
     explicit probability_table(const canonical_array<T, N, Var>& f) {
       this->reset(f.arguments());
       std::transform(f.begin(), f.end(), this->begin(), exponent<T>());
@@ -163,13 +162,15 @@ namespace libgm {
       return std::log(this->param(index));
     }
 
-    //! Returns true if the two factors have the same argument vectors and values.
-    friend bool operator==(const probability_table& f, const probability_table& g) {
+    //! Returns true if the two factors have the same arguments and values.
+    friend bool
+    operator==(const probability_table& f, const probability_table& g) {
       return f.arguments() == g.arguments() && f.param() == g.param();
     }
 
-    //! Returns true if the two factors do not have the same arguments or values.
-    friend bool operator!=(const probability_table& f, const probability_table& g) {
+    //! Returns true if the factors do not have the same arguments or values.
+    friend bool
+    operator!=(const probability_table& f, const probability_table& g) {
       return !(f == g);
     }
 
@@ -187,7 +188,7 @@ namespace libgm {
       this->transform_inplace(f, std::minus<T>());
       return *this;
     }
-    
+
     //! Multiplies another factor into this one.
     probability_table& operator*=(const probability_table& f) {
       this->join_inplace(f, std::multiplies<T>());
@@ -307,7 +308,7 @@ namespace libgm {
     max(const probability_table& f, const probability_table& g) {
       return transform<probability_table>(f, g, libgm::maximum<T>());
     }
-  
+
     //! Element-wise minimum of two factors.
     friend probability_table
     min(const probability_table& f, const probability_table& g) {
@@ -316,7 +317,8 @@ namespace libgm {
 
     //! Returns \f$f^{(1-a)} * g^a\f$.
     friend probability_table
-    weighted_update(const probability_table& f, const probability_table& g, T a) {
+    weighted_update(const probability_table& f,
+                    const probability_table& g, T a) {
       return transform<probability_table>(f, g, weighted_plus<T>(1 - a, a));
     }
 
@@ -401,7 +403,7 @@ namespace libgm {
     bool is_normalizable() const {
       return maximum() > 0;
     }
-    
+
     //! Restricts this factor to an assignment.
     probability_table restrict(const assignment_type& a) const {
       probability_table result;
@@ -416,7 +418,7 @@ namespace libgm {
 
     // Sampling
     //==========================================================================
-    
+
     //! Returns the distribution with the parameters of this factor.
     table_distribution<T> distribution() const {
       return table_distribution<T>(this->param_);
@@ -460,10 +462,11 @@ namespace libgm {
 
     //! Computes the entropy for the distribution represented by this factor.
     T entropy() const {
-      return this->param_.transform_accumulate(T(0), entropy_op<T>(), std::plus<T>());
+      return this->param_.transform_accumulate(T(0), entropy_op<T>(),
+                                               std::plus<T>());
     }
 
-    //! Computes the entropy for a subset of variables. Performs marginalization.
+    //! Computes the entropy for a subset of variables via marginalization.
     T entropy(const domain_type& a) const {
       return equivalent(arguments(), a) ? entropy() : marginal(a).entropy();
     }
@@ -475,17 +478,20 @@ namespace libgm {
     }
 
     //! Computes the cross entropy from p to q.
-    friend T cross_entropy(const probability_table& p, const probability_table& q) {
+    friend T
+    cross_entropy(const probability_table& p, const probability_table& q) {
       return transform_accumulate(p, q, entropy_op<T>(), std::plus<T>());
     }
 
     //! Computes the Kullback-Liebler divergence from p to q.
-    friend T kl_divergence(const probability_table& p, const probability_table& q) {
+    friend T
+    kl_divergence(const probability_table& p, const probability_table& q) {
       return transform_accumulate(p, q, kld_op<T>(), std::plus<T>());
     }
 
     //! Computes the Jensen–Shannon divergece between p and q.
-    friend T js_divergence(const probability_table& p, const probability_table& q) {
+    friend T
+    js_divergence(const probability_table& p, const probability_table& q) {
       return transform_accumulate(p, q, jsd_op<T>(), std::plus<T>());
     }
 
@@ -493,7 +499,7 @@ namespace libgm {
     friend T sum_diff(const probability_table& p, const probability_table& q) {
       return transform_accumulate(p, q, abs_difference<T>(), std::plus<T>());
     }
-    
+
     //! Computes the max of absolute differences between the parameters of p and q.
     friend T max_diff(const probability_table& p, const probability_table& q) {
       return transform_accumulate(p, q, abs_difference<T>(), libgm::maximum<T>());

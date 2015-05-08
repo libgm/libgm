@@ -1,8 +1,6 @@
 #ifndef LIBGM_VERTEX_INDEX_MAP_HPP
 #define LIBGM_VERTEX_INDEX_MAP_HPP
 
-#include <libgm/global.hpp>
-
 #include <boost/property_map/property_map.hpp>
 
 #include <memory>
@@ -20,14 +18,14 @@ namespace libgm {
   public:
     typedef boost::readable_property_map_tag category;
     typedef typename Graph::vertex_type      key_type;
-    typedef size_t                           reference;
-    typedef size_t                           value_type;
+    typedef std::size_t                           reference;
+    typedef std::size_t                           value_type;
 
     //! Constructs the property map for a graph.
     vertex_index_map(const Graph& graph)
-      : map_(new std::unordered_map<key_type, size_t>()) {
+      : map_(new std::unordered_map<key_type, std::size_t>()) {
       map_->reserve(graph.num_vertices());
-      size_t i = 0;
+      std::size_t i = 0;
       for (typename Graph::vertex_type v : graph.vertices()) {
         (*map_)[v] = i++;
       }
@@ -44,7 +42,7 @@ namespace libgm {
     }
 
   private:
-    std::shared_ptr<std::unordered_map<key_type, size_t> > map_;
+    std::shared_ptr<std::unordered_map<key_type, std::size_t> > map_;
 
   }; // class vertex_index_map
 

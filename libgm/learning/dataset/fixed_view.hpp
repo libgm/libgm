@@ -42,19 +42,19 @@ namespace libgm {
 
     //! Default constructor. Creates an uninitialized view
     fixed_view()
-      : dataset_(nullptr), first_(0), length_(0) { }
+      : dataset_(nullptr), first_(0), len_(0) { }
 
     //! Constructs a fixed view for the given sequence dataset
-    fixed_view(const BaseDS* dataset, size_t first, size_t length)
-      : dataset_(dataset), first_(first), length_(length) {
+    fixed_view(const BaseDS* dataset, std::size_t first, std::size_t length)
+      : dataset_(dataset), first_(first), len_(length) {
       assert(length > 0);
 
       // initialize the state
       all_ = traits_type::initialize(dataset->arguments(),
                                      first, length, args_, offset_);
-      
+
       // compute the mapping from relative to absolute rows in the base
-      size_t row = 0;
+      std::size_t row = 0;
       for (const auto& value : *dataset) {
         if (value.first.cols() >= first + length) {
           rows_.push_back(row);
@@ -68,7 +68,7 @@ namespace libgm {
       using std::swap;
       swap(a.dataset_, b.dataset_);
       swap(a.first_, b.first_);
-      swap(a.length_, b.length_);
+      swap(a.len_, b.len_);
       swap(a.rows_, b.rows_);
       swap(a.args_, b.args_);
       swap(a.offset_, b.offset_);
@@ -84,12 +84,12 @@ namespace libgm {
     }
 
     //! Returns the number of arguments of this view.
-    size_t arity() const {
+    std::size_t arity() const {
       return args_.size();
     }
 
     //! Returns the number of rows in this view.
-    size_t size() const {
+    std::size_t size() const {
       return rows_.size();
     }
 
@@ -104,18 +104,18 @@ namespace libgm {
     }
 
     //! Returns the first extracted step.
-    size_t first() const {
+    std::size_t first() const {
       return first_;
     }
 
     //! Returns the length of the window.
-    size_t length() const {
-      return length_;
+    std::size_t length() const {
+      return len_;
     }
 
     //! Returns the iterator to the first datapoint.
     const_iterator begin() const {
-      return const_iterator(dataset().begin(), index_type(all_), first_ + length_);
+      return const_iterator(dataset().begin(), index_type(all_), first_ + len_);
     }
 
     //! Returns the iterator to the datapoint past the last one.
@@ -124,12 +124,12 @@ namespace libgm {
     }
 
     //! Returns the sequence for the given row.
-    const proc_value_type& sequence(size_t row) const {
+    const proc_value_type& sequence(std::size_t row) const {
       return dataset()[rows_[row]];
     }
 
     //! Returns a single datapoint in the dataset.
-    value_type operator[](size_t row) const {
+    value_type operator[](std::size_t row) const {
       value_type value;
       traits_type::extract(sequence(row), all_, 0, value);
       return value;
@@ -138,42 +138,45 @@ namespace libgm {
     //! Returns an immutable range of datapoints over a subset of arguments.
     iterator_range<const_iterator> operator()(const domain_type& dom) const {
       return iterator_range<const_iterator>(
-        const_iterator(dataset().begin(), offsets(dom), first_ + length_),
+        const_iterator(dataset().begin(), offsets(dom), first_ + len_),
         const_iterator(dataset().end())
       );
     }
 
     //! Returns a single datapoint in the dataset over a subset of arguments.
-    value_type operator()(size_t row, const domain_type& dom) const {
+    value_type operator()(std::size_t row, const domain_type& dom) const {
       value_type value;
       traits_type::extract(sequence(row), offsets(dom), 0, value);
       return value;
     }
 
     //! Returns a range over assignment-weight pairs.
-    iterator_range<assignment_iterator> assignments() const {
+    iterator_range<assignment_iterator>
+    assignments() const {
       return iterator_range<assignment_iterator>(
-        assignment_iterator(dataset().begin(), args_, &offset_, first_ + length_),
+        assignment_iterator(dataset().begin(), args_, &offset_, first_ + len_),
         assignment_iterator(dataset().end())
       );
     }
 
     //! Returns a range over the assignment-weight pairs for a subset of args.
-    iterator_range<assignment_iterator> assignments(const domain_type& d) const {
+    iterator_range<assignment_iterator>
+    assignments(const domain_type& d) const {
       return iterator_range<assignment_iterator>(
-        assignment_iterator(dataset().begin(), d, &offset_, first_ + length_),
+        assignment_iterator(dataset().begin(), d, &offset_, first_ + len_),
         assignment_iterator(dataset().end())
       );
     }
 
     //! Returns an assignment and weight for a single datapoint.
-    std::pair<assignment_type, weight_type> assignment(size_t row) const {
+    std::pair<assignment_type, weight_type>
+    assignment(std::size_t row) const {
       return assignment(row, args_);
     }
 
     //! Returns an assignment and weight for a single datapoint.
     std::pair<assignment_type, weight_type>
-    assignment(size_t row, const domain_type& dom) const {
+    assignment(std::size_t row, const domain_type& dom) const {
       std::pair<assignment_type, weight_type> a;
       traits_type::extract(sequence(row), dom, offset_, 0, a);
       return a;
@@ -188,7 +191,7 @@ namespace libgm {
           << ")";
       return out;
     }
-    
+
     // Iterators
     //==========================================================================
 
@@ -207,9 +210,9 @@ namespace libgm {
       //! end constructor
       explicit const_iterator(base_iterator&& it)
         : it_(std::move(it)) { }
-  
+
       //! begin constructor
-      const_iterator(base_iterator&& it, index_type&& index, size_t last)
+      const_iterator(base_iterator&& it, index_type&& index, std::size_t last)
         : it_(std::move(it)), index_(std::move(index)), last_(last) {
         load();
       }
@@ -237,15 +240,15 @@ namespace libgm {
         // this operation is too expensive and is not supported
         throw std::logic_error("data iterators do not support postincrement");
       }
-    
+
       bool operator==(const const_iterator& other) const {
         return it_ == other.it_;
       }
-    
+
       bool operator!=(const const_iterator other) const {
         return it_ != other.it_;
       }
-  
+
       friend void swap(const_iterator& a, const_iterator& b) {
         using std::swap;
         swap(a.it_, b.it_);
@@ -253,7 +256,7 @@ namespace libgm {
         swap(a.value_, b.value_);
         swap(a.last_, b.last_);
       }
-  
+
     private:
       //! Loads the sequence unless we reach the end.
       void load() {
@@ -268,7 +271,7 @@ namespace libgm {
       base_iterator it_; //!< the iterator over the underlying dataset
       index_type index_; //!< linear index of the values
       value_type value_; //!< user-facing data
-      size_t last_;      //!< the one past the last required time step
+      std::size_t last_;      //!< the one past the last required time step
 
     }; // class const_iterator
 
@@ -287,12 +290,12 @@ namespace libgm {
       //! end constructor
       explicit assignment_iterator(base_iterator&& it)
         : it_(std::move(it)) { }
-  
+
       //! begin constructor
       assignment_iterator(base_iterator&& it,
                           const domain_type& args,
                           const offset_map_type* offset,
-                          size_t last)
+                          std::size_t last)
         : it_(std::move(it)), args_(args), offset_(offset), last_(last) {
         load();
       }
@@ -320,15 +323,15 @@ namespace libgm {
         // this operation is too expensive and is not supported
         throw std::logic_error("data iterators do not support postincrement");
       }
-    
+
       bool operator==(const assignment_iterator& other) const {
         return it_ == other.it_;
       }
-    
+
       bool operator!=(const assignment_iterator other) const {
         return it_ != other.it_;
       }
-  
+
       friend void swap(assignment_iterator& a, assignment_iterator& b) {
         using std::swap;
         swap(a.it_, b.it_);
@@ -337,7 +340,7 @@ namespace libgm {
         swap(a.value_, b.value_);
         swap(a.last_, b.last_);
       }
-  
+
     private:
       //! Loads the assignment unless we reach the end.
       void load() {
@@ -353,7 +356,7 @@ namespace libgm {
       domain_type args_; //!< the arguments iterated over
       const offset_map_type* offset_;  //!< map from arguments to offsets
       std::pair<assignment_type, weight_type> value_; //!< user-facing data
-      size_t last_;      //!< the one past the last required time step
+      std::size_t last_;      //!< the one past the last required time step
 
     }; // class assignment_iterator
 
@@ -365,13 +368,13 @@ namespace libgm {
       return traits_type::index(args, offset_);
     }
 
-    const BaseDS* dataset_;    //!< the underlying dataset
-    size_t first_;             //!< the first time step of the window
-    size_t length_;            //!< the length of the window
-    std::vector<size_t> rows_; //!< the mapping from relative to absolute rows
-    domain_type args_;         //!< the arguments of the view
-    offset_map_type offset_;   //!< the mapping from arguments to sequence offsets
-    index_type all_;           //!< the index range containing all arguments
+    const BaseDS* dataset_;  //!< the underlying dataset
+    std::size_t first_;      //!< the first time step of the window
+    std::size_t len_;        //!< the length of the window
+    std::vector<std::size_t> rows_; //!< mapping from relative to absolute rows
+    domain_type args_;       //!< the arguments of the view
+    offset_map_type offset_; //!< the mapping from arguments to sequence offsets
+    index_type all_;         //!< the index range containing all arguments
 
   }; // class fixed_view
 

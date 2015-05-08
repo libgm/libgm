@@ -27,7 +27,7 @@ namespace libgm {
     RealType multiplier;
 
     /**
-     * If the step size reaches this value (>=0), the line search will throw 
+     * If the step size reaches this value (>=0), the line search will throw
      * a line_search_failed exception. Typically, min_step is chosen to be
      * larger than convergence; otherwise, we may never reach this code.
      */

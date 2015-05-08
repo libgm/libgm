@@ -30,7 +30,7 @@ namespace libgm {
     RealType discount;
 
     /**
-     * If the step size reaches this value (>=0), the line search will throw 
+     * If the step size reaches this value (>=0), the line search will throw
      * an line_search_failed exception.
      */
     RealType min_step;
@@ -79,7 +79,7 @@ namespace libgm {
       out << p.acceptance << ' ' << p.discount << ' ' << p.min_step;
       return out;
     }
-    
+
   }; // struct backtracking_line_search_parameters
 
   /**

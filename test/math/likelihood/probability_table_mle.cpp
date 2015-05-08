@@ -17,9 +17,9 @@ namespace libgm {
 
 using namespace libgm;
 
-size_t nsamples = 10000;
+std::size_t nsamples = 10000;
 double tol = 0.01;
-                    
+
 BOOST_AUTO_TEST_CASE(test_mle) {
   table<double> param({2, 3}, {0.1, 0.05, 0.15, 0.25, 0.2, 0.25});
 
@@ -28,7 +28,7 @@ BOOST_AUTO_TEST_CASE(test_mle) {
   table_distribution<double> dist(param);
   std::vector<std::pair<finite_index, double>> samples;
   samples.reserve(nsamples);
-  for (size_t i = 0; i < nsamples; ++i) {
+  for (std::size_t i = 0; i < nsamples; ++i) {
     samples.emplace_back(dist(rng), 1.0);
   }
 

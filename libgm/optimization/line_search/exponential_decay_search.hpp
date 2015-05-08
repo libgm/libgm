@@ -38,7 +38,7 @@ namespace libgm {
      * Sets the discount rate, such that the step size will be a given
      * factor smaller after the given number of iterations.
      */
-    void set_discount(size_t num_iterations, RealType factor = 0.0001) {
+    void set_discount(std::size_t num_iterations, RealType factor = 0.0001) {
       rate = std::pow(factor, 1.0 / num_iterations);
     }
 
@@ -49,7 +49,7 @@ namespace libgm {
       return initial > 0.0 && rate > 0.0 && rate <= 1.0;
     }
 
-    /** 
+    /**
      * Serializes the parameters.
      */
     void save(oarchive& ar) const {
@@ -67,7 +67,8 @@ namespace libgm {
      * Prints the parameters to the output stream.
      */
     friend std::ostream&
-    operator<<(std::ostream& out, const exponential_decay_search_parameters& p) {
+    operator<<(std::ostream& out,
+               const exponential_decay_search_parameters& p) {
       out << p.initial << ' ' << p.rate;
       return out;
     }

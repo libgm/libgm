@@ -3,23 +3,23 @@
 
 /**
  * \file boost_graph_helper.hpp
- * This file contains a number of generic functions that convert BGL's 
+ * This file contains a number of generic functions that convert BGL's
  * free function calls to LibGM graph member function calls.
  */
 
 #include <utility>
 
 namespace libgm {
-  
+
   // Accessors
   //============================================================================
 
   template <typename G>
   std::pair<typename G::vertex_iterator,
-	    typename G::vertex_iterator> 
+	    typename G::vertex_iterator>
   vertices(const G& g, typename G::vertex_type* = 0) {
     return g.vertices();
-  }    
+  }
 
   template <typename G>
   std::pair<typename G::edge_iterator,
@@ -45,14 +45,14 @@ namespace libgm {
   // todo: children
 
   template <typename G>
-  std::pair<typename G::out_edge_iterator, 
+  std::pair<typename G::out_edge_iterator,
 	    typename G::out_edge_iterator>
   out_edges(typename G::vertex_type v, const G& g) {
     return g.out_edges(v);
   }
 
   template <typename G>
-  std::pair<typename G::in_edge_iterator, 
+  std::pair<typename G::in_edge_iterator,
 	    typename G::in_edge_iterator>
   in_edges(typename G::vertex_type v, const G& g) {
     return g.in_edges(v);
@@ -69,22 +69,22 @@ namespace libgm {
   }
 
   template <typename G>
-  size_t out_degree(typename G::vertex_type v, const G& g){
+  std::size_t out_degree(typename G::vertex_type v, const G& g){
     return g.out_degree(v);
   }
 
   template <typename G>
-  size_t in_degree(typename G::vertex_type v, const G& g) {
+  std::size_t in_degree(typename G::vertex_type v, const G& g) {
     return g.in_degree(v);
   }
 
   template <typename G>
-  size_t num_vertices(const G& g, typename G::vertex_type* = 0) {
+  std::size_t num_vertices(const G& g, typename G::vertex_type* = 0) {
     return g.num_vertices();
   }
 
   template <typename G>
-  size_t num_edges(const G& g, typename G::vertex_type* = 0) {
+  std::size_t num_edges(const G& g, typename G::vertex_type* = 0) {
     return g.num_edges();
   }
 
@@ -103,7 +103,7 @@ namespace libgm {
   }
 
   template <typename G, typename VertexProperty>
-  typename G::vertex_type 
+  typename G::vertex_type
   add_vertex(const VertexProperty& p, G& g, typename G::vertex_type* = 0) {
     static_assert(sizeof(G) == 0, "Unsupported function");
   }
@@ -153,7 +153,7 @@ namespace libgm {
   }
 
   template <typename G>
-  void remove_edge(typename G::out_edge_iterator it, G& g, 
+  void remove_edge(typename G::out_edge_iterator it, G& g,
                    typename G::vertex_type* =0){
     g.remove_edge(it);
   }

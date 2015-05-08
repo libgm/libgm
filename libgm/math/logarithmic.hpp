@@ -1,7 +1,6 @@
 #ifndef LIBGM_LOGARITHMIC_HPP
 #define LIBGM_LOGARITHMIC_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/math/log_tag.hpp>
 #include <libgm/math/numerical_error.hpp>
 #include <libgm/serialization/serialize.hpp>
@@ -53,7 +52,7 @@ namespace libgm {
      * \param lv the logarithm of the value this object should represent
      * \param log_tag an indicator such as log_tag() that differentiates
      *        this constructor from the real-valued constructor below.
-     *        
+     *
      */
     logarithmic(T lv, log_tag)
       : lv(lv) { }
@@ -145,7 +144,9 @@ namespace libgm {
      */
     logarithmic operator-(const logarithmic& a) const {
       if (lv <= a.lv) {
-        throw numerical_error("logarithmic subtraction yields a negative value");
+        throw numerical_error(
+          "logarithmic subtraction yields a negative value"
+        );
       } else {
         return logarithmic(std::exp(lv) - std::exp(a.lv));
       }

@@ -24,11 +24,11 @@ BOOST_TEST_DONT_PRINT_LOG_VALUE(sample_assignment_type);
 BOOST_AUTO_TEST_CASE(test_insert) {
   universe u;
   domain v = u.new_finite_variables(3, "v", 3);
-  
+
   finite_dataset<> ds;
   ds.initialize(v);
   BOOST_CHECK(ds.empty());
-  
+
   // insert a sample
   finite_index values(3);
   values[0] = 2;
@@ -48,10 +48,10 @@ BOOST_AUTO_TEST_CASE(test_insert) {
 
   // print the dataset
   std::cout << ds << std::endl;
-  size_t i = 0;
+  std::size_t i = 0;
   for (const auto& sample : ds) {
     std::cout << i << " ";
-    for (size_t x : sample.first) { std::cout << x << " "; }
+    for (std::size_t x : sample.first) { std::cout << x << " "; }
     std::cout << sample.second << std::endl;
     ++i;
   }
@@ -80,15 +80,15 @@ BOOST_AUTO_TEST_CASE(test_insert) {
   ++it;
 
   // check the remaining samples
-  std::vector<size_t> rest(3, -1);
-  for (size_t i = 0; i < 10; ++i) {
+  std::vector<std::size_t> rest(3, -1);
+  for (std::size_t i = 0; i < 10; ++i) {
     BOOST_CHECK_EQUAL(it->first, rest);
     BOOST_CHECK_EQUAL(it->second, 1.0);
     BOOST_CHECK_EQUAL(*it, ds[i+2]);
     BOOST_CHECK_EQUAL(*it, ds(i+2, v));
     ++it;
   }
-  
+
   // check that we covered all the samples
   BOOST_CHECK(it == end);
 }
@@ -96,7 +96,7 @@ BOOST_AUTO_TEST_CASE(test_insert) {
 BOOST_AUTO_TEST_CASE(test_value_iterators) {
   universe u;
   domain v = u.new_finite_variables(3, "v", 3);
-  
+
   finite_dataset<> ds;
   ds.initialize(v);
   ds.insert(1);
@@ -129,14 +129,14 @@ BOOST_AUTO_TEST_CASE(test_value_iterators) {
 BOOST_AUTO_TEST_CASE(test_assignment_iterators) {
   universe u;
   domain v = u.new_finite_variables(3, "v", 3);
-  
+
   finite_dataset<> ds;
   ds.initialize(v);
 
   // insert 2 samples
   ds.insert(finite_index{2, 0, 1}, 0.5);
   ds.insert(finite_index{1, 1, 2}, 0.2);
-  
+
   finite_dataset<>::assignment_iterator it, end;
   std::tie(it, end) = ds.assignments(v);
 
@@ -178,10 +178,10 @@ struct fixture {
   fixture() {
     v = u.new_finite_variables(3, "v", 2);
     ds.initialize(v, 1000);
-    
+
     f = uniform_table_generator<ptable>()(v, rng).normalize();
     auto d = f.distribution();
-    for (size_t i = 0; i < 1000; ++i) {
+    for (std::size_t i = 0; i < 1000; ++i) {
       ds.insert(d(rng), 1.0);
     }
   }
@@ -190,8 +190,8 @@ struct fixture {
 BOOST_FIXTURE_TEST_CASE(test_reconstruction, fixture) {
   // verify that the distribution retrieved by immutable iterators
   // matches the factor for every variable or every pair of variables
-  for (size_t i = 0; i < v.size(); ++i) {
-    for (size_t j = i; j < v.size(); ++j) {
+  for (std::size_t i = 0; i < v.size(); ++i) {
+    for (std::size_t j = i; j < v.size(); ++j) {
       domain dom = domain({v[i], v[j]}).unique();
       double kl = kl_divergence(f.marginal(dom), mle(ds, dom));
       std::cout << dom << ": " << kl << std::endl;
@@ -223,8 +223,8 @@ BOOST_FIXTURE_TEST_CASE(test_reconstruction, fixture) {
 BOOST_FIXTURE_TEST_CASE(test_sample, fixture) {
   // draw samples from the dataset and attempt to recover f
   ptable g(v, 0.0);
-  std::uniform_int_distribution<size_t> unif(0, ds.size() - 1);
-  for (size_t i = 0; i < 500; ++i) {
+  std::uniform_int_distribution<std::size_t> unif(0, ds.size() - 1);
+  for (std::size_t i = 0; i < 500; ++i) {
     auto sample = ds[unif(rng)];
     g.param(sample.first) += sample.second;
   }
@@ -247,17 +247,17 @@ BOOST_AUTO_TEST_CASE(test_load) {
   int argc = boost::unit_test::framework::master_test_suite().argc;
   BOOST_REQUIRE(argc > 1);
   std::string dir = boost::unit_test::framework::master_test_suite().argv[1];
-  
+
   universe u;
   symbolic_format format;
   finite_dataset<> ds;
   format.load(dir + "/finite.cfg", u);
   load(dir + "/finite.txt", format, ds);
 
-  size_t values[][3] = { {0, size_t(-1), 2}, {2, 1, 3}, {1, 0, 0} };
+  std::size_t values[][3] = { {0, std::size_t(-1), 2}, {2, 1, 3}, {1, 0, 0} };
   double weights[] = {1.0, 2.0, 0.5};
   BOOST_CHECK_EQUAL(ds.size(), 3);
-  size_t i = 0;
+  std::size_t i = 0;
   for (const auto& sample : ds) {
     BOOST_CHECK_EQUAL(sample.first[0], values[i][0]);
     BOOST_CHECK_EQUAL(sample.first[1], values[i][1]);

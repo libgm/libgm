@@ -17,12 +17,12 @@ namespace libgm {
   struct min_degree_strategy {
 
     //! The priority type associated with each vertex.
-    typedef ptrdiff_t priority_type;
+    typedef std::ptrdiff_t priority_type;
 
     //! Computes the priority of a vertex, which is its negative degree.
     template <typename Graph>
-    ptrdiff_t priority(typename Graph::vertex_type u, const Graph& g) {
-      return -static_cast<ptrdiff_t>(g.out_degree(u));
+    std::ptrdiff_t priority(typename Graph::vertex_type u, const Graph& g) {
+      return -static_cast<std::ptrdiff_t>(g.out_degree(u));
     }
 
     //! Stores the vertices whose priority needs to be recomputed to out.

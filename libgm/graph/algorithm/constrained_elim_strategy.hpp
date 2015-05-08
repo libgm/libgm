@@ -1,8 +1,6 @@
 #ifndef LIBGM_CONSTRAINED_ELIM_STRATEGY_HPP
 #define LIBGM_CONSTRAINED_ELIM_STRATEGY_HPP
 
-#include <libgm/global.hpp>
-
 #include <utility>
 
 namespace libgm {

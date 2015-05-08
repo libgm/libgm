@@ -35,7 +35,7 @@ namespace libgm {
     }
 
     //! Returns the start of a single variable.
-    size_t start(Var v) const {
+    std::size_t start(Var v) const {
       auto it = start_.find(v);
       if (it == start_.end()) {
         throw std::invalid_argument("Could not find variable " + v.str());
@@ -57,21 +57,21 @@ namespace libgm {
     //==========================================================================
 
     //! Assigns a starting index span to each argument in an increasing order.
-    size_t compute_start(const domain_type& args) {
+    std::size_t compute_start(const domain_type& args) {
       start_.clear();
       start_.reserve(args.size());
-      size_t m = insert_start(args);
+      std::size_t m = insert_start(args);
       start_.sort();
       return m;
     }
 
     //! Assigns a starting index span to each argument in an increasing order.
-    std::pair<size_t,size_t>
+    std::pair<std::size_t,std::size_t>
     compute_start(const domain_type& args1, const domain_type& args2) {
       start_.clear();
       start_.reserve(args1.size() + args2.size());
-      size_t m = insert_start(args1);
-      size_t n = insert_start(args2);
+      std::size_t m = insert_start(args1);
+      std::size_t n = insert_start(args2);
       start_.sort();
       return std::make_pair(m, n);
     }
@@ -87,12 +87,12 @@ namespace libgm {
     }
 
     //! The map from each variable to its index span
-    vector_map<Var, size_t> start_;
+    vector_map<Var, std::size_t> start_;
 
   private:
     //! Inserts a domain into the start structure.
-    size_t insert_start(const domain_type& args) {
-      size_t n = 0;
+    std::size_t insert_start(const domain_type& args) {
+      std::size_t n = 0;
       for (Var v : args) {
         start_.emplace(v, n);
         n += v.size();

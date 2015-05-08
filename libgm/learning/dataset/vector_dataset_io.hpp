@@ -16,7 +16,8 @@ namespace libgm {
    * Loads a vector memory dataset using the symbolic format.
    * All the variables in the format must be vector.
    * The dataset must not be initialized.
-   * \throw std::domain_error if the format contains variables that are not vector
+   * \throw std::domain_error if the format contains variables that are
+   *        not vector
    * \relates vector_memory_dataset
    */
   template <typename T>
@@ -37,22 +38,22 @@ namespace libgm {
     }
 
     std::string line;
-    size_t line_number = 0;
+    std::size_t line_number = 0;
     dynamic_vector<T> index(vector_size(vars));
     while (std::getline(in, line)) {
       std::vector<const char*> tokens;
       if (format.parse(index.size(), line, line_number, tokens)) {
-        size_t col = format.skip_cols;
-        size_t i = 0;
+        std::size_t col = format.skip_cols;
+        std::size_t i = 0;
         for (variable v : vars) {
-          size_t size = v.size();
+          std::size_t size = v.size();
           if (std::count(&tokens[col], &tokens[col] + size, format.missing)) {
             // TODO: warning if only a subset of columns missing
             index.segment(i, size).fill(std::numeric_limits<T>::quiet_NaN());
             col += size;
             i += size;
           } else {
-            for (size_t j = 0; j < size; ++j) {
+            for (std::size_t j = 0; j < size; ++j) {
               index[i++] = parse_string<T>(tokens[col++]);
             }
           }
@@ -66,7 +67,8 @@ namespace libgm {
   /**
    * Saves a vector dataset using the symbolic format.
    * All the variables in the format must be vector.
-   * \throw std::domain_error if the format contains variables that are not vector
+   * \throw std::domain_error if the format contains variables that are
+   *        not vector
    * \relates vector_dataset, vector_memory_dataset
    */
   template <typename T>
@@ -79,22 +81,22 @@ namespace libgm {
       );
     }
     domain vars = format.vector_vars();
-    
+
     std::ofstream out(filename);
     if (!out) {
       throw std::runtime_error("Cannot open the file " + filename);
     }
 
-    for (size_t i = 0; i < format.skip_rows; ++i) {
+    for (std::size_t i = 0; i < format.skip_rows; ++i) {
       out << std::endl;
     }
-    
+
     std::string separator = format.separator.empty() ? " " : format.separator;
     for (const auto& p : ds(vars)) {
-      for (size_t i = 0; i < format.skip_cols; ++i) {
+      for (std::size_t i = 0; i < format.skip_cols; ++i) {
         out << "0" << separator;
       }
-      for (size_t i = 0; i < p.first.size(); ++i) {
+      for (std::size_t i = 0; i < p.first.size(); ++i) {
         if (i > 0) { out << separator; }
         if (std::isnan(p.first[i])) {
           out << format.missing;

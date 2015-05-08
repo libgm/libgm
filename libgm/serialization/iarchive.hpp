@@ -8,13 +8,13 @@
 
 #include <boost/noncopyable.hpp>
 
-#define LIBGM_DESERIALIZE_CHAR(dest_type)            \
+#define LIBGM_DESERIALIZE_CHAR(dest_type)           \
   iarchive& operator>>(dest_type& x) {              \
     x = static_cast<dest_type>(deserialize_char()); \
     return *this;                                   \
   }
 
-#define LIBGM_DESERIALIZE_INT(dest_type)             \
+#define LIBGM_DESERIALIZE_INT(dest_type)            \
   iarchive& operator>>(dest_type& x) {              \
     x = static_cast<dest_type>(deserialize_int());  \
     return *this;                                   \
@@ -47,7 +47,7 @@ namespace libgm {
     }
 
     //! Returns the number of bytes read.
-    size_t bytes() const {
+    std::size_t bytes() const {
       return bytes_;
     }
 
@@ -77,18 +77,18 @@ namespace libgm {
     }
 
     //! Deserializes a raw buffer with length bytes.
-    void deserialize_buf(void* const buf, const size_t length) {
+    void deserialize_buf(void* const buf, const std::size_t length) {
       if (length == 0) { return; }
       in_->read(reinterpret_cast<char*>(buf), length);
       bytes_ += length;
       check();
     }
-    
+
     //! Deserializes a range elements of type T into an output iterator.
     template <typename T, typename OutputIterator>
     OutputIterator deserialize_range(OutputIterator it) {
-      size_t length = deserialize_int();
-      for (size_t i = 0; i < length; ++i) {
+      std::size_t length = deserialize_int();
+      for (std::size_t i = 0; i < length; ++i) {
         T value;
         *this >> value;
         *it = value;
@@ -119,7 +119,7 @@ namespace libgm {
     LIBGM_DESERIALIZE_CHAR(bool)
     LIBGM_DESERIALIZE_CHAR(char)
     LIBGM_DESERIALIZE_CHAR(unsigned char);
-    
+
     LIBGM_DESERIALIZE_INT(int);
     LIBGM_DESERIALIZE_INT(long);
     LIBGM_DESERIALIZE_INT(long long);
@@ -150,10 +150,10 @@ namespace libgm {
     libgm::universe* u_;
 
     //!< The number of bytes read.
-    size_t bytes_;
+    std::size_t bytes_;
 
     //! A map that stores for each ID a dynamically allocated object.
-    std::unordered_map<size_t, void*> dynamic_;
+    std::unordered_map<std::size_t, void*> dynamic_;
   };
 
   /**

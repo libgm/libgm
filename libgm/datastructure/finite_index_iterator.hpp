@@ -32,7 +32,7 @@ namespace libgm {
     typedef const finite_index& reference;
 
     //! End iterator constructor for the given number of dimensions
-    explicit finite_index_iterator(size_t n = 0)
+    explicit finite_index_iterator(std::size_t n = 0)
       : card_(NULL), index_(n, 0), digit_(n) { }
 
     //! Begin iterator constructor for the given cardinality vector.
@@ -70,9 +70,9 @@ namespace libgm {
     const finite_index* operator->() const {
       return &index_;
     }
-    
+
     //! Returns (the index of) the highest-order incremented digit
-    size_t digit() const {
+    std::size_t digit() const {
       return digit_;
     }
 
@@ -80,7 +80,7 @@ namespace libgm {
     bool operator==(const finite_index_iterator& it) const {
       return (digit_ == it.digit_) && (index_ == it.index_);
     }
-    
+
     //! Returns false if the two iterators refer to the same index
     bool operator!=(const finite_index_iterator& it) const {
       return !(*this == it);
@@ -94,7 +94,7 @@ namespace libgm {
     finite_index index_;
 
     //! The index of the highest order digit that got incremented last time
-    size_t digit_;
+    std::size_t digit_;
 
   }; // class finite_index_iterator
 

@@ -20,7 +20,7 @@ namespace libgm {
 
     //! The underlying parameter type.
     typedef typename BaseLL::param_type param_type;
-    
+
     /**
      * Constructs a log-likelihood evaluator with the specified parameters.
      */

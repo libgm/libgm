@@ -24,7 +24,7 @@ namespace libgm {
     basic_domain() { }
 
     //! Constructs a domain with given number of empty arguments.
-    explicit basic_domain(size_t n)
+    explicit basic_domain(std::size_t n)
       : std::vector<Arg>(n) { }
 
     //! Creates a domain with the given elements.
@@ -36,10 +36,10 @@ namespace libgm {
       : std::vector<Arg>(elems) { }
 
     //! Creates a domain from the given argument array.
-    template <size_t N>
+    template <std::size_t N>
     basic_domain(const std::array<Arg, N>& elems)
       : std::vector<Arg>(elems.begin(), elems.end()) { }
-    
+
     //! Creates a domain from the given iterator range.
     template <typename Iterator>
     basic_domain(Iterator begin, Iterator end)
@@ -62,7 +62,7 @@ namespace libgm {
     }
 
     //! Returns the number of times an argument is present in the domain.
-    size_t count(const Arg& x) const {
+    std::size_t count(const Arg& x) const {
       return std::count(this->begin(), this->end(), x);
     }
 
@@ -269,11 +269,11 @@ namespace libgm {
    * Returns the number of assignments for a collection of finite arguments.
    */
   template <typename Arg>
-  size_t finite_size(const basic_domain<Arg>& dom) {
-    size_t size = 1;
+  std::size_t finite_size(const basic_domain<Arg>& dom) {
+    std::size_t size = 1;
     for (Arg arg : dom) {
-      if (std::numeric_limits<size_t>::max() / arg.size() <= size) {
-        throw std::out_of_range("finite_size: possibly overflows size_t");
+      if (std::numeric_limits<std::size_t>::max() / arg.size() <= size) {
+        throw std::out_of_range("finite_size: possibly overflows std::size_t");
       }
       size *= arg.size();
     }
@@ -284,8 +284,8 @@ namespace libgm {
    * Returns the vector dimensionality for a collection of vector arguments.
    */
   template <typename Arg>
-  size_t vector_size(const basic_domain<Arg>& dom) {
-    size_t size = 0;
+  std::size_t vector_size(const basic_domain<Arg>& dom) {
+    std::size_t size = 0;
     for (Arg arg : dom) {
       size += arg.size();
     }
@@ -301,7 +301,7 @@ namespace libgm {
     if (a.size() != b.size()) {
       return false;
     }
-    for (size_t i = 0; i < a.size(); ++i) {
+    for (std::size_t i = 0; i < a.size(); ++i) {
       if (!compatible(a[i], b[i])) {
         return false;
       }
@@ -317,8 +317,8 @@ namespace std {
   template <typename Arg>
   struct hash<libgm::basic_domain<Arg>> {
     typedef libgm::basic_domain<Arg> argument_type;
-    typedef size_t result_type;
-    size_t operator()(const libgm::basic_domain<Arg>& dom) const {
+    typedef std::size_t result_type;
+    std::size_t operator()(const libgm::basic_domain<Arg>& dom) const {
       return libgm::hash_range(dom.begin(), dom.end());
     }
   };

@@ -13,7 +13,7 @@ namespace libgm {
 
     //! The domain type of the factors returned by this generator
     typedef typename RFG::domain_type domain_type;
-    
+
     //! The type of factors returned by this generator
     typedef typename RFG::result_type result_type;
 
@@ -33,19 +33,20 @@ namespace libgm {
   }; // concept RandomMarginalFactorGenerator
 
   /**
-   * A concept for a functor that generates both marginal and conditional factors.
+   * A concept for a functor that generates both marginal and conditional
+   * factors.
    * \ingroup factor_random
    */
   template <typename RFG>
   struct RandomFactorGenerator : public RandomMarginalFactorGenerator<RFG> {
-    
+
     //! Generates a conditional distribution p(head | tail)
     template <typename RandomNumberGenerator>
     result_type operator()(const domain_type& head, const domain_type& tail,
                            RandomNumberGenerator& rng);
 
   }; // concept RandomFactorGenerator
-  
+
 }
 
 #endif

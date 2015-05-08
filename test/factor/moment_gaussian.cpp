@@ -26,8 +26,8 @@ boost::test_tools::predicate_result
 mg_properties(const mgaussian& f,
               const domain& head,
               const domain& tail = domain()) {
-  size_t m = vector_size(head);
-  size_t n = vector_size(tail);
+  std::size_t m = vector_size(head);
+  std::size_t n = vector_size(tail);
   domain args = head + tail;
 
   if (f.empty() && !args.empty()) {
@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE(test_constructors) {
   mgaussian d(logd(2.0));
   BOOST_CHECK(mg_properties(d, {}, {}));
   BOOST_CHECK_CLOSE(d.log_multiplier(), std::log(2.0), 1e-8);
-  
+
   param_type param(3, 0);
   param.mean = vec3(1, 2, 3);
   param.cov  = mat_type::Identity(3, 3);
@@ -189,7 +189,7 @@ BOOST_AUTO_TEST_CASE(test_assignment_swap) {
   f = logd(2.0);
   BOOST_CHECK(mg_properties(f, {}));
   BOOST_CHECK_CLOSE(f.log_multiplier(), std::log(2.0), 1e-8);
-  
+
   f.reset({x, y});
   BOOST_CHECK(mg_properties(f, {x, y}));
 
@@ -217,7 +217,7 @@ BOOST_AUTO_TEST_CASE(test_indexing) {
   universe u;
   variable x = u.new_vector_variable("x", 2);
   variable y = u.new_vector_variable("y", 1);
-  
+
   mgaussian f({x, y}, vec3(2, 1, 0), 2*mat_type::Identity(3, 3), 0.5);
   vec_type vec = vec3(0.5, -2, 0);
   double lv = -0.25*(1.5*1.5+3*3)-1.5*log(two_pi<double>())-0.5*log(8)+0.5;
@@ -247,7 +247,7 @@ BOOST_AUTO_TEST_CASE(test_multiplication) {
 
   mgaussian h = f * g;
   BOOST_CHECK(mg_properties(h, {x, y}));
-  BOOST_CHECK(mg_params(h, 
+  BOOST_CHECK(mg_params(h,
                         vec3(1+1+3,2,1),
                         mat33(2+0.5+3+18,1+3,0.5+6,1+3,2,1,0.5+6,1,2),
                         mat_type(3,0),
@@ -285,7 +285,7 @@ BOOST_AUTO_TEST_CASE(test_multiplication) {
   BOOST_CHECK(mg_params(h, p.mean, p.cov, mat_type(4,0), p.lm));
 }
 
-BOOST_AUTO_TEST_CASE(test_collapse) {  
+BOOST_AUTO_TEST_CASE(test_collapse) {
   universe u;
   variable x = u.new_vector_variable("x", 1);
   variable y = u.new_vector_variable("y", 1);
@@ -372,7 +372,7 @@ BOOST_AUTO_TEST_CASE(test_sample) {
   // test marginal sample
   mgaussian f({x, y}, vec2(3,4), mat22(2,1,1,2));
   auto fd = f.distribution();
-  for (size_t i = 0; i < 20; ++i) {
+  for (std::size_t i = 0; i < 20; ++i) {
     vec_type sample = fd(rng1);
     BOOST_CHECK_SMALL((sample - f.sample(rng2)).cwiseAbs().sum(), 1e-8);
     f.sample(rng3, a);
@@ -388,7 +388,7 @@ BOOST_AUTO_TEST_CASE(test_sample) {
   for (double zv = -1; zv < 1; zv += 0.2) {
     vec_type tail = vec_type::Constant(1, zv);
     a[z] = vec_type::Constant(1, zv);
-    for (size_t i = 0; i < 20; ++i) {
+    for (std::size_t i = 0; i < 20; ++i) {
       vec_type sample = gd(rng1, tail);
       BOOST_CHECK_SMALL((sample - g.sample(rng2, tail)).cwiseAbs().sum(), 1e-8);
       g.sample(rng3, a);
@@ -417,7 +417,7 @@ BOOST_AUTO_TEST_CASE(test_entropy) {
 
   double ent_x = std::log(cov.block(0, 0, 1, 1).determinant()) + l2pi + 1.0;
   BOOST_CHECK_CLOSE(p.entropy({x}), ent_x / 2.0, 1e-5);
-  
+
   mgaussian q({x, y, z}, mean, cov + mat_type::Identity(3, 3));
   BOOST_CHECK_GE(kl_divergence(p, q), 0.0);
   BOOST_CHECK_SMALL(kl_divergence(p, p), 1e-6);

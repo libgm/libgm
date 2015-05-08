@@ -10,7 +10,7 @@
 #include <vector>
 
 namespace libgm {
-  
+
   /**
    * A dataset where each datapoint is a sequence of random variables.
    * The dataset stores observations in an std::vector of values,
@@ -42,14 +42,15 @@ namespace libgm {
     // Helper types
     typedef typename Traits::index_type      index_type;
     typedef typename Traits::column_map_type column_map_type;
-    
+
     // Construction and initialization
     //==========================================================================
     //! Default constructor. Creates an uninitialized dataset.
     basic_sequence_dataset() { }
 
     //! Constructs a dataset initialized with the given arguments and capacity.
-    explicit basic_sequence_dataset(const domain_type& args, size_t capacity = 1) {
+    explicit basic_sequence_dataset(const domain_type& args,
+                                    std::size_t capacity = 1) {
       initialize(args, capacity);
     }
 
@@ -58,7 +59,7 @@ namespace libgm {
      * memory for the given number of rows.
      * It is an error to call initialize() more than once.
      */
-    void initialize(const domain_type& args, size_t capacity = 1) {
+    void initialize(const domain_type& args, std::size_t capacity = 1) {
       if (!args_.empty()) {
         throw std::logic_error("Attempt to call initialize() more than once");
       }
@@ -76,12 +77,12 @@ namespace libgm {
     }
 
     //! Returns the number of arguments of this dataset.
-    size_t arity() const {
+    std::size_t arity() const {
       return args_.size();
     }
 
     //! Returns the number of datapoints in the dataset.
-    size_t size() const {
+    std::size_t size() const {
       return values_.size();
     }
 
@@ -91,7 +92,7 @@ namespace libgm {
     }
 
     //! Returns the number of values this dataset can hold before reallocation.
-    size_t capacity() const {
+    std::size_t capacity() const {
       return values_.capacity();
     }
 
@@ -102,7 +103,7 @@ namespace libgm {
 
     //! Returns the iterator to the first datapoint.
     const_iterator begin() const {
-      return const_iterator(values_.begin(), values_.end()); 
+      return const_iterator(values_.begin(), values_.end());
     }
 
     //! Returns the iterator to the datapoint past the last one.
@@ -116,7 +117,7 @@ namespace libgm {
     }
 
     //! Returns a single datapoint in the dataset.
-    const value_type& operator[](size_t row) const {
+    const value_type& operator[](std::size_t row) const {
       return values_[row];
     }
 
@@ -137,14 +138,15 @@ namespace libgm {
     }
 
     //! Returns a single datapoint in the dataset over a subset of arguments.
-    value_type operator()(size_t row, const domain_type& dom) const {
+    value_type operator()(std::size_t row, const domain_type& dom) const {
       value_type value;
       Traits::load(values_[row], index(dom), value);
       return value;
     }
 
     //! Returns a range over the assignment-weight pairs.
-    iterator_range<assignment_iterator> assignments() const {
+    iterator_range<assignment_iterator>
+    assignments() const {
       return iterator_range<assignment_iterator>(
         assignment_iterator(values_.begin(), values_.end(), args_, &col_),
         assignment_iterator(values_.end())
@@ -152,7 +154,8 @@ namespace libgm {
     }
 
     //! Returns a range over the assignment-weight pairs for a subset of args.
-    iterator_range<assignment_iterator> assignments(const domain_type& d) const {
+    iterator_range<assignment_iterator>
+    assignments(const domain_type& d) const {
       return iterator_range<assignment_iterator>(
         assignment_iterator(values_.begin(), values_.end(), d, &col_),
         assignment_iterator(values_.end())
@@ -160,13 +163,14 @@ namespace libgm {
     }
 
     //! Returns the assignment and weight for a single datapoint.
-    std::pair<assignment_type, weight_type> assignment(size_t row) const {
+    std::pair<assignment_type, weight_type>
+    assignment(std::size_t row) const {
       return assignment(row, args_);
     }
 
     //! Returns the assignment and weight for a single datapoint.
     std::pair<assignment_type, weight_type>
-    assignment(size_t row, const domain_type& dom) const {
+    assignment(std::size_t row, const domain_type& dom) const {
       std::pair<assignment_type, weight_type> a;
       Traits::extract(values_[row], dom, col_, a);
       return a;
@@ -184,7 +188,7 @@ namespace libgm {
     //==========================================================================
 
     //! Ensures that the dataset has allocated space for at least n datapoints.
-    void reserve(size_t n) {
+    void reserve(std::size_t n) {
       values_.reserve(n);
     }
 
@@ -207,7 +211,7 @@ namespace libgm {
     }
 
     //! Inserts a number of empty values.
-    void insert(size_t n) {
+    void insert(std::size_t n) {
       values_.insert(values_.end(), n, {Traits::empty(args_), weight_type(1)});
     }
 
@@ -273,7 +277,7 @@ namespace libgm {
         return *this;
       }
 
-      iterator& operator+=(ptrdiff_t n) {
+      iterator& operator+=(std::ptrdiff_t n) {
         if (update()) { Traits::save(value_, index_, *cur_); }
         cur_ += n;
         if (update() && n != 0) { Traits::load(*cur_, index_, value_); }
@@ -284,19 +288,19 @@ namespace libgm {
         // this operation is too expensive and is not supported
         throw std::logic_error("data iterators do not support postincrement");
       }
-    
+
       bool operator==(const iterator& other) const {
         return cur_ == other.cur_;
       }
-    
+
       bool operator!=(const iterator& other) const {
         return cur_ != other.cur_;
       }
-    
+
       bool operator==(const const_iterator& other) const {
         return cur_ == other.cur_;
       }
-    
+
       bool operator!=(const const_iterator other) const {
         return cur_ != other.cur_;
       }
@@ -309,7 +313,7 @@ namespace libgm {
         swap(a.value_, b.value_);
         swap(a.direct_, b.direct_);
       }
-    
+
     private:
       bool update() const {
         return cur_ != end_ && !direct_;
@@ -398,7 +402,7 @@ namespace libgm {
         return *this;
       }
 
-      const_iterator& operator+=(ptrdiff_t n) {
+      const_iterator& operator+=(std::ptrdiff_t n) {
         cur_ += n;
         if (update() && n != 0) { Traits::load(*cur_, index_, value_); }
         return *this;
@@ -408,11 +412,11 @@ namespace libgm {
         // this operation is too expensive and is not supported
         throw std::logic_error("data iterators do not support postincrement");
       }
-    
+
       bool operator==(const const_iterator& other) const {
         return cur_ == other.cur_;
       }
-    
+
       bool operator!=(const const_iterator other) const {
         return cur_ != other.cur_;
       }
@@ -420,11 +424,11 @@ namespace libgm {
       bool operator==(const iterator& other) const {
         return cur_ == other.cur_;
       }
-    
+
       bool operator!=(const iterator& other) const {
         return cur_ != other.cur_;
       }
-    
+
       friend void swap(const_iterator& a, const_iterator& b) {
         using std::swap;
         swap(a.cur_, b.cur_);
@@ -433,7 +437,7 @@ namespace libgm {
         swap(a.value_, b.value_);
         swap(a.direct_, b.direct_);
       }
-    
+
     private:
       bool update() const {
         return cur_ != end_ && !direct_;
@@ -490,13 +494,17 @@ namespace libgm {
 
       assignment_iterator& operator++() {
         ++cur_;
-        if (!end()) { Traits::extract(*cur_, args_, *colmap_, value_); }
+        if (!end()) {
+          Traits::extract(*cur_, args_, *colmap_, value_);
+        }
         return *this;
       }
 
-      assignment_iterator& operator+=(ptrdiff_t n) {
+      assignment_iterator& operator+=(std::ptrdiff_t n) {
         cur_ += n;
-        if (!end() && n != 0) { Traits::extract(*cur_, args_, *colmap_, value_); }
+        if (!end() && n != 0) {
+          Traits::extract(*cur_, args_, *colmap_, value_);
+        }
         return *this;
       }
 
@@ -504,11 +512,11 @@ namespace libgm {
         // this operation is too expensive and is not supported
         throw std::logic_error("data iterators do not support postincrement");
       }
-    
+
       bool operator==(const assignment_iterator& other) const {
         return cur_ == other.cur_;
       }
-    
+
       bool operator!=(const assignment_iterator other) const {
         return cur_ != other.cur_;
       }
@@ -521,7 +529,7 @@ namespace libgm {
         swap(a.colmap_, b.colmap_);
         swap(a.value_, b.value_);
       }
-    
+
     private:
       base_iterator cur_; // iterator to the current value in the dataset
       base_iterator end_; // iteraotr to the one past last value in the dataset

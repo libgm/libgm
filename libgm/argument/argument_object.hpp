@@ -21,7 +21,7 @@ namespace libgm {
     std::string name;
 
     //! The cardinality / dimensionality of the argument.
-    size_t size;
+    std::size_t size;
 
     //! The category of the variable.
     category_enum category;
@@ -31,17 +31,17 @@ namespace libgm {
 
     //! Constructs an argument_object with given properties.
     argument_object(const std::string& name,
-                    size_t size,
+                    std::size_t size,
                     category_enum category)
       : name(name), size(size), category(category) { }
 
     //! Dynamically allocates a new finite argument_object.
-    static argument_object* finite(const std::string& name, size_t size) {
+    static argument_object* finite(const std::string& name, std::size_t size) {
       return new argument_object(name, size, FINITE);
     }
 
     //! Dynamically allocates a new vector argument_object.
-    static argument_object* vector(const std::string& name, size_t size) {
+    static argument_object* vector(const std::string& name, std::size_t size) {
       return new argument_object(name, size, VECTOR);
     }
 
@@ -65,7 +65,8 @@ namespace libgm {
     }
 
     //! Prints the object to an output stream.
-    friend std::ostream& operator<<(std::ostream& out, const argument_object& a) {
+    friend std::ostream&
+    operator<<(std::ostream& out, const argument_object& a) {
       switch (a.category) {
       case argument_object::FINITE:
         out << 'F'; break;

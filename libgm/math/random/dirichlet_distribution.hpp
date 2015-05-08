@@ -26,7 +26,7 @@ namespace libgm {
     explicit dirichlet_distribution(const param_type& alpha)
       : alpha_(alpha) {
       assert(!alpha.empty());
-      for (size_t i = 0; i < alpha.size(); ++i) {
+      for (std::size_t i = 0; i < alpha.size(); ++i) {
         gamma_.emplace_back(alpha[i], T(1));
       }
     }
@@ -35,12 +35,12 @@ namespace libgm {
      * Constructs a Dirichlet distribution with given dimentionality n and
      * fixed alpha.
      */
-    dirichlet_distribution(size_t n, T alpha)
+    dirichlet_distribution(std::size_t n, T alpha)
       : alpha_(n, alpha), gamma_(n, std::gamma_distribution<T>(alpha, T(1))) { }
 
 
     //! Returns the dimensionality of the random vector.
-    size_t n() const {
+    std::size_t n() const {
       return alpha_.size();
     }
 
@@ -54,11 +54,11 @@ namespace libgm {
     result_type operator()(Generator& rng) {
       result_type result(alpha_.size());
       T total(0);
-      for (size_t i = 0; i < alpha_.size(); ++i) {
+      for (std::size_t i = 0; i < alpha_.size(); ++i) {
         result[i] = gamma_[i](rng);
         total += result[i];
       }
-      for (size_t i = 0; i < alpha_.size(); ++i) {
+      for (std::size_t i = 0; i < alpha_.size(); ++i) {
         result[i] /= total;
       }
       return result;

@@ -25,8 +25,8 @@ namespace libgm {
    * \relates vector_assignment
    */
   template <typename T, typename Var>
-  size_t vector_size(const vector_assignment<T, Var>& a) {
-    size_t size = 0;
+  std::size_t vector_size(const vector_assignment<T, Var>& a) {
+    std::size_t size = 0;
     for (const auto& p : a) {
       size += p.first.size();
     }
@@ -43,7 +43,7 @@ namespace libgm {
   extract(const vector_assignment<T, Var>& a,
           const basic_domain<Var>& dom) {
     dynamic_vector<T> result(vector_size(dom));
-    size_t i = 0;
+    std::size_t i = 0;
     for (Var v : dom) {
       result.segment(i, v.size()) = a.at(v);
       i += v.size();

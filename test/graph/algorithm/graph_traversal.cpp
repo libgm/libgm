@@ -22,8 +22,8 @@ typedef boost::mpl::list<
 typedef std::pair<int, int> vpair;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_simple, Graph, graph_types) {
-  std::vector<vpair> vpairs = 
-    {vpair(5, 2), vpair(1, 2), vpair(1, 3), vpair(1, 7), 
+  std::vector<vpair> vpairs =
+    {vpair(5, 2), vpair(1, 2), vpair(1, 3), vpair(1, 7),
      vpair(2, 3), vpair(3, 4)};
   Graph g(vpairs);
   std::vector<int> order;
@@ -34,7 +34,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_simple, Graph, graph_types) {
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_multi_edges, Graph, graph_types) {
   std::vector<vpair> vpairs =
-    {vpair(5, 2), vpair(1, 2), vpair(1, 3), vpair(1, 7), 
+    {vpair(5, 2), vpair(1, 2), vpair(1, 3), vpair(1, 7),
      vpair(2, 3), vpair(3, 4), vpair(1, 2)};
   Graph g(vpairs);
   std::vector<int> order;
@@ -45,7 +45,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_multi_edges, Graph, graph_types) {
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_cycle, Graph, graph_types) {
   std::vector<vpair> vpairs =
-    {vpair(5, 2), vpair(1, 2), vpair(1, 3), vpair(1, 7), 
+    {vpair(5, 2), vpair(1, 2), vpair(1, 3), vpair(1, 7),
      vpair(2, 3), vpair(3, 4), vpair(4, 1)};
   Graph g(vpairs);
   BOOST_CHECK_THROW(partial_order_traversal(g, [](int v) { }),

@@ -1,7 +1,6 @@
 #ifndef LIBGM_PAIRWISE_MARKOV_NETWORK_HPP
 #define LIBGM_PAIRWISE_MARKOV_NETWORK_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/graph/property_fn.hpp>
 #include <libgm/graph/undirected_graph.hpp>
 #include <libgm/iterator/join_iterator.hpp>
@@ -21,14 +20,14 @@ namespace libgm {
    *
    * \ingroup model
    */
-  template <typename NodeF, typename EdgeF = NodeF> 
-  class pairwise_markov_network 
+  template <typename NodeF, typename EdgeF = NodeF>
+  class pairwise_markov_network
     : public undirected_graph<typename NodeF::variable_type, NodeF, EdgeF> {
     static_assert(pairwise_compatible<NodeF, EdgeF>::value,
                   "The node and edge factors are not pairwise compatible");
 
     typedef undirected_graph<typename NodeF::variable_type, NodeF, EdgeF> base;
-  
+
     // Public type declarations
     //==========================================================================
   public:
@@ -73,7 +72,7 @@ namespace libgm {
     }
 
     /**
-     * Constructs a pairwise Markov network from a collection of factors. 
+     * Constructs a pairwise Markov network from a collection of factors.
      * \tparam Range A forward range over elements convertible to NodeF or EdgeF
      */
     template <typename Range>
@@ -118,7 +117,7 @@ namespace libgm {
     const edge_domain_type& arguments(const edge_type& e) const {
       return (*this)[e].arguments();
     }
-    
+
     //! Returns the factors associated with vertices.
     iterator_range<node_factor_iterator>
     node_factors() const {
@@ -144,7 +143,7 @@ namespace libgm {
       auto ef = edge_factors();
       return make_join_iterator(nf.begin(), nf.end(), ef.begin());
     }
-    
+
     /**
      * Returns iterator to past the last factor in the model.
      * This function is only available if NodeF and EdgeF is the same type.
@@ -156,7 +155,7 @@ namespace libgm {
       auto ef = edge_factors();
       return make_join_iterator(nf.end(), nf.end(), ef.end());
     }
-    
+
     // Queries
     //==========================================================================
 
@@ -273,7 +272,7 @@ namespace libgm {
         }
       }
     }
-    
+
   }; // class pairwise_markov_network
 
 } // namespace libgm

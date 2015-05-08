@@ -39,7 +39,8 @@ namespace libgm {
    * \ingroup graph_algorithms
    */
   template <typename Graph, typename Set>
-  void ancestors(const Graph& graph, typename Graph::vertex_type v, Set& result) {
+  void ancestors(const Graph& graph, typename Graph::vertex_type v,
+                 Set& result) {
     Set vertices;
     vertices.insert(v);
     ancestors(graph, vertices, result);

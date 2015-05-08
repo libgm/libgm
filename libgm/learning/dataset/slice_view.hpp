@@ -19,23 +19,23 @@ namespace libgm {
     slice() : start_(0), size_(0) { }
 
     //! Constructs a slice with given start and size
-    slice(size_t start, size_t size) : start_(start), size_(size) { }
+    slice(std::size_t start, std::size_t size) : start_(start), size_(size) { }
 
     //! Returns the first index.
-    size_t start() const { return start_; }
+    std::size_t start() const { return start_; }
 
     //! Returns the one past the last index. Alias for start + size.
-    size_t stop() const { return start_ + size_; }
+    std::size_t stop() const { return start_ + size_; }
 
     //! Returns the size of the range.
-    size_t size() const { return size_; }
+    std::size_t size() const { return size_; }
 
     //! Returns true if the slice is empty.
     bool empty() const { return size_ == 0; }
 
   private:
-    size_t start_; //!< the index of the first row
-    size_t size_;  //!< the number of rows in the slice
+    std::size_t start_; //!< the index of the first row
+    std::size_t size_;  //!< the number of rows in the slice
   };
 
   /**
@@ -92,7 +92,7 @@ namespace libgm {
       : dataset_(dataset), size_(0) {
       initialize(s);
     }
-      
+
     //! Swaps two views.
     friend void swap(slice_view& a, slice_view& b) {
       using std::swap;
@@ -110,12 +110,12 @@ namespace libgm {
     }
 
     //! Returns the number of arguments of this view.
-    size_t arity() const {
+    std::size_t arity() const {
       return dataset_->arity();
     }
 
     //! Returns the number of rows in this view.
-    size_t size() const {
+    std::size_t size() const {
       return size_;
     }
 
@@ -125,10 +125,10 @@ namespace libgm {
     }
 
     //! Returns the total number of slices in this view.
-    size_t num_slices() const {
+    std::size_t num_slices() const {
       return slices_.size();
     }
-    
+
     //! Returns the underlying dataset.
     BaseDS& dataset() {
       return *dataset_;
@@ -160,7 +160,7 @@ namespace libgm {
     }
 
     //! Returns a single datapoint in the dataset.
-    auto operator[](size_t row) const -> decltype(dataset()[0]) {
+    auto operator[](std::size_t row) const -> decltype(dataset()[0]) {
       return dataset()[absolute(row)];
     }
 
@@ -181,12 +181,13 @@ namespace libgm {
     }
 
     //! Returns a single datapoint in the dataset over a subset of arguments.
-    value_type operator()(size_t row, const domain_type& dom) const {
+    value_type operator()(std::size_t row, const domain_type& dom) const {
       return dataset()(absolute(row), dom);
     }
 
     //! Returns a range over assignment-weight pairs.
-    iterator_range<assignment_iterator> assignments() const {
+    iterator_range<assignment_iterator>
+    assignments() const {
       return iterator_range<assignment_iterator>(
         assignment_iterator(slices_, dataset().assignments().begin()),
         assignment_iterator(slices_)
@@ -194,7 +195,8 @@ namespace libgm {
     }
 
     //! Returns a range over the assignment-weight pairs for a subset of args.
-    iterator_range<assignment_iterator> assignments(const domain_type& d) const {
+    iterator_range<assignment_iterator>
+    assignments(const domain_type& d) const {
       return iterator_range<assignment_iterator>(
         assignment_iterator(slices_, dataset().assignments(d).begin()),
         assignment_iterator(slices_)
@@ -202,13 +204,14 @@ namespace libgm {
     }
 
     //! Returns an assignment and weight for a single datapoint.
-    std::pair<assignment_type, weight_type> assignment(size_t row) const {
+    std::pair<assignment_type, weight_type>
+    assignment(std::size_t row) const {
       return dataset().assignment(absolute(row));
     }
 
     //! Returns an assignment and weight for a single datapoint.
     std::pair<assignment_type, weight_type>
-    assignment(size_t row, const domain_type& dom) const {
+    assignment(std::size_t row, const domain_type& dom) const {
       return dataset().assignment(absolute(row), dom);
     }
 
@@ -241,7 +244,7 @@ namespace libgm {
           end_(nullptr),
           nrows_(0) { }
 
-      // end constructor 
+      // end constructor
       explicit slice_iterator(const std::vector<slice>& slices)
         : cur_(slices.data() + slices.size()),
           end_(slices.data() + slices.size()),
@@ -265,9 +268,10 @@ namespace libgm {
        * \tparam OtherBaseIt type that is convertible to BaseIt
        */
       template <typename OtherBaseIt>
-      slice_iterator(const slice_iterator<OtherBaseIt>& other,
-                     typename std::enable_if<
-                       std::is_convertible<OtherBaseIt, BaseIt>::value>::type* = 0) {
+      slice_iterator(
+        const slice_iterator<OtherBaseIt>& other,
+        typename std::enable_if<
+          std::is_convertible<OtherBaseIt, BaseIt>::value>::type* = 0) {
         *this = other;
       }
 
@@ -276,9 +280,10 @@ namespace libgm {
        * \tparam OtherBaseIt type that is convertible to BaseIt
        */
       template <typename OtherBaseIt>
-      slice_iterator(slice_iterator<OtherBaseIt>&& other,
-                     typename std::enable_if<
-                       std::is_convertible<OtherBaseIt, BaseIt>::value>::type* = 0) {
+      slice_iterator(
+        slice_iterator<OtherBaseIt>&& other,
+        typename std::enable_if<
+          std::is_convertible<OtherBaseIt, BaseIt>::value>::type* = 0) {
         *this = std::move(other);
       }
 
@@ -369,10 +374,10 @@ namespace libgm {
       }
 
     private:
-      const slice* cur_; //!< the pointer to the current slice
-      const slice* end_; //!< the pointer to the end of the slice array 
-      size_t nrows_;     //!< rows left in the current slice including current one
-      BaseIt it_;        //!< the underlying iterator
+      const slice* cur_;  //!< the pointer to the current slice
+      const slice* end_;  //!< the pointer to the end of the slice array
+      std::size_t nrows_; //!< rows left in the current slice including current
+      BaseIt it_;         //!< the underlying iterator
 
       template <typename OtherBaseIt> friend class slice_iterator;
 
@@ -383,7 +388,7 @@ namespace libgm {
   private:
     // initializes the slice vector and the view size
     void initialize(const std::vector<slice>& slices) {
-      size_t ds_size = dataset_->size();
+      std::size_t ds_size = dataset_->size();
       for (const slice& s : slices) {
         assert(s.stop() <= ds_size);
         if (!s.empty()) {
@@ -394,7 +399,7 @@ namespace libgm {
     }
 
     //! Returns the absolute row index given the row in this dataset
-    size_t absolute(size_t row) const {
+    std::size_t absolute(std::size_t row) const {
       for (const slice& s : slices_) {
         if (row < s.size()) {
           return s.start() + row;
@@ -410,7 +415,7 @@ namespace libgm {
   private:
     BaseDS* dataset_;            // underlying dataset
     std::vector<slice> slices_;  // list of slices (unsorted)
-    size_t size_;                // cached number of rows
+    std::size_t size_;                // cached number of rows
 
   }; // class slice_view
 

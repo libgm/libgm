@@ -23,7 +23,9 @@ namespace libgm {
 
     //! Constructs an empty result.
     line_search_result()
-      : step(nan<RealType>()), value(nan<RealType>()), slope(nan<RealType>()) { }
+      : step(nan<RealType>()),
+        value(nan<RealType>()),
+        slope(nan<RealType>()) { }
 
     //! Constructs a result.
     explicit line_search_result(RealType step,
@@ -45,7 +47,7 @@ namespace libgm {
 
   //! \relates line_search_result
   template <typename RealType>
-  std::ostream& 
+  std::ostream&
   operator<<(std::ostream& out, const line_search_result<RealType>& r) {
     if (r.empty()) {
       out << "(empty)";
@@ -54,7 +56,7 @@ namespace libgm {
     }
     return out;
   }
-  
+
 } // namespace libgm
 
 #endif

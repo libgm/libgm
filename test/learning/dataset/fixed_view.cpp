@@ -45,7 +45,7 @@ struct finite_fixture {
 
     ds.initialize({a, b});
 
-    dynamic_matrix<size_t> values;
+    dynamic_matrix<std::size_t> values;
     values.resize(2, 3);
     values << 0, 1, 2, 3, 4, 1;
     ds.insert(values, 1.0);
@@ -57,7 +57,7 @@ struct finite_fixture {
     values.resize(2, 2);
     values << 2, 3, 1, 0;
     ds.insert(values, 3.0);
-  
+
     values.resize(2, 0);
     ds.insert(values, 0.5);
   }
@@ -130,7 +130,7 @@ BOOST_FIXTURE_TEST_CASE(test_assignment_iterator, finite_fixture) {
   view_type view1(&ds, 1, 1);
   view_type::assignment_iterator it, end;
   std::tie(it, end) = view1.assignments();
-  
+
   BOOST_CHECK_EQUAL(it->first.size(), 2);
   BOOST_CHECK_EQUAL(it->first.at(a0), 1);
   BOOST_CHECK_EQUAL(it->first.at(b0), 4);
@@ -222,7 +222,7 @@ struct vector_fixture {
     values.resize(3, 2);
     values << 2, 3, 1, 0, 8, 9;
     ds.insert(values, 3.0);
-  
+
     values.resize(3, 0);
     ds.insert(values, 0.5);
   }

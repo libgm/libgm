@@ -77,12 +77,12 @@ namespace libgm {
      */
     void process(const finite_index& head, const table<T>& ptail,
                  table<T>& p) const {
-      size_t nhead = head.size();
-      size_t ntail = ptail.arity();
+      std::size_t nhead = head.size();
+      std::size_t ntail = ptail.arity();
       assert(nhead + ntail == p.arity());
 
       T* dest = p.begin() + p.offset().linear(head, 0);
-      size_t inc = (ntail > 0) ? p.offset().multiplier(nhead) : p.size();
+      std::size_t inc = (ntail > 0) ? p.offset().multiplier(nhead) : p.size();
       assert(inc * ptail.size() == p.size());
       for (T w : ptail) {
         *dest += w;

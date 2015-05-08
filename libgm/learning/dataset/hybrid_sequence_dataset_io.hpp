@@ -14,7 +14,7 @@ namespace libgm {
   /**
    * Loads a hybrid sequence memory dataset using the symbolic format.
    * Each data point (sequence) in the dataset is stored as a separate file.
-   * The file is formatted as a table, with columns corresponding to the 
+   * The file is formatted as a table, with columns corresponding to the
    * processes and rows corresponding to time steps.
    * The dataset must not be initialized.
    *
@@ -27,38 +27,40 @@ namespace libgm {
     // initialize the dataset
     ds.initialize(format.discrete_procs(), filenames.size());
 
-    for (size_t i = 0; i < filenames.size(); ++i) {
+    for (std::size_t i = 0; i < filenames.size(); ++i) {
       // open the file
       std::ifstream in(filenames[i]);
       if (!in) {
         throw std::runtime_error("Cannot open the file " + filename);
       }
-    
+
       // read the table, storing the values for each time step
-      size_t fcols = ds.arguments().finite_size();
-      size_t vcols = ds.arguments().vector_size();
-      std::vector<std::vector<size_t> > fvalues;
+      std::size_t fcols = ds.arguments().finite_size();
+      std::size_t vcols = ds.arguments().vector_size();
+      std::vector<std::vector<std::size_t> > fvalues;
       std::vector<std::vector<T> > vvalues;
       std::string line;
-      size_t line_number = 0;
+      std::size_t line_number = 0;
       while (std::getline(in, line)) {
         std::vector<const char*> tokens;
         if (format.parse(fcols + vcols, line, line_number, tokens)) {
-          std::vector<size_t> fval_t;
+          std::vector<std::size_t> fval_t;
           std::vector<T> vval_t;
           fval_t.reserve(fcols);
           vval_t.reserve(vcols);
-          size_t col = format.skip_cols;
+          std::size_t col = format.skip_cols;
           for (const auto& info : format.discrete_infos) {
             if (info.is_finite()) {
               fval_t.push_back(info.parse(tokens[col++]));
             } else if (info.is_vector()) {
-              size_t len = info.size();
-              for (size_t j = 0; j < len; ++j) {
+              std::size_t len = info.size();
+              for (std::size_t j = 0; j < len; ++j) {
                 vval_t.push_back(parse_string<T>(tokens[col++]));
               }
             } else {
-              throw std::logic_error("Unsupported variable type " + info.name());
+              throw std::logic_error(
+                "Unsupported variable type " + info.name()
+              );
             }
           }
           assert(fval_t.size() == fcols);
@@ -72,8 +74,8 @@ namespace libgm {
       hybrid_matrix<T> data;
       data.finite().resize(fcols, fvalues.size());
       data.vector().resize(vcols, vvalues.size());
-      size_t* fdest = data.finite().data();
-      for (const std::vector<size_t>& fval_t : fvalues) {
+      std::size_t* fdest = data.finite().data();
+      for (const std::vector<std::size_t>& fval_t : fvalues) {
         fdest = std::copy(fval_t.begin(), fval_t.end(), fdest);
       }
       T* vdeset = data.vector().data();
@@ -98,13 +100,17 @@ namespace libgm {
             const hybrid_sequence_dataset<T>& ds) {
     // Check the arguments
     if (!format.is_hybrid_discrete()) {
-      throw std::domain_error("The format contains process(es) that are not hybrid");
+      throw std::domain_error(
+        "The format contains process(es) that are not hybrid"
+      );
     }
     if (filenames.size() != ds.size()) {
-      throw std::invalid_argument("The number of filenames and rows does not match");
+      throw std::invalid_argument(
+        "The number of filenames and rows does not match"
+      );
     }
 
-    size_t row = 0;
+    std::size_t row = 0;
     for (const auto& value : ds(format.discrete_procs())) {
       // Open the file
       std::ofstream out(filenames[row]);
@@ -114,27 +120,27 @@ namespace libgm {
       ++row;
 
       // Output dummy rows
-      for (size_t i = 0; i < format.skip_rows; ++i) {
+      for (std::size_t i = 0; i < format.skip_rows; ++i) {
         out << std::endl;
       }
 
       // Output the data
       std::string separator = format.separator.empty() ? " " : format.separator;
       const hybrid_matrix<T>& data = value.first;
-      size_t num_steps = data.finite().cols();
-      for (size_t t = 0; t < num_steps; ++t) {
-        for (size_t i = 0; i < format.skip_cols; ++i) {
+      std::size_t num_steps = data.finite().cols();
+      for (std::size_t t = 0; t < num_steps; ++t) {
+        for (std::size_t i = 0; i < format.skip_cols; ++i) {
           out << "0" << separator;
         }
-        size_t fi = 0;
-        size_t vi = 0;
+        std::size_t fi = 0;
+        std::size_t vi = 0;
         for (const auto& info : format.discrete_infos) {
           if (info.is_finite()) {
             if (fi || fj) { out << separator; }
             info.print(out, data.finite()(fi++, t));
           } else {
-            size_t len = info.size();
-            for (size_t j = 0; j < len; ++j) {
+            std::size_t len = info.size();
+            for (std::size_t j = 0; j < len; ++j) {
               if (fi || fj) { out << separator; }
               out << data.vector()(vi++, t);
             }

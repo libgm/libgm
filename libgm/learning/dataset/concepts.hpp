@@ -5,11 +5,11 @@ namespace libgm {
 
   /**
    * Represents a sequence of dense datapoints, where each column
-   * is a variable of the specified type. Supports efficient 
+   * is a variable of the specified type. Supports efficient
    * iteration over all the data for a specified subset of the columns,
    * in the form of the records of the given type. The record type
    * is variable_type-dependent and provides weight and values in the
-   * native (flat) representation of the extracted data, so that many 
+   * native (flat) representation of the extracted data, so that many
    * factor operations, such as sampling or log-likelihood can be
    * performed without additional data lookups/transforms or allocs.
    *
@@ -41,7 +41,7 @@ namespace libgm {
     typedef typename DS::const_record_iterator const_record_iterator;
 
     //! Returns the number of datapoints in the dataset.
-    size_t size() const;
+    std::size_t size() const;
 
     //! Returns true if the dataset has no datapoints.
     bool empty() const;
@@ -54,11 +54,11 @@ namespace libgm {
 
     //! Returns a single datapoint in the dataset's internal variable order.
     //! This function may not be implemented efficiently.
-    record_type record(size_t row) const;
+    record_type record(std::size_t row) const;
 
     //! Returns a single datapoint for a subset of columns in the given order.
     //! This function may not be implemented efficiently.
-    record_type record(size_t row, const var_vector_type& vars) const;
+    record_type record(std::size_t row, const var_vector_type& vars) const;
 
     //! Provides mutable access to a subset of columns in the specified order.
     std::pair<record_iterator, record_iterator>
@@ -70,8 +70,9 @@ namespace libgm {
 
     //! Returns a random datapoint drawn from this dataset.
     template <typename RandomNumberGenerator>
-    record_type sample(const var_vector_type& vars, RandomNumberGenerator& rng) const;
-    
+    record_type sample(const var_vector_type& vars,
+                       RandomNumberGenerator& rng) const;
+
   };
 
   /**
@@ -92,7 +93,7 @@ namespace libgm {
 
     //! Inserts the given number of datapoints with unit weights and
     //! variable_type-specific special undefined values.
-    void insert(size_t nrows);
+    void insert(std::size_t nrows);
 
   };
 

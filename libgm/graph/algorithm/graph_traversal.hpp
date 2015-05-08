@@ -1,8 +1,6 @@
 #ifndef LIBGM_GRAPH_TRAVERSAL_HPP
 #define LIBGM_GRAPH_TRAVERSAL_HPP
 
-#include <libgm/global.hpp>
-
 #include <queue>
 #include <unordered_map>
 
@@ -25,7 +23,7 @@ namespace libgm {
 
     // Split the vertices to those without and with parents
     std::queue<vertex_type> q;
-    std::unordered_map<vertex_type, size_t> in_degree;
+    std::unordered_map<vertex_type, std::size_t> in_degree;
     in_degree.reserve(graph.num_vertices());
     for (vertex_type v : graph.vertices()) {
       if (graph.in_degree(v) == 0) {

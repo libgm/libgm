@@ -1,8 +1,8 @@
 #ifndef LIBGM_DIRECTED_GRAPH_HPP
 #define LIBGM_DIRECTED_GRAPH_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/graph/directed_edge.hpp>
+#include <libgm/graph/void.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
 #include <libgm/range/iterator_range.hpp>
 #include <libgm/serialization/serialize.hpp>
@@ -28,7 +28,7 @@ namespace libgm {
    * \see Graph
    */
   template <typename Vertex,
-            typename VertexProperty = void_, 
+            typename VertexProperty = void_,
             typename EdgeProperty = void_>
   class directed_graph {
 
@@ -55,17 +55,17 @@ namespace libgm {
 
     // Public type declerations
     //==========================================================================
-  public:    
+  public:
     typedef Vertex vertex_type;              //!< The vertex type.
     typedef directed_edge<Vertex> edge_type; //!< The edge type.
     typedef VertexProperty vertex_property;  //!< Data associated with vertices.
     typedef EdgeProperty edge_property;      //!< Data associated with edges.
-    
+
     // Forward declerations. See the bottom of the class for implemenations
     class edge_iterator;     //!< Iterator over all edges of the graph.
     class in_edge_iterator;  //!< Iterator over incoming edges to a node.
     class out_edge_iterator; //!< Iterator over outgoing edges from a node.
-    
+
     //! Iterator over all vertices.
     typedef map_key_iterator<vertex_data_map> vertex_iterator;
 
@@ -87,7 +87,7 @@ namespace libgm {
         add_edge(vp.first, vp.second);
       }
     }
-    
+
     //! Copy constructor.
     directed_graph(const directed_graph& g) {
       *this = g;
@@ -106,7 +106,7 @@ namespace libgm {
       edge_count_ = other.edge_count_;
       for (edge_type e : edges()) {
         if(e.property_ != NULL) {
-          EdgeProperty* ptr = 
+          EdgeProperty* ptr =
             new EdgeProperty(*static_cast<EdgeProperty*>(e.property_));
           data_[e.source()].children[e.target()] = ptr;
           data_[e.target()].parents[e.source()]  = ptr;
@@ -130,7 +130,7 @@ namespace libgm {
       return { vertex_iterator(data_.begin()),
                vertex_iterator(data_.end()) };
     }
-    
+
     //! Returns the parents of u.
     iterator_range<neighbor_iterator>
     parents(Vertex u) const {
@@ -174,14 +174,14 @@ namespace libgm {
     bool contains(Vertex u) const {
       return data_.find(u) != data_.end();
     }
-    
+
     //! Returns true if the graph contains a directed edge (u, v).
     bool contains(Vertex u, Vertex v) const {
       auto it = data_.find(u);
-      return it != data_.end() && 
+      return it != data_.end() &&
         it->second.children.find(v) != it->second.children.end();
     }
-    
+
     //! Returns true if the graph contains a directed edge.
     bool contains(const edge_type& e) const {
       return contains(e.source(), e.target());
@@ -199,7 +199,7 @@ namespace libgm {
      * Returns the number of incoming edges to a vertex. The vertex must
      * already be present in the graph.
      */
-    size_t in_degree(Vertex u) const {
+    std::size_t in_degree(Vertex u) const {
       return find_vertex_data(u).parents.size();
     }
 
@@ -207,15 +207,15 @@ namespace libgm {
      * Returns the number of outgoing edges to a vertex. The vertex must
      * already be present in the graph.
      */
-    size_t out_degree(Vertex u) const {
+    std::size_t out_degree(Vertex u) const {
       return find_vertex_data(u).children.size();
     }
-    
+
     /**
      * Returns the total number of edges adjacent to a vertex. The vertex must
      * already be present in the graph.
      */
-    size_t degree(Vertex u) const {
+    std::size_t degree(Vertex u) const {
       const vertex_data& data = find_vertex_data(u);
       return data.parents.size() + data.children.size();
     }
@@ -226,19 +226,19 @@ namespace libgm {
     }
 
     //! Returns the number of vertices.
-    size_t num_vertices() const {
+    std::size_t num_vertices() const {
       return data_.size();
     }
 
     //! Returns the number of edges.
-    size_t num_edges() const {
+    std::size_t num_edges() const {
       return edge_count_;
     }
 
     //! Given a directed edge (u, v), returns a directed edge (v, u).
     //! The edge (v, u) must exist.
-    edge_type reverse(const edge_type& e) const { 
-      return edge_type(e.target(), e.source()); 
+    edge_type reverse(const edge_type& e) const {
+      return edge_type(e.target(), e.source());
     }
 
     //! Returns the property associated with a vertex.
@@ -250,7 +250,7 @@ namespace libgm {
     VertexProperty& operator[](Vertex u) {
       return find_vertex_data(u).property;
     }
-    
+
     //! Returns the property associated with an edge.
     const EdgeProperty& operator[](const edge_type& e) const {
       return *static_cast<EdgeProperty*>(e.property_);
@@ -307,7 +307,7 @@ namespace libgm {
     bool operator!=(const directed_graph& other) const {
       return !(*this == other);
     }
-    
+
     // Modifications
     //==========================================================================
     /**
@@ -341,7 +341,7 @@ namespace libgm {
           return std::make_pair(edge_type(u, v, vit->second), false);
         }
       }
-      EdgeProperty* ptr = new EdgeProperty(p); 
+      EdgeProperty* ptr = new EdgeProperty(p);
       data_[u].children[v] = ptr;
       data_[v].parents[u]  = ptr;
       ++edge_count_;
@@ -350,7 +350,7 @@ namespace libgm {
 
     //! Removes a vertex from the graph and all its incident edges.
     void remove_vertex(Vertex u) {
-      remove_edges(u);      
+      remove_edges(u);
       data_.erase(u);
     }
 
@@ -411,7 +411,7 @@ namespace libgm {
       data_.clear();
       edge_count_ = 0;
     }
-    
+
     //! Saves the graph to an archive.
     void save(oarchive& ar) const {
       ar << num_vertices();
@@ -423,11 +423,11 @@ namespace libgm {
         ar << e.source() << e.target() << operator[](e);
       }
     }
-    
+
     //! Loads the graph from an archive.
     void load(iarchive& ar) {
       clear();
-      size_t num_vertices, num_edges;
+      std::size_t num_vertices, num_edges;
       Vertex u, v;
       ar >> num_vertices;
       ar >> num_edges;
@@ -436,21 +436,21 @@ namespace libgm {
         ar >> data_[v].property;
       }
       while (num_edges-- > 0) {
-        ar >> u >> v; 
+        ar >> u >> v;
         ar >> operator()(u, v);
       }
     }
 
     // Private functions
     //==========================================================================
-  private: 
-    const vertex_data& find_vertex_data(Vertex v) const { 
+  private:
+    const vertex_data& find_vertex_data(Vertex v) const {
       auto it = data_.find(v);
       assert(it != data_.end());
       return it->second;
     }
 
-    vertex_data& find_vertex_data(Vertex v) { 
+    vertex_data& find_vertex_data(Vertex v) {
       auto it = data_.find(v);
       assert(it != data_.end());
       return it->second;
@@ -614,9 +614,9 @@ namespace libgm {
   private:
     //! A map from each vertex to its vertex data.
     vertex_data_map data_;
-    
+
     //! The total number of directed edges in the graph.
-    size_t edge_count_;
+    std::size_t edge_count_;
 
   }; // class directed_graph
 
@@ -636,7 +636,7 @@ namespace libgm {
       out << e << std::endl;
     }
     return out;
-  } 
+  }
 
 } // namespace libgm
 
@@ -646,7 +646,7 @@ namespace boost {
   //! Type declarations that let our graph structure work in BGL algorithms
   template <typename Vertex, typename VP, typename EP>
   struct graph_traits< libgm::directed_graph<Vertex, VP, EP> > {
-    
+
     typedef libgm::directed_graph<Vertex, VP, EP> graph_type;
 
     typedef typename graph_type::vertex_type        vertex_descriptor;
@@ -666,9 +666,9 @@ namespace boost {
       public virtual boost::adjacency_graph_tag,
       public virtual boost::edge_list_graph_tag { };
 
-    typedef size_t vertices_size_type;
-    typedef size_t edges_size_type;
-    typedef size_t degree_size_type;
+    typedef std::size_t vertices_size_type;
+    typedef std::size_t edges_size_type;
+    typedef std::size_t degree_size_type;
 
     static vertex_descriptor null_vertex() { return vertex_descriptor(); }
   };

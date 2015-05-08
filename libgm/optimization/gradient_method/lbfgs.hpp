@@ -30,7 +30,7 @@ namespace libgm {
   public:
     typedef typename vector_value<Vec>::type real_type;
     typedef line_search_result<real_type> result_type;
-    
+
     struct param_type {
       /**
        * We declare convergence if the difference between the previous
@@ -41,9 +41,9 @@ namespace libgm {
       /**
        * The number of previous gradients used for approximating the Hessian.
        */
-      size_t history;
-    
-      param_type(real_type convergence = 1e-6, size_t history = 10)
+      std::size_t history;
+
+      param_type(real_type convergence = 1e-6, std::size_t history = 10)
         : convergence(convergence), history(history) { }
 
       friend std::ostream& operator<<(std::ostream& out, const param_type& p) {
@@ -97,13 +97,13 @@ namespace libgm {
         g_ = objective_->gradient(x_);
       }
       Vec dir = g_;
-      size_t m = std::min(param_.history, iteration_);
+      std::size_t m = std::min(param_.history, iteration_);
       std::vector<real_type> alpha(m + 1);
-      for (size_t i = 1; i <= m; ++i) {
+      for (std::size_t i = 1; i <= m; ++i) {
         alpha[i] = rho(i) * dot(s(i), dir);
         update(dir, y(i), -alpha[i]);
       }
-      for (size_t i = m; i >= 1; --i) {
+      for (std::size_t i = m; i >= 1; --i) {
         real_type beta = rho(i) * dot(y(i), dir);
         update(dir, s(i), alpha[i] - beta);
       }
@@ -113,7 +113,7 @@ namespace libgm {
       result_type result = search_->step(x_, dir, result_.next(dot(g_, dir)));
 
       // update the solution and compute the new values of s, y, and rho
-      size_t index = iteration_ % param_.history;
+      std::size_t index = iteration_ % param_.history;
       shist_[index] = std::move(dir);
       shist_[index] *= result.step;
       x_ += shist_[index];
@@ -140,20 +140,20 @@ namespace libgm {
 
   private:
     //! Returns the i-th historical value of s, where i <= min(m, iteration_)
-    const Vec& s(size_t i) const {
+    const Vec& s(std::size_t i) const {
       return shist_[(iteration_ - i) % param_.history];
     }
 
     //! Returns the i-th historical value of y, where i <= min(m, iteration_)
-    const Vec& y(size_t i) const {
+    const Vec& y(std::size_t i) const {
       return yhist_[(iteration_ - i) % param_.history];
     }
 
     //! Returns the i-th historical value of rho, where i <= min(m, iteration_)
-    real_type rho(size_t i) const {
+    real_type rho(std::size_t i) const {
       return rhist_[(iteration_ - i) % param_.history];
     }
-    
+
     //! The line search algorithm
     std::unique_ptr<line_search<Vec> > search_;
 
@@ -173,7 +173,7 @@ namespace libgm {
     std::vector<real_type> rhist_;
 
     //! Current iteration
-    size_t iteration_;
+    std::size_t iteration_;
 
     //! Last solution
     Vec x_;
@@ -188,7 +188,7 @@ namespace libgm {
     bool converged_;
 
   }; // class lbfgs
-  
+
 } // namespace libgm
 
 #endif

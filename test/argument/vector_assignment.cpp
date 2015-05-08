@@ -12,7 +12,7 @@ BOOST_AUTO_TEST_CASE(test_vector_size) {
   universe u;
   variable x = u.new_vector_variable("x", 3);
   variable y = u.new_vector_variable("y", 2);
-  
+
   vector_assignment<double> a;
   BOOST_CHECK_EQUAL(vector_size(a), 0);
 

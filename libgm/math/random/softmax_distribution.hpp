@@ -19,7 +19,7 @@ namespace libgm {
     typedef softmax_param<T> param_type;
 
     //! The type representing a sample
-    typedef size_t result_type;
+    typedef std::size_t result_type;
 
     //! The type representing the assignment to the tail.
     typedef dynamic_vector<T> tail_type;
@@ -32,17 +32,17 @@ namespace libgm {
     const param_type& param() const {
       return param_;
     }
-    
+
     //! Draws a random sample from a softmax distribution
     template <typename Generator>
-    size_t operator()(Generator& rng, const tail_type& tail) const {
+    std::size_t operator()(Generator& rng, const tail_type& tail) const {
       return param_.sample(rng, tail);
     }
 
   private:
     //! The parameters determining the softmax distribution.
     softmax_param<T> param_;
-    
+
   }; // class softmax_distribution
 
 } // namespace libgm

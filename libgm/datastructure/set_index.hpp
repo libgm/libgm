@@ -1,7 +1,6 @@
 #ifndef LIBGM_SET_INDEX_HPP
 #define LIBGM_SET_INDEX_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/iterator/counting_output_iterator.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
 #include <libgm/range/iterator_range.hpp>
@@ -112,7 +111,7 @@ namespace libgm {
     }
 
     //! Returns the number of values stored in this index.
-    size_t num_values() const {
+    std::size_t num_values() const {
       return adjacency_.size();
     }
 
@@ -127,7 +126,7 @@ namespace libgm {
     /**
      * Returns the number of sets that contain a value.
      */
-    size_t count(value_type value) const {
+    std::size_t count(value_type value) const {
       auto it = adjacency_.find(value);
       return it != adjacency_.end() ? it->second.size() : 0;
     }
@@ -135,7 +134,7 @@ namespace libgm {
     /**
      * Returns the size of the intersection of two sets with given handles.
      */
-    size_t intersection_size(Handle a, Handle b) {
+    std::size_t intersection_size(Handle a, Handle b) {
       counting_output_iterator out;
       const vector_type& veca = *sets_.at(a);
       const vector_type& vecb = *sets_.at(b);
@@ -156,7 +155,7 @@ namespace libgm {
                             std::inserter(result, result.end()));
       return result;
     }
-    
+
     /**
      * Intersection query.  The handle for each set in this index that
      * intersects the supplied range is written to the output iterator.
@@ -170,7 +169,7 @@ namespace libgm {
         nelems += adjacency(value).size();
       }
       visited.reserve(nelems);
-      
+
       // compute the union of all neighbors
       for (value_type value : range) {
         for (const auto& p : adjacency(value)) {
@@ -187,9 +186,9 @@ namespace libgm {
     /**
      * Maximal intersection query: find a set whose intersection with
      * the supplied range is maximal and non-zero.
-     * 
+     *
      * \return the handle for a set with a non-zero maximal intersection
-     *         with the supplied set. Of the sets with the same 
+     *         with the supplied set. Of the sets with the same
      *         intersection size, returns the smallest one.
      *         Otherwise, returns front().
      */
@@ -203,18 +202,18 @@ namespace libgm {
         nelems += adjacency(value).size();
       }
       visited.reserve(nelems);
-      
+
       // determine the maximum intersection
       std::vector<value_type> vec = sorted(range);
       Handle result = Handle();
-      size_t max_inter = 0;
-      size_t min_size = std::numeric_limits<size_t>::max();
+      std::size_t max_inter = 0;
+      std::size_t min_size = std::numeric_limits<std::size_t>::max();
       for (value_type value : range) {
         for (const auto& p : adjacency(value)) {
           if (!visited.count(p.first)) {
             visited.insert(p.first);
             counting_output_iterator out;
-            size_t intersection =
+            std::size_t intersection =
               std::set_intersection(p.second->begin(), p.second->end(),
                                     vec.begin(), vec.end(), out).count();
             if ((intersection > max_inter) ||
@@ -258,7 +257,7 @@ namespace libgm {
      * Minimal superset query: find the hanlde of a minimal set which is
      * a superset of the supplied range. If the supplied range is empty,
      * this operation may return any set.
-     * 
+     *
      * \return the handle for a minimal superset if a superset exists.
      *         Handle() if no superset exists.
      */
@@ -269,7 +268,7 @@ namespace libgm {
         return front();
       } else {
         std::vector<value_type> vec = sorted(range);
-        size_t min_size = std::numeric_limits<size_t>::max(); 
+        std::size_t min_size = std::numeric_limits<std::size_t>::max();
         Handle result = Handle();
         for (const auto& p : adjacency(vec.front())) {
           if (p.second->size() < min_size &&
@@ -349,7 +348,7 @@ namespace libgm {
       }
       sets_.erase(it); // automatically frees memory
     }
-    
+
     //! Removes all sets from this index.
     void clear() {
       sets_.clear();
@@ -379,7 +378,7 @@ namespace libgm {
         return it->second;
       }
     }
-    
+
     //! Stores the mapping from handles to sets.
     std::unordered_map<Handle, std::unique_ptr<vector_type> > sets_;
 

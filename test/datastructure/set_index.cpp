@@ -16,7 +16,7 @@ namespace libgm {
 }
 
 using namespace libgm;
-size_t n = 200;
+std::size_t n = 200;
 
 struct fixture {
   typedef std::list<int> list_type;
@@ -24,10 +24,10 @@ struct fixture {
 
   fixture() {
     std::mt19937 rng;
-    for (size_t i = 0; i < n; ++i) {
-      size_t size = 1 + (rng() % 10);
+    for (std::size_t i = 0; i < n; ++i) {
+      std::size_t size = 1 + (rng() % 10);
       list_type list;
-      for (size_t j = 0; j < size; j++) {
+      for (std::size_t j = 0; j < size; j++) {
         list.push_back(rng() % 20);
       }
       index.insert(i, list);
@@ -47,7 +47,7 @@ struct fixture {
 };
 
 BOOST_FIXTURE_TEST_CASE(test_superset, fixture) {
-  for (size_t i = 0; i < n; ++i) {
+  for (std::size_t i = 0; i < n; ++i) {
     std::vector<int> results;
     int found = 0;
     index.supersets(lists[i], [&](int j) {
@@ -75,7 +75,7 @@ BOOST_FIXTURE_TEST_CASE(test_intersection, fixture) {
       });
 
     // Check the answers are complete.
-    for (size_t j = 0; j < n; j++) {
+    for (std::size_t j = 0; j < n; j++) {
       if (!disjoint(sets[j], sets[i])) {
         --found;
       }

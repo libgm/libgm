@@ -6,7 +6,7 @@
 namespace libgm {
 
   /**
-   * A maximum likelihood estimator of moment Gaussian distribution 
+   * A maximum likelihood estimator of moment Gaussian distribution
    * parameters.
    *
    * \tparam T the real type representing the parameters
@@ -37,7 +37,7 @@ namespace libgm {
      * but do not need to be initialized to any specific value.
      *
      * \return the total weight of the samples processed
-     * \tparam Range a range with values convertible to 
+     * \tparam Range a range with values convertible to
      *         std::pair<dynamic_vector<T>, T>
      */
     template <typename Range>
@@ -57,7 +57,7 @@ namespace libgm {
       assert(p.is_marginal());
       p.check();
       p.mean.fill(T(0));
-      size_t n = p.head_size();
+      std::size_t n = p.head_size();
       p.cov = dynamic_matrix<T>::Identity(n, n) * regul_;
     }
 

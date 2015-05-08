@@ -96,7 +96,7 @@ namespace libgm {
     //==========================================================================
 
     //! Returns the number of elements in the map.
-    size_t size() const {
+    std::size_t size() const {
       return elems_.size();
     }
 
@@ -138,7 +138,7 @@ namespace libgm {
     T& at(const Key& key) {
       iterator it = find(key);
       if (it == end()) {
-        throw std::out_of_range("vector_map::at: missing key"); 
+        throw std::out_of_range("vector_map::at: missing key");
       }
       return it->second;
     }
@@ -151,16 +151,16 @@ namespace libgm {
     const T& at(const Key& key) const {
       const_iterator it = find(key);
       if (it == end()) {
-        throw std::out_of_range("vector_map::at: missing key"); 
+        throw std::out_of_range("vector_map::at: missing key");
       }
       return it->second;
     }
 
     //! Returns the number of elements matching the given key.
-    size_t count(const Key& key) const {
+    std::size_t count(const Key& key) const {
       return find(key) != end();
     }
-    
+
     //! Finds an element with the given key.
     iterator find(const Key& key) {
       iterator it = lower_bound(key);
@@ -174,7 +174,8 @@ namespace libgm {
     }
 
     //! Returns a range containing all elements with the given key.
-    std::pair<iterator, iterator> equal_range(const Key& key) {
+    std::pair<iterator, iterator>
+    equal_range(const Key& key) {
       iterator it = lower_bound(key);
       if (it != end() && it->first == key) {
         return {it, std::next(it)};
@@ -184,7 +185,8 @@ namespace libgm {
     }
 
     //! Returns a range containing all elements with the given key.
-    std::pair<const_iterator, const_iterator> equal_range(const Key& key) const {
+    std::pair<const_iterator, const_iterator>
+    equal_range(const Key& key) const {
       const_iterator it = lower_bound(key);
       if (it != end() && it->first == key) {
         return {it, std::next(it)};
@@ -248,7 +250,7 @@ namespace libgm {
     }
 
     //! Ensures that the vector map has space for at least n elements.
-    void reserve(size_t n) {
+    void reserve(std::size_t n) {
       elems_.reserve(n);
     }
 
@@ -299,10 +301,10 @@ namespace libgm {
     }
 
     //! Removes all elements with the key value key.
-    size_t erase(const Key& key) {
+    std::size_t erase(const Key& key) {
       iterator first, last;
       std::tie(first, last) = equal_range(key);
-      size_t n = std::distance(first, last);
+      std::size_t n = std::distance(first, last);
       elems_.erase(first, last);
       return n;
     }
@@ -323,7 +325,7 @@ namespace libgm {
       std::sort(begin(), end(), value_comp());
       sorted_ = true;
     }
-    
+
   private:
     std::vector<std::pair<Key,T>> elems_;
     Compare comp_;

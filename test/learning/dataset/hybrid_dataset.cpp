@@ -28,10 +28,10 @@ BOOST_AUTO_TEST_CASE(test_insert) {
   domain fv = u.new_finite_variables(3, "fv", 3);
   domain vv = u.new_vector_variables(1, "vv", 2);
   hybrid_domain<> v(fv, vv);
-  
+
   hybrid_dataset<> ds(v);
   BOOST_CHECK(ds.empty());
-  
+
   // insert a sample
   hybrid_index<double> values;
   values.finite() = {2, 0, 1};
@@ -51,7 +51,7 @@ BOOST_AUTO_TEST_CASE(test_insert) {
 
   // print the dataset
   std::cout << ds << std::endl;
-  size_t i = 0;
+  std::size_t i = 0;
   for (const auto& s : ds) {
     std::cout << i << ": " << s.first << " " << s.second << std::endl;
     ++i;
@@ -82,16 +82,16 @@ BOOST_AUTO_TEST_CASE(test_insert) {
   ++it;
 
   // check the remaining samples
-  std::vector<size_t> rest(3, -1);
-  for (size_t i = 0; i < 10; ++i) {
+  std::vector<std::size_t> rest(3, -1);
+  for (std::size_t i = 0; i < 10; ++i) {
     BOOST_CHECK_EQUAL(it->first.finite(), rest);
     BOOST_CHECK_EQUAL(it->second, 1.0);
-    for (size_t j = 0; j < 2; ++j) {
+    for (std::size_t j = 0; j < 2; ++j) {
       BOOST_CHECK(std::isnan(it->first.vector()[j]));
     }
     ++it;
   }
-  
+
   // check that we covered all the samples
   BOOST_CHECK(it == end);
 }
@@ -101,7 +101,7 @@ BOOST_AUTO_TEST_CASE(test_value_iterators) {
   domain fv = u.new_finite_variables(3, "fv", 3);
   domain vv = u.new_vector_variables(3, "vv", 2);
   hybrid_domain<> v(fv, vv);
-  
+
   hybrid_dataset<> ds(v);
   ds.insert(1);
 
@@ -135,7 +135,7 @@ BOOST_AUTO_TEST_CASE(test_assignment_iterators) {
   domain fv = u.new_finite_variables(3, "fv", 3);
   domain vv = u.new_vector_variables(1, "vv", 2);
   hybrid_domain<> v(fv, vv);
-  
+
   hybrid_dataset<> ds(v);
 
   // insert 2 samples
@@ -162,7 +162,7 @@ BOOST_AUTO_TEST_CASE(test_assignment_iterators) {
   BOOST_CHECK_EQUAL(*it, ds.assignment(0, v));
   BOOST_CHECK(!it.end());
   ++it;
-  
+
   // check the second sample
   BOOST_CHECK_EQUAL(it->first.finite().size(), 3);
   BOOST_CHECK_EQUAL(it->first.finite().at(fv[0]), 1);
@@ -196,12 +196,12 @@ BOOST_AUTO_TEST_CASE(test_sample) {
   ds.insert(v1, 1.0);
 
   // check that the sample average is approximately (0.5, 0.0)
-  std::uniform_int_distribution<size_t> unif(0, ds.size() - 1);
-  size_t nsamples = 500;
+  std::uniform_int_distribution<std::size_t> unif(0, ds.size() - 1);
+  std::size_t nsamples = 500;
   double fsum = 0.0;
   double vsum = 0.0;
   std::mt19937 rng;
-  for (size_t i = 0; i < nsamples; ++i) {
+  for (std::size_t i = 0; i < nsamples; ++i) {
     auto s = ds[unif(rng)];
     fsum += s.first.finite()[0] * s.second;
     vsum += s.first.vector()[0] * s.second;
@@ -230,8 +230,8 @@ BOOST_AUTO_TEST_CASE(test_shuffle) {
   int norig = 0;
   int nswap = 0;
   int nbad = 0;
-  size_t nshuffles = 500;
-  for (size_t i = 0; i < nshuffles; ++i) {
+  std::size_t nshuffles = 500;
+  for (std::size_t i = 0; i < nshuffles; ++i) {
     ds.shuffle(rng);
     if (ds.size() == 2 && ds.arguments() == v) {
       if (ds[0] == s0 && ds[1] == s1) {
@@ -254,18 +254,18 @@ BOOST_AUTO_TEST_CASE(test_load) {
   int argc = boost::unit_test::framework::master_test_suite().argc;
   BOOST_REQUIRE(argc > 1);
   std::string dir = boost::unit_test::framework::master_test_suite().argv[1];
-  
+
   universe u;
   symbolic_format format;
   hybrid_dataset<> ds;
   format.load(dir + "/hybrid.cfg", u);
   load(dir + "/hybrid.txt", format, ds);
 
-  size_t fvalues[][2] = { {size_t(-1), 2}, {1, 3}, {0, 0} };
+  std::size_t fvalues[][2] = { {std::size_t(-1), 2}, {1, 3}, {0, 0} };
   double vvalues[][2] = { {33.0, nan<double>()}, {22.0, 178.0}, {11.0, 150.0} };
   double weights[] = {1.0, 2.0, 0.5};
   BOOST_CHECK_EQUAL(ds.size(), 3);
-  size_t i = 0;
+  std::size_t i = 0;
   for (const auto& s : ds) {
     BOOST_CHECK_EQUAL(s.first.finite()[0], fvalues[i][0]);
     BOOST_CHECK_EQUAL(s.first.finite()[1], fvalues[i][1]);

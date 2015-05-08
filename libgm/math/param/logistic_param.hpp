@@ -27,7 +27,7 @@ namespace libgm {
 
     //! The type representing the weight.
     typedef dynamic_vector<T> vec_type;
-    
+
     //! The weight vector.
     vec_type weight;
 
@@ -48,16 +48,16 @@ namespace libgm {
      * Allocates the weights, but does not initialize them to any specific
      * value.
      */
-    explicit logistic_params(size_t features)
+    explicit logistic_params(std::size_t features)
       : weight(features), bias(0) { }
-    
+
     //! Creates a logistic function with the given parameters.
     explicit logistic_param(const vec_type& weight, T bias = T(0))
       : weight(weight), bias(bias) { }
 
     //! Creates a logistic function with the given parameters.
     explicit logistic_param(vec_type&& weight, T bias = T(0))
-      : bias(bias) { 
+      : bias(bias) {
       this->weight.swap(weight);
     }
 
@@ -82,7 +82,7 @@ namespace libgm {
      * Resets the function to the given number of features.
      * May invalide the parameters.
      */
-    void resize(size_t features) {
+    void resize(std::size_t features) {
       weight.resize(features);
     }
 
@@ -90,7 +90,7 @@ namespace libgm {
      * Sets the function to the given number features,
      * filling the contents with 0.
      */
-    void zero(size_t features) {
+    void zero(std::size_t features) {
       weight.setZero(features);
       bias = T(0);
     }
@@ -112,7 +112,7 @@ namespace libgm {
     }
 
     //! Returns the number of features.
-    size_t features() const {
+    std::size_t features() const {
       return weight.size();
     }
 
@@ -123,9 +123,9 @@ namespace libgm {
     }
 
     //! Evaluates the function for a sparse feature vector with unit values.
-    T operator()(const std::vector<size_t>& x) const {
+    T operator()(const std::vector<std::size_t>& x) const {
       T sum = bias;
-      for (size_t i : x) {
+      for (std::size_t i : x) {
         assert(i < weight.size());
         sum += weight[i];
       }
@@ -139,7 +139,7 @@ namespace libgm {
     }
 
     //! Returns the log-value for a sparse feature vector with unit values.
-    T log(const std::vector<size_t>& x) const {
+    T log(const std::vector<std::size_t>& x) const {
       return std::log(operator()(x));
     }
 
@@ -158,7 +158,7 @@ namespace libgm {
       return f.weight != g.weight || f.bias != g.bias;
     }
 
-  }; // struct logistic_param    
+  }; // struct logistic_param
 
   /**
    * Prints the softmax function parameters to a stream.

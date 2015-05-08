@@ -42,7 +42,8 @@ namespace libgm {
                    Strategy elim_strategy = Strategy()) {
     eliminate(g, [&](typename Graph::vertex_type v) {
         Container clique({v});
-        clique.insert(clique.end(), g.neighbors(v).begin(), g.neighbors(v).end());
+        auto&& nbrs = g.neighbors(v);
+        clique.insert(clique.end(), nbrs.begin(), nbrs.end());
         visitor(std::move(clique));
       }, elim_strategy);
   }
@@ -79,11 +80,12 @@ namespace libgm {
   void triangulate_maximal(Graph& g,
                            std::function<void(Container&&)> visitor,
                            Strategy elim_strategy = Strategy()) {
-    set_index<size_t, Container> clique_index;
+    set_index<std::size_t, Container> clique_index;
     std::size_t id = 0;
     eliminate(g, [&](typename Graph::vertex_type v) {
         Container clique({v});
-        clique.insert(clique.end(), g.neighbors(v).begin(), g.neighbors(v).end());
+        auto&& nbrs = g.neighbors(v);
+        clique.insert(clique.end(), nbrs.begin(), nbrs.end());
         if (clique_index.is_maximal(clique)) {
           clique_index.insert(id++, clique);
           visitor(std::move(clique));

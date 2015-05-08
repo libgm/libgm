@@ -1,8 +1,8 @@
 #ifndef LIBGM_UNDIRECTED_GRAPH_HPP
 #define LIBGM_UNDIRECTED_GRAPH_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/graph/undirected_edge.hpp>
+#include <libgm/graph/void.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
 #include <libgm/range/iterator_range.hpp>
 #include <libgm/serialization/serialize.hpp>
@@ -28,7 +28,7 @@ namespace libgm {
    * \see Graph
    */
   template <typename Vertex,
-            typename VertexProperty = void_, 
+            typename VertexProperty = void_,
             typename EdgeProperty = void_>
   class undirected_graph {
 
@@ -38,7 +38,7 @@ namespace libgm {
 
     //! The map type used to associate neighbors and edge data with each vertex.
     typedef std::unordered_map<Vertex, EdgeProperty*> neighbor_map;
-    
+
     /**
      * A struct with the data associated with each vertex. This structure
      * stores the property associated with the vertex as well all edges from/to
@@ -87,7 +87,7 @@ namespace libgm {
         add_edge(vp.first, vp.second);
       }
     }
-    
+
     //! copy constructor.
     undirected_graph(const undirected_graph& g) {
       *this = g;
@@ -106,7 +106,7 @@ namespace libgm {
       edge_count_ = g.edge_count_;
       for (edge_type e : edges()) {
         if(e.property_ != NULL) {
-          edge_property* ptr = 
+          edge_property* ptr =
             new edge_property(*static_cast<edge_property*>(e.property_));
           data_[e.source()].neighbors[e.target()] = ptr;
           data_[e.target()].neighbors[e.source()] = ptr;
@@ -130,7 +130,7 @@ namespace libgm {
       return { vertex_iterator(data_.begin()),
                vertex_iterator(data_.end()) };
     }
-    
+
     //! Returns the vertices adjacent to u.
     iterator_range<neighbor_iterator>
     neighbors(Vertex u) const {
@@ -178,10 +178,10 @@ namespace libgm {
     //! Returns true if the graph contains an undirected edge {u, v}.
     bool contains(Vertex u, Vertex v) const {
       auto it = data_.find(u);
-      return it != data_.end() && 
-        (it->second.neighbors.find(v) != it->second.neighbors.end());     
+      return it != data_.end() &&
+        (it->second.neighbors.find(v) != it->second.neighbors.end());
     }
-    
+
     //! Returns true if the graph contains an undirected edge.
     bool contains(const edge_type& e) const {
       return contains(e.source(), e.target());
@@ -196,17 +196,17 @@ namespace libgm {
     }
 
     //! Returns the number of edges adjacent to a vertex.
-    size_t in_degree(Vertex u) const {
+    std::size_t in_degree(Vertex u) const {
       return find_vertex_data(u).neighbors.size();
     }
 
     //! Returns the number of edges adjacent to a vertex.
-    size_t out_degree(Vertex u) const {
+    std::size_t out_degree(Vertex u) const {
       return find_vertex_data(u).neighbors.size();
     }
-    
+
     //! Returns the number of edges adjacent to a vertex.
-    size_t degree(Vertex u) const {
+    std::size_t degree(Vertex u) const {
       return find_vertex_data(u).neighbors.size();
     }
 
@@ -216,17 +216,17 @@ namespace libgm {
     }
 
     //! Returns the number of vertices.
-    size_t num_vertices() const {
+    std::size_t num_vertices() const {
       return data_.size();
     }
 
     //! Returns the number of edges.
-    size_t num_edges() const {
+    std::size_t num_edges() const {
       return edge_count_;
     }
 
     //! Given an undirected edge (u, v), returns the equivalent edge (v, u).
-    edge_type reverse(const edge_type& e) const { 
+    edge_type reverse(const edge_type& e) const {
       return e.reverse();
     }
 
@@ -239,7 +239,7 @@ namespace libgm {
     VertexProperty& operator[](Vertex u) {
       return find_vertex_data(u).property;
     }
-    
+
     //! Returns the property associated with an edge.
     const EdgeProperty& operator[](const edge_type& e) const {
       return *static_cast<EdgeProperty*>(e.property_);
@@ -296,7 +296,7 @@ namespace libgm {
     bool operator!=(const undirected_graph& other) const {
       return !(*this == other);
     }
-    
+
     // Modifications
     //==========================================================================
     /**
@@ -394,11 +394,11 @@ namespace libgm {
         ar << e.source() << e.target() << operator[](e);
       }
     }
-    
+
     //! Loads the graph from an archive
     void load(iarchive& ar) {
       clear();
-      size_t num_vertices, num_edges;
+      std::size_t num_vertices, num_edges;
       Vertex u, v;
       ar >> num_vertices;
       ar >> num_edges;
@@ -407,15 +407,15 @@ namespace libgm {
         ar >> data_[v].property;
       }
       while (num_edges -- > 0) {
-        ar >> u >> v; 
+        ar >> u >> v;
         ar >> operator()(u, v);
       }
     }
 
     // Private functions
     //==========================================================================
-  private: 
-    const vertex_data& find_vertex_data(Vertex v) const { 
+  private:
+    const vertex_data& find_vertex_data(Vertex v) const {
       auto it = data_.find(v);
       assert(it != data_.end());
       return it->second;
@@ -438,7 +438,7 @@ namespace libgm {
     // Implementation of edge iterators
     //==========================================================================
   public:
-    class edge_iterator : 
+    class edge_iterator :
       public std::iterator<std::forward_iterator_tag, edge_type> {
     public:
       typedef edge_type reference;
@@ -466,7 +466,7 @@ namespace libgm {
           find_next();
         }
         return *this;
-      }     
+      }
 
       edge_iterator operator++(int) {
         edge_iterator copy = *this;
@@ -489,7 +489,7 @@ namespace libgm {
       void find_next() {
         while (it1_ != end1_) {
           it2_ = it1_->second.neighbors.begin();
-          while (it2_ != it1_->second.neighbors.end() && 
+          while (it2_ != it1_->second.neighbors.end() &&
                  it2_->first < it1_->first) {
             ++it2_;
           }
@@ -507,7 +507,7 @@ namespace libgm {
 
     }; // class edge_iterator
 
-    class in_edge_iterator : 
+    class in_edge_iterator :
       public std::iterator<std::forward_iterator_tag, edge_type> {
     public:
       typedef edge_type reference;
@@ -535,7 +535,7 @@ namespace libgm {
 
       bool operator==(const in_edge_iterator& o) const {
         return it_ == o.it_;
-      }     
+      }
 
       bool operator!=(const in_edge_iterator& o) const {
         return it_ != o.it_;
@@ -547,7 +547,7 @@ namespace libgm {
 
     }; // class in_eddge_iterator
 
-    class out_edge_iterator : 
+    class out_edge_iterator :
       public std::iterator<std::forward_iterator_tag, edge_type> {
     public:
       typedef edge_type reference;
@@ -594,10 +594,10 @@ namespace libgm {
     vertex_data_map data_;
 
     //! The total number of edges in the graph.
-    size_t edge_count_;
+    std::size_t edge_count_;
 
   }; // class undirected_graph
-  
+
   /**
    * Prints the graph to an output stream
    * \relates undirected_graph
@@ -624,7 +624,7 @@ namespace boost {
   //! Type declarations that let our graph structure work in BGL algorithms
   template <typename Vertex, typename VP, typename EP>
   struct graph_traits< libgm::undirected_graph<Vertex, VP, EP> > {
-    
+
     typedef libgm::undirected_graph<Vertex, VP, EP> graph_type;
 
     typedef typename graph_type::vertex_type        vertex_descriptor;
@@ -644,9 +644,9 @@ namespace boost {
       public virtual boost::adjacency_graph_tag,
       public virtual boost::edge_list_graph_tag { };
 
-    typedef size_t vertices_size_type;
-    typedef size_t edges_size_type;
-    typedef size_t degree_size_type;
+    typedef std::size_t vertices_size_type;
+    typedef std::size_t edges_size_type;
+    typedef std::size_t degree_size_type;
 
     static vertex_descriptor null_vertex() { return vertex_descriptor(); }
 

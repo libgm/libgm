@@ -51,14 +51,14 @@ namespace libgm {
      * features. Allocates the parameters, but does not initialize them
      * to any specific value.
      */
-    softmax_param(size_t labels, size_t features)
+    softmax_param(std::size_t labels, std::size_t features)
       : weight_(labels, features), bias_(labels) { }
 
     /**
      * Creates a softmax function with the given number of labels and
      * features, and initializes the parameters to the given value.
      */
-    softmax_param(size_t labels, size_t features, T init)
+    softmax_param(std::size_t labels, std::size_t features, T init)
       : weight_(labels, features), bias_(labels) {
       bias_.fill(init);
       weight_.fill(init);
@@ -103,7 +103,7 @@ namespace libgm {
       swap(*this, other);
       return *this;
     }
-    
+
     //! Swaps the content of two softmax functions.
     friend void swap(softmax_param& f, softmax_param& g) {
       f.weight_.swap(g.weight_);
@@ -125,7 +125,7 @@ namespace libgm {
      * Resets the function to the given number of labels and features.
      * May invalidate the parameters.
      */
-    void resize(size_t labels, size_t features) {
+    void resize(std::size_t labels, std::size_t features) {
       weight_.resize(labels, features);
       bias_.resize(labels);
     }
@@ -134,11 +134,11 @@ namespace libgm {
      * Sets the function to the given number of labels and features,
      * filling the contents with 0.
      */
-    void zero(size_t labels, size_t features) {
+    void zero(std::size_t labels, std::size_t features) {
       weight_.setZero(labels, features);
       bias_.setZero(labels);
     }
-    
+
     /**
      * Fills the parameters with the given constant.
      */
@@ -156,12 +156,12 @@ namespace libgm {
     }
 
     //! Returns the number of labels.
-    size_t labels() const {
+    std::size_t labels() const {
       return weight_.rows();
     }
 
     //! Returns the number of features.
-    size_t features() const {
+    std::size_t features() const {
       return weight_.cols();
     }
 
@@ -186,22 +186,22 @@ namespace libgm {
     }
 
     //! Returns the weight with the given indices.
-    T& weight(size_t i, size_t j) {
+    T& weight(std::size_t i, std::size_t j) {
       return weight_(i, j);
     }
 
     //! Returns the weight with the given indices.
-    const T& weight(size_t i, size_t j) const {
+    const T& weight(std::size_t i, std::size_t j) const {
       return weight_(i, j);
     }
 
     //! Returns the bias with the given index.
-    T& bias(size_t i) {
+    T& bias(std::size_t i) {
       return bias_[i];
     }
 
     //! Returns the bias with the given index.
-    const T& bias(size_t i) const {
+    const T& bias(std::size_t i) const {
       return bias_[i];
     }
 
@@ -217,9 +217,9 @@ namespace libgm {
     }
 
     //! Evaluates the function for a sparse feature vector with unit values.
-    vec_type operator()(const std::vector<size_t>& x) const {
+    vec_type operator()(const std::vector<std::size_t>& x) const {
       vec_type y = bias_;
-      for (size_t i : x) {
+      for (std::size_t i : x) {
         assert(i < weight_.cols());
         y += weight_.col(i);
       }
@@ -237,7 +237,7 @@ namespace libgm {
     }
 
     //! Returns the log-value for a sparse feature vector.
-    vec_type log(const std::vector<size_t>& x) const {
+    vec_type log(const std::vector<std::size_t>& x) const {
       vec_type y = operator()(x);
       y = y.array().log();
       return y;
@@ -261,10 +261,11 @@ namespace libgm {
     // Sampling
     //==========================================================================
     template <typename Generator, typename Derived>
-    size_t sample(Generator& rng, const Eigen::EigenBase<Derived>& x) const {
+    std::size_t sample(Generator& rng,
+                       const Eigen::EigenBase<Derived>& x) const {
       vec_type p = operator()(x);
       T val = std::uniform_real_distribution<T>()(rng);
-      for (size_t i = 0; i < p.size(); ++i) {
+      for (std::size_t i = 0; i < p.size(); ++i) {
         if (val <= p[i]) {
           return i;
         } else {
@@ -344,9 +345,9 @@ namespace libgm {
 
     //! The bias vector.
     vec_type bias_;
-    
+
   }; // class softmax_param
-  
+
   /**
    * Prints the softmax function parameters to a stream.
    * \relates softmax_param

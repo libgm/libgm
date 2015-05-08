@@ -19,7 +19,7 @@ BOOST_AUTO_TEST_CASE(test_exponential_decay_search) {
   backtracking_line_search_parameters<double> params(0.3, 0.5);
   backtracking_line_search<vec_type> search(params);
   search.objective(&objective);
-  
+
   result_type r = search.step(vec2(1, 2), vec2(1, 0.5),
                               objective.init(vec2(1, 2), vec2(1, 0.5)));
   BOOST_CHECK_CLOSE(r.step, 1.0, 1e-6);

@@ -13,10 +13,10 @@ namespace libgm {
    * a gradient_objective.
    */
   struct gradient_objective_calls {
-    size_t value;
-    size_t value_slope;
-    size_t gradient;
-    size_t hessian_diag;
+    std::size_t value;
+    std::size_t value_slope;
+    std::size_t gradient;
+    std::size_t hessian_diag;
     gradient_objective_calls()
       : value(0), value_slope(0), gradient(0), hessian_diag(0) { }
   };
@@ -42,7 +42,7 @@ namespace libgm {
   public:
     //! The storage type of the vector
     typedef typename vector_value<Vec>::type real_type;
-    
+
     /**
      * Default constructor.
      */
@@ -59,7 +59,8 @@ namespace libgm {
     virtual real_type value(const Vec& x) = 0;
 
     /**
-     * Computes the value of the objective and the slope along the given direction.
+     * Computes the value of the objective and the slope along
+     * the given direction.
      */
     virtual real_pair<real_type> value_slope(const Vec& x, const Vec& dir) = 0;
 

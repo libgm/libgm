@@ -18,14 +18,14 @@ namespace libgm {
     typedef typename Graph::vertex_type vertex_type;
     typedef typename Graph::edge_type edge_type;
 
-    mutable_queue<vertex_type, ptrdiff_t> q;
+    mutable_queue<vertex_type, std::ptrdiff_t> q;
     for (vertex_type v : graph.vertices()) {
-      q.push(v, -ptrdiff_t(graph.in_degree(v)));
+      q.push(v, -std::ptrdiff_t(graph.in_degree(v)));
     }
 
     while (!q.empty()) {
       vertex_type v;
-      ptrdiff_t indeg;
+      std::ptrdiff_t indeg;
       std::tie(v, indeg) = q.pop();
 
       // if all the remaining vertices have parents, then there is a cycle

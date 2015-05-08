@@ -89,7 +89,7 @@ BOOST_AUTO_TEST_CASE(test_indexing) {
   universe u;
   variable x = u.new_finite_variable("x", 2);
   variable y = u.new_finite_variable("y", 3);
-  
+
   parray2 f({x, y});
   std::iota(f.begin(), f.end(), 1);
   BOOST_CHECK_CLOSE(f(finite_index{0,0}), 1.0, 1e-8);
@@ -183,7 +183,7 @@ BOOST_AUTO_TEST_CASE(test_operators) {
   for (const finite_assignment<>& a : finite_assignments(domain{x, y})) {
     BOOST_CHECK_CLOSE(h(a), f(a) / 3.0, 1e-8);
   }
-  
+
   h = 3.0 / f;
   BOOST_CHECK(table_properties(h, {x, y}));
   for (const finite_assignment<>& a : finite_assignments(domain{x, y})) {
@@ -199,7 +199,7 @@ BOOST_AUTO_TEST_CASE(test_operators) {
   for (const finite_assignment<>& a : finite_assignments(domain{x, y})) {
     BOOST_CHECK_CLOSE(h(a), std::pow(f(a), 3.0), 1e-8);
   }
-  
+
   parray2 f1({x, y}, {0, 1, 2, 3});
   parray2 f2({x, y}, {-2, 3, 0, 0});
   std::vector<double> fmax = {0, 3, 2, 3};
@@ -214,13 +214,13 @@ BOOST_AUTO_TEST_CASE(test_operators) {
   BOOST_CHECK(boost::equal(h, fmin));
 
   h = weighted_update(f1, f2, 0.3);
-  for (size_t i = 0; i < 4; ++i) {
+  for (std::size_t i = 0; i < 4; ++i) {
     BOOST_CHECK_CLOSE(h[i], 0.7 * f1[i] + 0.3 * f2[i], 1e-8);
-  }  
+  }
 }
 
 
-BOOST_AUTO_TEST_CASE(test_collapse) {  
+BOOST_AUTO_TEST_CASE(test_collapse) {
   universe u;
   variable x = u.new_finite_variable("x", 2);
   variable y = u.new_finite_variable("y", 3);
@@ -239,7 +239,7 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
   BOOST_CHECK_EQUAL(f.maximum(a), 6.0);
   BOOST_CHECK_EQUAL(a[x], 1);
   BOOST_CHECK_EQUAL(a[y], 2);
-  
+
   h = f.minimum({y});
   BOOST_CHECK(table_properties(h, {y}));
   BOOST_CHECK(boost::equal(h, hmin));
@@ -252,7 +252,7 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
   parray1 py({y}, {1.6, 0.3, 0.4});
   h = pxy.marginal({y});
   BOOST_CHECK(table_properties(h, {y}));
-  for (size_t i = 0; i < 3; ++i) {
+  for (std::size_t i = 0; i < 3; ++i) {
     BOOST_CHECK_CLOSE(h[i], py[i], 1e-7);
   }
   BOOST_CHECK_CLOSE(pxy.marginal(), 1.1+0.5+0.1+0.2+0.4, 1e-8);
@@ -265,7 +265,7 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
   BOOST_CHECK(table_properties(rx, {x}));
   BOOST_CHECK_CLOSE(rx[0], 1.1*0.2+0.1*0.5+0.4*0.3, 1e-8);
   BOOST_CHECK_CLOSE(rx[1], 0.5*0.2+0.2*0.5+0.0*0.3, 1e-8);
-  
+
   parray1 ry = product_marginal(qx, pxy, {y});
   BOOST_CHECK(table_properties(ry, {y}));
   BOOST_CHECK_CLOSE(ry[0], 1.1*0.4 + 0.5*0.6, 1e-8);
@@ -305,7 +305,7 @@ BOOST_AUTO_TEST_CASE(test_entropy) {
   double hpx = -(0.4*log(0.4) + 0.6*log(0.6));
   double hpy = -(0.3*log(0.3) + 0.7*log(0.7));
   double hpq = 0.0, klpq = 0.0, sumdiff = 0.0, maxdiff = 0.0;
-  for (size_t i = 0; i < 4; ++i) {
+  for (std::size_t i = 0; i < 4; ++i) {
     hpq += -p[i] * log(q[i]);
     klpq += p[i] * log(p[i]/q[i]);
     double diff = std::abs(p[i] - q[i]);

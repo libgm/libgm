@@ -67,7 +67,8 @@ namespace libgm {
     template <typename RandomNumberGenerator>
     F operator()(const domain_type& args,
                  RandomNumberGenerator& rng) const {
-      std::uniform_real_distribution<real_type> unif(param_.lower, param_.upper);
+      std::uniform_real_distribution<real_type> unif(param_.lower,
+                                                     param_.upper);
       F f(args);
       std::generate(f.begin(), f.end(), std::bind(unif, std::ref(rng)));
       return f;

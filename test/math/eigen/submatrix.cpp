@@ -22,7 +22,7 @@ BOOST_AUTO_TEST_CASE(test_operations) {
   matrix_index rows = {1};
   matrix_index cols = {2, 0};
   submatrix<const mat_type> sm(m, rows, cols);
-  
+
   BOOST_CHECK_EQUAL(sm.rows(), 1);
   BOOST_CHECK_EQUAL(sm.cols(), 2);
   BOOST_CHECK(!sm.contiguous());
@@ -41,7 +41,7 @@ BOOST_AUTO_TEST_CASE(test_update_block) {
   matrix_index row0(0, 1);
   matrix_index row1(1, 1);
   matrix_index cols(1, 2);
-  
+
   // first, test updates of a dense matrix
   mat_type w;
   set(w, submat(m, row0, cols));
@@ -66,7 +66,7 @@ BOOST_AUTO_TEST_CASE(test_update_plain) {
   matrix_index row0 = {0};
   matrix_index row1 = {1};
   matrix_index cols = {1, 2};
-  
+
   // first, test updates of a dense matrix
   mat_type w;
   set(w, submat(m, row0, cols));

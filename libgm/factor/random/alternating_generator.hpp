@@ -1,7 +1,7 @@
 #ifndef LIBGM_ALTERNATING_GENERATOR_HPP
 #define LIBGM_ALTERNATING_GENERATOR_HPP
 
-#include <libgm/global.hpp>
+#include <cstddef>
 
 namespace libgm {
 
@@ -27,14 +27,14 @@ namespace libgm {
     struct param_type {
       gen_param_type def_param;
       gen_param_type alt_param;
-      size_t period;
+      std::size_t period;
 
       param_type()
         : period(2) { }
-      
+
       param_type(const gen_param_type& def_param,
                  const gen_param_type& alt_param,
-                 size_t period)
+                 std::size_t period)
         : def_param(def_param),
           alt_param(alt_param),
           period(period) {
@@ -53,7 +53,7 @@ namespace libgm {
     //! alternate base generators.
     alternating_generator(const Generator& def_gen,
                           const Generator& alt_gen,
-                          size_t period = 2)
+                          std::size_t period = 2)
       : def_gen(def_gen), alt_gen(alt_gen), period(period), count(0) {
       assert(period > 0);
     }
@@ -62,17 +62,17 @@ namespace libgm {
     //! the default and alternate base generators.
     alternating_generator(const gen_param_type& def_param,
                           const gen_param_type& alt_param,
-                          size_t period = 2)
-      : def_gen(def_param), alt_gen(alt_param), period(period), count(0) { 
+                          std::size_t period = 2)
+      : def_gen(def_param), alt_gen(alt_param), period(period), count(0) {
       assert(period > 0);
     }
 
     //! Constructs an alternating generator using the parameter set.
     explicit alternating_generator(const param_type& params)
       : def_gen(params.def_param),
-        alt_gen(params.alt_param), 
+        alt_gen(params.alt_param),
         period(params.period),
-        count(0) { 
+        count(0) {
       assert(period > 0);
     }
 
@@ -117,8 +117,8 @@ namespace libgm {
 
   private:
     Generator def_gen, alt_gen;
-    size_t period;
-    size_t count;  // counter of how many factors have been generated
+    std::size_t period;
+    std::size_t count;  // counter of how many factors have been generated
 
   }; // class alternating_generator
 
@@ -141,7 +141,7 @@ namespace libgm {
   alternating_generator<Generator>
   make_alternating_generator(const Generator& gen1,
                              const Generator& gen2,
-                             size_t period) {
+                             std::size_t period) {
     return alternating_generator<Generator>(gen1, gen2, period);
   }
 

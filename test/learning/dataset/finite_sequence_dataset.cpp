@@ -14,7 +14,7 @@ namespace libgm {
 
 using namespace libgm;
 
-typedef dynamic_matrix<size_t> data_type;
+typedef dynamic_matrix<std::size_t> data_type;
 typedef std::pair<data_type, double> sample_type;
 typedef std::pair<finite_assignment<>, double> sample_assignment_type;
 BOOST_TEST_DONT_PRINT_LOG_VALUE(sample_type);
@@ -42,10 +42,10 @@ struct fixture {
 
 BOOST_FIXTURE_TEST_CASE(test_insert, fixture) {
   ds.insert(10);
-  
+
   // print the datset
   std::cout << ds << std::endl;
-  
+
   // check the size of the dataset
   BOOST_CHECK_EQUAL(ds.size(), 12);
   BOOST_CHECK(!ds.empty());
@@ -61,7 +61,7 @@ BOOST_FIXTURE_TEST_CASE(test_insert, fixture) {
   BOOST_CHECK_EQUAL(it->second, 1.0);
   BOOST_CHECK_EQUAL(*it, ds[1]);
   ++it;
-  for (size_t i = 0; i < 10; ++i) {
+  for (std::size_t i = 0; i < 10; ++i) {
     BOOST_CHECK_EQUAL(it->first.rows(), 3);
     BOOST_CHECK_EQUAL(it->first.cols(), 0);
     BOOST_CHECK_EQUAL(it->second, 1.0);
@@ -82,7 +82,7 @@ BOOST_FIXTURE_TEST_CASE(test_insert, fixture) {
   BOOST_CHECK_EQUAL(it->second, 1.0);
   BOOST_CHECK_EQUAL(*it, ds(1, p12));
   ++it;
-  for (size_t i = 0; i < 10; ++i) {
+  for (std::size_t i = 0; i < 10; ++i) {
     BOOST_CHECK_EQUAL(it->first.rows(), 2);
     BOOST_CHECK_EQUAL(it->first.cols(), 0);
     BOOST_CHECK_EQUAL(it->second, 1.0);
@@ -127,7 +127,7 @@ BOOST_FIXTURE_TEST_CASE(test_asignment_iterators, fixture) {
 
   finite_sequence_dataset<>::assignment_iterator it, end;
   std::tie(it, end) = ds.assignments(p01);
-  
+
   // check the first sample
   BOOST_CHECK_EQUAL(it->first.size(), 4);
   BOOST_CHECK_EQUAL(it->first.at(p[0](0)), seq0(0, 0));
@@ -175,8 +175,8 @@ BOOST_FIXTURE_TEST_CASE(test_shuffle, fixture) {
   int norig = 0;
   int nswap = 0;
   int nbad = 0;
-  size_t nshuffles = 500;
-  for (size_t i = 0; i < nshuffles; ++i) {
+  std::size_t nshuffles = 500;
+  for (std::size_t i = 0; i < nshuffles; ++i) {
     ds.shuffle(rng);
     if (ds.size() == 2 && ds.arguments() == p) {
       if (ds[0].first.cols() == 2 && ds[0].first == seq0 &&
@@ -194,7 +194,7 @@ BOOST_FIXTURE_TEST_CASE(test_shuffle, fixture) {
   }
 
   BOOST_CHECK_EQUAL(nbad, 0);
-  BOOST_CHECK_SMALL(double(norig - nswap) / nshuffles, 0.05);  
+  BOOST_CHECK_SMALL(double(norig - nswap) / nshuffles, 0.05);
 }
 
 BOOST_AUTO_TEST_CASE(test_load) {

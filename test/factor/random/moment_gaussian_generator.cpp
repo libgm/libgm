@@ -14,7 +14,7 @@ using namespace libgm;
 typedef dynamic_vector<double> vec_type;
 typedef dynamic_matrix<double> mat_type;
 
-size_t nsamples = 100;
+std::size_t nsamples = 100;
 
 BOOST_AUTO_TEST_CASE(test_all) {
   universe u;
@@ -30,7 +30,7 @@ BOOST_AUTO_TEST_CASE(test_all) {
   
   // test marginals
   double sum = 0.0;
-  for (size_t i = 0; i < nsamples; ++i) {
+  for (std::size_t i = 0; i < nsamples; ++i) {
     mgaussian mg = gen(xy, rng);
     const vec_type& mean = mg.mean();
     const mat_type& cov = mg.covariance();
@@ -40,8 +40,8 @@ BOOST_AUTO_TEST_CASE(test_all) {
     BOOST_CHECK_EQUAL(cov.cols(), 4);
     BOOST_CHECK((mean.array() >= -0.5 && mean.array() <= 1.5).all());
     sum += mean.sum();
-    for (size_t r = 0; r < 4; ++r) {
-      for (size_t c = 0; c < 4; ++c) {
+    for (std::size_t r = 0; r < 4; ++r) {
+      for (std::size_t c = 0; c < 4; ++c) {
         if (r == c) {
           BOOST_CHECK_CLOSE(cov(r, c), 2.0, 1e-10);
         } else {
@@ -55,7 +55,7 @@ BOOST_AUTO_TEST_CASE(test_all) {
   // test conditionals
   double sum_mean = 0.0;
   double sum_coef = 0.0;
-  for (size_t i = 0; i < nsamples; ++i) {
+  for (std::size_t i = 0; i < nsamples; ++i) {
     mgaussian mg = gen(ys, xs, rng);
     const vec_type& mean = mg.mean();
     const mat_type& cov  = mg.covariance();

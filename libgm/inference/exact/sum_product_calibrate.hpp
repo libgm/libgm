@@ -10,7 +10,7 @@
 
 namespace libgm {
 
-  /** 
+  /**
    * An algorithm for computing the marginals of a factorized probability model
    * using the multiplicative sum-product algorithm on a junction tree.
    *
@@ -20,7 +20,7 @@ namespace libgm {
   template <typename F>
   class sum_product_calibrate {
 
-    // Public type declarations    
+    // Public type declarations
     //==========================================================================
   public:
     // FactorizedInference types
@@ -32,7 +32,7 @@ namespace libgm {
     typedef F                           factor_type;
     typedef cluster_graph<domain_type, F, bidirectional<F> > graph_type;
 
-    // The descriptors for the junction tree 
+    // The descriptors for the junction tree
     typedef typename graph_type::vertex_type vertex_type;
     typedef typename graph_type::edge_type edge_type;
 
@@ -86,13 +86,13 @@ namespace libgm {
         jt_[v] = F(jt_.cluster(v), result_type(1));
       }
       for (const F& factor : factors) {
-        size_t v = jt_.find_cluster_cover(factor.arguments());
+        std::size_t v = jt_.find_cluster_cover(factor.arguments());
         assert(v);
         jt_[v] *= factor;
       }
     }
 
-    /** 
+    /**
      * Initializes the algorithm to the iven junction tree that defines a
      * distribution via the product of the vertex properties.
      */
@@ -117,7 +117,7 @@ namespace libgm {
     /**
      * Performs inference by calibrating the junction tree.
      */
-    void calibrate() { 
+    void calibrate() {
       mpp_traversal(jt_, 0, [&](const edge_type& e) {
           F product = jt_[e.source()];
           for (edge_type in : jt_.in_edges(e.source())) {
@@ -197,8 +197,8 @@ namespace libgm {
 
     /**
      * Returns the belief for a set of variables.
-     * \throw std::invalid_argument 
-     *        if the specified set is not covered by a clique of 
+     * \throw std::invalid_argument
+     *        if the specified set is not covered by a clique of
      *        the junction tree constructed by the engine.
      */
     F belief(const domain_type& vars) const {

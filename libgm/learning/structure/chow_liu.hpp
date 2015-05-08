@@ -48,7 +48,9 @@ namespace libgm {
 
       // handle the edge cases first
       if (vars.size() <= 1) {
-        if (vars.size() == 1) { model_.reset_marginal(mle(ds, {*vars.begin()})); }
+        if (vars.size() == 1) {
+          model_.reset_marginal(mle(ds, {*vars.begin()}));
+        }
         return *this;
       }
 

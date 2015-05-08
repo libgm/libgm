@@ -29,7 +29,7 @@ namespace libgm {
   public:
     // The real type of the factor
     typedef typename F::real_type real_type;
-    
+
     // RandomFactorGenerator typedefs
     typedef typename F::domain_type domain_type;
     typedef F result_type;
@@ -80,15 +80,15 @@ namespace libgm {
       // things go horribly wrong if this is not true
       assert(disjoint(head, tail));
       F f(head + tail);
-      size_t m = finite_size(head);
-      size_t n = finite_size(tail);
+      std::size_t m = finite_size(head);
+      std::size_t n = finite_size(tail);
       assert(f.size() == m * n);
       std::gamma_distribution<real_type> gamma(param_.alpha);
       real_type* dest = f.begin();
-      for (size_t i = 0; i < n; ++i) {
+      for (std::size_t i = 0; i < n; ++i) {
         std::generate(dest, dest + m, std::bind(gamma, std::ref(rng)));
         real_type sum = std::accumulate(dest, dest + m, real_type(0));
-        for (size_t j = 0; j < m; ++j) *dest++ /= sum;
+        for (std::size_t j = 0; j < m; ++j) *dest++ /= sum;
       }
       return f;
     }

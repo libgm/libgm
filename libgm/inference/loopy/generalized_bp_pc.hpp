@@ -11,7 +11,7 @@
 namespace libgm {
 
   /**
-   * A class that implements the parent-to-child generalized belief 
+   * A class that implements the parent-to-child generalized belief
    * propagation algorithm.
    *
    * @tparam F A type that implements the Factor concept.
@@ -41,7 +41,8 @@ namespace libgm {
     //==========================================================================
   public:
     //! Constructs the algorithm to the given graph and difference fn.
-    generalized_bp_pc(const region_graph<domain_type, F>& graph, diff_fn<F> diff) 
+    generalized_bp_pc(const region_graph<domain_type, F>& graph,
+                      diff_fn<F> diff)
       : graph_(graph), diff_(std::move(diff)) {
       compute_belief_edges();
       compute_message_edges();
@@ -70,7 +71,7 @@ namespace libgm {
 
     //! Initializes the factors to unity.
     void initialize_factors() {
-      for (size_t v : graph_.vertices()) {
+      for (std::size_t v : graph_.vertices()) {
         graph_[v] = F(graph_.cluster(v), result_type(1));
       }
     }
@@ -80,7 +81,7 @@ namespace libgm {
     void initialize_factors(const Range& factors) {
       initialize_factors();
       for (const F& factor : factors) {
-        size_t v = graph_.find_root_cover(factor.arguments());
+        std::size_t v = graph_.find_root_cover(factor.arguments());
         assert(v);
         graph_[v] *= factor;
       }
@@ -95,7 +96,7 @@ namespace libgm {
     }
 
     //! Returns a belief for a region
-    F belief(size_t v) const {
+    F belief(std::size_t v) const {
       F result = graph_[v];
       for (edge_type e : belief_edges_.at(v)) {
         result *= message_.at(e);
@@ -105,7 +106,7 @@ namespace libgm {
 
     //! Returns the marginal over a set of variables
     F belief(const domain_type& vars) const {
-      size_t v = graph_.find_cover(vars); 
+      std::size_t v = graph_.find_cover(vars);
       assert(v);
       return belief(v).marginal(vars);
     }
@@ -115,12 +116,12 @@ namespace libgm {
   protected:
     //! Precomputes which messages contribute to the belief.
     void compute_belief_edges() {
-      for (size_t u : graph_.vertices()) {
+      for (std::size_t u : graph_.vertices()) {
         edge_vector& edges = belief_edges_[u];
-        std::unordered_set<size_t> descendants = graph_.descendants(u);
+        std::unordered_set<std::size_t> descendants = graph_.descendants(u);
         descendants.insert(u);
         // messages from external sources to regions in down+(u)
-        for (size_t v : descendants) {
+        for (std::size_t v : descendants) {
           for (edge_type in : graph_.in_edges(v)) {
             if (!descendants.count(in.source())) {
               edges.push_back(in);
@@ -133,17 +134,17 @@ namespace libgm {
     //! Precomputes which messages contribute to a message.
     void compute_message_edges() {
       for (edge_type e : graph_.edges()) {
-        size_t u = e.source();
-        size_t v = e.target();
-        std::unordered_set<size_t> descendants_u = graph_.descendants(u);
-        std::unordered_set<size_t> descendants_v = graph_.descendants(v);
+        std::size_t u = e.source();
+        std::size_t v = e.target();
+        std::unordered_set<std::size_t> descendants_u = graph_.descendants(u);
+        std::unordered_set<std::size_t> descendants_v = graph_.descendants(v);
         descendants_u.insert(u);
         descendants_v.insert(v);
 
-        // numerator: edges from sources external to u that are outside 
+        // numerator: edges from sources external to u that are outside
         // the scope of influence of v. \todo verify this
         edge_vector& numerator_edges = numerator_edges_[e];
-        for (size_t w : descendants_u) {
+        for (std::size_t w : descendants_u) {
           if (!descendants_v.count(w)) {
             for (edge_type in : graph_.in_edges(w)) {
               if (!descendants_u.count(in.source())) {
@@ -156,7 +157,7 @@ namespace libgm {
         // denominator: information passed from u to regions below v indirectly
         // \todo verify this
         edge_vector& denominator_edges = denominator_edges_[e];
-        for (size_t w : descendants_v) {
+        for (std::size_t w : descendants_v) {
           for (edge_type in : graph_.in_edges(w)) {
             if (in != e &&
                 descendants_u.count(in.source()) &&
@@ -167,7 +168,7 @@ namespace libgm {
         }
       }
     }
- 
+
     //! Passes a message along an edge
     real_type pass_message(edge_type e, real_type eta) {
       F new_msg = graph_[e.source()];
@@ -183,7 +184,7 @@ namespace libgm {
         std::cerr << ".";
         new_msg = F(graph_.cluster(e.target()), result_type(1));
       }
-      
+
       // compute the residual and update the message
       F& msg = message_[e];
       real_type residual = diff_(new_msg, msg);
@@ -205,9 +206,9 @@ namespace libgm {
 
     //! The messages.
     std::unordered_map<edge_type, F> message_;
-    
+
     //! The edges that are used to compute the belief over a region.
-    std::unordered_map<size_t, edge_vector> belief_edges_;
+    std::unordered_map<std::size_t, edge_vector> belief_edges_;
 
     //! The edges in the numerator of the message.
     std::unordered_map<edge_type, edge_vector> numerator_edges_;
@@ -242,7 +243,7 @@ namespace libgm {
     asynchronous_generalized_bp_pc(const region_graph<domain_type>& graph,
                                    diff_fn<F> diff)
       : base(graph, std::move(diff)) { }
-    
+
     real_type iterate(real_type eta) override {
       real_type residual(0);
       // pass the messages downwards \todo is this correct?
@@ -251,7 +252,7 @@ namespace libgm {
       }
       return residual;
     }
-    
+
   }; // class asynchronous_generalized_bp_pc
 
 } // namespace libgm

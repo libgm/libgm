@@ -1,7 +1,6 @@
 #ifndef LIBGM_DIRECTED_EDGE_HPP
 #define LIBGM_DIRECTED_EDGE_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/functional/hash.hpp>
 
 #include <iosfwd>
@@ -10,10 +9,10 @@
 namespace libgm {
 
   // Forward declarations
-  template<typename V, typename VP, typename EP> 
+  template<typename V, typename VP, typename EP>
   class directed_graph;
 
-  template<typename V, typename VP, typename EP> 
+  template<typename V, typename VP, typename EP>
   class directed_multigraph;
 
   /**
@@ -30,7 +29,7 @@ namespace libgm {
     //! Constructs a special "root" edge with empty source and given target.
     explicit directed_edge(Vertex target)
       : source_(), target_(target), property_() { }
-    
+
     //! Conversion to bool indicating if this edge is empty.
     explicit operator bool() const {
       return source_ != Vertex() || target_ != Vertex();
@@ -48,7 +47,7 @@ namespace libgm {
 
     //! Compares two undirected edges.
     friend bool operator<(const directed_edge& a, const directed_edge& b) {
-      return (a.source_ < b.source_) || 
+      return (a.source_ < b.source_) ||
         (a.source_ == b.source_ && a.target_ < b.target_);
     }
 
@@ -99,7 +98,7 @@ namespace libgm {
      * return iterators over edges and permits constant time lookup for
      * the corresponding edge properties. The property is stored as a void*,
      * to simplify the type of the edges.
-     */ 
+     */
     void* property_;
 
     //! Gives access to constructor and the property pointer.
@@ -121,15 +120,15 @@ namespace std {
   template <typename Vertex>
   struct hash<libgm::directed_edge<Vertex>> {
     typedef libgm::directed_edge<Vertex> argument_type;
-    typedef size_t result_type;
-    size_t operator()(const libgm::directed_edge<Vertex>& e) const {
-      size_t seed = 0;
+    typedef std::size_t result_type;
+    std::size_t operator()(const libgm::directed_edge<Vertex>& e) const {
+      std::size_t seed = 0;
       libgm::hash_combine(seed, e.source());
       libgm::hash_combine(seed, e.target());
       return seed;
     }
   };
-  
+
 } // namespace std
 
 #endif

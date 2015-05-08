@@ -13,7 +13,7 @@ using namespace libgm;
 typedef moment_gaussian_param<double> param_type;
 typedef gaussian_distribution<double> distribution_type;
 
-size_t nsamples = 10000;
+std::size_t nsamples = 10000;
 double tol = 0.05;
 
 BOOST_AUTO_TEST_CASE(test_marginal) {
@@ -27,7 +27,7 @@ BOOST_AUTO_TEST_CASE(test_marginal) {
   dynamic_vector<double> mean; mean.setZero(3);
   dynamic_matrix<double> cov; cov.setZero(3, 3);
   std::mt19937 rng;
-  for (size_t i = 0; i < nsamples; ++i) {
+  for (std::size_t i = 0; i < nsamples; ++i) {
     dynamic_vector<double> sample = d(rng);
     mean += sample;
     cov += sample * sample.transpose();

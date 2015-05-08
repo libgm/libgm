@@ -14,8 +14,8 @@ is_partial_vertex_order(const std::vector<V>& order_vec, const Graph& g) {
     return result;
   }
 
-  std::map<V, size_t> order;
-  for (size_t i = 0; i < order_vec.size(); ++i) {
+  std::map<V, std::size_t> order;
+  for (std::size_t i = 0; i < order_vec.size(); ++i) {
     if (!g.contains(order_vec[i])) {
       boost::test_tools::predicate_result result(false);
       result.message() << "Invalid vertex in the partial order: "
@@ -24,7 +24,7 @@ is_partial_vertex_order(const std::vector<V>& order_vec, const Graph& g) {
     }
     order[order_vec[i]] = i;
   }
-  
+
   for (auto e : g.edges()) {
     if (!(order[e.source()] < order[e.target()])) {
       boost::test_tools::predicate_result result(false);

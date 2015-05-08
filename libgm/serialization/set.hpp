@@ -11,7 +11,7 @@ namespace libgm {
 
   //! Serializes a set. \relates oarchive
   template <typename T>
-  oarchive& operator<<(oarchive& ar, const std::set<T>& set){
+  oarchive& operator<<(oarchive& ar, const std::set<T>& set) {
     ar.serialize_range(set.begin(), set.end(), set.size());
     return ar;
   }

@@ -28,25 +28,25 @@ namespace libgm {
     }
 
     std::string line;
-    size_t line_number = 0;
+    std::size_t line_number = 0;
     hybrid_index<T> index(vars.finite_size(), vars.vector_size());
-    size_t ncols = index.finite_size() + index.vector_size();
-    while (std::getline(in, line)) { 
+    std::size_t ncols = index.finite_size() + index.vector_size();
+    while (std::getline(in, line)) {
       std::vector<const char*> tokens;
       if (format.parse(ncols, line, line_number, tokens)) {
-        size_t col = format.skip_cols;
-        size_t fi = 0;
-        size_t vi = 0;
+        std::size_t col = format.skip_cols;
+        std::size_t fi = 0;
+        std::size_t vi = 0;
         for (const symbolic_format::variable_info& info : format.var_infos) {
           if (info.is_finite()) {
             const char* token = tokens[col++];
             if (token == format.missing) {
-              index.finite()[fi++] = size_t(-1);
+              index.finite()[fi++] = std::size_t(-1);
             } else {
               index.finite()[fi++] = info.parse(token);
             }
           } else if (info.is_vector()) {
-            size_t size = info.size();
+            std::size_t size = info.size();
             if (std::count(&tokens[col], &tokens[col] + size, format.missing)) {
               // TODO: warning if only a subset of columns missing
               std::fill(index.vector().data() + vi,
@@ -55,7 +55,7 @@ namespace libgm {
               col += size;
               vi += size;
             } else {
-              for (size_t j = 0; j < size; ++j) {
+              for (std::size_t j = 0; j < size; ++j) {
                 index.vector()[vi++] = parse_string<T>(tokens[col++]);
               }
             }
@@ -80,35 +80,35 @@ namespace libgm {
             const symbolic_format& format,
             const hybrid_dataset<T>& data) {
     hybrid_domain<> vars = format.vars();
-    
+
     std::ofstream out(filename);
     if (!out) {
       throw std::runtime_error("Cannot open the file " + filename);
     }
 
-    for (size_t i = 0; i < format.skip_rows; ++i) {
+    for (std::size_t i = 0; i < format.skip_rows; ++i) {
       out << std::endl;
     }
-    
+
     std::string separator = format.separator.empty() ? " " : format.separator;
     for (const auto& s : data(vars)) {
-      for (size_t i = 0; i < format.skip_cols; ++i) {
+      for (std::size_t i = 0; i < format.skip_cols; ++i) {
         out << "0" << separator;
       }
-      size_t fi = 0;
-      size_t vi = 0;
+      std::size_t fi = 0;
+      std::size_t vi = 0;
       bool first = true;
       for (const symbolic_format::variable_info& info : format.var_infos) {
         if (info.is_finite()) {
           if (first) { first = false; } else { out << separator; }
-          size_t value = s.first.finite()[fi++];
-          if (value == size_t(-1)) {
+          std::size_t value = s.first.finite()[fi++];
+          if (value == std::size_t(-1)) {
             out << format.missing;
           } else {
             info.print(out, value);
           }
         } else {
-          for (size_t j = 0; j < info.size(); ++j) {
+          for (std::size_t j = 0; j < info.size(); ++j) {
             if (first) { first = false; } else { out << separator; }
             T value = s.first.vector()[vi++];
             if (std::isnan(value)) {

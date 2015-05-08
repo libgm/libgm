@@ -19,7 +19,7 @@ namespace libgm {
   //! Serializes a vector<bool>. \relates oarchive
   inline oarchive& operator<<(oarchive& ar, const std::vector<bool>& vec) {
     ar << vec.size();
-    for (size_t i = 0; i < vec.size(); ++i) {
+    for (std::size_t i = 0; i < vec.size(); ++i) {
       ar.serialize_char(vec[i]);
     }
     return ar;

@@ -21,7 +21,7 @@ BOOST_AUTO_TEST_CASE(test_operations) {
   vec_type v = vec4(4, 3, 2, 1);
   matrix_index index = {2, 0};
   subvector<const vec_type> sv(v, index);
-  
+
   BOOST_CHECK_EQUAL(sv.rows(), 2);
   BOOST_CHECK_EQUAL(sv.cols(), 1);
   BOOST_CHECK(!sv.contiguous());
@@ -42,7 +42,7 @@ BOOST_AUTO_TEST_CASE(test_update_block) {
   const vec_type v = vec4(4, 3, 2, 1);
   matrix_index i1(1, 2);
   matrix_index i2(2, 2);
-  
+
   // first, test updates of a dense vector
   vec_type w;
   set(w, subvec(v, i1));
@@ -66,7 +66,7 @@ BOOST_AUTO_TEST_CASE(test_update_plain) {
   const vec_type v = vec4(4, 3, 2, 1);
   matrix_index i1 = {1, 2};
   matrix_index i2 = {2, 3};
-  
+
   // first, test updates of a dense vector
   vec_type w;
   set(w, subvec(v, i1));

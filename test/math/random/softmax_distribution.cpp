@@ -10,7 +10,7 @@ namespace libgm {
 
 using namespace libgm;
 
-size_t nsamples = 5000;
+std::size_t nsamples = 5000;
 double tol = 0.03;
 
 dynamic_vector<double>
@@ -19,7 +19,7 @@ sample(const softmax_distribution<double>& d,
   std::mt19937 rng;
   dynamic_vector<double> result(d.param().labels());
   result.fill(0.0);
-  for (size_t i = 0; i < nsamples; ++i) {
+  for (std::size_t i = 0; i < nsamples; ++i) {
     ++result[d(rng, tail)];
   }
   result /= nsamples;

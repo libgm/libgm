@@ -17,7 +17,7 @@ namespace libgm {
 
 using namespace libgm;
 
-size_t nsamples = 10000;
+std::size_t nsamples = 10000;
 double tol = 0.05;
 
 BOOST_AUTO_TEST_CASE(test_mle) {
@@ -33,7 +33,7 @@ BOOST_AUTO_TEST_CASE(test_mle) {
   gaussian_distribution<double> dist(param);
   std::vector<std::pair<vec_type, double>> samples;
   samples.reserve(nsamples);
-  for (size_t i = 0; i < nsamples; ++i) {
+  for (std::size_t i = 0; i < nsamples; ++i) {
     samples.emplace_back(dist(rng), 1.0);
   }
 

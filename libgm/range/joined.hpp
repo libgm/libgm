@@ -19,7 +19,7 @@ namespace libgm {
       make_join_iterator(boost::end(r1),   boost::end(r1), boost::end(r2))
     };
   }
-  
+
 } // namespace libgm
 
 #endif

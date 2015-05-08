@@ -42,7 +42,7 @@ namespace libgm {
     // ParametricFactor member types
     typedef canonical_gaussian_param<T> param_type;
     typedef dynamic_vector<T>           index_type;
-    
+
     // ExponentialFamilyFactor member types
     typedef moment_gaussian<T, Var> probability_type;
 
@@ -90,7 +90,7 @@ namespace libgm {
     explicit canonical_gaussian(const moment_gaussian<T, Var>& mg) {
       *this = mg;
     }
-    
+
     //! Assigns a constant to this factor.
     canonical_gaussian& operator=(logarithmic<T> value) {
       reset();
@@ -120,7 +120,7 @@ namespace libgm {
 
     // Serialization and initialization
     //==========================================================================
-    
+
     //! Serializes the factor to an archive.
     void save(oarchive& ar) const {
       ar << args_ << param_;
@@ -137,16 +137,16 @@ namespace libgm {
     void reset(const domain_type& args = domain_type()) {
       if (args_ != args) {
         args_ = args;
-        size_t n = this->compute_start(args);
+        std::size_t n = this->compute_start(args);
         param_.resize(n);
       }
     }
 
     //! Sets the arguments, but does not allocate the parameters.
-    size_t reset_prototype(const domain_type& args) {
+    std::size_t reset_prototype(const domain_type& args) {
       if (args_ != args) {
         args_ = args;
-        size_t n = this->compute_start(args);
+        std::size_t n = this->compute_start(args);
         param_.resize(0);
         return n;
       } else return vector_size(args);
@@ -161,7 +161,7 @@ namespace libgm {
     }
 
     //! Returns the number of arguments of this factor.
-    size_t arity() const {
+    std::size_t arity() const {
       return args_.size();
     }
 
@@ -171,7 +171,7 @@ namespace libgm {
     }
 
     //! Returns the number of dimensions of this Gaussian.
-    size_t size() const {
+    std::size_t size() const {
       return param_.size();
     }
 
@@ -207,7 +207,7 @@ namespace libgm {
 
     //! Returns the information matrix for a single variable.
     Eigen::Block<const mat_type> inf_matrix(Var v) const {
-      size_t i = this->start(v);
+      std::size_t i = this->start(v);
       return param_.lambda.block(i, i, v.size(), v.size());
     }
 
@@ -241,7 +241,7 @@ namespace libgm {
      */
     void assignment(const vec_type& vec, assignment_type& a) const {
       assert(vec.size() == size());
-      size_t i = 0;
+      std::size_t i = 0;
       for (Var v : args_) {
         a[v] = vec.segment(i, v.size());
         i += v.size();
@@ -261,11 +261,13 @@ namespace libgm {
      */
     canonical_gaussian reorder(const domain_type& args) const {
       if (!equivalent(args, args_)) {
-        throw std::runtime_error("canonical_gaussian::reorder: invalid ordering");
+        throw std::runtime_error(
+          "canonical_gaussian::reorder: ordering changes the argument set"
+        );
       }
       return canonical_gaussian(args, param_.reorder(this->index_map(args)));
     }
-    
+
     /**
      * Checks if the size of the parameter struct matches this factor's
      * arguments.
@@ -285,7 +287,9 @@ namespace libgm {
     friend void check_same_arguments(const canonical_gaussian& f,
                                      const canonical_gaussian& g) {
       if (f.arguments() != g.arguments()) {
-        throw std::invalid_argument("canonical_gaussian: incompatible arguments");
+        throw std::invalid_argument(
+          "canonical_gaussian: incompatible arguments"
+        );
       }
     }
 
@@ -494,7 +498,7 @@ namespace libgm {
                            canonical_gaussian& result) const {
       restrict_multiply_op(*this, a, result)(param_, result.param_);
     }
-  
+
     // Entropy and divergences
     //==========================================================================
 
@@ -529,7 +533,7 @@ namespace libgm {
       check_same_arguments(f, g);
       return max_diff(f.param_, g.param_);
     }
-    
+
     // Private data members
     //==========================================================================
   private:
@@ -540,13 +544,13 @@ namespace libgm {
     param_type param_;
 
   }; // class canonical_gaussian
-  
+
   /**
    * A canonical_gaussian factor using double precision.
    * \relates canonical_gaussian
    */
   typedef canonical_gaussian<double, variable> cgaussian;
-  
+
   // Common operations
   //============================================================================
 
@@ -587,8 +591,8 @@ namespace libgm {
   }
 
   /**
-   * Returns an object that can subrtact the parameters of one canonical Gaussian
-   * from another one in-place.
+   * Returns an object that can subtract the parameters of one canonical
+   * Gaussian from another one in-place.
    */
   template <typename T, typename Var>
   canonical_gaussian_join_inplace<T, libgm::minus_assign<> >
@@ -609,14 +613,15 @@ namespace libgm {
 
   /**
    * Returns an object that can compute the parameters corresponding to the
-   * product of two canonical Gaussians. Initializes the arguments of the result.
+   * product of two canonical Gaussians. Initializes the arguments of the
+   * result.
    */
   template <typename T, typename Var>
   canonical_gaussian_join<T, libgm::plus_assign<> >
   multiplies_op(const canonical_gaussian<T, Var>& f,
                 const canonical_gaussian<T, Var>& g,
                 canonical_gaussian<T, Var>& h) {
-    size_t n = h.reset_prototype(f.arguments() | g.arguments());
+    std::size_t n = h.reset_prototype(f.arguments() | g.arguments());
     return { h.index_map(f.arguments()), h.index_map(g.arguments()), n };
   }
 
@@ -629,7 +634,7 @@ namespace libgm {
   divides_op(const canonical_gaussian<T, Var>& f,
              const canonical_gaussian<T, Var>& g,
              canonical_gaussian<T, Var>& h) {
-    size_t n = h.reset_prototype(f.arguments() | g.arguments());
+    std::size_t n = h.reset_prototype(f.arguments() | g.arguments());
     return { h.index_map(f.arguments()), h.index_map(g.arguments()), n };
   }
 
@@ -646,7 +651,7 @@ namespace libgm {
     h.reset_prototype(retain);
     return { f.index_map(retain), f.index_map(f.arguments() - retain) };
   }
-  
+
   /**
    * Returns an object that can compute the parameters corresponding to
    * the maximum of a canonical Gaussian over a subset of arguments.
@@ -690,7 +695,7 @@ namespace libgm {
     f.arguments().partition(a, y, x);
     return { f.index_map(x), f.index_map(y), h.index_map(x), extract(a, y) };
   }
-  
+
   // Traits
   //============================================================================
 
@@ -724,7 +729,7 @@ namespace libgm {
   template <typename T, typename Var>
   struct has_arg_max<canonical_gaussian<T, Var>>
     : public std::true_type { };
-  
+
   //! @}
 
 } // namespace libgm

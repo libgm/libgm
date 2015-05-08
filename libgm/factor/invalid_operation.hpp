@@ -6,8 +6,8 @@
 namespace libgm {
 
   /**
-   * An exception thrown when an operation cannot be performed on a 
-   * factor. 
+   * An exception thrown when an operation cannot be performed on a
+   * factor.
    *
    * @see canonical_gaussian::collapse, moment_gaussian::restrict
    *

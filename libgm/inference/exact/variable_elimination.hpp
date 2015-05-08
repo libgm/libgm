@@ -17,16 +17,17 @@ namespace libgm {
    *
    * \tparam F A type representing the factor
    * \tparam Strategy A type that model EliminationStrategy concept
-   *   
+   *
    * \param factors
    *        The collection of factors, modified in place.
    * \param retain
    *        The retained arguments.
    * \param csr
-   *        An object (such as sum_product) that determines how factors are 
+   *        An object (such as sum_product) that determines how factors are
    *        combined and collapse.
    * \param elim_strategy
-   *        The strategy that determines the order in which variable are eliminated.
+   *        The strategy that determines the order in which variable are
+   *         eliminated.
    *
    * \ingroup inference
    */
@@ -36,7 +37,7 @@ namespace libgm {
                             const commutative_semiring<F>& csr,
                             Strategy strategy = Strategy()) {
     typedef typename F::variable_type variable_type;
-    
+
     // construct the Markov graph for the input factors
     undirected_graph<variable_type> graph;
     for (const F& factor : factors) {

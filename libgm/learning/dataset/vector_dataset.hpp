@@ -25,12 +25,12 @@ namespace libgm {
     typedef T                         weight_type;
 
     //! Returns the number of columns occupied by a variable.
-    static size_t ncols(Var v) {
+    static std::size_t ncols(Var v) {
       return v.size();
     }
 
     //! Returns the number of columns occupied by a domain.
-    static size_t ncols(const domain_type& dom) {
+    static std::size_t ncols(const domain_type& dom) {
       return vector_size(dom);
     }
 
@@ -40,16 +40,16 @@ namespace libgm {
     }
 
     //! Extracts the values for a single variable occupying ncol columns.
-    static void copy(T* const* ptrs, size_t ncols, size_t row,
+    static void copy(T* const* ptrs, std::size_t ncols, std::size_t row,
                      dynamic_vector<T>& val) {
       val.resize(ncols);
-      for (size_t i = 0; i < ncols; ++i) {
+      for (std::size_t i = 0; i < ncols; ++i) {
         val[i] = ptrs[i][row];
       }
     }
 
     //! Copies the values for a single variable occupying ncol columns.
-    static void copy(const dynamic_vector<T>& val, size_t ncols, T* dest) {
+    static void copy(const dynamic_vector<T>& val, std::size_t ncols, T* dest) {
       assert(val.size() == ncols);
       std::copy(val.data(), val.data() + ncols, dest);
     }

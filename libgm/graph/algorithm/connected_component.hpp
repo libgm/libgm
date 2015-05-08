@@ -1,8 +1,6 @@
 #ifndef LIBGM_CONNECTED_COMPONENT_HPP
 #define LIBGM_CONNECTED_COMPONENT_HPP
 
-#include <libgm/global.hpp>
-
 #include <queue>
 #include <tuple>
 #include <utility>
@@ -19,18 +17,18 @@ namespace libgm {
   template <typename Graph, typename Set>
   void connected_component(const Graph& graph,
                            typename Graph::vertex_type root,
-                           size_t nhops,
+                           std::size_t nhops,
                            Set& result) {
     typedef typename Graph::vertex_type vertex_type;
     typedef typename Graph::edge_type edge_type;
 
     result.insert(root);
-    std::queue<std::pair<vertex_type, size_t> > q; // vertex-distance pairs
+    std::queue<std::pair<vertex_type, std::size_t> > q; // vertex-distance pairs
     q.push(std::make_pair(root, 0));
 
     while (!q.empty()) {
       vertex_type u;
-      size_t dist;
+      std::size_t dist;
       std::tie(u, dist) = q.front();
       if (dist >= nhops) break;
       q.pop();
@@ -55,7 +53,8 @@ namespace libgm {
   void connected_component(const Graph& graph,
                            typename Graph::vertex_type root,
                            Set& result) {
-    connected_component(graph, root, std::numeric_limits<size_t>::max(), result);
+    connected_component(graph, root, std::numeric_limits<std::size_t>::max(),
+                        result);
   }
 
 } // namespace libgm

@@ -37,7 +37,7 @@ BOOST_AUTO_TEST_CASE(test_constructors) {
   ptable c(2.0);
   BOOST_CHECK(table_properties(c, {}));
   BOOST_CHECK_CLOSE(c[0], 2.0, 1e-8);
-  
+
   ptable d({x}, 3.0);
   BOOST_CHECK(table_properties(d, {x}));
   BOOST_CHECK_CLOSE(d[0], 3.0, 1e-8);
@@ -63,14 +63,14 @@ BOOST_AUTO_TEST_CASE(test_assignment_swap) {
   f = 2.0;
   BOOST_CHECK(table_properties(f, {}));
   BOOST_CHECK_CLOSE(f[0], 2.0, 1e-8);
-  
+
   f.reset({x, y});
   BOOST_CHECK(table_properties(f, {x, y}));
 
   f = 3.0;
   BOOST_CHECK(table_properties(f, {}));
   BOOST_CHECK_CLOSE(f[0], 3.0, 1e-8);
-  
+
   ctable ct({x}, logd(0.5));
   f = ct;
   BOOST_CHECK(table_properties(f, {x}));
@@ -88,7 +88,7 @@ BOOST_AUTO_TEST_CASE(test_indexing) {
   universe u;
   variable x = u.new_finite_variable("x", 2);
   variable y = u.new_finite_variable("y", 3);
-  
+
   ptable f({x, y});
   std::iota(f.begin(), f.end(), 1);
   BOOST_CHECK_CLOSE(f(finite_index{0,0}), 1.0, 1e-8);
@@ -183,7 +183,7 @@ BOOST_AUTO_TEST_CASE(test_operators) {
   for (const finite_assignment<>& a : finite_assignments(domain{x, y})) {
     BOOST_CHECK_CLOSE(h(a), f(a) / 3.0, 1e-8);
   }
-  
+
   h = 3.0 / f;
   BOOST_CHECK(table_properties(h, {x, y}));
   for (const finite_assignment<>& a : finite_assignments(domain{x, y})) {
@@ -199,7 +199,7 @@ BOOST_AUTO_TEST_CASE(test_operators) {
   for (const finite_assignment<>& a : finite_assignments(domain{x, y})) {
     BOOST_CHECK_CLOSE(h(a), std::pow(f(a), 3.0), 1e-8);
   }
-  
+
   ptable f1({x, y}, {0, 1, 2, 3});
   ptable f2({x, y}, {-2, 3, 0, 0});
   std::vector<double> fmax = {0, 3, 2, 3};
@@ -214,13 +214,13 @@ BOOST_AUTO_TEST_CASE(test_operators) {
   BOOST_CHECK(boost::equal(h, fmin));
 
   h = weighted_update(f1, f2, 0.3);
-  for (size_t i = 0; i < 4; ++i) {
+  for (std::size_t i = 0; i < 4; ++i) {
     BOOST_CHECK_CLOSE(h[i], 0.7 * f1[i] + 0.3 * f2[i], 1e-8);
-  }  
+  }
 }
 
 
-BOOST_AUTO_TEST_CASE(test_collapse) {  
+BOOST_AUTO_TEST_CASE(test_collapse) {
   universe u;
   variable x = u.new_finite_variable("x", 2);
   variable y = u.new_finite_variable("y", 3);
@@ -239,7 +239,7 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
   BOOST_CHECK_EQUAL(f.maximum(a), 6.0);
   BOOST_CHECK_EQUAL(a[x], 1);
   BOOST_CHECK_EQUAL(a[y], 2);
-  
+
   h = f.minimum({y});
   BOOST_CHECK(table_properties(h, {y}));
   BOOST_CHECK(boost::equal(h, hmin));
@@ -252,7 +252,7 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
   ptable py({y}, {1.6, 0.3, 0.4});
   h = pxy.marginal({y});
   BOOST_CHECK(table_properties(h, {y}));
-  for (size_t i = 0; i < 3; ++i) {
+  for (std::size_t i = 0; i < 3; ++i) {
     BOOST_CHECK_CLOSE(h[i], py[i], 1e-7);
   }
   BOOST_CHECK_CLOSE(pxy.marginal(), 1.1+0.5+0.1+0.2+0.4, 1e-8);
@@ -283,10 +283,10 @@ BOOST_AUTO_TEST_CASE(test_sample) {
   std::mt19937 rng2;
   std::mt19937 rng3;
   finite_assignment<> a;
-  
+
   // test marginal sample
   auto fd = f.distribution();
-  for (size_t i = 0; i < 20; ++i) {
+  for (std::size_t i = 0; i < 20; ++i) {
     finite_index sample = fd(rng1);
     BOOST_CHECK_EQUAL(f.sample(rng2), sample);
     f.sample(rng3, a);
@@ -297,10 +297,10 @@ BOOST_AUTO_TEST_CASE(test_sample) {
   // test conditional sample
   ptable g = f.conditional({y});
   auto gd = g.distribution();
-  for (size_t yv = 0; yv < 3; ++yv) {
+  for (std::size_t yv = 0; yv < 3; ++yv) {
     finite_index tail(1, yv);
     a[y] = yv;
-    for (size_t i = 0; i < 20; ++i) {
+    for (std::size_t i = 0; i < 20; ++i) {
       finite_index sample = gd(rng1, tail);
       BOOST_CHECK_EQUAL(g.sample(rng2, tail), sample);
       g.sample(rng3, {x}, a);
@@ -324,7 +324,7 @@ BOOST_AUTO_TEST_CASE(test_entropy) {
   double hpx = -(0.4*log(0.4) + 0.6*log(0.6));
   double hpy = -(0.3*log(0.3) + 0.7*log(0.7));
   double hpq = 0.0, klpq = 0.0, sumdiff = 0.0, maxdiff = 0.0;
-  for (size_t i = 0; i < 4; ++i) {
+  for (std::size_t i = 0; i < 4; ++i) {
     hpq += -p[i] * log(q[i]);
     klpq += p[i] * log(p[i]/q[i]);
     double diff = std::abs(p[i] - q[i]);

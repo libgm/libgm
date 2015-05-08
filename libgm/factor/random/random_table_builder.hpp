@@ -21,7 +21,7 @@ namespace libgm {
    * within the given description. After argv is parsed, use can invoke
    * marginal(), and conditional() to retrieve the functors for the
    * specified parameters.
-   * 
+   *
    * \tparam the factor type
    * \ingroup factor_random
    */
@@ -51,7 +51,7 @@ namespace libgm {
          po::value<std::string>(&kind_)->default_value("uniform"),
          "table generator kind: diagonal/dirichlet/uniform")
         ((opt_prefix + "period").c_str(),
-         po::value<size_t>(&period_)->default_value(0),
+         po::value<std::size_t>(&period_)->default_value(0),
          "Alternation period. If 0, only the default is used.");
       add_options(sub_desc, opt_prefix, def_);
       add_options(sub_desc, opt_prefix + "alt_", alt_);
@@ -180,7 +180,7 @@ namespace libgm {
     }
 
     std::string kind;
-    size_t period;
+    std::size_t period;
     param_type def;
     param_type alt;
 

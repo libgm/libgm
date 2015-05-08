@@ -19,7 +19,7 @@ namespace libgm {
    * \tparam Var a type representing variables, such as libgm::variable
    */
   template <typename Var = variable>
-  using finite_assignment = std::unordered_map<Var, size_t>;
+  using finite_assignment = std::unordered_map<Var, std::size_t>;
 
   /**
    * Returns the number of variables for which both finite_assignments
@@ -27,11 +27,11 @@ namespace libgm {
    * \relates finite_assignment
    */
   template <typename Var>
-  size_t agreement(const finite_assignment<Var>& a1,
+  std::size_t agreement(const finite_assignment<Var>& a1,
                    const finite_assignment<Var>& a2) {
     const finite_assignment<Var>& a = a1.size() < a2.size() ? a1 : a2;
     const finite_assignment<Var>& b = a1.size() < a2.size() ? a2 : a1;
-    size_t count = 0;
+    std::size_t count = 0;
     for (const auto& p : a) {
       auto it = b.find(p.first);
       count += (it != b.end()) && (it->second == p.second);
@@ -47,10 +47,10 @@ namespace libgm {
   template <typename Var>
   finite_index extract(const finite_assignment<Var>& a,
                        const basic_domain<Var>& dom,
-                       size_t start = 0) {
+                       std::size_t start = 0) {
     assert(start <= dom.size());
     finite_index result(dom.size() - start);
-    for (size_t i = start; i < dom.size(); ++i) {
+    for (std::size_t i = start; i < dom.size(); ++i) {
       result[i - start] = a.at(dom[i]);
     }
     return result;

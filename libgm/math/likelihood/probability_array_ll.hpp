@@ -1,7 +1,6 @@
 #ifndef LIBGM_PROBABILITY_ARRAY_LL_HPP
 #define LIBGM_PROBABILITY_ARRAY_LL_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/datastructure/finite_index.hpp>
 #include <libgm/datastructure/real_pair.hpp>
 #include <libgm/traits/is_sample_range.hpp>
@@ -18,7 +17,7 @@ namespace libgm {
    * \tparam T the real type representing the parameters
    * \tparam N the arity of the distribution (1 or 2)
    */
-  template <typename T, size_t N>
+  template <typename T, std::size_t N>
   class probability_array_ll {
   public:
     //! The real type representing the log-likelihood.
@@ -28,7 +27,8 @@ namespace libgm {
     typedef T regul_type;
 
     //! The array of probabilities.
-    typedef Eigen::Array<T, Eigen::Dynamic, N == 1 ? 1 : Eigen::Dynamic> param_type;
+    typedef Eigen::Array<T, Eigen::Dynamic, N == 1 ? 1 : Eigen::Dynamic>
+      param_type;
 
     //! The 1-D array of probabilities.
     typedef Eigen::Array<T, Eigen::Dynamic, 1> array1_type;
@@ -43,7 +43,7 @@ namespace libgm {
     /**
      * Returns the log-likelihood of the specified data point.
      */
-    T value(size_t i) const {
+    T value(std::size_t i) const {
       assert(a.cols() == 1);
       return std::log(a(i));
     }
@@ -51,7 +51,7 @@ namespace libgm {
     /**
      * Returns the log-likelihood of the specified data point.
      */
-    T value(size_t i, size_t j) const {
+    T value(std::size_t i, std::size_t j) const {
       return std::log(a(i, j));
     }
 
@@ -66,7 +66,7 @@ namespace libgm {
      * Returns the log-likelihood of the specified datapoint
      * and the slope along the given direction.
      */
-    real_pair<T> value_slope(size_t i, const param_type& dir) const {
+    real_pair<T> value_slope(std::size_t i, const param_type& dir) const {
       assert(a.rows() == dir.rows() && a.cols() == 1 && dir.cols() == 1);
       return { std::log(a(i)), dir(i) / a(i) };
     }
@@ -75,7 +75,8 @@ namespace libgm {
      * Returns the log-likelihood of the specified datapoint
      * and the slope along the given direction.
      */
-    real_pair<T> value_slope(size_t i, size_t j, const param_type& dir) const {
+    real_pair<T> value_slope(std::size_t i, std::size_t j,
+                             const param_type& dir) const {
       assert(a.rows() == dir.rows() && a.cols() == dir.cols());
       return { std::log(a(i, j)), dir(i, j) / a(i, j) };
     }
@@ -84,9 +85,10 @@ namespace libgm {
      * Returns the log-likelihood of the specified datapoint
      * and the slope along the given direction.
      */
-    real_pair<T> value_slope(const finite_index& index, const param_type& dir) const {
+    real_pair<T> value_slope(const finite_index& index,
+                             const param_type& dir) const {
       assert(a.rows() == dir.rows() && a.cols() == dir.cols());
-      size_t i = linear(index);
+      std::size_t i = linear(index);
       return { std::log(a(i)), dir(i) / a(i) };
     }
 
@@ -94,7 +96,7 @@ namespace libgm {
      * Adds a gradient of the log-likelihood of the specified data
      * point with weight w to the gradient array g.
      */
-    void add_gradient(size_t i, T w, param_type& g) const {
+    void add_gradient(std::size_t i, T w, param_type& g) const {
       assert(a.rows() == g.rows() && a.cols() == 1 && g.cols() == 1);
       g(i) += w / a(i);
     }
@@ -103,7 +105,7 @@ namespace libgm {
      * Adds a gradient of the log-likelihood of the specified data
      * point with weight w to the gradient array g
      */
-    void add_gradient(size_t i, size_t j, T w, param_type& g) const {
+    void add_gradient(std::size_t i, std::size_t j, T w, param_type& g) const {
       assert(a.rows() == g.rows() && a.cols() == g.cols());
       g(i, j) += w / a(i, j);
     }
@@ -114,7 +116,7 @@ namespace libgm {
      */
     void add_gradient(const finite_index& index, T w, param_type& g) const {
       assert(a.rows() == g.rows() && a.cols() == g.cols());
-      size_t i = linear(index);
+      std::size_t i = linear(index);
       g(i) += w / a(i);
     }
 
@@ -124,17 +126,17 @@ namespace libgm {
      * \param phead the distribution over the row index of f
      * \param j the column index
      */
-    void add_gradient(const array1_type& phead, size_t j, T w,
+    void add_gradient(const array1_type& phead, std::size_t j, T w,
                       param_type& g) const {
       g.col(j) += w * phead / a.col(j);
     }
 
-      
+
     /**
      * Adds the diagonal of the Hessian of log-likelihood of the specified
      * data point with weight w to the Hessian diagonal h.
      */
-    void add_hessian_diag(size_t i, T w, param_type& h) const {
+    void add_hessian_diag(std::size_t i, T w, param_type& h) const {
       assert(a.rows() == h.rows() && a.cols() == 1 && h.cols() == 1);
       h(i) -= w / (a(i) * a(i));
     }
@@ -143,18 +145,18 @@ namespace libgm {
      * Adds the diagonal of the Hessian of log-likelihood of the specified
      * data point with weight w to the Hessian diagonal h.
      */
-    void add_hessian_diag(size_t i, size_t j, T w, param_type& h) {
+    void add_hessian_diag(std::size_t i, std::size_t j, T w, param_type& h) {
       assert(a.rows() == h.rows() && a.cols() == h.cols());
       h(i, j) -= w / (a(i, j) * a(i, j));
     }
-    
+
     /**
      * Adds the diagonal of the Hessian of log-likelihood of the specified
      * data point with weight w to the Hessian diagonal h.
      */
     void add_hessian_diag(const finite_index& index, T w, param_type& h) const {
       assert(a.rows() == h.rows() && a.cols() == h.cols());
-      size_t i = linear(index);
+      std::size_t i = linear(index);
       h(i) -= w / (a(i) * a(i));
     }
 
@@ -164,14 +166,14 @@ namespace libgm {
      * \param phead the distribution over the row index of f
      * \param j the column index
      */
-    void add_hessian_diag(const array1_type& phead, size_t j, T w,
+    void add_hessian_diag(const array1_type& phead, std::size_t j, T w,
                           param_type& h) {
       h.col(j) -= w * phead / a.col(j) / a.col(j);
     }
 
   private:
     //! Returns the linear index corresponding to a finite_index.
-    size_t linear(const finite_index& index) const {
+    std::size_t linear(const finite_index& index) const {
       switch (index.size()) {
       case 1:
         assert(a.cols() == 1);

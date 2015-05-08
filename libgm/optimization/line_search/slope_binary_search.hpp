@@ -1,7 +1,6 @@
 #ifndef LIBGM_SLOPE_BINARY_SEARCH_HPP
 #define LIBGM_SLOPE_BINARY_SEARCH_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/optimization/line_search/bracketing_parameters.hpp>
 #include <libgm/optimization/line_search/line_function.hpp>
 #include <libgm/optimization/line_search/line_search.hpp>

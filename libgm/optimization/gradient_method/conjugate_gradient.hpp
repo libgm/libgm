@@ -36,18 +36,18 @@ namespace libgm {
        * If true, we use the preconditioner in the objective.
        */
       bool precondition;
-      
+
       /**
        * The method for computing the update (beta). These methods
        * are equivalent for quadratic objectives, but differ for others.
        */
       enum update_method { FLETCHER_REEVES, POLAK_RIBIERE } update;
-      
+
       /**
        * If true, ensures that beta is always >= 0.
        */
       bool auto_reset;
-      
+
       param_type(real_type convergence = 1e-6,
                  bool precondition = false,
                  update_method update = POLAK_RIBIERE,
@@ -102,7 +102,7 @@ namespace libgm {
         param_(param),
         objective_(NULL),
         converged_(false) { }
-    
+
     void objective(gradient_objective<Vec>* obj) override {
       objective_ = obj;
       search_->objective(obj);

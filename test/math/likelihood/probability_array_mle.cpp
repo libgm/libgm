@@ -19,10 +19,10 @@ namespace libgm {
 
 using namespace libgm;
 
-size_t nsamples = 10000;
+std::size_t nsamples = 10000;
 double tol = 0.01;
 
-template <size_t N, typename Array>
+template <std::size_t N, typename Array>
 double reconstruction_error(const Array& param) {
   // generate a few samples
   std::mt19937 rng;
@@ -30,7 +30,7 @@ double reconstruction_error(const Array& param) {
   typedef typename array_distribution<double, N>::result_type sample_type;
   std::vector<std::pair<sample_type, double>> samples;
   samples.reserve(nsamples);
-  for (size_t i = 0; i < nsamples; ++i) {
+  for (std::size_t i = 0; i < nsamples; ++i) {
     samples.emplace_back(dist(rng), 1.0);
   }
 

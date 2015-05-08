@@ -19,7 +19,7 @@ namespace libgm {
   /**
    * A base class for discrete factors with a fixed number of either
    * one or two arguments. This class stores the parameters of the factor
-   * as an Eigen array and provides the implementations of standard 
+   * as an Eigen array and provides the implementations of standard
    * functions on the factors. This class does not model the Factor
    * concept.
    *
@@ -27,7 +27,7 @@ namespace libgm {
    * \tparam N the arity of the factor (must be either 1 or 2).
    * \see canonical_array, probability_array
    */
-  template <typename T, size_t N, typename Var>
+  template <typename T, std::size_t N, typename Var>
   class array_factor : public factor {
   public:
     static_assert(N == 1 || N == 2, "The arity of factor must be 1 or 2");
@@ -100,7 +100,7 @@ namespace libgm {
 
     // Serialization and initialization
     //==========================================================================
-    
+
     //! Serializes members.
     void save(oarchive& ar) const {
       //ar << args_ << param_;
@@ -146,12 +146,12 @@ namespace libgm {
     }
 
     //! Returns the number of arguments of this factor.
-    constexpr size_t arity() const {
+    constexpr std::size_t arity() const {
       return N;
     }
 
     //! Returns the total number of elements of the factor.
-    size_t size() const {
+    std::size_t size() const {
       return param_.size();
     }
 
@@ -160,33 +160,33 @@ namespace libgm {
       return !param_.data();
     }
 
-    //! Returns the pointer to the first element (undefined if the factor is empty).
+    //! Returns the pointer to the first element (NULL if the factor is empty).
     T* begin() {
       return param_.data();
     }
 
-    //! Returns the pointer to the first element (undefined if the factor is empty).
+    //! Returns the pointer to the first element (NULL if the factor is empty).
     const T* begin() const {
       return param_.data();
     }
 
-    //! Returns the pointer past the last element (undefined if the factor is empty).
+    //! Returns the pointer past the last element (NULL if the factor is empty).
     T* end() {
       return param_.data() + param_.size();
     }
 
-    //! Returns the pointer past the last element (undefined if the factor is empty).
+    //! Returns the pointer past the last element (NULL if the factor is empty).
     const T* end() const {
       return param_.data() + param_.size();
     }
 
     //! Returns the parameter with the given linear index.
-    T& operator[](size_t i) {
+    T& operator[](std::size_t i) {
       return param_(i);
     }
 
     //! Returns the parameter with the given linear index.
-    const T& operator[](size_t i) const {
+    const T& operator[](std::size_t i) const {
       return param_(i);
     }
 
@@ -227,7 +227,7 @@ namespace libgm {
      * Converts a linear index to the corresponding assignment to the
      * factor arguments.
      */
-    void assignment(size_t linear_index, assignment_type& a) const {
+    void assignment(std::size_t linear_index, assignment_type& a) const {
       if (N == 1) {
         a[x()] = linear_index;
       } else {
@@ -239,7 +239,7 @@ namespace libgm {
     /**
      * Returns the linear index corresponding to the given assignment.
      */
-    size_t linear_index(const assignment_type& a) const {
+    std::size_t linear_index(const assignment_type& a) const {
       if (N == 1) {
         return a.at(x());
       } else {
@@ -250,7 +250,7 @@ namespace libgm {
     /**
      * Returns the linear index corresponding to the given finite index.
      */
-    size_t linear_index(const finite_index& index) const {
+    std::size_t linear_index(const finite_index& index) const {
       if (index.size() != N) {
         throw std::invalid_argument("Index size does not match the arity");
       }
@@ -270,7 +270,8 @@ namespace libgm {
         Var xn = var_map.at(x);
         if (!compatible(x, xn)) {
           throw std::invalid_argument(
-            "subst_args: " + x.str() + " and " + xn.str() + " are not compatible"
+            "subst_args: " + x.str() + " and " + xn.str() +
+            " are not compatible"
           );
         }
         x = xn;
@@ -331,12 +332,13 @@ namespace libgm {
    * have the same argument vectors.
    * \relates array_factor
    */
-  template <typename T, size_t N, typename Var>
+  template <typename T, std::size_t N, typename Var>
   void check_same_arguments(const array_factor<T, N, Var>& f,
                             const array_factor<T, N, Var>& g) {
     if (f.arguments() != g.arguments()) {
       throw std::invalid_argument(
-        "Element-wise operations require the two factors to have the same arguments"
+        "Element-wise operations require the two factors "
+        "to have the same arguments"
       );
     }
   }
@@ -345,7 +347,9 @@ namespace libgm {
    * Joins two factors with same arity element-wise.
    * \relates array_factor
    */
-  template <typename Result, typename T, size_t N, typename Var, typename Op>
+  template <typename Result,
+            typename T, std::size_t N, typename Var,
+            typename Op>
   Result join(const array_factor<T, N, Var>& f,
               const array_factor<T, N, Var>& g,
               Op op) {
@@ -395,7 +399,7 @@ namespace libgm {
       Eigen::Replicate<a_type, 1, Eigen::Dynamic> arep(a, 1, b.cols());
       return Result({g.x(), g.y()}, op(arep, b));
     }
-    if (f.x() == g.y()) { // combine f with each row of g 
+    if (f.x() == g.y()) { // combine f with each row of g
       Eigen::Replicate<a_type, 1, Eigen::Dynamic> arep(a, 1, b.rows());
       return Result({g.y(), g.x()}, op(arep, b.transpose()));
     }
@@ -406,7 +410,7 @@ namespace libgm {
    * Joins two factors with the same arity element-wise in-place
    * using a mutating operation.
    */
-  template <typename T, size_t N, typename Var, typename Op>
+  template <typename T, std::size_t N, typename Var, typename Op>
   void join_inplace(array_factor<T, N, Var>& h,
                     const array_factor<T, N, Var>& f,
                     Op op) {
@@ -443,7 +447,7 @@ namespace libgm {
    * Computes the expectation of the parameters of a binary factor
    * under the probabilities given by a unary factor and returns
    * a factor with the remaining variables.
-   * 
+   *
    * \throws std::invalid_argument if f does not contain the argument of g
    */
   template <typename Result, typename T, typename Var>
@@ -480,7 +484,9 @@ namespace libgm {
     } else if (f.x() == g.x() && f.y() == h.x()) {
       op(c.noalias(), a.transpose() * b);
     } else {
-      throw std::invalid_argument("array_factor join_expectation: unsupported arguments");
+      throw std::invalid_argument(
+        "array_factor join_expectation: unsupported arguments"
+      );
     }
   }
 
@@ -519,7 +525,7 @@ namespace libgm {
                  AggOp agg_op) {
     transform_aggregate(f, retain, h, identity(), agg_op);
   }
-  
+
   /**
    * Aggregates the parameter array of a binary factor along dimension
    * different from retain (if any) and returns the result with given type.
@@ -532,7 +538,7 @@ namespace libgm {
     aggregate(f, retain, result, agg_op);
     return result;
   }
-  
+
   /**
    * Restricts a binary factor to an assignment and stores the result
    * to the given unary factor. All variables other than one must be
@@ -590,7 +596,9 @@ namespace libgm {
    * Transforms the parameters of two factors using a binary operation
    * and returns the result. The two factors must have the same domains.
    */
-  template <typename Result, typename T, size_t N, typename Var, typename Op>
+  template <typename Result,
+            typename T, std::size_t N, typename Var,
+            typename Op>
   Result transform(const array_factor<T, N, Var>& f,
                    const array_factor<T, N, Var>& g,
                    Op op) {
@@ -604,7 +612,7 @@ namespace libgm {
    * Transforms the elements of a single factor using a unary operation
    * and accumulates the result using another operation.
    */
-  template <typename T, size_t N, typename Var,
+  template <typename T, std::size_t N, typename Var,
             typename TransOp, typename AccuOp>
   T transform_accumulate(const array_factor<T, N, Var>& f,
                          TransOp trans_op, AccuOp accu_op) {
@@ -619,14 +627,15 @@ namespace libgm {
    * Transforms the parameters of two factors using a binary operation
    * and accumulates the result using another operation.
    */
-  template <typename T, size_t N, typename Var,
+  template <typename T, std::size_t N, typename Var,
             typename JoinOp, typename AggOp>
   T transform_accumulate(const array_factor<T, N, Var>& f,
                          const array_factor<T, N, Var>& g,
                          JoinOp join_op,
                          AggOp agg_op) {
     check_same_arguments(f, g);
-    return std::inner_product(f.begin(), f.end(), g.begin(), T(0), agg_op, join_op);
+    return std::inner_product(f.begin(), f.end(), g.begin(),
+                              T(0), agg_op, join_op);
   }
 
 } // namespace libgm

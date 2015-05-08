@@ -1,7 +1,6 @@
 #ifndef LIBGM_MULTINOMIAL_DISTRIBUTION_HPP
 #define LIBGM_MULTINOMIAL_DISTRIBUTION_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/math/numerical_error.hpp>
 
 #include <numeric>
@@ -14,7 +13,7 @@ namespace Eigen {
 }
 
 namespace libgm {
-  
+
   /**
    * A class that represents a multinomial distribution:
    * \f$p(x = i) = p_i\f$ for \f$i = 0, \ldots, n-1\f$.
@@ -25,11 +24,11 @@ namespace libgm {
   class multinomial_distribution {
   public:
     //! The type of outcomes.
-    typedef size_t result_type;
+    typedef std::size_t result_type;
 
     //! The type representing the parameters.
     typedef std::vector<T> param_type;
-    
+
     //! Constructs a multinomial distribution with the given parameters.
     explicit multinomial_distribution(const param_type& param)
       : psum_(param) {
@@ -44,7 +43,7 @@ namespace libgm {
     explicit multinomial_distribution(const Eigen::DenseBase<Derived>& derived)
       : psum_(derived.size()) {
       T accu(0);
-      for (size_t i = 0; i < psum_.size(); ++i) {
+      for (std::size_t i = 0; i < psum_.size(); ++i) {
         accu += derived[i];
         psum_[i] = accu;
       }
@@ -52,7 +51,7 @@ namespace libgm {
 
     //! Draws a sample from the distribution using the specified generator.
     template <typename Generator>
-    size_t operator()(Generator& rng) const {
+    std::size_t operator()(Generator& rng) const {
       std::uniform_real_distribution<T> unif;
       auto it = std::upper_bound(psum_.begin(), psum_.end(), unif(rng));
       if (it == psum_.end()) {

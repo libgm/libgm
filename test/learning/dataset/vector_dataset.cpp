@@ -29,11 +29,11 @@ BOOST_AUTO_TEST_CASE(test_insert) {
   universe u;
   domain v = u.new_vector_variables(2, "v", 1);
   v.push_back(u.new_vector_variable("w", 2));
-  
+
   vector_dataset<> ds;
   ds.initialize(v);
   BOOST_CHECK(ds.empty());
-  
+
   // insert a record
   vec_type values(4);
   values[0] = 2.0;
@@ -54,7 +54,7 @@ BOOST_AUTO_TEST_CASE(test_insert) {
 
   // print the dataset
   std::cout << ds << std::endl;
-  size_t i = 0;
+  std::size_t i = 0;
   for (const auto& s : ds) {
     std::cout << i << ": " << s.first.transpose() << "\t" << s.second
               << std::endl;
@@ -85,16 +85,16 @@ BOOST_AUTO_TEST_CASE(test_insert) {
   ++it;
 
   // check the remaining samples
-  for (size_t i = 0; i < 10; ++i) {
+  for (std::size_t i = 0; i < 10; ++i) {
     BOOST_CHECK_EQUAL(it->first.size(), 4);
-    for (size_t j = 0; j < 4; ++j) {
+    for (std::size_t j = 0; j < 4; ++j) {
       BOOST_CHECK(std::isnan(it->first[j]));
     }
     BOOST_CHECK_EQUAL(it->second, 1.0);
     BOOST_CHECK_EQUAL(it->second, ds[i+2].second);
     ++it;
   }
-  
+
   // check that we covered all the samples
   BOOST_CHECK(it == end);
 }
@@ -102,7 +102,7 @@ BOOST_AUTO_TEST_CASE(test_insert) {
 BOOST_AUTO_TEST_CASE(test_value_iterators) {
   universe u;
   domain v = u.new_vector_variables(3, "v", 1);
-  
+
   vector_dataset<> ds;
   ds.initialize(v);
   ds.insert(1);
@@ -188,7 +188,7 @@ struct fixture {
     ds.initialize(v, 1000);
     f = mgaussian(v, vec3(0.5, 1, 2), mat33(3, 2, 1, 2, 2, 1, 1, 1, 2));
     auto d = f.distribution();
-    for (size_t i = 0; i < 1000; ++i) {
+    for (std::size_t i = 0; i < 1000; ++i) {
       ds.insert(d(rng), 1.0);
     }
   }
@@ -197,8 +197,8 @@ struct fixture {
 BOOST_FIXTURE_TEST_CASE(test_reconstruction, fixture) {
   // verify that the distribution retrieved by immutable iterators
   // matches the factor for every variable or every pair of variables
-  for (size_t i = 0; i < v.size(); ++i) {
-    for (size_t j = i; j < v.size(); ++j) {
+  for (std::size_t i = 0; i < v.size(); ++i) {
+    for (std::size_t j = i; j < v.size(); ++j) {
       domain dom = domain({v[i], v[j]}).unique();
       double kl = kl_divergence(f.marginal(dom), mle(ds, dom));
       std::cout << dom << ": " << kl << std::endl;
@@ -231,8 +231,8 @@ BOOST_FIXTURE_TEST_CASE(test_reconstruction, fixture) {
 BOOST_FIXTURE_TEST_CASE(test_sample, fixture) {
   // draw samples from the dataset and attempt to recover the mean
   vec_type mean = vec_type::Zero(3);
-  std::uniform_int_distribution<size_t> unif(0, ds.size() - 1);
-  for (size_t i = 0; i < 600; ++i) {
+  std::uniform_int_distribution<std::size_t> unif(0, ds.size() - 1);
+  for (std::size_t i = 0; i < 600; ++i) {
     auto sample = ds[unif(rng)];
     mean += sample.first * sample.second;
   }
@@ -256,7 +256,7 @@ BOOST_AUTO_TEST_CASE(test_load) {
   int argc = boost::unit_test::framework::master_test_suite().argc;
   BOOST_REQUIRE(argc > 1);
   std::string dir = boost::unit_test::framework::master_test_suite().argv[1];
-  
+
   universe u;
   symbolic_format format;
   vector_dataset<> ds;
@@ -266,7 +266,7 @@ BOOST_AUTO_TEST_CASE(test_load) {
   double values[][3] = { {180, 0, 0}, {178.2, 1, 0}, {nan<double>(), 2, 2} };
   double weights[] = {1.0, 2.0, 0.5};
   BOOST_CHECK_EQUAL(ds.size(), 3);
-  size_t i = 0;
+  std::size_t i = 0;
   for (const auto& s : ds) {
     if (std::isnan(values[i][0])) {
       BOOST_CHECK(std::isnan(s.first[0]));

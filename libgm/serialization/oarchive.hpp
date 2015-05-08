@@ -10,13 +10,13 @@
 
 #include <boost/noncopyable.hpp>
 
-#define LIBGM_SERIALIZE_CHAR(src_type)      \
+#define LIBGM_SERIALIZE_CHAR(src_type)     \
   oarchive& operator<<(const src_type c) { \
     serialize_char(c);                     \
     return *this;                          \
   }
 
-#define LIBGM_SERIALIZE_INT(src_type)        \
+#define LIBGM_SERIALIZE_INT(src_type)       \
   oarchive& operator<<(const src_type x) {  \
     serialize_int(x);                       \
     return *this;                           \
@@ -34,7 +34,7 @@ namespace libgm {
     //! Constructs an output archive with the given stream.
     oarchive(std::ostream& out)
       : out_(&out), bytes_(0) {}
-    
+
     //! Sets the stream and resets the bytes to 0.
     void reset(std::ostream& out) {
       out_ = &out;
@@ -42,7 +42,7 @@ namespace libgm {
     }
 
     //! Returns the number of bytes written.
-    size_t bytes() const {
+    std::size_t bytes() const {
       return bytes_;
     }
 
@@ -68,7 +68,7 @@ namespace libgm {
     }
 
     //! Serializes a buffer of known length in bytes.
-    void serialize_buf(const void* buf, const size_t length) {
+    void serialize_buf(const void* buf, const std::size_t length) {
       if (length == 0) { return; }
       out_->write(reinterpret_cast<const char*>(buf), length);
       bytes_ += length;
@@ -86,9 +86,9 @@ namespace libgm {
 
     //! Serializes a range with known length.
     template <typename InputIterator>
-    void serialize_range(InputIterator it, InputIterator end, size_t len) {
+    void serialize_range(InputIterator it, InputIterator end, std::size_t len) {
       serialize_int(len);
-      size_t count = 0;
+      std::size_t count = 0;
       for (; it != end; ++it) {
         *this << *it;
         ++count;
@@ -135,13 +135,13 @@ namespace libgm {
 
   private:
     //! The stream to which we write data.
-    std::ostream* out_; 
+    std::ostream* out_;
 
     //! The number of serialized bytes.
-    size_t bytes_;
+    std::size_t bytes_;
 
     //! A map that stores for each dynamically allocated object its ID in archive.
-    std::unordered_map<const void*, size_t> dynamic_;
+    std::unordered_map<const void*, std::size_t> dynamic_;
 
   }; // class oarchive
 

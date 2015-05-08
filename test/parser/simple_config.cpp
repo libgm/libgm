@@ -10,11 +10,11 @@ BOOST_TEST_DONT_PRINT_LOG_VALUE(simple_config::config_entries);
 BOOST_AUTO_TEST_CASE(test_load) {
   int argc = boost::unit_test::framework::master_test_suite().argc;
   BOOST_REQUIRE(argc > 1);
-  
+
   char* filename = boost::unit_test::framework::master_test_suite().argv[1];
   simple_config config;
   config.load(filename);
-  
+
   simple_config::config_entries section1;
   section1.push_back(std::make_pair("key1", "value1"));
   section1.push_back(std::make_pair("key2", "value2"));
@@ -22,7 +22,7 @@ BOOST_AUTO_TEST_CASE(test_load) {
 
   simple_config::config_entries section2;
   section2.push_back(std::make_pair("key4", "4"));
-  
+
   simple_config::config_entries section3;
 
   BOOST_CHECK_EQUAL(config["section1"], section1);
@@ -31,7 +31,7 @@ BOOST_AUTO_TEST_CASE(test_load) {
 }
 
 BOOST_AUTO_TEST_CASE(test_save) {
-  const char* filename = "simple_config_tmp.cfg"; 
+  const char* filename = "simple_config_tmp.cfg";
 
   simple_config config;
   config.add("sectionA", "key_str", "some string");
@@ -48,7 +48,7 @@ BOOST_AUTO_TEST_CASE(test_save) {
 
   std::ifstream in(filename);
   std::string line;
-  size_t i = 0;
+  std::size_t i = 0;
   while (getline(in, line)) {
     if (!line.empty()) {
       if (i < lines.size()) {

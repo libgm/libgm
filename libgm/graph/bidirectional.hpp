@@ -1,7 +1,6 @@
 #ifndef LIBGM_BIDIRECTIONAL_HPP
 #define LIBGM_BIDIRECTIONAL_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/graph/undirected_edge.hpp>
 
 #include <iosfwd>
@@ -10,7 +9,7 @@ namespace libgm {
 
   /**
    * An adapter that allows bidirectional information in an undirected graph.
-   * @tparam Property the information stored in either direction. 
+   * @tparam Property the information stored in either direction.
    *         Must be DefaultConstructible and CopyConstructible.
    *
    * \ingroup graph_types

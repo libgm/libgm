@@ -32,7 +32,7 @@ BOOST_AUTO_TEST_CASE(test_swap_chars) {
   std::string str = "_hello_world_";
   swap_characters_inplace(str, '_', ' ');
   BOOST_CHECK_EQUAL(str, " hello world ");
-  
+
   str = "/check/this/out!";
   nonalnum_to_char_inplace(str, ' ');
   BOOST_CHECK_EQUAL(str, " check this out ");

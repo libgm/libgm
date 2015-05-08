@@ -87,20 +87,20 @@ BOOST_FIXTURE_TEST_CASE(test_conditioning, fixture) {
 BOOST_FIXTURE_TEST_CASE(test_sample, fixture) {
   finite_dataset<> ds(x);
   finite_assignment<> a;
-  size_t nsamples = 5000;
+  std::size_t nsamples = 5000;
   std::mt19937 rng;
-  for (size_t i = 0; i < nsamples; ++i) {
+  for (std::size_t i = 0; i < nsamples; ++i) {
     bn.sample(rng, a);
     ds.insert(a, 1.0);
   }
-  
+
   factor_mle<ptable> mle;
   ptable g0 = mle(ds, {x[0]});
   ptable g1 = mle(ds, {x[1]});
   ptable g21 = mle(ds, {x[2]}, {x[1]});
   ptable g312 = mle(ds, {x[3]}, {x[1], x[2]});
   ptable g403 = mle(ds, {x[4]}, {x[0], x[3]});
-  
+
   BOOST_CHECK_SMALL(kl_divergence(f0, g0), 1e-2);
   BOOST_CHECK_SMALL(kl_divergence(f1, g1), 1e-2);
   BOOST_CHECK_SMALL(kl_divergence(f21, g21), 1e-2);

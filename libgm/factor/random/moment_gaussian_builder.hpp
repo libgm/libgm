@@ -14,12 +14,12 @@ namespace libgm {
    * A class that parses the parameters of moment_gaussian generator from
    * Boost Program Options and returns an object that can generate random
    * moment_gaussian factors according to these parameters.
-   * 
+   *
    * To use this class, first call add_options to register options
    * within the given description. After argv is parsed, use can invoke
    * marginal(), and conditional() to retrieve the functors for the
    * specified parameters.
-   * 
+   *
    * \tparam the real type of the moment_gaussian factor
    * \ingroup factor_random
    */
@@ -49,13 +49,13 @@ namespace libgm {
              + "options");
       sub_desc.add_options()
         ((opt_prefix + "period").c_str(),
-         po::value<size_t>(&period_)->default_value(0),
+         po::value<std::size_t>(&period_)->default_value(0),
          "Alternation period. If 0, only the default is used.");
       add_options(sub_desc, opt_prefix, def_);
       add_options(sub_desc, opt_prefix + "alt_", alt_);
       desc.add(sub_desc);
     }
-    
+
     /**
      * Returns a functor that generates random marginals according to the
      * parameters specified by the parsed Boost program options.
@@ -118,12 +118,12 @@ namespace libgm {
          "Each element of the coefficient matrix C is chosen from Uniform[coef_lower,coeff_upper].")
         ((opt_prefix + "coeff_upper").c_str(),
          po::value<double>(&(param.coeff_upper))->default_value(1.0),
-         "Each element of the coefficient matrix C is chosen from Uniform[coef_lower,coeff_upper].");        
+         "Each element of the coefficient matrix C is chosen from Uniform[coef_lower,coeff_upper].");
       desc.add(desc);
     }
 
   private:
-    size_t period_;
+    std::size_t period_;
     param_type def_;
     param_type alt_;
 

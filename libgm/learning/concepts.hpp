@@ -5,10 +5,10 @@ namespace libgm {
 
   /**
    * A concept that represents a machine learning algorithm that is able
-   * to learn a model from the supplied dataset. Note that the learn() 
+   * to learn a model from the supplied dataset. Note that the learn()
    * functions are allowed to modify the state of the learner, so they
    * should not be executed in parallel on the same learner object
-   * (they can be executed on copies). 
+   * (they can be executed on copies).
    *
    * \todo Make this inherit CopyConstructible.
    */
@@ -64,7 +64,7 @@ namespace libgm {
      * Returns the current estimate of the model.
      */
     const model_type& current_model();
-    
+
   }; // concept IterativeLearner
 
 } // namespace libgm

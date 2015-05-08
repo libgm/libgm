@@ -1,7 +1,6 @@
 #ifndef LIBGM_ELIMINATE_HPP
 #define LIBGM_ELIMINATE_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/datastructure/mutable_queue.hpp>
 #include <libgm/graph/algorithm/make_clique.hpp>
 #include <libgm/graph/algorithm/min_degree_strategy.hpp>
@@ -21,7 +20,7 @@ namespace libgm {
    *
    * \tparam Graph
    *         The graph type (typically an undirected_graph).
-   * \tparam Strategy 
+   * \tparam Strategy
    *         A type that models the EliminationStrategy concept.
    * \param graph
    *        The graph whose nodes are eliminated; it must have no
@@ -72,4 +71,4 @@ namespace libgm {
 
 } // namespace libgm
 
-#endif 
+#endif

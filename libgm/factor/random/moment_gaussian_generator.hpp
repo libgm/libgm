@@ -11,7 +11,7 @@ namespace libgm {
 
   /**
    * Object for generating random moment_gaussian factors.
-   * 
+   *
    * For each call to operator(), this functor returns a moment Gaussian,
    * where each element of the (possibly conditionla) mean is drawn from
    * Uniform[mean_lower, mean_upper]. The variances on the diagonal of
@@ -78,9 +78,9 @@ namespace libgm {
                                        T correlation = T(0.3),
                                        T coef_lower = T(-1),
                                        T coef_upper = T(+1))
-      : param_(mean_lower, mean_upper, variance, correlation, 
+      : param_(mean_lower, mean_upper, variance, correlation,
                coef_lower, coef_upper) { }
-    
+
     //! Constructs a generator with the given parameters
     moment_gaussian_generator(const param_type& param)
       : param_(param) { }
@@ -127,8 +127,8 @@ namespace libgm {
     void generate_moments(RNG& rng, vec_type& mean, mat_type& cov) const {
       std::uniform_real_distribution<T> unif(param_.mean_lower,
                                              param_.mean_upper);
-      size_t n = mean.size();
-      for (size_t i = 0; i < n; ++i) {
+      std::size_t n = mean.size();
+      for (std::size_t i = 0; i < n; ++i) {
         mean[i] = unif(rng);
       }
 

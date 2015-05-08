@@ -50,18 +50,18 @@ namespace libgm {
     const param_type& param() const {
       return f;
     }
-    
+
     //! Returns the log-likelihood of the label for dense/sparse features.
     template <typename Derived>
-    T value(size_t label, const Eigen::EigenBase<Derived>& x) const {
+    T value(std::size_t label, const Eigen::EigenBase<Derived>& x) const {
       return std::log(f(x)[label]);
     }
 
     //! Returns the log-likelihood of the label for sparse unit features.
-    T value(size_t label, const std::vector<size_t>& x) const {
+    T value(std::size_t label, const std::vector<std::size_t>& x) const {
       return std::log(f(x)[label]);
     }
-     
+
     //! Returns the log-likelihood of the specified data point.
     T value(const hybrid_index<T>& index) const {
       return std::log(f(index.vector())[index.finite()[0]]);
@@ -79,19 +79,20 @@ namespace libgm {
       T wslope = dir.weight().cwiseProduct(d.second * x.transpose()).sum();
       return {d.first, dir.bias().dot(d.second) + wslope};
     }
-    
+
     /**
      * Returns a pair consisting of the log-likelihood of a datapoint
      * specified as a label and a sparse Eigen feature vector, as well as
      * the slope of the log-likelihood along the given direction.
      */
     template <typename Label>
-    real_pair<T> value_slope(const Label& label, const Eigen::SparseVector<T>& x,
+    real_pair<T> value_slope(const Label& label,
+                             const Eigen::SparseVector<T>& x,
                              const softmax_param<T>& dir) const {
       std::pair<T, dynamic_vector<T> > d = slope_delta(label, x);
       real_pair<T> result(d.first, dir.bias().dot(d.second));
       for (typename Eigen::SparseVector<T>::InnerIterator it(x); it; ++it) {
-        result.second += dir.weight().col(it.index()).dot(d.second) * it.value();
+        result.second += dir.weight().col(it.index()).dot(d.second)*it.value();
       }
       return result;
     }
@@ -102,11 +103,12 @@ namespace libgm {
      * the slope of the log-likelihood along the given direction.
      */
     template <typename Label>
-    real_pair<T> value_slope(const Label& label, const std::vector<size_t>& x,
+    real_pair<T> value_slope(const Label& label,
+                             const std::vector<std::size_t>& x,
                              const softmax_param<T>& dir) const {
       std::pair<T, dynamic_vector<T> > d = slope_delta(label, x);
       real_pair<T> result(d.first, dir.bias().dot(d.second));
-      for (size_t i : x) {
+      for (std::size_t i : x) {
         result.second += dir.weight().col(i).dot(d.second);
       }
       return result;
@@ -153,10 +155,11 @@ namespace libgm {
      * specified as a label and a sparse unit feature vector.
      */
     template <typename Label>
-    void add_gradient(const Label& label, const std::vector<size_t>& x, T w,
+    void add_gradient(const Label& label,
+                      const std::vector<std::size_t>& x, T w,
                       softmax_param<T>& g) const {
       dynamic_vector<T> p = gradient_delta(label, x, w);
-      for (size_t i : x) { g.weight().col(i) += p; }
+      for (std::size_t i : x) { g.weight().col(i) += p; }
       g.bias() += p;
     }
 
@@ -197,10 +200,10 @@ namespace libgm {
      * Adds the Hessian diagonal of log-likelihood to h for a datapoint
      * specified as a sparse feature vector with unit values.
      */
-    void add_hessian_diag(const std::vector<size_t>& x, T w,
+    void add_hessian_diag(const std::vector<std::size_t>& x, T w,
                           softmax_param<T>& h) const {
       dynamic_vector<T> v = hessian_delta(x, w);
-      for (size_t i : x) { h.weight().col(i) += v; }
+      for (std::size_t i : x) { h.weight().col(i) += v; }
       h.bias() += v;
     }
 
@@ -216,7 +219,7 @@ namespace libgm {
   private:
     template <typename Features>
     std::pair<T, dynamic_vector<T> >
-    slope_delta(size_t label, const Features& x) const {
+    slope_delta(std::size_t label, const Features& x) const {
       dynamic_vector<T> p = f(x);
       T value = std::log(p[label]);
       p[label] -= T(1);
@@ -237,7 +240,7 @@ namespace libgm {
 
     template <typename Features>
     dynamic_vector<T>
-    gradient_delta(size_t label, const Features& x, T w) const {
+    gradient_delta(std::size_t label, const Features& x, T w) const {
       dynamic_vector<T> p = f(x);
       p[label] -= T(1);
       p *= -w;

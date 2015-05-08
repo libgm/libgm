@@ -12,9 +12,9 @@ namespace libgm {
    * Serializes an std::array.
    * \relates oarchive
    */
-  template <typename T, size_t N>
+  template <typename T, std::size_t N>
   oarchive& operator<<(oarchive& ar, const std::array<T, N>& a){
-    for (size_t i = 0; i < N; ++i) {
+    for (std::size_t i = 0; i < N; ++i) {
       ar << a[i];
     }
     return ar;
@@ -24,9 +24,9 @@ namespace libgm {
    * Deserializes an std::array.
    * \relates iarchive
    */
-  template <typename T, size_t N>
+  template <typename T, std::size_t N>
   iarchive& operator>>(iarchive& ar, std::array<T, N>& a) {
-    for (size_t i = 0; i < N; ++i) {
+    for (std::size_t i = 0; i < N; ++i) {
       ar >> a[i];
     }
     return ar;

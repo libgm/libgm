@@ -12,9 +12,9 @@
 
 
 struct elim_priority_functor {
-  typedef size_t result_type;
+  typedef std::size_t result_type;
   template <typename Graph>
-  size_t operator()(typename Graph::vertex_type v, const Graph& graph) {
+  std::size_t operator()(typename Graph::vertex_type v, const Graph& graph) {
     return graph[v];
   }
 };
@@ -29,19 +29,19 @@ namespace libgm {
 using namespace libgm;
 
 BOOST_AUTO_TEST_CASE(test_triangulation) {
-  typedef undirected_graph<size_t, size_t> graph_type;
-  typedef basic_domain<size_t> domain_type;
+  typedef undirected_graph<std::size_t, std::size_t> graph_type;
+  typedef basic_domain<std::size_t> domain_type;
 
   // Build an m x 2 lattice.
-  size_t m = 5;
+  std::size_t m = 5;
   graph_type lattice;
 
   // Add the vertices and prioritize their elimination so that
   // vertices in the second column (ids 6-10) have a lower
   // elimination priority than vertices in the first column (ids 1-5).
   arma::umat v = make_grid_graph(m, 2, lattice);
-  for(size_t i = 0; i < m; i++) {
-    for(size_t j = 0; j < 2; j++) {
+  for(std::size_t i = 0; i < m; i++) {
+    for(std::size_t j = 0; j < 2; j++) {
       lattice[v(i,j)] = j;
     }
   }
@@ -66,7 +66,7 @@ BOOST_AUTO_TEST_CASE(test_triangulation) {
   // 3: ({1 2 7 8}  0)
   // 4: ({4 5 8 9}  0)
   // 5: ({1 2 3 4 5 8}  0)
-  
+
   // Edges
   // 4 -- 5
   // 3 -- 5
@@ -81,6 +81,6 @@ BOOST_AUTO_TEST_CASE(test_triangulation) {
     {1, 2, 3, 4, 5, 8}};
   cluster_graph<domain_type> jt2;
   jt2.triangulated(cliques);
-  
+
   BOOST_CHECK_EQUAL(jt, jt2);
 }

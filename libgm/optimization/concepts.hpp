@@ -3,8 +3,6 @@
 
 #include <ostream>
 
-#include <libgm/global.hpp>
-
 namespace libgm {
 
   /**
@@ -38,7 +36,7 @@ namespace libgm {
     //! Adds a scalar multiple of a vector to another vector
     friend void axpy(value_type a, const Vec& x, Vec& y);
 
-    //! Returns a vector whose each element is equal to the sign of the corresponding 
+    //! Returns a vector whose each element is equal to the sign of the corresponding
     //! element in the input vector (-1 for negative, 0 for 0, 1 for positive).
     friend Vec sign(const Vec& x);
 

@@ -1,4 +1,4 @@
-project(tests)
+project(test)
 
 if(CYGWIN)
 add_definitions(-DBOOST_TEST_DYN_LINK)

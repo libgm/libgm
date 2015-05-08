@@ -28,12 +28,12 @@ namespace libgm {
       : mat_(mat), rows_(rows), cols_(cols) { }
 
     //! Returns the number of rows of this view.
-    size_t rows() const {
+    std::size_t rows() const {
       return rows_.size();
     }
 
     //! Returns the number of columns of this view.
-    size_t cols() const {
+    std::size_t cols() const {
       return cols_.size();
     }
 
@@ -53,27 +53,27 @@ namespace libgm {
     }
 
     //! Returns the given row index.
-    size_t row_index(size_t i) const {
+    std::size_t row_index(std::size_t i) const {
       return rows_[i];
     }
 
     //! Returns the given column index.
-    size_t col_index(size_t i) const {
+    std::size_t col_index(std::size_t i) const {
       return cols_[i];
     }
 
     //! Returns the pointer to the beginning of the given column.
-    auto colptr(size_t i) const -> decltype(Matrix().data()) {
+    auto colptr(std::size_t i) const -> decltype(Matrix().data()) {
       return mat_.data() + cols_(i) * mat_.rows() + rows_.start();
     }
-    
+
     //! Returns a block represented by this submatrix (must be contiguous).
     Eigen::Block<Matrix> block() const {
       assert(contiguous());
       return mat_.block(rows_.start(), cols_.start(),
                         rows_.size(), cols_.size());
     }
-    
+
     //! Extracts a plain object represented by this submatrix.
     plain_type plain() const {
       plain_type result;
@@ -115,17 +115,17 @@ namespace libgm {
       op(result, a.block());
     } else if (a.row_index().contiguous()) {
       scalar_type* dest = result.data();
-      for (size_t j = 0; j < result.cols(); ++j) {
+      for (std::size_t j = 0; j < result.cols(); ++j) {
         const scalar_type* src = a.colptr(j);
-        for (size_t i = 0; i < result.rows(); ++i) {
+        for (std::size_t i = 0; i < result.rows(); ++i) {
           op(*dest++, *src++);
         }
       }
     } else {
       scalar_type* dest = result.data();
-      for (size_t j = 0; j < result.cols(); ++j) {
+      for (std::size_t j = 0; j < result.cols(); ++j) {
         const scalar_type* src = a.colptr(j);
-        for (size_t i = 0; i < result.rows(); ++i) {
+        for (std::size_t i = 0; i < result.rows(); ++i) {
           op(*dest++, src[a.row_index(i)]);
         }
       }
@@ -147,17 +147,17 @@ namespace libgm {
       op(result.block(), a);
     } else if (result.row_index().contiguous()) {
       const scalar_type* src = a.data();
-      for (size_t j = 0; j < a.cols(); ++j) {
+      for (std::size_t j = 0; j < a.cols(); ++j) {
         scalar_type* dest = result.colptr(j);
-        for (size_t i = 0; i < a.rows(); ++i) {
+        for (std::size_t i = 0; i < a.rows(); ++i) {
           op(*dest++, *src++);
         }
       }
     } else {
       const scalar_type* src = a.data();
-      for (size_t j = 0; j < a.cols(); ++j) {
+      for (std::size_t j = 0; j < a.cols(); ++j) {
         scalar_type* dest = result.colptr(j);
-        for (size_t i = 0; i < a.rows(); ++i) {
+        for (std::size_t i = 0; i < a.rows(); ++i) {
           op(dest[result.row_index(i)], *src++);
         }
       }

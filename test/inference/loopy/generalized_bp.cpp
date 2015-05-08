@@ -19,7 +19,7 @@
 namespace libgm {
   template class asynchronous_generalized_bp<ptable>;
   template class asynchronous_generalized_bp_pc<ptable>;
-  
+
   template class asynchronous_generalized_bp<cgaussian>;
   template class asynchronous_generalized_bp_pc<cgaussian>;
 }
@@ -29,7 +29,7 @@ using namespace libgm;
 template <typename Engine>
 void test(const pairwise_markov_network<ptable>& model,
           const region_graph<domain>& rg,
-          size_t niters,
+          std::size_t niters,
           const decomposable<ptable>& joint,
           double error_tol,
           double diff_tol) {
@@ -37,16 +37,16 @@ void test(const pairwise_markov_network<ptable>& model,
   Engine engine(rg, max_diff_fn<ptable>());
   engine.initialize_factors(model);
   double residual = 0.0;
-  for(size_t i = 0; i < niters; i++) {
+  for(std::size_t i = 0; i < niters; i++) {
     residual = engine.iterate(0.3);
   }
   BOOST_CHECK_SMALL(residual, 0.1);
-  
+
   // iterate
-  for (size_t it = 0; it < niters; ++it) {
+  for (std::size_t it = 0; it < niters; ++it) {
     engine.iterate(0.5);
   }
-  
+
   // check if the approximation error is small enough
   double max_error = 0;
   for (variable var : joint.arguments()) {
@@ -60,7 +60,7 @@ void test(const pairwise_markov_network<ptable>& model,
 
   // Check if the edge marginals agree
   double max_difference = 0;
-  for (directed_edge<size_t> e : rg.edges()) {
+  for (directed_edge<std::size_t> e : rg.edges()) {
     ptable sbel = engine.belief(e.source()).marginal(rg.cluster(e.target()));
     ptable tbel = engine.belief(e.target());
     double diff = max_diff(sbel, tbel);
@@ -72,8 +72,8 @@ void test(const pairwise_markov_network<ptable>& model,
 
 struct fixture {
   fixture() {
-    size_t m = 5;
-    size_t n = 4;
+    std::size_t m = 5;
+    std::size_t n = 4;
 
     // generate a random model
     domain varvec = u.new_finite_variables(m * n, "v", 2);
@@ -91,8 +91,8 @@ struct fixture {
 
     // create a region graph with clusters over 2x2 adjacent variables
     std::vector<domain> root_clusters;
-    for(size_t i = 0; i < m - 1; i++) {
-      for(size_t j = 0; j < n - 1; j++) {
+    for(std::size_t i = 0; i < m - 1; i++) {
+      for(std::size_t j = 0; j < n - 1; j++) {
         domain cluster({vars(i,j), vars(i+1,j), vars(i,j+1), vars(i+1,j+1)});
         root_clusters.push_back(cluster);
       }

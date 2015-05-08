@@ -47,7 +47,7 @@ namespace libgm {
 
     // LearnableDistributionFactor member types
     typedef moment_gaussian_mle<T> mle_type;
-    
+
     // Constructors and conversion operators
     //==========================================================================
 
@@ -136,7 +136,7 @@ namespace libgm {
     explicit moment_gaussian(const canonical_gaussian<T, Var>& cg) {
       *this = cg;
     }
-    
+
     //! Assigns a constant to this factor.
     moment_gaussian& operator=(logarithmic<T> value) {
       reset();
@@ -168,7 +168,7 @@ namespace libgm {
 
     // Serialization and initialization
     //==========================================================================
-    
+
     //! Serializes the factor to an archive.
     void save(oarchive& ar) const {
       ar << head_ << tail_ << param_;
@@ -189,7 +189,7 @@ namespace libgm {
         head_ = head;
         tail_ = tail;
         if (tail.empty()) args_.clear(); else args_ = head + tail;
-        size_t m, n;
+        std::size_t m, n;
         std::tie(m, n) = this->compute_start(head, tail);
         param_.resize(m, n);
       }
@@ -226,17 +226,17 @@ namespace libgm {
     }
 
     //! Returns the number of arguments of this factor.
-    size_t arity() const {
+    std::size_t arity() const {
       return head_.size() + tail_.size();
     }
 
     //! Returns the number of head arguments of this factor.
-    size_t head_arity() const {
+    std::size_t head_arity() const {
       return head_.size();
     }
 
     //! Returns the number of tail arguments of this factor.
-    size_t tail_arity() const {
+    std::size_t tail_arity() const {
       return tail_.size();
     }
 
@@ -251,17 +251,17 @@ namespace libgm {
     }
 
     //! Returns the number of dimensions (head + tail).
-    size_t size() const {
+    std::size_t size() const {
       return param_.size();
     }
 
     //! Returns the number of head dimensions of this Gaussian.
-    size_t head_size() const {
+    std::size_t head_size() const {
       return param_.head_size();
     }
 
     //! Returns the number of tail dimensions of this Gaussian.
-    size_t tail_size() const {
+    std::size_t tail_size() const {
       return param_.tail_size();
     }
 
@@ -302,7 +302,7 @@ namespace libgm {
 
     //! Returns the covariance matrix for a single variable.
     Eigen::Block<const mat_type> covariance(Var v) const {
-      size_t i = this->start(v);
+      std::size_t i = this->start(v);
       return param_.cov.block(i, i, v.size(), v.size());
     }
 
@@ -320,7 +320,7 @@ namespace libgm {
 
     //! Returns true of the two factors have the same domains and parameters.
     bool operator==(const moment_gaussian& other) const {
-      return 
+      return
         head_ == other.head_ &&
         tail_ == other.tail_ &&
         param_ == other.param_;
@@ -339,7 +339,7 @@ namespace libgm {
      */
     void assignment(const vec_type& vec, assignment_type& a) const {
       assert(vec.size() == head_size());
-      size_t i = 0;
+      std::size_t i = 0;
       for (Var v : head()) {
         a[v] = vec.segment(i, v.size());
         i += v.size();
@@ -372,7 +372,7 @@ namespace libgm {
       matrix_index tail_map = this->index_map(tail);
       return moment_gaussian(head, tail, param_.reorder(head_map, tail_map));
     }
-    
+
     /**
      * Checks if the size of the parameter struct matches this factor's
      * arguments.
@@ -554,7 +554,7 @@ namespace libgm {
 
     // Sampling
     //==========================================================================
-    
+
     //! Returns the distribution with the parameters of this factor.
     gaussian_distribution<T> distribution() const {
       return gaussian_distribution<T>(param_);
@@ -628,7 +628,7 @@ namespace libgm {
       check_same_arguments(f, g);
       return max_diff(f.param_, g.param_);
     }
-    
+
     // Private data members
     //==========================================================================
   private:
@@ -651,7 +651,7 @@ namespace libgm {
    * \relates moment_gaussian
    */
   typedef moment_gaussian<double, variable> mgaussian;
-  
+
   // Input / outputx
   //============================================================================
 
@@ -745,7 +745,7 @@ namespace libgm {
     h.reset_prototype(head, tail);
     return { f.index_map(head), f.index_map(tail) };
   }
-  
+
   /**
    * Returns an object that can compute the parameters corresponding to
    * the maximum of a moment Gaussian over a subset of arguments.
@@ -839,27 +839,31 @@ namespace libgm {
   //! @{
 
   template <typename T, typename Var>
-  struct has_multiplies<moment_gaussian<T, Var>> : public std::true_type { };
+  struct has_multiplies<moment_gaussian<T, Var>>
+    : public std::true_type { };
 
   template <typename T, typename Var>
-  struct has_multiplies_assign<moment_gaussian<T, Var>> : public std::true_type { };
+  struct has_multiplies_assign<moment_gaussian<T, Var>>
+    : public std::true_type { };
 
   template <typename T, typename Var>
-  struct has_divides_assign<moment_gaussian<T, Var>> : public std::true_type { };
+  struct has_divides_assign<moment_gaussian<T, Var>>
+    : public std::true_type { };
 
   template <typename T, typename Var>
-  struct has_marginal<moment_gaussian<T, Var>> : public std::true_type { };
+  struct has_marginal<moment_gaussian<T, Var>>
+    : public std::true_type { };
 
   template <typename T, typename Var>
-  struct has_maximum<moment_gaussian<T, Var>> : public std::true_type { };
+  struct has_maximum<moment_gaussian<T, Var>>
+    : public std::true_type { };
 
   template <typename T, typename Var>
-  struct has_arg_max<moment_gaussian<T, Var>> : public std::true_type { };
-  
+  struct has_arg_max<moment_gaussian<T, Var>>
+    : public std::true_type { };
+
   //! @}
 
 } // namespace libgm
-
-//#include <libgm/factor/gaussian_common.hpp>
 
 #endif

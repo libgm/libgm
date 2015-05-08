@@ -17,13 +17,13 @@ using namespace libgm;
 typedef table<double> table_type;
 typedef table_distribution<double> dist_type;
 
-size_t nsamples = 10000;
+std::size_t nsamples = 10000;
 double tol = 0.02;
 
 double marginal_diff(const dist_type& d, const table_type& t) {
   std::mt19937 rng;
   table_type estimate(t.shape(), 0.0);
-  for (size_t i = 0; i < nsamples; ++i) {
+  for (std::size_t i = 0; i < nsamples; ++i) {
     finite_index sample = d(rng);
     BOOST_REQUIRE_EQUAL(sample.size(), t.arity());
     ++estimate(sample);
@@ -36,9 +36,9 @@ double marginal_diff(const dist_type& d, const table_type& t) {
 double conditional_diff(const dist_type& d, const table_type& t) {
   std::mt19937 rng;
   table_type estimate(t.shape(), 0.0);
-  for (size_t last = 0; last < t.shape().back(); ++last) {
+  for (std::size_t last = 0; last < t.shape().back(); ++last) {
     finite_index tail(1, last);
-    for (size_t i = 0; i < nsamples; ++i) {
+    for (std::size_t i = 0; i < nsamples; ++i) {
       finite_index sample = d(rng, tail);
       BOOST_REQUIRE_EQUAL(sample.size(), t.arity() - 1);
       sample.push_back(last);

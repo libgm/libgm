@@ -1,7 +1,5 @@
-#ifndef LIBGM_BASE_CONCEPTS_HPP
-#define LIBGM_BASE_CONCEPTS_HPP
-
-#include <libgm/global.hpp>
+#ifndef LIBGM_ARGUMENT_CONCEPTS_HPP
+#define LIBGM_ARGUMENT_CONCEPTS_HPP
 
 #include <string>
 
@@ -23,19 +21,19 @@ namespace libgm {
     }
 
   };
-  
-  /** 
+
+  /**
    * The concept that represents a process.
    * Conceptually, a process is a collection of variables, indexed by some type.
    * Typically, distinct processes have disjoint collections of variables.
-   * The variables are created as needed, and are deleted when the 
+   * The variables are created as needed, and are deleted when the
    * process is destroyed.
-   * 
+   *
    * \ingroup base_concepts
    */
   template <typename P>
   struct Process {
-    
+
     //! The type of variables used by this process
     typedef typename P::variable_type variable_type;
 

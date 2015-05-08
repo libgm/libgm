@@ -18,7 +18,7 @@ BOOST_AUTO_TEST_CASE(test_standard) {
   conjugate_gradient<vec_type> cg(search);
   cg.objective(&objective);
   cg.solution(vec2(0, 0));
-  for (size_t it = 0; it < 5 && !cg.converged(); ++it) {
+  for (std::size_t it = 0; it < 5 && !cg.converged(); ++it) {
     line_search_result<double> result = cg.iterate();
     std::cout << "Iteration " << it << ", result " << result << std::endl;
   }
@@ -33,7 +33,7 @@ BOOST_AUTO_TEST_CASE(test_preconditioned) {
   conjugate_gradient<vec_type> cg(search, {1e-6, true});
   cg.objective(&objective);
   cg.solution(vec2(0, 0));
-  for (size_t it = 0; it < 5 && !cg.converged(); ++it) {
+  for (std::size_t it = 0; it < 5 && !cg.converged(); ++it) {
     line_search_result<double> result = cg.iterate();
     std::cout << "Iteration " << it << ", result " << result << std::endl;
   }

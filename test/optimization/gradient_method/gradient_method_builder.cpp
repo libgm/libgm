@@ -24,10 +24,10 @@ int main(int argc, char** argv) {
     std::cout << desc << std::endl;
     return 0;
   }
-  
+
   // Create the gradient_method object
   boost::shared_ptr<gradient_method<arma::vec> > gm(builder.get(NULL));
   std::cout << *gm << std::endl;
-  
+
   return 0;
 }

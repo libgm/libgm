@@ -13,7 +13,7 @@ namespace libgm {
 
 using namespace libgm;
 
-template <size_t N>
+template <std::size_t N>
 struct iarray : public array_factor<int, N, variable> {
   typedef array_factor<int, N, variable> base;
   typedef typename base::domain_type domain_type;
@@ -50,7 +50,7 @@ BOOST_AUTO_TEST_CASE(test_join) {
   iarray1 gy({y}, {1, 2, 3});
   iarray2 gxy({x, y}, {0, 1, 2, 3, 4, 5});
   iarray2 gyx({y, x}, gxy.param().transpose());
-  
+
   iarray1 h1;
   iarray2 h2;
   h1 = join<iarray1>(fx, gx, libgm::plus<>());
@@ -64,13 +64,13 @@ BOOST_AUTO_TEST_CASE(test_join) {
 
   h2 = join<iarray2>(fxy, gy, libgm::plus<>());
   BOOST_CHECK_EQUAL(h2, iarray2({x, y}, {0, -1, -1, 6, 8, 9}));
-  
+
   h2 = join<iarray2>(gx, fxy, libgm::plus<>());
   BOOST_CHECK_EQUAL(h2, iarray2({x, y}, {-1, -1, -3, 5, 5, 7}));
 
   h2 = join<iarray2>(gy, fxy, libgm::plus<>());
   BOOST_CHECK_EQUAL(h2, iarray2({y, x}, {0, -1, 8, -1, 6, 9}));
-  
+
   h2 = join<iarray2>(fxy, gxy, libgm::plus<>());
   BOOST_CHECK_EQUAL(h2, iarray2({x, y}, {-1, -1, -1, 7, 9, 11}));
 
@@ -132,7 +132,7 @@ BOOST_AUTO_TEST_CASE(test_restrict) {
   finite_assignment<> empty = {{z, 2}};
 
   iarray2 fxy({x, y}, {-1, -2, -3, 4, 5, 6});
-  
+
   iarray1 hy;
   restrict_assign(fxy, {{x, 1}}, hy);
   BOOST_CHECK_EQUAL(hy, iarray1({y}, {-2, 4, 6}));

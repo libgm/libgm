@@ -4,13 +4,13 @@
 #include <iterator>
 
 namespace libgm {
-  
+
   /**
    * An iterator over one range, followed by another.
    * \ingroup iterator
    */
   template <typename It1, typename It2>
-  class join_iterator 
+  class join_iterator
     : public std::iterator<std::forward_iterator_tag,
                            typename std::iterator_traits<It1>::value_type,
                            typename std::iterator_traits<It1>::difference_type,
@@ -19,17 +19,17 @@ namespace libgm {
   public:
     join_iterator() { }
 
-    join_iterator(It1 it1, It1 end1, It2 it2) 
+    join_iterator(It1 it1, It1 end1, It2 it2)
       : it1_(it1), end1_(end1), it2_(it2) { }
-    
-    typename std::iterator_traits<It1>::reference operator*() const { 
+
+    typename std::iterator_traits<It1>::reference operator*() const {
       if (it1_ == end1_) {
         return *it2_;
       } else {
         return *it1_;
       }
     }
-    
+
     join_iterator& operator++() {
       if (it1_ == end1_) {
         ++it2_;
@@ -57,7 +57,7 @@ namespace libgm {
     It1 it1_;  //!< the current iterator of the first range
     It1 end1_; //!< the end of the first range
     It2 it2_;  //!< the current iterator of the second range
-    
+
   }; // class join_iterator
 
   /**

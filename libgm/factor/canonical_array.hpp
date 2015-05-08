@@ -1,7 +1,6 @@
 #ifndef LIBGM_CANONICAL_ARRAY_HPP
 #define LIBGM_CANONICAL_ARRAY_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/factor/base/array_factor.hpp>
 #include <libgm/functional/assign.hpp>
 #include <libgm/functional/eigen.hpp>
@@ -12,16 +11,13 @@
 #include <libgm/math/logarithmic.hpp>
 #include <libgm/math/random/array_distribution.hpp>
 
-#include <armadillo>
-#include <boost/function.hpp>
-
 #include <iostream>
 
 namespace libgm {
 
   // Forward declarations
   template <typename T, typename Var> class canonical_table;
-  template <typename T, size_t N, typename Var> class probability_array;
+  template <typename T, std::size_t N, typename Var> class probability_array;
 
   /**
    * A factor of a categorical canonical distribution that contains one or
@@ -32,14 +28,14 @@ namespace libgm {
    * f(x | \theta) = exp(\theta_x) for unary factors. In some cases, e.g.,
    * when used in a Bayesian network, this factor also represents a probability
    * distribution in the log-space.
-   * 
+   *
    * \tparam T a real type that represents each parameter
    * \tparam N the number of arguments
    *
    * \ingroup factor_types
    * \see Factor
    */
-  template <typename T, size_t N, typename Var>
+  template <typename T, std::size_t N, typename Var>
   class canonical_array : public array_factor<T, N, Var> {
   public:
     // Helper types
@@ -57,20 +53,20 @@ namespace libgm {
     typedef typename base::array_type param_type;
     typedef finite_index              index_type;
     typedef array_distribution<T, N> distribution_type;
-    
+
     // LearnableFactor types
     typedef canonical_array_ll<T, N> ll_type;
 
     // ExponentialFamilyFactor member types
     typedef probability_array<T, N, Var> probability_type;
-    
+
     // Constructors and conversion operators
     //==========================================================================
   public:
     //! Default constructor. Creates an empty factor.
     canonical_array() { }
 
-    //! Constructs a factor with the given arguments and uninitialized parameters.
+    //! Constructs a factor with given arguments and uninitialized parameters.
     explicit canonical_array(const domain_type& args) {
       this->reset(args);
     }
@@ -108,7 +104,7 @@ namespace libgm {
       this->param_ = f.param().log();
       return *this;
     }
-    
+
     //! Assigns a canonical_table to this factor
     canonical_array& operator=(const canonical_table<T, Var>& f) {
       this->reset(f.arguments());
@@ -144,16 +140,16 @@ namespace libgm {
       return this->param(index);
     }
 
-    //! Returns true if the two factors have the same argument vectors and values.
+    //! Returns true if the two factors have the same arguments and values.
     friend bool operator==(const canonical_array& f,
                            const canonical_array& g) {
-      return f->equal(g);
+      return f.equal(g);
     }
 
-    //! Returns true if the two factors do not have the same arguments or values.
+    //! Returns true if the two factors do not have the same arguments or values
     friend bool operator!=(const canonical_array& f,
                            const canonical_array& g) {
-      return !f->equal(g);
+      return !f.equal(g);
     }
 
     // Factor operations
@@ -164,7 +160,7 @@ namespace libgm {
      * This operation is only supported when M <= N, i.e.,
      * the given factor has no more arguments than this one.
      */
-    template <size_t M>
+    template <std::size_t M>
     typename std::enable_if<M <= N, canonical_array&>::type
     operator*=(const canonical_array<T, M, Var>& f) {
       join_inplace(*this, f, libgm::plus_assign<>());
@@ -176,7 +172,7 @@ namespace libgm {
      * This operation is only supported when M <= N, i.e.,
      * the given factor has no more arguments than this one.
      */
-    template <size_t M>
+    template <std::size_t M>
     typename std::enable_if<M <= N, canonical_array&>::type
     operator/=(const canonical_array<T, M, Var>& f) {
       join_inplace(*this, f, libgm::minus_assign<>());
@@ -237,7 +233,7 @@ namespace libgm {
       check_same_arguments(f, g);
       return canonical_array(f.arguments(), f.param().max(g.param()));
     }
-  
+
     //! Element-wise minimum of two factors.
     friend canonical_array
     min(const canonical_array& f, const canonical_array& g) {
@@ -272,8 +268,9 @@ namespace libgm {
      */
     template <bool B = (N == 2)>
     typename std::enable_if<B, canonical_array<T, 1, Var> >::type
-    maximum(const unary_domain_type& retain) const { 
-      return aggregate<canonical_array<T, 1, Var>>(*this, retain, max_coeff_op());
+    maximum(const unary_domain_type& retain) const {
+      return aggregate<canonical_array<T, 1, Var>>(*this, retain,
+                                                   max_coeff_op());
     }
 
     /**
@@ -283,7 +280,8 @@ namespace libgm {
     template <bool B = (N == 2)>
     typename std::enable_if<B, canonical_array<T, 1, Var> >::type
     minimum(const unary_domain_type& retain) const {
-      return aggregate<canonical_array<T, 1, Var>>(*this, retain, min_coeff_op());
+      return aggregate<canonical_array<T, 1, Var>>(*this, retain,
+                                                   min_coeff_op());
     }
 
     /**
@@ -374,7 +372,7 @@ namespace libgm {
     bool is_normalizable() const {
       return maximum().lv > -inf<T>();
     }
-    
+
     /**
      * Restricts the factor to an assignment and returns the result
      * as a unary factor. This operation is only supported for binary
@@ -493,7 +491,7 @@ namespace libgm {
                       const canonical_array& q) {
       return transform_accumulate(p, q, abs_difference<T>(), std::plus<T>());
     }
-    
+
     //! Computes the max of absolute differences between the parameters of p and q.
     friend T max_diff(const canonical_array& p,
                       const canonical_array& q) {
@@ -521,7 +519,7 @@ namespace libgm {
    * Outputs a human-readable representation of the factor to the stream.
    * \relates canonical_array
    */
-  template <typename T, size_t N, typename Var>
+  template <typename T, std::size_t N, typename Var>
   std::ostream&
   operator<<(std::ostream& out, const canonical_array<T, N, Var>& f) {
     out << f.arguments() << std::endl
@@ -539,7 +537,7 @@ namespace libgm {
    * \return a canonical_array factor whose arity is the maximum of M and N
    * \relates canonical_array
    */
-  template <typename T, size_t M, size_t N, typename Var>
+  template <typename T, std::size_t M, std::size_t N, typename Var>
   canonical_array<T, (M >= N) ? M : N, Var>
   operator*(const canonical_array<T, M, Var>& f,
             const canonical_array<T, N, Var>& g) {
@@ -554,7 +552,7 @@ namespace libgm {
    * \return a canonical_array factor whose arity is the maximum of M and N
    * \relates canonical_array
    */
-  template <typename T, size_t M, size_t N, typename Var>
+  template <typename T, std::size_t M, std::size_t N, typename Var>
   canonical_array<T, (M >= N) ? M : N, Var>
   operator/(const canonical_array<T, M, Var>& f,
             const canonical_array<T, N, Var>& g) {

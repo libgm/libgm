@@ -37,7 +37,7 @@ namespace Eigen {
               typename Derived::Scalar a) {
     x += a * y;
   }
-  
+
   //! Implements dot product as a free function.
   template <typename Derived>
   typename Derived::Scalar

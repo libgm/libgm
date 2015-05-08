@@ -21,7 +21,7 @@ struct quadratic_objective
 
   quadratic_objective(const vec_type& ctr, const mat_type& cov)
     : ctr(ctr), cov(cov) { }
-  
+
   double value(const vec_type& x) override {
     vec_type diff = x - ctr;
     return 0.5 * diff.dot(cov * diff);

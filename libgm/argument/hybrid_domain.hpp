@@ -5,7 +5,7 @@
 #include <libgm/argument/variable.hpp>
 
 namespace libgm {
-  
+
   /**
    * A domain that consists of a finite and a vector component.
    */
@@ -58,17 +58,17 @@ namespace libgm {
     }
 
     //! Returns the number of variables in this domain.
-    size_t size() const {
+    std::size_t size() const {
       return finite_.size() + vector_.size();
     }
 
     //! Returns the number of finite variables in this domain.
-    size_t finite_size() const {
+    std::size_t finite_size() const {
       return finite_.size();
     }
 
     //! Returns the total dimensionality of the vector variables.
-    size_t vector_size() const {
+    std::size_t vector_size() const {
       return libgm::vector_size(vector_);
     }
 
@@ -78,7 +78,7 @@ namespace libgm {
     }
 
     //! Returns the number of times a variable is present in the domain.
-    size_t count(Arg v) const {
+    std::size_t count(Arg v) const {
       if (v.finite()) {
         return finite_.count(v);
       } else if (v.vector()) {
@@ -145,7 +145,7 @@ namespace libgm {
   private:
     //! The finite component.
     basic_domain<Arg> finite_;
-    
+
     //! The vector component.
     basic_domain<Arg> vector_;
 
@@ -247,7 +247,7 @@ namespace libgm {
     return superset(a.finite(), b.finite())
       && superset(a.vector(), b.vector());
   }
-  
+
   /**
    * Returns true if two domains are type-compatible.
    * \relates hybrid_domain

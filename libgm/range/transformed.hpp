@@ -17,7 +17,7 @@ namespace libgm {
     return { boost::make_transform_iterator(range.begin(), f),
              boost::make_transform_iterator(range.end(), f) };
   }
-  
+
 }
 
 #endif

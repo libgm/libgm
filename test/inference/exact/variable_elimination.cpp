@@ -20,11 +20,11 @@ BOOST_AUTO_TEST_CASE(test_grid) {
   using namespace libgm;
 
   // create the variables
-  universe u;                      
-  size_t m = 4;
-  size_t n = 3;
+  universe u;
+  std::size_t m = 4;
+  std::size_t n = 3;
   domain variables = u.new_finite_variables(m * n, "v", 2);
-  
+
   // generate a random Markov network
   pairwise_markov_network<ptable> mn;
   make_grid_graph(variables, m, n, mn);

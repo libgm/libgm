@@ -1,7 +1,6 @@
 #ifndef LIBGM_TABLE_HPP
 #define LIBGM_TABLE_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/datastructure/finite_index.hpp>
 #include <libgm/datastructure/finite_index_iterator.hpp>
 #include <libgm/functional/operators.hpp>
@@ -36,7 +35,7 @@ namespace libgm {
      * Initializes the size to 0.
      */
     table_offset() : nelem_(0) { }
-    
+
     /**
      * Constructs a table_offset object for the table with the given shape.
      * The number of dimensions may be zero (i.e., the shape may be an
@@ -59,37 +58,37 @@ namespace libgm {
     void reset(const finite_index& shape) {
       multiplier_.resize(shape.size());
       nelem_ = 1;
-      for (size_t i = 0; i < shape.size(); ++i) {
+      for (std::size_t i = 0; i < shape.size(); ++i) {
         multiplier_[i] = nelem_;
         nelem_ *= shape[i];
       }
     }
 
     //! Returns the number of dimensions of this offset.
-    size_t size() const {
+    std::size_t size() const {
       return multiplier_.size();
     }
 
     //! Returns the total number of elements occupied by the table.
-    size_t num_elements() const {
+    std::size_t num_elements() const {
       return nelem_;
     }
-    
+
     //! Returns the multiplier vector.
-    const std::vector<size_t>& multiplier() const {
+    const std::vector<std::size_t>& multiplier() const {
       return multiplier_;
     }
 
     //! Returns the multiplier associated with the dimension d <= size().
-    size_t multiplier(size_t d) const {
+    std::size_t multiplier(std::size_t d) const {
       return (d == size()) ? nelem_ : multiplier_[d];
     }
 
     //! Calculates the linear index for the given finite index.
-    size_t linear(const finite_index& index) const {
+    std::size_t linear(const finite_index& index) const {
       assert(multiplier_.size() == index.size());
-      size_t result = 0;
-      for (size_t i = 0; i < multiplier_.size(); ++i) {
+      std::size_t result = 0;
+      for (std::size_t i = 0; i < multiplier_.size(); ++i) {
         result += multiplier_[i] * index[i];
       }
       return result;
@@ -101,10 +100,10 @@ namespace libgm {
      * be shorter than the remaining dimensions. The finite values in the
      * omitted dimensions are assumed to be 0.
      */
-    size_t linear(const finite_index& index, size_t pos) const {
+    std::size_t linear(const finite_index& index, std::size_t pos) const {
       assert(index.size() + pos <= multiplier_.size());
-      size_t result = 0;
-      for (size_t i = 0; i < index.size(); ++i) {
+      std::size_t result = 0;
+      for (std::size_t i = 0; i < index.size(); ++i) {
         result += multiplier_[i + pos] * index[i];
       }
       return result;
@@ -113,7 +112,7 @@ namespace libgm {
     /**
      * Returns the finite index for the given linear index.
      */
-    finite_index finite(size_t offset) const {
+    finite_index finite(std::size_t offset) const {
       finite_index ind(multiplier_.size());
       // must use int here to avoid wrap-around
       for(int i = multiplier_.size() - 1; i >= 0; --i) {
@@ -129,7 +128,7 @@ namespace libgm {
      * not exceed the total number of elements in the first n
      * dimensions.
      */
-    finite_index finite(size_t offset, size_t n) const {
+    finite_index finite(std::size_t offset, std::size_t n) const {
       finite_index ind(n);
       for (int i = n - 1; i >= 0; --i) {
         ind[i] = offset / multiplier_[i];
@@ -140,10 +139,10 @@ namespace libgm {
 
   private:
     //! The multiplier associated with the index in each dimension.
-    std::vector<size_t> multiplier_;
+    std::vector<std::size_t> multiplier_;
 
     //! The total number of elements in the underlying table.
-    size_t nelem_;
+    std::size_t nelem_;
 
   }; // class table_offset
 
@@ -170,12 +169,12 @@ namespace libgm {
                     const finite_index& b_map)
       : inc_(a_shape.size() + 1, 0) {
       assert(b_offset.size() == b_map.size());
-      for (size_t i = 0; i < b_map.size(); ++i) {
-        if (b_map[i] != std::numeric_limits<size_t>::max()) {
+      for (std::size_t i = 0; i < b_map.size(); ++i) {
+        if (b_map[i] != std::numeric_limits<std::size_t>::max()) {
           inc_[b_map[i]] = b_offset.multiplier(i);
         }
       }
-      for (size_t i = a_shape.size(); i > 0; --i) {
+      for (std::size_t i = a_shape.size(); i > 0; --i) {
         inc_[i] -= inc_[i-1] * a_shape[i-1];
       }
     }
@@ -183,7 +182,7 @@ namespace libgm {
     /**
      * Updates the increment to contain a partial (cumulative) sum
      * of its present values.
-     */ 
+     */
     void partial_sum() {
       std::partial_sum(inc_.begin(), inc_.end(), inc_.begin());
     }
@@ -191,12 +190,12 @@ namespace libgm {
     /**
      * Returns the increment for the given dimension.
      */
-    ptrdiff_t operator[](size_t i) const {
+    std::ptrdiff_t operator[](std::size_t i) const {
       return inc_[i];
     }
 
   private:
-    std::vector<ptrdiff_t> inc_;
+    std::vector<std::ptrdiff_t> inc_;
 
   }; // class table_increment
 
@@ -219,7 +218,7 @@ namespace libgm {
 
     //! The type of values stored in this object
     typedef T value_type;
-    
+
     //! An iterator over the elements of this table in a linear fashion
     typedef T* iterator;
 
@@ -327,12 +326,12 @@ namespace libgm {
      * not initialize the elements.
      */
     void reset(const finite_index& shape) {
-      size_t old_size = size();
+      std::size_t old_size = size();
       shape_ = shape;
       offset_.reset(shape); // affects size()
       if (size() != old_size) { data_.reset(new T[size()]); }
-      for (size_t i = 0; i < shape.size(); ++i) {
-        if (std::numeric_limits<size_t>::max() / shape[i] <=
+      for (std::size_t i = 0; i < shape.size(); ++i) {
+        if (std::numeric_limits<std::size_t>::max() / shape[i] <=
             offset_.multiplier(i)) {
           throw std::out_of_range("table::reset possibly overflows size_t");
         }
@@ -343,7 +342,7 @@ namespace libgm {
     //==========================================================================
 
     //! Returns the number of dimensions of this table.
-    size_t arity() const {
+    std::size_t arity() const {
       return shape_.size();
     }
 
@@ -358,26 +357,26 @@ namespace libgm {
     }
 
     //! Returns the size of the given dimension of this table
-    size_t size(size_t n) const {
+    std::size_t size(std::size_t n) const {
       return shape_[n];
     }
 
     //! Total number of elements in the table.
-    size_t size() const {
+    std::size_t size() const {
       return offset_.num_elements();
     }
 
-    //! Returns true if the table was default-initialized and thus has no elements.
+    //! Returns true if the table was default-initialized, i.e. has no elements.
     bool empty() const {
       return offset_.num_elements() == 0;
     }
 
-    //! Returns the pointer to the allocated elements or null if the table is empty
+    //! Returns a pointer to the allocated values or null if the table is empty.
     T* data() {
       return data_.get();
     }
 
-    //! Returns the pointer to the allocated elements or null if the table is empty
+    //! Returns a pointer to the allocated values or null if the table is empty.
     const T* data() const {
       return data_.get();
     }
@@ -386,7 +385,7 @@ namespace libgm {
     T* begin() {
       return data_.get();
     }
-    
+
     //! Returns the pointer (iterator) to the first element.
     const T* begin() const {
       return data_.get();
@@ -419,12 +418,12 @@ namespace libgm {
     }
 
     //! Returns the element with the specified linear index
-    T& operator[](size_t i) {
+    T& operator[](std::size_t i) {
       return data_[i];
     }
 
     //! Returns the element with the specified linear index
-    const T& operator[](size_t i) const {
+    const T& operator[](std::size_t i) const {
       return data_[i];
     }
 
@@ -463,7 +462,7 @@ namespace libgm {
      */
     template <typename Op>
     table<T>& transform(Op op) {
-      for (size_t i = 0; i < size(); ++i) {
+      for (std::size_t i = 0; i < size(); ++i) {
         data_[i] = op(data_[i]);
       }
       return *this;
@@ -477,7 +476,7 @@ namespace libgm {
     template <typename Op>
     table<T>& transform(const table& x, Op op) {
       assert(shape() == x.shape());
-      for (size_t i = 0; i < size(); ++i) {
+      for (std::size_t i = 0; i < size(); ++i) {
         data_[i] = op(data_[i], x.data_[i]);
       }
       return *this;
@@ -497,9 +496,9 @@ namespace libgm {
      * operation and accumulates the result.
      */
     template <typename R, typename TransOp, typename AccuOp>
-    R transform_accumulate(R init,  TransOp trans_op, AccuOp accu_op) const { 
+    R transform_accumulate(R init,  TransOp trans_op, AccuOp accu_op) const {
       R result(init);
-      for (size_t i = 0; i < size(); ++i) {
+      for (std::size_t i = 0; i < size(); ++i) {
         result = accu_op(result, trans_op(data_[i]));
       }
       return result;
@@ -512,7 +511,7 @@ namespace libgm {
      * be copied. This table must be preallocated, and its first n
      * dimensions must match the first n dimensions of the input table.
      */
-    void restrict(const table& x, size_t x_start) {
+    void restrict(const table& x, std::size_t x_start) {
       assert(arity() <= x.arity());
       assert(std::equal(shape_.begin(), shape_.end(), x.shape_.begin()));
       assert(x_start + size() <= x.size());
@@ -529,11 +528,11 @@ namespace libgm {
     finite_index
     sample(TransOp trans, Generator& rng, const finite_index& tail) const {
       assert(tail.size() < arity());
-      size_t nhead = arity() - tail.size();
-      size_t nelem = offset().multiplier(nhead);
+      std::size_t nhead = arity() - tail.size();
+      std::size_t nelem = offset().multiplier(nhead);
       const T* elem = data() + offset().linear(tail, nhead);
       T p = std::uniform_real_distribution<T>()(rng);
-      for (size_t i = 0; i < nelem; ++i) {
+      for (std::size_t i = 0; i < nelem; ++i) {
         T prob = trans(elem[i]);
         if (p <= prob) {
           return offset().finite(i, nhead);
@@ -565,7 +564,7 @@ namespace libgm {
    */
   template <typename T>
   std::ostream& operator<<(std::ostream& out, const table<T>& table) {
-    std::ostream_iterator<size_t, char> out_it(out, " ");
+    std::ostream_iterator<std::size_t, char> out_it(out, " ");
     const T* elem = table.data();
     for (const finite_index& index :  table.indices()) {
       std::copy(index.begin(), index.end(), out_it);
@@ -621,7 +620,7 @@ namespace libgm {
   table<T>& operator*=(table<T>& x, const T& a) {
     return x.transform(multiplied_by<T>(a));
   }
-  
+
   /**
    * Divides all elements table x by a constant in place.
    * \relates table
@@ -655,7 +654,7 @@ namespace libgm {
       //====================================================================
       param_type condition(const finite_index& index) const {
         assert(index.size() <= this->arity());
-        size_t n = this->arity() - index.size();
+        std::size_t n = this->arity() - index.size();
         finite_index shape(this->shape().begin(), this->shape().begin() + n);
         param_type result(shape);
         result.restrict(*this, this->offset().linear(index, n));
@@ -674,10 +673,10 @@ namespace libgm {
    * class and the given table arity. The goal is to inline the loops if arity
    * is sufficiently small. Specifically, this function invokes the member
    * function template loop<D> with D=arity if arity is small; otherwise,
-   * it invokes the non-template loop() member. 
+   * it invokes the non-template loop() member.
    */
   template <typename TableOp>
-  void invoke_loop_template(TableOp& table_op, size_t arity) {
+  void invoke_loop_template(TableOp& table_op, std::size_t arity) {
     switch(arity) {
     case 0: table_op.loop(int_<0>()); break;
     case 1: table_op.loop(int_<1>()); break;
@@ -694,7 +693,7 @@ namespace libgm {
     }
   }
 
-  
+
   /**
    * Performs a join operation on two tables, storing the result to a
    * third table that includes both input tables' dimensions. Each
@@ -732,17 +731,17 @@ namespace libgm {
     void operator()() {
       invoke_loop_template(*this, shape_.size());
     }
-    
+
     //! Performs the join operation for a fixed arity of the result.
     template <int D>
     void loop(int_<D>) {
-      for (size_t i = shape_[D-1]; i; --i) {
+      for (std::size_t i = shape_[D-1]; i; --i) {
         loop(int_<D-1>());
         x_ += x_inc_[D-1];
         y_ += y_inc_[D-1];
       }
     }
-    
+
     //! Performs the join operation for a nullary result (the base case).
     void loop(int_<0>) {
       *r_++ = op_(*x_, *y_);
@@ -772,7 +771,7 @@ namespace libgm {
 
   }; // class table_join
 
-  
+
   /**
    * Joins one table with another. Each dimension of the x table must
    * correspond to a unique dimension of the result table; this
@@ -806,16 +805,16 @@ namespace libgm {
     void operator()() {
       invoke_loop_template(*this, shape_.size());
     }
-    
+
     //! Performs the join operation for a fixed arity of the result.
     template <int D>
     void loop(int_<D>) {
-      for (size_t i = shape_[D-1]; i; --i) {
+      for (std::size_t i = shape_[D-1]; i; --i) {
         loop(int_<D-1>());
         x_ += x_inc_[D-1];
       }
     }
-    
+
     //! Performs the join operation for a nullary result (the base case).
     void loop(int_<0>) {
       *r_ = op_(*r_, *x_);
@@ -875,20 +874,20 @@ namespace libgm {
         r_inc_(input.shape(), result.offset(), result_map),
         op_(op) { }
 
-    //! Performs the aggregate operation, automatically selecting the best method.
+    //! Performs an aggregate operation, automatically selecting the best method
     void operator()() {
       invoke_loop_template(*this, shape_.size());
     }
-    
-    //! Performs the aggregate operation for a fixed arity of the input.
+
+    //! Performs an aggregate operation for a fixed arity of the input.
     template <int D>
     void loop(int_<D>) {
-      for (size_t i = shape_[D-1]; i; --i) {
+      for (std::size_t i = shape_[D-1]; i; --i) {
         loop(int_<D-1>());
         r_ += r_inc_[D-1];
       }
     }
-    
+
     //! Performs the aggregate operation for a nullary result (the base case).
     void loop(int_<0>) {
       *r_ = op_(*r_, *x_++);
@@ -964,18 +963,18 @@ namespace libgm {
     void operator()() {
       invoke_loop_template(*this, shape_.size());
     }
-    
+
     //! Performs the join-aggregate operation for a fixed arity of the z table.
     template <int D>
     void loop(int_<D>) {
-      for (size_t i = shape_[D-1]; i; --i) {
+      for (std::size_t i = shape_[D-1]; i; --i) {
         loop(int_<D-1>());
         r_ += r_inc_[D-1];
         x_ += x_inc_[D-1];
         y_ += y_inc_[D-1];
       }
     }
-    
+
     //! Performs the join-aggregate operation for a nullary z (the base case).
     void loop(int_<0>) {
       *r_ = agg_op_(*r_, join_op_(*x_, *y_));
@@ -1016,7 +1015,7 @@ namespace libgm {
    * restricted columns are equal to some index. The restricted columns,
    * as well as the mapping from the input table to the result table,
    * are specified using the x_map index. If x_map[i] is equal to
-   * std::numeric_limits<size_t>::max(), then dimension i of x is
+   * std::numeric_limits<std::size_t>::max(), then dimension i of x is
    * restricted; otherwise, dimension i of x corresponds to dimension
    * x_map[i] of the result. The argument first specifies the linear
    * index (in the input table x) that corresponds to the first copied
@@ -1034,26 +1033,26 @@ namespace libgm {
     table_restrict(table<T>& result,
                    const table<T>& x,
                    const finite_index& x_map,
-                   size_t x_first)
+                   std::size_t x_first)
       : shape_(result.shape()),
         r_(result.data()),
         x_(x.data() + x_first),
         x_inc_(result.shape(), x.offset(), x_map) { }
 
-    //! Performs the restrict operation, automatically selecting the best method.
+    //! Performs a restrict operation, automatically selecting the best method.
     void operator()() {
       invoke_loop_template(*this, shape_.size());
     }
-    
-    //! Performs the restrict operation for a fixed arity of the result.
+
+    //! Performs a restrict operation for a fixed arity of the result.
     template <int D>
     void loop(int_<D>) {
-      for (size_t i = shape_[D-1]; i; --i) {
+      for (std::size_t i = shape_[D-1]; i; --i) {
         loop(int_<D-1>());
         x_ += x_inc_[D-1];
       }
     }
-    
+
     //! Performs the restrict operation for a nullary result (the base case).
     void loop(int_<0>) {
       *r_++ = *x_;
@@ -1086,7 +1085,7 @@ namespace libgm {
    * the result table using the given binary operation. The restricted
    * columns, as well as the mapping from the input table to the result
    * table, are specified using the x_map index. If x_map[i] is equal to
-   * std::numeric_limits<size_t>::max(), then dimension i of x is
+   * std::numeric_limits<std::size_t>::max(), then dimension i of x is
    * restricted; otherwise, dimension i of x corresponds to dimension
    * x_map[i] of the result. The argument first specifies the linear
    * index (in the input table x) that corresponds to the first copied
@@ -1106,7 +1105,7 @@ namespace libgm {
     table_restrict_join(table<T>& result,
                         const table<T>& x,
                         const finite_index& x_map,
-                        size_t first,
+                        std::size_t first,
                         JoinOp join_op)
       : shape_(result.shape()),
         r_(result.data()),
@@ -1119,17 +1118,17 @@ namespace libgm {
     void operator()() {
       invoke_loop_template(*this, shape_.size());
     }
-    
+
     //! Performs the restrict-join operation for a fixed arity of the result.
     template <int D>
     void loop(int_<D>) {
-      for (size_t i = shape_[D-1]; i; --i) {
+      for (std::size_t i = shape_[D-1]; i; --i) {
         loop(int_<D-1>());
         x_ += x_inc_[D-1];
       }
     }
-    
-    //! Performs the restrict-join operation for a nullary result (the base case).
+
+    //! Performs a restrict-join operation for a nullary result (the base case).
     void loop(int_<0>) {
       *r_ = join_op_(*r_, *x_);
       ++r_;
@@ -1155,7 +1154,7 @@ namespace libgm {
     JoinOp join_op_;
 
   }; // class table_restrict_join
-  
+
 } // namespace libgm
 
 #endif

@@ -37,7 +37,7 @@ namespace libgm {
     static wolfe quasi_newton(bool strong = true) {
       return wolfe(1e-4, 0.9, strong);
     }
-      
+
     //! The defaults for conjugate gradient descent.
     static wolfe conjugate_gradient(bool strong = true) {
       return wolfe(1e-4, 0.1, strong);
@@ -97,7 +97,7 @@ namespace libgm {
       }
       return out;
     }
-    
+
   }; // class wolfe
 
 } // namespace libgm

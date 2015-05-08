@@ -2,7 +2,7 @@
 #define LIBGM_MAKE_CLIQUE_HPP
 
 namespace libgm {
-  
+
   /**
    * Adds edges among all vertices in an undirected graph.
    *

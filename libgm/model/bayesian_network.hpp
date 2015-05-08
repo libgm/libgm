@@ -1,7 +1,6 @@
 #ifndef LIBGM_BAYESIAN_NETWORK_HPP
 #define LIBGM_BAYESIAN_NETWORK_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/graph/algorithm/graph_traversal.hpp>
 #include <libgm/graph/algorithm/make_clique.hpp>
 #include <libgm/graph/directed_graph.hpp>
@@ -17,7 +16,7 @@ namespace libgm {
 
   /**
    * A Bayesian network with CPDs for each variable.
-   * 
+   *
    * \ingroup model
    */
   template <typename F>
@@ -160,7 +159,7 @@ namespace libgm {
      * Adds a factor representing the conditional distribution p(v | rest) to
      * the graphical model and creates the necessary vertices and edges.
      * If another factor for this vertex already exists, it is overwritten.
-     * 
+     *
      * Note: It is the responsibility of the caller to ensure that the
      * graph remains a DAG.
      */

@@ -49,7 +49,7 @@ namespace libgm {
          po::value<bool>(&auto_reset_)->default_value(true),
          "Ensures that beta is always >= 0 in conjugate gradient descent")
         ("history",
-         po::value<size_t>(&history_)->default_value(10),
+         po::value<std::size_t>(&history_)->default_value(10),
          "The number of previous gradients to approximate Hessian in LBFGS");
       desc.add(sub_desc);
     }
@@ -83,7 +83,7 @@ namespace libgm {
     bool precondition_;
     std::string update_;
     bool auto_reset_;
-    size_t history_;
+    std::size_t history_;
 
   }; // class gradient_method_builder
 

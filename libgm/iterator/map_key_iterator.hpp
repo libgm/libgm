@@ -9,10 +9,10 @@ namespace libgm {
    * This iterator is used to iterate over the key in an associative container.
    * \ingroup iterator
    */
-  template <class Map> 
-  class map_key_iterator : 
+  template <class Map>
+  class map_key_iterator :
     public std::iterator<typename Map::const_iterator::iterator_category,
-                         typename Map::key_type, 
+                         typename Map::key_type,
                          typename Map::difference_type> {
   public:
     typedef const typename Map::key_type& reference;
@@ -20,18 +20,18 @@ namespace libgm {
   private:
     typename Map::const_iterator it;
     template <typename It>
-    friend bool operator<(const map_key_iterator<It>& it1, 
+    friend bool operator<(const map_key_iterator<It>& it1,
                           const map_key_iterator<It>& it2);
     template <typename It>
-    friend int operator-(const map_key_iterator<It>& it1, 
+    friend int operator-(const map_key_iterator<It>& it1,
                          const map_key_iterator<It>& it2);
 
   public:
     map_key_iterator() : it() { }
 
-    explicit map_key_iterator(typename Map::const_iterator it) : it(it) { } 
-    
-    reference operator*() const { 
+    explicit map_key_iterator(typename Map::const_iterator it) : it(it) { }
+
+    reference operator*() const {
       return it->first;
     }
 
@@ -39,11 +39,11 @@ namespace libgm {
       ++it;
       return *this;
     }
-    
-    map_key_iterator operator++(int) { 
-      return map_key_iterator(it++); 
+
+    map_key_iterator operator++(int) {
+      return map_key_iterator(it++);
     }
-    
+
     bool operator==(const map_key_iterator& other) const {
       return it == other.it;
     }
@@ -71,4 +71,4 @@ namespace libgm {
 
 } // namespace libgm
 
-#endif 
+#endif

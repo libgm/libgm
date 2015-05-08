@@ -14,12 +14,12 @@ BOOST_AUTO_TEST_CASE(test_sampling) {
   std::vector<double> count(4);
   multinomial_distribution<double> dist(p);
 
-  size_t nsamples = 200000;
-  for(size_t i = 0; i < nsamples; i++) {
+  std::size_t nsamples = 200000;
+  for(std::size_t i = 0; i < nsamples; i++) {
     count[dist(rng)] += 1.0 / nsamples;
   }
-  
-  for (size_t i = 0; i < 4; ++i) {
+
+  for (std::size_t i = 0; i < 4; ++i) {
     BOOST_CHECK_CLOSE(p[i], count[i], 1);
   }
 }

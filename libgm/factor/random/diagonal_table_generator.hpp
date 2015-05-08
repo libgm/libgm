@@ -13,10 +13,11 @@ namespace libgm {
    * A class for generating diagonal table-like factor, including associative
    * factors and ising factor. The variables passed to operator() must all have
    * the same  cardinality. In each call to operator(), the generator then
-   * assigns a value x drawn from Uniform[lower, upper] to all diagonal parameters,
-   * i.e., the parameters corresponding to each tuple of assignments (k, ..., k).
-   * The off-diagonal elements are assigned the probability value 1.0.
-   * 
+   * assigns a value x drawn from Uniform[lower, upper] to all diagonal
+   * parameters, i.e., the parameters corresponding to each tuple of
+   * assignments (k, ..., k). The off-diagonal elements are assigned the
+   * probability value 1.0.
+   *
    * \tparam F the generated factor type
    *
    * \see RandomMarginalFactorGenerator
@@ -57,7 +58,7 @@ namespace libgm {
     explicit diagonal_table_generator(real_type lower = real_type(0),
                                       real_type upper = real_type(1))
       : param_(lower, upper) { }
-    
+
     //! Constructs generator with the given parameters
     explicit diagonal_table_generator(const param_type& param)
       : param_(param) { param_.check(); }
@@ -67,9 +68,9 @@ namespace libgm {
     F operator()(const domain_type& args, RandomNumberGenerator& rng) const {
       F f(args, typename F::result_type(1));
       if (!args.empty()) {
-        real_type x =
-          std::uniform_real_distribution<real_type>(param_.lower, param_.upper)(rng);
-        size_t size = args[0].size();
+        real_type x = std::uniform_real_distribution<real_type>(
+          param_.lower, param_.upper)(rng);
+        std::size_t size = args[0].size();
         for (variable_type v : args) {
           if (v.size() != size) {
             throw std::invalid_argument(
@@ -78,7 +79,7 @@ namespace libgm {
           }
         }
         finite_index index;
-        for (size_t k = 0; k < size; ++k) {
+        for (std::size_t k = 0; k < size; ++k) {
           index.assign(args.size(), k);
           f.param(index) = x;
         }

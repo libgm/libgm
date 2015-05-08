@@ -19,7 +19,7 @@ namespace libgm {
   template class asynchronous_pairwise_mn_bp<cgaussian>;
   template class residual_pairwise_mn_bp<cgaussian>;
   template class exponential_pairwise_mn_bp<cgaussian>;
-  
+
   template class synchronous_pairwise_mn_bp<ptable>;
   template class asynchronous_pairwise_mn_bp<ptable>;
   template class residual_pairwise_mn_bp<ptable>;
@@ -29,10 +29,10 @@ namespace libgm {
 using namespace libgm;
 
 void test(pairwise_mn_bp<cgaussian>&& engine,
-          size_t niters,
+          std::size_t niters,
           const mgaussian& joint,
           double error) {
-  for (size_t i = 0; i < niters; ++i) {
+  for (std::size_t i = 0; i < niters; ++i) {
     engine.iterate(1.0);
   }
 
@@ -53,8 +53,8 @@ void test(pairwise_mn_bp<cgaussian>&& engine,
 }
 
 BOOST_AUTO_TEST_CASE(test_convergence) {
-  size_t m = 5;
-  size_t n = 4;
+  std::size_t m = 5;
+  std::size_t n = 4;
 
   // construct a grid network with attractive Gaussian potentials
   universe u;

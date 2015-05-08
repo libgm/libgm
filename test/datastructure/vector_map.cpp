@@ -6,18 +6,18 @@
 #include <map>
 
 namespace libgm {
-  template class vector_map<std::string, size_t>;
-  template class vector_map<size_t, double>;
+  template class vector_map<std::string, std::size_t>;
+  template class vector_map<std::size_t, double>;
 }
 
 using namespace libgm;
 
-typedef vector_map<std::string, size_t> map_type;
+typedef vector_map<std::string, std::size_t> map_type;
 
 BOOST_AUTO_TEST_CASE(test_constructors) {
   map_type a;
   BOOST_CHECK(a.empty());
-  
+
   map_type b = { {"x", 1}, {"y", 3} };
   BOOST_CHECK(!b.empty());
   BOOST_CHECK_EQUAL(b.size(), 2);
@@ -40,7 +40,7 @@ BOOST_AUTO_TEST_CASE(test_accessors) {
   const map_type& cx = x;
   BOOST_CHECK_EQUAL(x.at("e"), 5);
   BOOST_CHECK_THROW(x.at("z"), std::out_of_range);
- 
+
   BOOST_CHECK_EQUAL(cx.at("e"), 5);
   BOOST_CHECK_THROW(cx.at("z"), std::out_of_range);
 

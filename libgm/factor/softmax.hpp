@@ -1,7 +1,6 @@
 #ifndef LIBGM_SOFTMAX_HPP
 #define LIBGM_SOFTMAX_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/argument/hybrid_assignment.hpp>
 #include <libgm/argument/hybrid_domain.hpp>
 #include <libgm/datastructure/hybrid_index.hpp>
@@ -49,14 +48,14 @@ namespace libgm {
     // LearnableFactor member types
     typedef softmax_ll<T>  ll_type;
     typedef softmax_mle<T> mle_type;
-    
+
     // Types to represent the parameters
     typedef dynamic_matrix<T> mat_type;
     typedef dynamic_vector<T> vec_type;
- 
+
     // Constructors and conversion operators
     //==========================================================================
-    
+
     /**
      * Default constructor. Creates an empty factor.
      */
@@ -153,18 +152,18 @@ namespace libgm {
       return args_.empty();
     }
 
-    //! Returns the number of arguments of this factor or 0 if the factor is empty.
-    size_t arity() const {
+    //! Returns the number of arguments of this factor or 0 if it is empty.
+    std::size_t arity() const {
       return args_.size();
     }
 
     //! Returns the number of assignments to the head variable.
-    size_t labels() const {
+    std::size_t labels() const {
       return param_.labels();
     }
 
     //! Returns the dimensionality of the underlying feature vector.
-    size_t features() const {
+    std::size_t features() const {
       return param_.features();
     }
 
@@ -204,7 +203,7 @@ namespace libgm {
      *        missing features are assumed to be 0.
      */
     T operator()(const assignment_type& a, bool strict = true) const {
-      size_t finite = a.finite().at(head());
+      std::size_t finite = a.finite().at(head());
       if (strict) {
         vec_type features;
         extract_features(a.vector(), features);
@@ -264,7 +263,7 @@ namespace libgm {
     void extract_features(const vector_assignment<T, Var>& a,
                           vec_type& result) const {
       result.resize(features());
-      size_t row = 0;
+      std::size_t row = 0;
       for (Var v : tail()) {
         auto it = a.find(v);
         if (it != a.end()) {
@@ -277,7 +276,7 @@ namespace libgm {
         }
       }
     }
-      
+
 #if 0
     /**
      * Extracts a sparse vector of features from an assignment. Tail variables
@@ -287,11 +286,11 @@ namespace libgm {
                           sparse_index<T>& result) const {
       result.clear();
       result.reserve(vector_size(tail()));
-      size_t id = 0;
+      std::size_t id = 0;
       for (Var v : tail()) {
         auto it = a.find(v);
         if (it != a.end()) {
-          for (size_t i = 0; i < v->size(); ++i) {
+          for (std::size_t i = 0; i < v->size(); ++i) {
             result.emplace_back(id + i, it->second[i]);
           }
         }
@@ -307,7 +306,9 @@ namespace libgm {
     void check_param() const {
       if (empty()) {
         if (!param_.empty()) {
-          throw std::runtime_error("The factor is empty but the parameters are not!");
+          throw std::runtime_error(
+            "The factor is empty but the parameters are not!"
+          );
         }
       } else {
         if (param_.labels() != head().size()) {
@@ -384,7 +385,7 @@ namespace libgm {
 
     //! Draws a random sample from a conditional distribution.
     template <typename Generator>
-    size_t sample(Generator& rng, const vec_type& tail) const {
+    std::size_t sample(Generator& rng, const vec_type& tail) const {
       return param_.sample(rng, tail);
     }
 
@@ -406,7 +407,7 @@ namespace libgm {
 
     //! The underlying softmax parameters.
     softmax_param<T> param_;
-    
+
   }; // class softmax
 
   /**
@@ -480,6 +481,6 @@ namespace libgm {
 
   }; // class factor_mle<softmax<T>, Dataset>
 
-} // namespace libgm  
+} // namespace libgm
 
 #endif

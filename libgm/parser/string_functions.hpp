@@ -1,8 +1,6 @@
 #ifndef LIBGM_STRING_FUNCTIONS_HPP
 #define LIBGM_STRING_FUNCTIONS_HPP
 
-#include <libgm/global.hpp>
-
 #include <cassert>
 #include <cctype>
 #include <cstdlib>
@@ -15,13 +13,14 @@ namespace libgm {
 
   //! Removes leading and trailing white space from a string
   inline std::string trim(const std::string& str,
-                          size_t start = 0, size_t end = std::string::npos) {
+                          std::size_t start = 0,
+                          std::size_t end = std::string::npos) {
     const char* whitespace = " \t\n\v\f\r";
-    size_t pos1 = str.find_first_not_of(whitespace, start);
+    std::size_t pos1 = str.find_first_not_of(whitespace, start);
     if (pos1 == std::string::npos) {
-      return std::string(); 
+      return std::string();
     } else {
-      size_t pos2 = str.find_last_not_of(whitespace, end);
+      std::size_t pos2 = str.find_last_not_of(whitespace, end);
       assert(pos2 != std::string::npos);
       return str.substr(pos1, pos2 - pos1 + 1);
     }
@@ -29,14 +28,14 @@ namespace libgm {
 
   //! Converts all letters in a string to lowercase in place.
   inline void tolower_inplace(std::string& s) {
-    for (size_t i = 0; i < s.size(); ++i) {
+    for (std::size_t i = 0; i < s.size(); ++i) {
       s[i] = std::tolower(s[i]);
     }
   }
 
   //! Converts all letters in a string to uppercase in place.
   inline void toupper_inplace(std::string& s) {
-    for (size_t i = 0; i < s.size(); ++i) {
+    for (std::size_t i = 0; i < s.size(); ++i) {
       s[i] = std::toupper(s[i]);
     }
   }
@@ -55,7 +54,7 @@ namespace libgm {
 
   //! Converts all instances of character a in string s to character b in place.
   inline void swap_characters_inplace(std::string& s, char a, char b) {
-    for (size_t i = 0; i < s.size(); ++i) {
+    for (std::size_t i = 0; i < s.size(); ++i) {
       if (s[i] == a) { s[i] = b; }
     }
   }
@@ -63,7 +62,7 @@ namespace libgm {
   //! Convert all non-alphanumeric characters in string s to character c,
   //! in place.
   inline void nonalnum_to_char_inplace(std::string& s, char c) {
-    for (size_t i(0); i < s.size(); ++i) {
+    for (std::size_t i(0); i < s.size(); ++i) {
       if (!isalnum(s[i])) { s[i] = c; }
     }
   }
@@ -74,14 +73,14 @@ namespace libgm {
    */
   inline std::istream& getline(std::istream& in,
                                std::string& line,
-                               size_t& line_number) {
+                               std::size_t& line_number) {
     ++line_number;
     return std::getline(in, line);
   }
 
   /**
    * If the string is enclosed in parentheses, returns the string with
-   * the C-style substitutions (\t => tab). Otherwise, returns the 
+   * the C-style substitutions (\t => tab). Otherwise, returns the
    * input string.
    * \todo Make this more robust
    */
@@ -89,9 +88,9 @@ namespace libgm {
     if (str.empty() || str.front() != '"') {
       return str;
     }
-    
+
     std::string result;
-    for (size_t i = 1; i < str.size(); ++i) {
+    for (std::size_t i = 1; i < str.size(); ++i) {
       switch (str[i]) {
       case '\\':
         ++i;
@@ -105,13 +104,15 @@ namespace libgm {
         if (i == str.size() - 1) {
           return result;
         } else {
-          throw std::runtime_error("Extra characters at the end of the string: " + str);
+          throw std::runtime_error(
+            "Extra characters at the end of the string: " + str
+          );
         }
       default:
         result.push_back(str[i]);
       }
     }
-    
+
     throw std::runtime_error("Unexpcted end of the string: " + str);
   }
 
@@ -197,7 +198,8 @@ namespace libgm {
   }
 
   /**
-   * Parses an unsigned long using strtoul. The string must not end with whitespace.
+   * Parses an unsigned long using strtoul. The string must not end with
+   * whitespace.
    * \return false if the parsing fails
    */
   inline bool parse_string(const char* s, unsigned long& val) {
@@ -227,7 +229,7 @@ namespace libgm {
   T parse_string(const char* s) {
     T val;
     if (!parse_string(s, val)) {
-      throw std::invalid_argument("Could not parse the string \"" + 
+      throw std::invalid_argument("Could not parse the string \"" +
                                   std::string(s) + "\"");
     }
     return val;
@@ -266,10 +268,10 @@ namespace libgm {
   inline void string_split(std::string& str, const std::string& sep,
                            std::vector<const char*>& tokens) {
     const char* begin = str.c_str();
-    size_t pos1 = str.find_first_not_of(sep);
+    std::size_t pos1 = str.find_first_not_of(sep);
     while (pos1 != std::string::npos) {
       tokens.push_back(begin + pos1);
-      size_t pos2 = str.find_first_of(sep, pos1);
+      std::size_t pos2 = str.find_first_of(sep, pos1);
       if (pos2 == std::string::npos) {
         pos1 = pos2;
       } else {
@@ -287,9 +289,9 @@ namespace libgm {
    */
   inline void string_split(const std::string& str, const std::string& sep,
                             std::vector<std::string>& tokens) {
-    size_t pos1 = str.find_first_not_of(sep);
+    std::size_t pos1 = str.find_first_not_of(sep);
     while (pos1 != std::string::npos) {
-      size_t pos2 = str.find_first_of(sep, pos1);
+      std::size_t pos2 = str.find_first_of(sep, pos1);
       if (pos2 == std::string::npos) {
         tokens.push_back(str.substr(pos1));
         pos1 = pos2;
@@ -308,7 +310,7 @@ namespace libgm {
    */
   inline std::pair<std::string, std::string>
   split_directory_file(const std::string& filepath) {
-    size_t i = filepath.find_last_of('/');
+    std::size_t i = filepath.find_last_of('/');
     if (i == std::string::npos) {
       return std::make_pair(".", "filepath");
     } else {

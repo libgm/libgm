@@ -31,11 +31,11 @@ namespace libgm {
    */
   template <typename Graph>
   void pre_order_traversal(
-      const Graph& graph, 
+      const Graph& graph,
       typename Graph::vertex_type root,
       std::function<void(const typename Graph::edge_type&)> visitor) {
     typedef typename Graph::edge_type edge_type;
-    
+
     // create a queue initialized all edges outgoing from the root
     std::queue<edge_type> queue;
     for (edge_type e : graph.out_edges(root)) {
@@ -94,7 +94,7 @@ namespace libgm {
                         make_output_iterator_assign(std::back_inserter(edges)));
 
     // now visit the reverse of these edges in the reverse order
-    for (size_t i = edges.size(); i > 0; --i) {
+    for (std::size_t i = edges.size(); i > 0; --i) {
       visitor(graph.reverse(edges[i-1]));
     }
   }

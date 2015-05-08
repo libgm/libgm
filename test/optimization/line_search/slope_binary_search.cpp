@@ -36,11 +36,11 @@ BOOST_AUTO_TEST_CASE(test_wolfe) {
   slope_binary_search<vec_type> search(bracketing_parameters<double>(),
                                        wolfe<double>::conjugate_gradient());
   search.objective(&objective);
-  
-  size_t nlines = 20;
+
+  std::size_t nlines = 20;
   std::mt19937 rng;
   std::uniform_real_distribution<> unif(-5, 5);
-  for (size_t i = 0; i < nlines; ++i) {
+  for (std::size_t i = 0; i < nlines; ++i) {
     vec_type src = vec2(unif(rng), unif(rng));
     vec_type dir = vec2(unif(rng), unif(rng));
     if (objective.gradient(src).dot(dir) > 0) {

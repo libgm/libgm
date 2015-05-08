@@ -1,7 +1,6 @@
 #ifndef LIBGM_UNDIRECTED_EDGE_HPP
 #define LIBGM_UNDIRECTED_EDGE_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/functional/hash.hpp>
 
 #include <algorithm>
@@ -11,7 +10,7 @@
 namespace libgm {
 
   // Forward declaration
-  template<typename V, typename VP, typename EP> 
+  template<typename V, typename VP, typename EP>
   class undirected_graph;
 
   /**
@@ -42,7 +41,7 @@ namespace libgm {
     //! Construct for a special "root" edge with empty source and given target.
     explicit undirected_edge(Vertex target)
       : source_(), target_(target), property_() { }
-    
+
     //! Conversion to bool indicating if this edge is empty.
     explicit operator bool() const {
       return source_ != Vertex() || target_ != Vertex();
@@ -53,7 +52,8 @@ namespace libgm {
       return { source_, target_ };
     }
 
-    //! Returns the pair with source and target vertex ordered s.t. first <= second.
+    //! Returns the pair with source and target vertex ordered
+    //! s.t. first <= second.
     std::pair<Vertex, Vertex> unordered_pair() const {
       return std::minmax(source_, target_);
     }
@@ -97,8 +97,8 @@ namespace libgm {
 
   private:
     //! Constructor setting the source and the edge property
-    undirected_edge(const Vertex& source, 
-                    const Vertex& target, 
+    undirected_edge(const Vertex& source,
+                    const Vertex& target,
                     void* property)
       : source_(source), target_(target), property_(property) { }
 
@@ -133,9 +133,9 @@ namespace std {
   template <typename Vertex>
   struct hash<libgm::undirected_edge<Vertex>> {
     typedef libgm::undirected_edge<Vertex> argument_type;
-    typedef size_t result_type;
-    size_t operator()(const libgm::undirected_edge<Vertex>& e) const {
-      size_t seed = 0;
+    typedef std::size_t result_type;
+    std::size_t operator()(const libgm::undirected_edge<Vertex>& e) const {
+      std::size_t seed = 0;
       std::pair<Vertex, Vertex> p = std::minmax(e.source(), e.target());
       libgm::hash_combine(seed, p.first);
       libgm::hash_combine(seed, p.second);

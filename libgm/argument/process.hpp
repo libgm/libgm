@@ -55,7 +55,7 @@ namespace libgm {
     }
 
     //! Returns the cardinality / dimensionality of the process variables.
-    size_t size() const {
+    std::size_t size() const {
       return rep().size;
     }
 
@@ -115,7 +115,7 @@ namespace libgm {
     }
 
     //! Computes the hash of the variable.
-    friend size_t hash_value(process x) {
+    friend std::size_t hash_value(process x) {
       return boost::hash_value(x.rep_);
     }
 
@@ -146,7 +146,7 @@ namespace libgm {
   }; // class process
 
   //! A discrete-time process with the default variable type.
-  typedef process<size_t, variable> dprocess;
+  typedef process<std::size_t, variable> dprocess;
 
   //! A continuous-time process with the default variable type.
   typedef process<double, variable> cprocess;
@@ -171,8 +171,8 @@ namespace std {
   template <typename Index>
   struct hash<libgm::process<Index, libgm::variable>> {
     typedef libgm::process<Index, libgm::variable> argument_type;
-    typedef size_t result_type;
-    size_t operator()(argument_type x) const {
+    typedef std::size_t result_type;
+    std::size_t operator()(argument_type x) const {
       return hash_value(x);
     }
   };

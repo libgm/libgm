@@ -3,8 +3,6 @@
 
 #include <iterator>
 
-#include <libgm/global.hpp>
-
 namespace libgm {
 
   /**
@@ -17,7 +15,7 @@ namespace libgm {
     : public std::iterator<std::output_iterator_tag, void, void, void, void> {
 
   public:
-    //! Constructor. 
+    //! Constructor.
     counting_output_iterator() : counter_() {}
 
     //! Increment the counter.
@@ -43,13 +41,13 @@ namespace libgm {
     }
 
     //! Returns the number of positions that have been assigned.
-    size_t count() const {
+    std::size_t count() const {
       return counter_;
     }
 
   private:
     //! The counter.
-    size_t counter_;
+    std::size_t counter_;
 
   }; // class counting_output_iterator
 

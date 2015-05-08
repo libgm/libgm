@@ -1,10 +1,8 @@
 #ifndef LIBGM_SUBGRAPH_HPP
 #define LIBGM_SUBGRAPH_HPP
 
-#include <libgm/global.hpp>
-
 namespace libgm {
-  
+
   /**
    * Computes a subgraph of a graph over the given range of vertices.
    *
@@ -18,7 +16,7 @@ namespace libgm {
                 Graph& new_graph) {
     typedef typename Graph::vertex_type vertex_type;
     typedef typename Graph::edge_type edge_type;
-    
+
     new_graph.clear();
     for (vertex_type v : new_vertices) {
       new_graph.add_vertex(v, graph[v]);

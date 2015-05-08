@@ -18,14 +18,14 @@ namespace libgm {
 
   // Forward declaration
   template <typename T> struct canonical_gaussian_param;
-  
+
   /**
    * The parameters of a conditional multivariate normal (Gaussian) distribution
    * in the moment parameterization. The parameters represent a quadratic
    * function log p(x | y), where
    *
    * p(x | y) =
-   *    1 / ((2*pi)^(m/2) det(cov)) * 
+   *    1 / ((2*pi)^(m/2) det(cov)) *
    *    exp(-0.5 * (x - coef*y - mean)^T cov^{-1} (x - coef*y -mean) + c),
    *
    * where x an m-dimensional real vector, y is an n-dimensional real vector,
@@ -60,7 +60,7 @@ namespace libgm {
       : lm(lm) { }
 
     //! Constructs a marginal Gaussian with the given sizes.
-    moment_gaussian_param(size_t m, size_t n)
+    moment_gaussian_param(std::size_t m, std::size_t n)
       : lm(0) {
       resize(m, n);
     }
@@ -90,7 +90,7 @@ namespace libgm {
       swap(*this, other);
     }
 
-    // Conversion from a canonical Gaussian representing a marginal distribution.
+    // Conversion from a canonical Gaussian representing a marginal distribution
     explicit moment_gaussian_param(const canonical_gaussian_param<T>& cg) {
       *this = cg;
     }
@@ -121,14 +121,15 @@ namespace libgm {
           "Are you passing in a marginal canonical Gaussian distribution?"
         );
       }
-      size_t n = cg.size();
+      std::size_t n = cg.size();
       resize(n);
       mean = chol.solve(cg.eta);
       cov = chol.solve(mat_type::Identity(n, n));
-      lm = cg.lm + T(0.5) * (n*log(two_pi<T>()) - logdet(chol) + mean.dot(cg.eta));
+      lm = cg.lm + T(0.5) * (n*log(two_pi<T>()) - logdet(chol)
+                             + mean.dot(cg.eta));
       return *this;
     }
-    
+
     //! Swaps the two sets of parameters.
     friend void swap(moment_gaussian_param& a, moment_gaussian_param& b) {
       a.mean.swap(b.mean);
@@ -136,7 +137,7 @@ namespace libgm {
       a.coef.swap(b.coef);
       std::swap(a.lm, b.lm);
     }
-    
+
     //! Serializes the parameters to an archive.
     void save(oarchive& ar) const {
       ar << mean << cov << coef << lm;
@@ -148,14 +149,14 @@ namespace libgm {
     }
 
     //! Resizes the parameters to the given head and tail vector size.
-    void resize(size_t nhead, size_t ntail = 0) {
+    void resize(std::size_t nhead, std::size_t ntail = 0) {
       mean.resize(nhead);
       cov.resize(nhead, nhead);
       coef.resize(nhead, ntail);
     }
 
     //! Initializes the parameters to 0 with given the head and tail size.
-    void zero(size_t nhead, size_t ntail = 0) {
+    void zero(std::size_t nhead, std::size_t ntail = 0) {
       mean.setZero(nhead);
       cov.setZero(nhead, nhead);
       coef.setZero(nhead, ntail);
@@ -166,17 +167,17 @@ namespace libgm {
     //==========================================================================
 
     //! Returns the dimensionality of the function (head + tail).
-    size_t size() const {
+    std::size_t size() const {
       return coef.rows() + coef.cols();
     }
 
     //! Returns the length of the head vector.
-    size_t head_size() const {
+    std::size_t head_size() const {
       return coef.rows();
     }
 
     //! Returns the length of the tail vectgor.
-    size_t tail_size() const {
+    std::size_t tail_size() const {
       return coef.cols();
     }
 
@@ -252,7 +253,7 @@ namespace libgm {
      */
     T maximum() const {
       Eigen::LLT<mat_type> chol(cov);
-      return T(0.5) * (-std::log(two_pi<T>()) * head_size() - logdet(chol)) + lm;
+      return T(0.5) * (-std::log(two_pi<T>())*head_size() - logdet(chol)) + lm;
     }
 
     /**
@@ -284,7 +285,7 @@ namespace libgm {
                            const moment_gaussian_param& q) {
       assert(p.is_marginal() && q.is_marginal());
       assert(p.head_size() == q.head_size());
-      size_t m = p.head_size();
+      std::size_t m = p.head_size();
       Eigen::LLT<mat_type> cholp(p.cov);
       Eigen::LLT<mat_type> cholq(q.cov);
       auto identity = mat_type::Identity(m, m);
@@ -308,7 +309,7 @@ namespace libgm {
 
     // Sampling
     //==========================================================================
-    
+
     /**
      * Draws a random sample from a marginal distribution.
      * This is only recommended for drawing a single sample. For multiple
@@ -334,7 +335,7 @@ namespace libgm {
       }
       vec_type z(mean.size());
       std::normal_distribution<T> normal;
-      for (size_t i = 0; i < z.size(); ++i) { z[i] = normal(rng); }
+      for (std::size_t i = 0; i < z.size(); ++i) { z[i] = normal(rng); }
       return mean + chol.matrixL() * z + coef * tail;
     }
 
@@ -382,7 +383,7 @@ namespace libgm {
    * whose head is disjoint from the head of the other factor.
    *
    * In the notation below, p(x_1, x_2) is one factor, and
-   * q(x_3 | x_1, y) is another. 
+   * q(x_3 | x_1, y) is another.
    * Then r(x_1, x_2, x_3 | y) or r(x_3, x_1, x_2 | y) is the result
    * (depending on the ordering of p and q).
    */
@@ -395,7 +396,7 @@ namespace libgm {
     matrix_index qy; //!< the indices of y in q
     matrix_index hp; //!< the indices of x1, x2 in h (always a block)
     matrix_index hq; //!< the indices of x3 in h (always a block)
-    
+
     //! Default constructor (the caller must initialize indices manually).
     moment_gaussian_multiplies() { }
 
@@ -538,10 +539,10 @@ namespace libgm {
     mat_type cov_yy;
     mat_type sol_yx;
   };
-    
+
   /**
    * A class that restricts a moment Gaussian.
-   * 
+   *
    * There are two operations that this class supports:
    * 1) Marginal: given a distribution p(x, y | z), we partially restrict the
    *    head y = vec_y and fully restrict the tail z = vec_z. The result is a
@@ -563,7 +564,7 @@ namespace libgm {
     matrix_index y; //!< the indices of the restricted arguments in f
     vec_type vec_y; //!< the assignment to the restricted arguments
     vec_type vec_z; //!< the assignment to the tail (for type = MARGINAL)
-    
+
     //! Constructs a restrict operator of the given kind.
     moment_gaussian_restrict(restrict_type type)
       : type(type) { }
@@ -591,7 +592,7 @@ namespace libgm {
         );
       }
       chol_yy.solveInPlace(sol_yx);
-      
+
       // some useful submatrices
       matrix_index z(0, f.tail_size());
       subvector<const vec_type> mean_x(f.mean, x);
@@ -636,7 +637,7 @@ namespace libgm {
       submatrix<const mat_type> coef_y(f.coef, z, y);
       if (y.contiguous()) {
         h.mean.noalias() = f.mean + coef_y.block() * vec_y;
-      } else { 
+      } else {
        h.mean.noalias() = f.mean + coef_y.plain() + vec_y;
       }
       h.cov.noalias() = f.cov;

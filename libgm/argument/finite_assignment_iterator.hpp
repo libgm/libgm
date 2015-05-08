@@ -46,7 +46,7 @@ namespace libgm {
     //! Prefix increment.
     finite_assignment_iterator& operator++() {
       for (Var v : vars_) {
-        size_t value = a_[v] + 1;
+        std::size_t value = a_[v] + 1;
         if (value >= v.size()) {
           a_[v] = 0;
         } else {
@@ -98,7 +98,7 @@ namespace libgm {
     bool done_;
 
   }; // class finite_assignment_iterator
-  
+
   /**
    * Returns a range over all assignments to variables in the domain.
    */

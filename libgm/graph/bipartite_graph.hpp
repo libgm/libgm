@@ -1,7 +1,7 @@
 #ifndef LIBGM_BIPARTITE_GRAPH_HPP
 #define LIBGM_BIPARTITE_GRAPH_HPP
 
-#include <libgm/global.hpp>
+#include <libgm/graph/void.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
 #include <libgm/range/iterator_range.hpp>
 #include <libgm/serialization/serialize.hpp>
@@ -68,13 +68,13 @@ namespace libgm {
     typedef Vertex1Property vertex1_property;
     typedef Vertex2Property vertex2_property;
     typedef EdgeProperty edge_property;
-    
+
     // vertex iterators
     typedef map_key_iterator<vertex1_data_map> vertex1_iterator;
     typedef map_key_iterator<vertex2_data_map> vertex2_iterator;
     typedef map_key_iterator<neighbor1_map> neighbor1_iterator;
     typedef map_key_iterator<neighbor2_map> neighbor2_iterator;
-    
+
     // edge iterators (forward declarations and typedefs)
     class edge_iterator;
     template <typename Target, typename Neighbors> class in_edge_iterator;
@@ -83,7 +83,7 @@ namespace libgm {
     typedef in_edge_iterator<Vertex2, neighbor1_map> in2_edge_iterator;
     typedef out_edge_iterator<Vertex1, neighbor2_map> out1_edge_iterator;
     typedef out_edge_iterator<Vertex2, neighbor1_map> out2_edge_iterator;
-    
+
     // Constructors, destructors, and related functions
     //==========================================================================
   public:
@@ -187,7 +187,7 @@ namespace libgm {
       return { in2_edge_iterator(u, data.neighbors.begin()),
                in2_edge_iterator(u, data.neighbors.end()) };
     }
-    
+
     //! Returns the edges outgoing from a type-1 vertex
     iterator_range<out1_edge_iterator>
     out_edges(Vertex1 u) const {
@@ -225,7 +225,7 @@ namespace libgm {
     bool contains(const edge_type& e) const {
       return contains(e.v1(), e.v2());
     }
-    
+
     //! Returns an undirected edge between u and v. The edge must exist.
     edge_type edge(Vertex1 u, Vertex2 v) const {
       const vertex1_data& data = find_vertex_data(u);
@@ -243,12 +243,12 @@ namespace libgm {
     }
 
     //! Returns the number of edges connected to a type-1 vertex
-    size_t degree(Vertex1 u) const {
+    std::size_t degree(Vertex1 u) const {
       return find_vertex_data(u).neighbors.size();
     }
 
     //! Returns the number of edges connected to a type-2 vertex
-    size_t degree(Vertex2 u) const {
+    std::size_t degree(Vertex2 u) const {
       return find_vertex_data(u).neighbors.size();
     }
 
@@ -258,22 +258,22 @@ namespace libgm {
     }
 
     //! Returns the number of type-1 vertices
-    size_t num_vertices1() const {
+    std::size_t num_vertices1() const {
       return data1_.size();
     }
 
     //! Returns the number of type-2 vertices
-    size_t num_vertices2() const {
+    std::size_t num_vertices2() const {
       return data2_.size();
     }
 
     //! Returns the number of vertices
-    size_t num_vertices() const {
+    std::size_t num_vertices() const {
       return data1_.size() + data2_.size();
     }
 
     //! Returns the number of edges
-    size_t num_edges() const {
+    std::size_t num_edges() const {
       return edge_count_;
     }
 
@@ -336,7 +336,7 @@ namespace libgm {
     Vertex1 sample_vertex1(Generator& rng) const {
       return sample_vertex(data1_, rng);
     }
-    
+
     /**
      * Draws a random type-2 vertex in the graph, assumign on exists.
      * \todo ensure sampling is uniform
@@ -352,7 +352,7 @@ namespace libgm {
      */
     bool operator==(const bipartite_graph& g) const {
       if (num_vertices1() != g.num_vertices1() ||
-          num_vertices2() != g.num_vertices2() || 
+          num_vertices2() != g.num_vertices2() ||
           num_edges() != g.num_edges()) {
         return false;
       }
@@ -386,7 +386,8 @@ namespace libgm {
     }
 
     //! Prints the graph to an output stream.
-    friend std::ostream& operator<<(std::ostream& out, const bipartite_graph& g) {
+    friend std::ostream&
+    operator<<(std::ostream& out, const bipartite_graph& g) {
       out << "Type-1 vertices" << std::endl;
       for (Vertex1 u : g.vertices1()) {
         out << u << ": " << g[u] << std::endl;
@@ -404,8 +405,9 @@ namespace libgm {
 
     //! Prints the degree distribution for the given vertex range
     template <typename Range>
-    void print_degree_distribution(std::ostream& out, const Range& range) const {
-      std::map<size_t, size_t> count;
+    void print_degree_distribution(std::ostream& out,
+                                   const Range& range) const {
+      std::map<std::size_t, std::size_t> count;
       for (auto v : range) {
         ++count[degree(v)];
       }
@@ -556,7 +558,7 @@ namespace libgm {
     //! Loads the graph from an archive.
     void load(iarchive& ar) {
       clear();
-      size_t num_vertices1, num_vertices2, num_edges;
+      std::size_t num_vertices1, num_vertices2, num_edges;
       Vertex1 u;
       Vertex2 v;
       ar >> num_vertices1 >> num_vertices2 >> num_edges;
@@ -576,26 +578,26 @@ namespace libgm {
 
     // Private helper functions
     //==========================================================================
-  private: 
-    const vertex1_data& find_vertex_data(Vertex1 u) const { 
+  private:
+    const vertex1_data& find_vertex_data(Vertex1 u) const {
       typename vertex1_data_map::const_iterator it = data1_.find(u);
       assert(it != data1_.end());
       return it->second;
     }
 
-    const vertex2_data& find_vertex_data(Vertex2 u) const { 
+    const vertex2_data& find_vertex_data(Vertex2 u) const {
       typename vertex2_data_map::const_iterator it = data2_.find(u);
       assert(it != data2_.end());
       return it->second;
     }
 
-    vertex1_data& find_vertex_data(Vertex1 u) { 
+    vertex1_data& find_vertex_data(Vertex1 u) {
       typename vertex1_data_map::iterator it = data1_.find(u);
       assert(it != data1_.end());
       return it->second;
     }
 
-    vertex2_data& find_vertex_data(Vertex2 u) { 
+    vertex2_data& find_vertex_data(Vertex2 u) {
       typename vertex2_data_map::iterator it = data2_.find(u);
       assert(it != data2_.end());
       return it->second;
@@ -605,13 +607,13 @@ namespace libgm {
     static typename DataMap::key_type
     sample_vertex(DataMap& data, Generator& rng) {
       assert(!data.empty());
-      std::uniform_int_distribution<size_t> unifb(0, data.bucket_count() - 1);
+      std::uniform_int_distribution<std::size_t> ub(0, data.bucket_count() - 1);
       while (true) {
-        size_t bucket = unifb(rng);
-        size_t bsize = data.bucket_size(bucket);
+        std::size_t bucket = ub(rng);
+        std::size_t bsize = data.bucket_size(bucket);
         if (bsize > 0) {
-          std::uniform_int_distribution<size_t> unifi(0, bsize - 1);
-          return std::next(data.begin(bucket), unifi(rng))->first;
+          std::uniform_int_distribution<std::size_t> ui(0, bsize - 1);
+          return std::next(data.begin(bucket), ui(rng))->first;
         }
       }
     }
@@ -651,7 +653,7 @@ namespace libgm {
       }
       std::pair<Vertex1, Vertex2> endpoints() const {
         return std::make_pair(v1_, v2_);
-      }      
+      }
       bool forward() const {
         return forward_;
       }
@@ -674,7 +676,7 @@ namespace libgm {
         }
         return out;
       }
-      friend size_t hash_value(const edge_type& e) {
+      friend std::size_t hash_value(const edge_type& e) {
         return boost::hash_value(std::make_pair(e.v1_, e.v2_));
       }
     }; // class edge_type
@@ -716,7 +718,7 @@ namespace libgm {
           }
         }
         return *this;
-      }     
+      }
 
       edge_iterator operator++(int) {
         edge_iterator copy = *this;
@@ -770,7 +772,7 @@ namespace libgm {
 
       bool operator==(const in_edge_iterator& o) const {
         return it_ == o.it_;
-      }     
+      }
 
       bool operator!=(const in_edge_iterator& o) const {
         return it_ != o.it_;
@@ -813,7 +815,7 @@ namespace libgm {
 
       bool operator==(const out_edge_iterator& o) const {
         return it_ == o.it_;
-      }     
+      }
 
       bool operator!=(const out_edge_iterator& o) const {
         return it_ != o.it_;
@@ -835,8 +837,8 @@ namespace libgm {
     vertex2_data_map data2_;
 
     //! The number of edges.
-    size_t edge_count_;
-      
+    std::size_t edge_count_;
+
   }; // class bipartite_graph
 
 } // namespace libgm

@@ -19,7 +19,7 @@ namespace libgm {
   public:
     //! The underlying real type.
     typedef typename BaseLL::real_type real_type;
-    
+
     //! The parameter type that models an OptimizationVector concept.
     typedef typename BaseLL::param_type param_type;
 

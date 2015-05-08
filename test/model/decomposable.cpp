@@ -63,8 +63,8 @@ BOOST_AUTO_TEST_CASE(test_mpa) {
 
 BOOST_AUTO_TEST_CASE(test_sampling) {
   // Dataset parameters
-  size_t nsamples = 500;
-  size_t n = 30; // length of width-2 chain decomposable model
+  std::size_t nsamples = 500;
+  std::size_t n = 30; // length of width-2 chain decomposable model
   boost::mt11213b rng;
 
   // Create a model to sample from
@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE(test_sampling) {
   // Test conditioning and computing log likelihoods.
   finite_domain half_vars1(model.arguments());
   finite_domain half_vars2;
-  for (size_t i = 0; i < n / 2; ++i) {
+  for (std::size_t i = 0; i < n / 2; ++i) {
     assert(!half_vars1.empty());
     variable v = *(half_vars1.begin());
     half_vars1.erase(v);
@@ -90,7 +90,7 @@ BOOST_AUTO_TEST_CASE(test_sampling) {
   double cross_entropy = 0;
   double ll_half_vars1 = 0;
   double ll_half_vars2_given_1 = 0;
-  for (size_t i = 0; i < nsamples; ++i) {
+  for (std::size_t i = 0; i < nsamples; ++i) {
     finite_assignment a(model.sample(rng));
     cross_entropy -= model.log_likelihood(a);
     decomposable<ptable> conditioned_model(model);

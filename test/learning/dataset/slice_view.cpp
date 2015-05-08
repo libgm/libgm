@@ -39,7 +39,7 @@ BOOST_AUTO_TEST_CASE(test_accessors) {
   universe u;
   variable x = u.new_finite_variable("x", 3);
   variable y = u.new_finite_variable("y", 3);
-  
+
   finite_dataset<> ds({x, y});
   ds.insert(finite_index({1, 2}), 0.5);
   ds.insert(finite_index({0, 1}), 0.3);
@@ -59,7 +59,7 @@ BOOST_AUTO_TEST_CASE(test_accessors) {
   BOOST_CHECK_EQUAL(view[2].first, finite_index({1, 0}));
   BOOST_CHECK_EQUAL(view[0].second, 0.3);
   BOOST_CHECK_EQUAL(view[2].second, 2.0);
-  
+
   // operator()
   BOOST_CHECK_EQUAL(view(0, {y}).first, finite_index({1}));
   BOOST_CHECK_EQUAL(view(2, {y}).first, finite_index({0}));
@@ -85,7 +85,7 @@ BOOST_AUTO_TEST_CASE(test_value_iterators) {
   universe u;
   variable x = u.new_finite_variable("x", 3);
   variable y = u.new_finite_variable("y", 3);
-  
+
   finite_dataset<> ds({x, y});
   ds.insert(finite_index({1, 2}), 0.5);
   ds.insert(finite_index({0, 1}), 0.3);
@@ -101,7 +101,7 @@ BOOST_AUTO_TEST_CASE(test_value_iterators) {
   BOOST_CHECK(end == end2);
   ++it2;
   BOOST_CHECK(it != it2);
-  
+
   // absolute index 2
   BOOST_CHECK(it != end);
   BOOST_CHECK_EQUAL(it->first, finite_index({2, 0}));
@@ -120,7 +120,7 @@ BOOST_AUTO_TEST_CASE(test_value_iterators) {
   BOOST_CHECK_EQUAL(it->first, finite_index({1, 2}));
   BOOST_CHECK_EQUAL(it->second, 0.5);
   ++it;
-  
+
   // reached the end?
   BOOST_CHECK(it == end);
 }
@@ -130,7 +130,7 @@ BOOST_AUTO_TEST_CASE(test_assignment_iterator) {
   universe u;
   variable x = u.new_finite_variable("x", 3);
   variable y = u.new_finite_variable("y", 3);
-  
+
   finite_dataset<> ds({x, y});
   ds.insert(finite_index({1, 2}), 0.5);
   ds.insert(finite_index({0, 1}), 0.3);
@@ -140,7 +140,7 @@ BOOST_AUTO_TEST_CASE(test_assignment_iterator) {
   view_type view = subset(ds, {slice(2, 2), slice(1, 1)});
   view_type::assignment_iterator it, end;
   std::tie(it, end) = view.assignments({x});
-  
+
   // absolute index 2
   BOOST_CHECK(it != end);
   BOOST_CHECK_EQUAL(it->first.size(), 1);
@@ -161,7 +161,7 @@ BOOST_AUTO_TEST_CASE(test_assignment_iterator) {
   BOOST_CHECK_EQUAL(it->first.at(x), 0);
   BOOST_CHECK_EQUAL(it->second, 0.3);
   ++it;
-  
+
   // reached the end?
   BOOST_CHECK(it == end);
 }
@@ -175,7 +175,7 @@ BOOST_AUTO_TEST_CASE(test_reconstruction) {
   ptable f = uniform_table_generator<ptable>()(v, rng).normalize();
   auto d = f.distribution();
   finite_dataset<> ds(v, 1000);
-  for (size_t i = 0; i < 1000; ++i) {
+  for (std::size_t i = 0; i < 1000; ++i) {
     ds.insert(d(rng), 1.0);
   }
   factor_mle<ptable> mle;
@@ -196,13 +196,13 @@ BOOST_AUTO_TEST_CASE(test_reconstruction) {
   BOOST_CHECK_SMALL(kl_divergence(f, mle(view2, v)), 1e-2);
 
   // verify the number of samples
-  size_t n_mutable = 0;
+  std::size_t n_mutable = 0;
   for (const auto& sample : view2) {
     ++n_mutable;
   }
   BOOST_CHECK_EQUAL(n_mutable, 500);
 
-  size_t n_const = 0;
+  std::size_t n_const = 0;
   const auto& view2c = view2;
   for (const auto& sample : view2c) {
     ++n_const;

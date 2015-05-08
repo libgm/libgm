@@ -8,10 +8,10 @@ namespace libgm {
    * of as a container, providing a map from vertices and edges to the
    * associated data.  In addition to providing basic container
    * facilities, a graph represents the relationship between edges and
-   * vertices. 
+   * vertices.
    *
    * A graph must define the type of a vertex an edge, and the
-   * associated vertex_property and edge_property.  
+   * associated vertex_property and edge_property.
    *
    * \ingroup concepts, graph_concepts
    */
@@ -22,7 +22,7 @@ namespace libgm {
      * The vertex type which must be boost::Comparable,
      * boost::DefaultConstructible, and
      * boost::CopyConstructable. Typically this will be a relativley
-     * lightweight type such as pointer or size_t.  This will
+     * lightweight type such as pointer or std::size_t.  This will
      * typically be a user defined type.
      */
     typedef typename G::vertex vertex;
@@ -36,7 +36,7 @@ namespace libgm {
      * associated data.  This will typicall be a user defined type.
      */
     typedef typename G::vertex_property vertex_property;
- 
+
     /**
      * The edge type which must be boost::Comparable,
      * boost::DefaultConstructible, and
@@ -57,7 +57,7 @@ namespace libgm {
      * associated data.  This will typically be a user defined type.
      */
     typedef typename G::edge_property edge_property;
-    
+
     /**
      * The iterator over vertices.  This iterator must satisfy the
      * boost::ForwardIterator Concept.  Because we are not permitting
@@ -66,10 +66,10 @@ namespace libgm {
      */
     typedef typename G::vertex_iterator vertex_iterator;
     typedef typename G::parent_iterator parent_iterator;
-    typedef typename G::child_iterator  child_iterator; 
-    concept_assert(( boost::InputIterator<vertex_iterator> ));    
-    concept_assert(( boost::ForwardIterator<parent_iterator> ));    
-    concept_assert(( boost::ForwardIterator<child_iterator> ));    
+    typedef typename G::child_iterator  child_iterator;
+    concept_assert(( boost::InputIterator<vertex_iterator> ));
+    concept_assert(( boost::ForwardIterator<parent_iterator> ));
+    concept_assert(( boost::ForwardIterator<child_iterator> ));
 
 
     /**
@@ -86,10 +86,10 @@ namespace libgm {
 
     typedef typename G::edge_iterator edge_iterator;
     typedef typename G::in_edge_iterator in_edge_iterator;
-    typedef typename G::out_edge_iterator out_edge_iterator; 
-    concept_assert(( boost::ForwardIterator<edge_iterator> ));    
-    concept_assert(( boost::ForwardIterator<in_edge_iterator> ));    
-    concept_assert(( boost::ForwardIterator<out_edge_iterator> ));    
+    typedef typename G::out_edge_iterator out_edge_iterator;
+    concept_assert(( boost::ForwardIterator<edge_iterator> ));
+    concept_assert(( boost::ForwardIterator<in_edge_iterator> ));
+    concept_assert(( boost::ForwardIterator<out_edge_iterator> ));
 
     // For brevity we define the range types
     typedef std::pair<edge_iterator, edge_iterator> edge_range;
@@ -106,13 +106,13 @@ namespace libgm {
 
     /**
      * Returns the edges of this graph()
-     * 
+     *
      * \return the range containing all edges
      */
     edge_range edges() const;
 
     /**
-     * Test if this graph contains the vertex u. 
+     * Test if this graph contains the vertex u.
      *
      * \param u a vertex
      * \return if this graph contains u
@@ -126,7 +126,7 @@ namespace libgm {
      * \return if this graph contains e
      */
     bool contains(edge e) const;
-    
+
     /**
      * Test if this graph contains the edge (u,v).
      *
@@ -136,44 +136,44 @@ namespace libgm {
      */
     bool contains(vertex u, vertex v) const;
 
-    /** 
+    /**
      * Returns the parents of u.
-     * 
+     *
      * \param u the vertex whose parents are desired
      * \return the range of parents.
      * \exception std::out_of_range vertex u not present in graph
      */
     parent_range parents(vertex u) const;
 
-    /** 
+    /**
      * Returns the children of u.
-     * 
+     *
      * \param u a vertex in the graph
      * \return the range of children.
      * \exception std::out_of_range vertex u not present in graph
      */
     child_range children(vertex u) const;
 
-    /** 
-     * Returns the edges emanating from the vertex u. 
+    /**
+     * Returns the edges emanating from the vertex u.
      *
      * \param u a vertex in the graph
-     * \return the range of edges emanating from u 
+     * \return the range of edges emanating from u
      * \exception std::out_of_range vertex u not present in graph
      */
     out_edge_range out_edges(vertex u) const;
 
-    /** 
-     * Returns the edges arriving at the vertex u. 
+    /**
+     * Returns the edges arriving at the vertex u.
      *
      * \param u a vertex in the graph
-     * \return the range of edges arriving at u 
+     * \return the range of edges arriving at u
      * \exception std::out_of_range vertex u not present in graph
      */
     in_edge_range in_edges(vertex u) const;
 
-    /** 
-     * Returns the source u of the edge (u,v)=e.  
+    /**
+     * Returns the source u of the edge (u,v)=e.
      *
      * \param e an edge in the graph
      * \return the vertex from which e emanates
@@ -181,7 +181,7 @@ namespace libgm {
      */
     vertex source(edge e) const;
 
-    /** 
+    /**
      * Returns the destination or target v of the edge (u,v)=e
      *
      * \param e an edge in the graph
@@ -197,7 +197,7 @@ namespace libgm {
      * \return the number of edges emanating from u
      * \exception std::out_of_range vertex is not present in graph
      */
-    size_t out_degree(vertex u) const;
+    std::size_t out_degree(vertex u) const;
 
     /**
      * Return the number of edges arriving at u.
@@ -206,7 +206,7 @@ namespace libgm {
      * \return the number of edges arriving at u
      * \exception std::out_of_range vertex is not present in graph
      */
-    size_t in_degree(vertex u) const;
+    std::size_t in_degree(vertex u) const;
 
     /**
      * Returns the total number of edges leaving and arriving from u.
@@ -215,7 +215,7 @@ namespace libgm {
      * \return the number of edges connected to u
      * \exception std::out_of_range vertex is not present in graph
      */
-    size_t degree(vertex u) const;
+    std::size_t degree(vertex u) const;
 
     /**
      * Returns true if the graph() has no vertices
@@ -229,14 +229,14 @@ namespace libgm {
      *
      * \return the number of vertices
      */
-    size_t num_vertices() const;
+    std::size_t num_vertices() const;
 
-    /** 
+    /**
      * Returns the number of edges in the graph()
      *
      * \return the number of edges in the graph
      */
-    size_t num_edges() const;
+    std::size_t num_edges() const;
 
     /**
      * Returns the edge connecting u to v in the graph.
@@ -250,7 +250,7 @@ namespace libgm {
 
     /**
      * Returns an edge with the reverse source and target
-     * 
+     *
      * \param e an edge in the graph
      * \return the edge (v,u) where e=(u,v)
      * \exception std::out_of_range if e is not present in the graph
@@ -259,7 +259,7 @@ namespace libgm {
 
     /**
      * Get the property associated with the vertex u
-     * 
+     *
      * \param u a vertex in the graph
      * \return the property associated with the vertex u
      * \exception std::out_of_range if u is not present in the graph
@@ -272,7 +272,7 @@ namespace libgm {
 
     /**
      * Get the property associated with the edge e
-     * 
+     *
      * \param e an edge in the graph
      * \return the property associated with the edge e
      * \exception std::out_of_range if e is not present in the graph
@@ -280,10 +280,10 @@ namespace libgm {
     const edge_property& operator[](const edge& e) const;
     edge_property& operator[](const edge& u);
     const edge_property& property(const edge& e) const;
-    edge_property& property(const edge& e);    
+    edge_property& property(const edge& e);
     const edge_property& property(const vertex& u, const vertex& v) const;
     edge_property& property(const vertex& u, const vertex& v);
-    
+
 
 
     concept_usage(Graph) {
@@ -298,12 +298,12 @@ namespace libgm {
       libgm::same_type( g.in_edge(vertex()),              ier);
       libgm::same_type( g.source(edge()),                 vertex());
       libgm::same_type( g.target(edge()),                 vertex());
-      libgm::same_type( g.out_degree(vertex()),           size_t());
-      libgm::same_type( g.in_degree(vertex()),            size_t());
-      libgm::same_type( g.degree(vertex()),               size_t());
+      libgm::same_type( g.out_degree(vertex()),           std::size_t());
+      libgm::same_type( g.in_degree(vertex()),            std::size_t());
+      libgm::same_type( g.degree(vertex()),               std::size_t());
       libgm::same_type( g.empty(),                        bool());
-      libgm::same_type( g.num_vertices(),                 size_t());
-      libgm::same_type( g.num_edges(),                    size_t());
+      libgm::same_type( g.num_vertices(),                 std::size_t());
+      libgm::same_type( g.num_edges(),                    std::size_t());
       libgm::same_type( g.edge(vertex(), vertex()),       edge());
       libgm::same_type( g.reverse(edge()),                edge());
       libgm::same_type( g[vertex()],                      vertex_property());
@@ -320,7 +320,7 @@ namespace libgm {
     child_range cr;
     in_edge_range ier;
     out_edge_range oer;
-    
+
   }; // concept Graph
 
   /**
@@ -340,10 +340,10 @@ namespace libgm {
     typedef typename base::edge_property      edge_property;
     typedef typename base::vertex_iterator    vertex_iterator;
     typedef typename base::parent_iterator    parent_iterator;
-    typedef typename base::child_iterator     child_iterator; 
+    typedef typename base::child_iterator     child_iterator;
     typedef typename base::edge_iterator      edge_iterator;
     typedef typename base::in_edge_iterator   in_edge_iterator;
-    typedef typename base::out_edge_iterator  out_edge_iterator; 
+    typedef typename base::out_edge_iterator  out_edge_iterator;
     typedef typename base::vertex_range        vertex_range;
     typedef typename base::parent_range       parent_range;
     typedef typename base::child_range        child_range;
@@ -352,14 +352,14 @@ namespace libgm {
     typedef typename base::out_edge_range     out_edge_range;
 
 
-    
+
     /**
      * Adds the vertex u to this graph and associates the vertex
      * property p with that vertex. Returns true if the vertex was
      * already present. If the vertex was already present then the
      * the property is replaced with p.
      *
-     * \param u the vertex 
+     * \param u the vertex
      * \return boolean that is true if the vertex was already present
      */
     bool add(vertex u, const vertex_property& p);
@@ -375,9 +375,9 @@ namespace libgm {
      * \return boolean that is true if the edge was already present
      */
     bool add(vertex u, vertex v, const edge_property& p);
-        
 
-    /** 
+
+    /**
      * Remove all edges to and from a vertex as well as the vertex
      * itself
      *
@@ -386,7 +386,7 @@ namespace libgm {
      */
     void remove(vertex u);
 
-    /** 
+    /**
      * Remove the edge.
      *
      * \param e an edge to remove
@@ -405,7 +405,7 @@ namespace libgm {
 
     /**
      * Remove all out edges from the vertex u that satisfy the
-     * predicate.  
+     * predicate.
      *
      * \param u a vertex in the graph
      * \param predicate a functor that has type edge -&gt bool
@@ -413,10 +413,10 @@ namespace libgm {
      */
     template <typename Predicate>
     void remove_out_edge_if(vertex u, const Predicate& predicate);
-    
+
     /**
      * Remove all in edges from the vertex u that satisfy the
-     * predicate.  
+     * predicate.
      *
      * \param u a vertex in the graph
      * \param predicate a functor that has type edge -&gt bool
@@ -427,7 +427,7 @@ namespace libgm {
 
     /**
      * Remove all edges from the vertex u that satisfy the
-     * predicate.  
+     * predicate.
      *
      * \param u a vertex in the graph
      * \param predicate a functor that has type edge -&gt bool
@@ -435,7 +435,7 @@ namespace libgm {
      */
     template <typename Predicate>
     void remove_edge_if(vertex u, const Predicate& predicate);
-  
+
   }; // concept MutableGraph
 
 
@@ -450,7 +450,7 @@ namespace libgm {
    * @see min_degree_strategy, min_fill_strategy, constrained_elim_strategy
    */
   template <typename Strategy, typename Graph>
-  struct EliminationStrategy 
+  struct EliminationStrategy
   {
   private:
 

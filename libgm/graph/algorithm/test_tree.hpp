@@ -18,10 +18,11 @@ namespace libgm {
    * \ingroup graph_algorithms
    */
   template <typename Graph>
-  size_t test_tree(const Graph& g,
-                   typename Graph::vertex_type root,
-                   std::function<bool(const typename Graph::edge_type&)> pred
-                     = nullptr) {
+  std::size_t
+  test_tree(const Graph& g,
+            typename Graph::vertex_type root,
+            std::function<bool(const typename Graph::edge_type&)> pred
+              = nullptr) {
     typedef typename Graph::vertex_type vertex_type;
     typedef typename Graph::edge_type edge_type;
     std::unordered_set<vertex_type> visited;
@@ -42,7 +43,7 @@ namespace libgm {
     }
     return visited.size();
   }
-          
+
 } // namespace libgm
 
 #endif

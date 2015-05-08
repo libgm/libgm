@@ -17,13 +17,13 @@ typedef array_distribution<double, 2> dist2_type;
 typedef dist1_type::param_type array1_type;
 typedef dist2_type::param_type array2_type;
 
-size_t nsamples = 10000;
+std::size_t nsamples = 10000;
 double tol = 0.01;
 
 double marginal_diff(const dist1_type& d, const array1_type& a) {
   std::mt19937 rng;
   array1_type estimate = array1_type::Zero(a.size());
-  for (size_t i = 0; i < nsamples; ++i) {
+  for (std::size_t i = 0; i < nsamples; ++i) {
     ++estimate[d(rng)];
   }
   estimate /= nsamples;
@@ -33,7 +33,7 @@ double marginal_diff(const dist1_type& d, const array1_type& a) {
 double marginal_diff(const dist2_type& d, const array2_type& a) {
   std::mt19937 rng;
   array2_type estimate = array2_type::Zero(a.rows(), a.cols());
-  for (size_t i = 0; i < nsamples; ++i) {
+  for (std::size_t i = 0; i < nsamples; ++i) {
     finite_index sample = d(rng);
     BOOST_REQUIRE_EQUAL(sample.size(), 2);
     ++estimate(sample[0], sample[1]);
@@ -45,8 +45,8 @@ double marginal_diff(const dist2_type& d, const array2_type& a) {
 double conditional_diff(const dist2_type& d, const array2_type& a) {
   std::mt19937 rng;
   array2_type estimate = array2_type::Zero(a.rows(), a.cols());
-  for (size_t tail = 0; tail < a.cols(); ++tail) {
-    for (size_t i = 0; i < nsamples; ++i) {
+  for (std::size_t tail = 0; tail < a.cols(); ++tail) {
+    for (std::size_t i = 0; i < nsamples; ++i) {
       ++estimate(d(rng, tail), tail);
     }
   }

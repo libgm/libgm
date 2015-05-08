@@ -18,9 +18,9 @@ typedef table<int> int_table;
 
 
 BOOST_AUTO_TEST_CASE(test_accessors) {
-  const size_t n = 10;
-  const size_t d = 3;
-  const size_t m = pow(d, n);
+  const std::size_t n = 10;
+  const std::size_t d = 3;
+  const std::size_t m = pow(d, n);
 
   // Constructor
   int_table x(finite_index(n, d));
@@ -47,7 +47,7 @@ BOOST_AUTO_TEST_CASE(test_sequential) {
   int_table x({2, 2});
   int_table y({2, 2});
   int_table z({2});
-  
+
   // Fill
   x.fill(3);
   BOOST_CHECK_EQUAL(boost::count(x, 3), 4);
@@ -74,7 +74,7 @@ BOOST_AUTO_TEST_CASE(test_sequential) {
 
   // Transform-accumulate
   std::iota(x.begin(), x.end(), 2);
-  size_t sum = x.transform_accumulate(0, 
+  std::size_t sum = x.transform_accumulate(0,
                                       libgm::incremented_by<int>(3),
                                       std::plus<int>());
   BOOST_CHECK_EQUAL(sum, 26);
@@ -94,10 +94,10 @@ BOOST_AUTO_TEST_CASE(test_opt_vector) {
   const table<double> p({1, 2}, {1, 2});
   const table<double> q({1, 2}, {1.5, -0.5});
   table<double> r;
-  
+
   r = p; r += q;
   BOOST_CHECK(is_close(r, 2.5, 1.5));
-  
+
   r = p; r -= q;
   BOOST_CHECK(is_close(r, -0.5, 2.5));
 
@@ -109,13 +109,13 @@ BOOST_AUTO_TEST_CASE(test_opt_vector) {
 
   r = p; r *= 2.0;
   BOOST_CHECK(is_close(r, 2, 4));
-  
+
   r = p; r /= 2.0;
   BOOST_CHECK(is_close(r, 0.5, 1));
 
   r = p; axpy(2.0, q, r);
   BOOST_CHECK(is_close(r, 4, 1));
-  
+
   BOOST_CHECK_CLOSE(dot(p, q), 0.5, 1e-8);
 
   /*
@@ -128,9 +128,9 @@ BOOST_AUTO_TEST_CASE(test_opt_vector) {
 
 
 BOOST_AUTO_TEST_CASE(test_join) {
-  const size_t m = 10;
-  const size_t n = 8;
-  const size_t o = 9;
+  const std::size_t m = 10;
+  const std::size_t n = 8;
+  const std::size_t o = 9;
 
   // Input arrays and tables
   int xa[m][n];
@@ -142,28 +142,28 @@ BOOST_AUTO_TEST_CASE(test_join) {
 
   // Initialize the input arrays and tables
   int value = 0;
-  for (size_t i = 0; i < m; ++i) {
-    for (size_t j = 0; j < n; ++j) {
+  for (std::size_t i = 0; i < m; ++i) {
+    for (std::size_t j = 0; j < n; ++j) {
       x({i,j}) = xa[i][j] = value++;
     }
   }
-  for (size_t j = 0; j < n; ++j) {
-    for (size_t k = 0; k < o; ++k) {
+  for (std::size_t j = 0; j < n; ++j) {
+    for (std::size_t k = 0; k < o; ++k) {
       y({j,k}) = ya[j][k] = value++;
     }
   }
-  for (size_t k = 0; k < o; ++k) {
-    for (size_t i = 0; i < m; ++i) {
+  for (std::size_t k = 0; k < o; ++k) {
+    for (std::size_t i = 0; i < m; ++i) {
       z({k,i}) = za[k][i] = value++;
     }
   }
 
-  // Compute the sum using native arrays 
+  // Compute the sum using native arrays
   int sum_xy[m * n * o];
   int sum_xyz[m * n * o];
-  for (size_t i = 0; i < m; ++i) {
-    for (size_t j = 0; j < n; ++j) {
-      for (size_t k = 0; k < o; ++k) {
+  for (std::size_t i = 0; i < m; ++i) {
+    for (std::size_t j = 0; j < n; ++j) {
+      for (std::size_t k = 0; k < o; ++k) {
         sum_xy[i + j*m + k*m*n] = xa[i][j] + ya[j][k];
         sum_xyz[i + j*m + k*m*n] = xa[i][j] + ya[j][k] + za[k][i];
       }
@@ -192,9 +192,9 @@ BOOST_AUTO_TEST_CASE(test_join) {
 
 
 BOOST_AUTO_TEST_CASE(test_aggregate) {
-  const size_t m = 10;
-  const size_t n = 8;
-  const size_t o = 9;
+  const std::size_t m = 10;
+  const std::size_t n = 8;
+  const std::size_t o = 9;
 
   // Input arrays and tables
   int xa[m][n][o];
@@ -202,9 +202,9 @@ BOOST_AUTO_TEST_CASE(test_aggregate) {
 
   // Initialize the input array and table
   int value = 2;
-  for (size_t i = 0; i < m; ++i) {
-    for (size_t j = 0; j < n; ++j) {
-      for (size_t k = 0; k < o; ++k) {
+  for (std::size_t i = 0; i < m; ++i) {
+    for (std::size_t j = 0; j < n; ++j) {
+      for (std::size_t k = 0; k < o; ++k) {
         x({i,j,k}) = xa[i][j][k] = value++;
       }
     }
@@ -212,10 +212,10 @@ BOOST_AUTO_TEST_CASE(test_aggregate) {
 
   // Performs the aggreate operation using native arrays
   int sum[o*m];
-  for (size_t k = 0; k < o; ++k) {
-    for (size_t i = 0; i < m; ++i) {
+  for (std::size_t k = 0; k < o; ++k) {
+    for (std::size_t i = 0; i < m; ++i) {
       int tmp = 0;
-      for (size_t j = 0; j < n; ++j) { tmp += xa[i][j][k]; }
+      for (std::size_t j = 0; j < n; ++j) { tmp += xa[i][j][k]; }
       sum[k + i*o] = tmp;
     }
   }
@@ -229,7 +229,7 @@ BOOST_AUTO_TEST_CASE(test_aggregate) {
   nested.fill(0);
   table_aggregate<int,int,std::plus<int> >(nested, x, dim_map, op)();
   BOOST_CHECK(std::equal(nested.begin(), nested.end(), sum));
-  
+
   // Performs the aggregate with flat loop
   int_table flat({o, m});
   flat.fill(0);
@@ -239,9 +239,9 @@ BOOST_AUTO_TEST_CASE(test_aggregate) {
 
 
 BOOST_AUTO_TEST_CASE(test_join_aggregate) {
-  const size_t m = 10;
-  const size_t n = 8;
-  const size_t o = 9;
+  const std::size_t m = 10;
+  const std::size_t n = 8;
+  const std::size_t o = 9;
 
   // Input arrays and tables
   int xa[m][n];
@@ -251,23 +251,23 @@ BOOST_AUTO_TEST_CASE(test_join_aggregate) {
 
   // Initialize the input arrays and tables
   int value = 0;
-  for (size_t i = 0; i < m; ++i) {
-    for (size_t j = 0; j < n; ++j) {
+  for (std::size_t i = 0; i < m; ++i) {
+    for (std::size_t j = 0; j < n; ++j) {
       x({i,j}) = xa[i][j] = value++;
     }
   }
-  for (size_t j = 0; j < n; ++j) {
-    for (size_t k = 0; k < o; ++k) {
+  for (std::size_t j = 0; j < n; ++j) {
+    for (std::size_t k = 0; k < o; ++k) {
       y({j,k}) = ya[j][k] = value++;
     }
   }
 
   // Performs the join-aggregate operation using native arrays
   int sum[o*m];
-  for (size_t k = 0; k < o; ++k) {
-    for (size_t i = 0; i < m; ++i) {
+  for (std::size_t k = 0; k < o; ++k) {
+    for (std::size_t i = 0; i < m; ++i) {
       int tmp = 0;
-      for (size_t j = 0; j < n; ++j) { tmp += xa[i][j] * ya[j][k]; }
+      for (std::size_t j = 0; j < n; ++j) { tmp += xa[i][j] * ya[j][k]; }
       sum[k + i*o] = tmp;
     }
   }
@@ -275,7 +275,7 @@ BOOST_AUTO_TEST_CASE(test_join_aggregate) {
   finite_index x_map = {0, 1};
   finite_index y_map = {1, 2};
   finite_index r_map = {2, 0};
-  finite_index z_shape = {m, n, o}; 
+  finite_index z_shape = {m, n, o};
   std::multiplies<int> join_op;
   std::plus<int> agg_op;
 
@@ -296,9 +296,9 @@ BOOST_AUTO_TEST_CASE(test_join_aggregate) {
 
 
 BOOST_AUTO_TEST_CASE(test_restrict) {
-  const size_t m = 10;
-  const size_t n = 8;
-  const size_t o = 9;
+  const std::size_t m = 10;
+  const std::size_t n = 8;
+  const std::size_t o = 9;
 
   // Input arrays and tables
   int xa[m][n][o];
@@ -306,9 +306,9 @@ BOOST_AUTO_TEST_CASE(test_restrict) {
 
   // Initialize the input array and table
   int value = 2;
-  for (size_t i = 0; i < m; ++i) {
-    for (size_t j = 0; j < n; ++j) {
-      for (size_t k = 0; k < o; ++k) {
+  for (std::size_t i = 0; i < m; ++i) {
+    for (std::size_t j = 0; j < n; ++j) {
+      for (std::size_t k = 0; k < o; ++k) {
         x({i,j,k}) = xa[i][j][k] = value++;
       }
     }
@@ -316,14 +316,14 @@ BOOST_AUTO_TEST_CASE(test_restrict) {
 
   // Performs the restrict operation using native arrays
   int result[o*n];
-  for (size_t k = 0; k < o; ++k) {
-    for (size_t j = 0; j < n; ++j) {
+  for (std::size_t k = 0; k < o; ++k) {
+    for (std::size_t j = 0; j < n; ++j) {
       result[k + j*o] = xa[2][j][k];
     }
   }
 
   // Dimension mapping
-  finite_index x_map = {size_t(-1), 1, 0};
+  finite_index x_map = {std::size_t(-1), 1, 0};
 
   // Performs the restrict operation using nested loops
   int_table nested({o, n});
@@ -338,9 +338,9 @@ BOOST_AUTO_TEST_CASE(test_restrict) {
 
 
 BOOST_AUTO_TEST_CASE(test_restrict_join) {
-  const size_t m = 10;
-  const size_t n = 8;
-  const size_t o = 9;
+  const std::size_t m = 10;
+  const std::size_t n = 8;
+  const std::size_t o = 9;
 
   // Input arrays and tables
   int xa[m][n];
@@ -351,28 +351,28 @@ BOOST_AUTO_TEST_CASE(test_restrict_join) {
 
   // Initialize the input arrays and tables
   int value = 2;
-  for (size_t i = 0; i < m; ++i) {
-    for (size_t j = 0; j < n; ++j) {
+  for (std::size_t i = 0; i < m; ++i) {
+    for (std::size_t j = 0; j < n; ++j) {
       x({i,j}) = xa[i][j] = value++;
     }
   }
 
-  for (size_t j = 0; j < n; ++j) {
-    for (size_t k = 0; k < o; ++k) {
+  for (std::size_t j = 0; j < n; ++j) {
+    for (std::size_t k = 0; k < o; ++k) {
       y({j,k}) = ya[j][k] = value++;
     }
   }
 
   // Performs the restrict-sum operation using native arrays
   int result[n*o];
-  for (size_t j = 0; j < n; ++j) {
-    for (size_t k = 0; k < o; ++k) {
+  for (std::size_t j = 0; j < n; ++j) {
+    for (std::size_t k = 0; k < o; ++k) {
       result[j + k*n] = xa[2][j] + ya[j][k];
     }
   }
 
   // Dimension mapping
-  finite_index x_map = {size_t(-1), 0};
+  finite_index x_map = {std::size_t(-1), 0};
   std::plus<int> op;
 
   // Performs the restrict-join operation using nested loops

@@ -1,7 +1,6 @@
 #ifndef LIBGM_HYBRID_INDEX_HPP
 #define LIBGM_HYBRID_INDEX_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/datastructure/finite_index.hpp>
 #include <libgm/math/eigen/dynamic.hpp>
 
@@ -26,7 +25,7 @@ namespace libgm {
      * The finite elements are initialized to 0, but the vector elements
      * are not.
      */
-    hybrid_index(size_t nfinite, size_t nvector)
+    hybrid_index(std::size_t nfinite, std::size_t nvector)
       : finite_index(nfinite),
         dynamic_vector<T>(nvector) { }
 
@@ -57,12 +56,12 @@ namespace libgm {
     }
 
     //! Returns the length of the finite component.
-    size_t finite_size() const {
+    std::size_t finite_size() const {
       return finite().size();
     }
 
     //! Returns the length fo the vector component.
-    size_t vector_size() const {
+    std::size_t vector_size() const {
       return vector().size();
     }
 
@@ -73,7 +72,7 @@ namespace libgm {
     }
 
     //! Resizes the index to the given lengths. The original values may be lost.
-    void resize(size_t nfinite, size_t nvector) {
+    void resize(std::size_t nfinite, std::size_t nvector) {
       finite().resize(nfinite);
       vector().resize(nvector);
     }
@@ -97,12 +96,12 @@ namespace libgm {
   template <typename T>
   std::ostream& operator<<(std::ostream& out, const hybrid_index<T>& v) {
     out << "[";
-    for (size_t i = 0; i < v.finite().size(); ++i) {
+    for (std::size_t i = 0; i < v.finite().size(); ++i) {
       if (i > 0) { out << ' '; }
       out << v.finite()[i];
     }
     out << "] [";
-    for (size_t i = 0; i < v.vector().size(); ++i) {
+    for (std::size_t i = 0; i < v.vector().size(); ++i) {
       if (i > 0) { out << ' '; }
       out << v.vector()[i];
     }

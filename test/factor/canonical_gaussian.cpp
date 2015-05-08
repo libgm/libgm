@@ -25,7 +25,7 @@ typedef dynamic_matrix<double> mat_type;
 boost::test_tools::predicate_result
 cg_properties(const cgaussian& f,
               const domain& vars) {
-  size_t n = vector_size(vars);
+  std::size_t n = vector_size(vars);
 
   if (f.empty() && !vars.empty()) {
     boost::test_tools::predicate_result result(false);
@@ -93,11 +93,11 @@ BOOST_AUTO_TEST_CASE(test_constructors) {
   cgaussian c(logd(2.0));
   BOOST_CHECK(cg_properties(c, {}));
   BOOST_CHECK_CLOSE(c.log_multiplier(), std::log(2.0), 1e-8);
-  
+
   cgaussian e({x}, logd(4.0));
   BOOST_CHECK(cg_properties(e, {x}));
   BOOST_CHECK_CLOSE(e.log_multiplier(), std::log(4.0), 1e-8);
-  
+
   param_type paramsf(3, 1.0);
   cgaussian f({x, y}, std::move(paramsf));
   BOOST_CHECK(cg_properties(f, {x, y}));
@@ -122,7 +122,7 @@ BOOST_AUTO_TEST_CASE(test_assignment_swap) {
   f = logd(2.0);
   BOOST_CHECK(cg_properties(f, {}));
   BOOST_CHECK_CLOSE(f.log_multiplier(), std::log(2.0), 1e-8);
-  
+
   f.reset({x, y});
   BOOST_CHECK(cg_properties(f, {x, y}));
 
@@ -151,7 +151,7 @@ BOOST_AUTO_TEST_CASE(test_indexing) {
   universe u;
   variable x = u.new_vector_variable("x", 2);
   variable y = u.new_vector_variable("y", 1);
-  
+
   cgaussian f({x, y}, vec3(2, 1, 0), 2*mat_type::Identity(3, 3), 0.5);
   vec_type vec = vec3(0.5, -2, 0);
   BOOST_CHECK_CLOSE(f.log(vec), -0.5*8.5 + 2*0.5 - 1*2 + 0.5, 1e-8);
@@ -181,7 +181,7 @@ BOOST_AUTO_TEST_CASE(test_operators) {
   cgaussian h;
   h = g * f;
   BOOST_CHECK(cg_properties(h, {y, x}));
-  BOOST_CHECK(cg_params(h, 
+  BOOST_CHECK(cg_params(h,
                         vec3(1.2, 2, 0.5),
                         mat33(5, 1, 1, 1, 2, 1, 1, 1, 2), 11.0));
 
@@ -228,7 +228,7 @@ BOOST_AUTO_TEST_CASE(test_operators) {
   h = f / logd(2.0, log_tag());
   BOOST_CHECK(cg_properties(h, {x, y}));
   BOOST_CHECK(cg_params(h, eta, lambda, 3.0));
-  
+
   h = logd(2.0, log_tag()) / f;
   BOOST_CHECK(cg_properties(h, {x, y}));
   BOOST_CHECK(cg_params(h, -eta, -lambda, -3.0));
@@ -242,7 +242,7 @@ BOOST_AUTO_TEST_CASE(test_operators) {
   BOOST_CHECK(cg_params(h, 1.3*eta, 1.3*lambda, 1.3*5));
 }
 
-BOOST_AUTO_TEST_CASE(test_collapse) {  
+BOOST_AUTO_TEST_CASE(test_collapse) {
   universe u;
   variable x = u.new_vector_variable("x", 1);
   variable y = u.new_vector_variable("y", 1);
@@ -338,7 +338,7 @@ BOOST_AUTO_TEST_CASE(test_entropy) {
 
   double ent_x = std::log(cov.block(0, 0, 1, 1).determinant()) + l2pi + 1.0;
   BOOST_CHECK_CLOSE(p.entropy({x}), ent_x / 2.0, 1e-5);
-  
+
   cgaussian q({x, y, z}, eta, lambda + mat_type::Identity(3, 3));
   BOOST_CHECK_GE(kl_divergence(p, q), 0.0);
   BOOST_CHECK_SMALL(kl_divergence(p, p), 1e-6);

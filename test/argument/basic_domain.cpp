@@ -8,7 +8,7 @@
 namespace libgm {
   template class basic_domain<variable>;
   template class basic_domain<dprocess>;
-  template class basic_domain<size_t>;
+  template class basic_domain<std::size_t>;
 }
 
 using namespace libgm;
@@ -78,7 +78,7 @@ BOOST_AUTO_TEST_CASE(test_operations) {
   xywx.unique();
   BOOST_CHECK_EQUAL(xywx.size(), 3);
   BOOST_CHECK(equivalent(xywx, xyw));
-  
+
   variable_map map;
   map[x] = x;
   map[y] = w;
@@ -90,7 +90,7 @@ BOOST_AUTO_TEST_CASE(test_operations) {
 
 BOOST_AUTO_TEST_CASE(test_num_assignments) {
   universe u;
-  
+
   domain v;
   v.push_back(u.new_finite_variable("a", 2));
   v.push_back(u.new_finite_variable("b", 3));

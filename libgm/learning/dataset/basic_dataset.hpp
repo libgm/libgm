@@ -12,7 +12,7 @@
 #include <vector>
 
 namespace libgm {
-  
+
   /**
    * A dense dataset that stores observations in a column-major format,
    * where the rows correspond to data points, and each variable may
@@ -55,23 +55,23 @@ namespace libgm {
     basic_dataset() { }
 
     //! Constructs a dataset initialized with the given arguments and capacity.
-    explicit basic_dataset(const domain_type& args, size_t capacity = 1) {
+    explicit basic_dataset(const domain_type& args, std::size_t capacity = 1) {
       initialize(args, capacity);
     }
-    
+
     /**
      * Initializes the dataset with the given domain and pre-allocates memory
      * for the given number of rows.
      * It is an error to call initialize() more than once.
      */
-    void initialize(const domain_type& args, size_t capacity = 1) {
+    void initialize(const domain_type& args, std::size_t capacity = 1) {
       if (data_) {
         throw std::logic_error("Attempt to call initialize() more than once.");
       }
       args_ = args;
-      allocated_ = std::max(capacity, size_t(1));
+      allocated_ = std::max(capacity, std::size_t(1));
       inserted_ = 0;
-      size_t col = 0;
+      std::size_t col = 0;
       for (argument_type v : args) {
         col_.emplace(v, col);
         col += Traits::ncols(v);
@@ -80,7 +80,7 @@ namespace libgm {
       weight_.reset(new weight_type[allocated_]);
       compute_colptr(data_.get(), allocated_, col, colptr_);
     }
-    
+
     // Accessors
     //==========================================================================
 
@@ -90,17 +90,17 @@ namespace libgm {
     }
 
     //! Returns the number of arguments of this dataset.
-    size_t arity() const {
+    std::size_t arity() const {
       return args_.size();
     }
 
     //! Returns the number of columns of this dataset.
-    size_t num_cols() const {
+    std::size_t num_cols() const {
       return colptr_.size();
     }
 
     //! Returns the number of datapoints in the dataset.
-    size_t size() const {
+    std::size_t size() const {
       return inserted_;
     }
 
@@ -109,8 +109,9 @@ namespace libgm {
       return inserted_ == 0;
     }
 
-    //! Returns the number of datapoints this dataset can hold before reallocation.
-    size_t capacity() const {
+    //! Returns the number of datapoints this dataset can hold before
+    //! reallocation.
+    std::size_t capacity() const {
       return allocated_;
     }
 
@@ -135,10 +136,10 @@ namespace libgm {
     }
 
     //! Returns a single datapoint in the dataset.
-    value_type operator[](size_t row) const {
+    value_type operator[](std::size_t row) const {
       value_type value;
       value.first.resize(num_cols());
-      for (size_t i = 0; i < num_cols(); ++i) {
+      for (std::size_t i = 0; i < num_cols(); ++i) {
         value.first[i] = colptr_[i][row];
       }
       value.second = weight_[row];
@@ -162,12 +163,12 @@ namespace libgm {
     }
 
     //! Returns a single datapoint in the dataset over a subset of arguments.
-    value_type operator()(size_t row, const domain_type& dom) const {
+    value_type operator()(std::size_t row, const domain_type& dom) const {
       value_type value;
       value.first.resize(Traits::ncols(dom));
       element_type* dest = value.first.data();
       for (argument_type v : dom) {
-        for (size_t i = 0, col = col_.at(v); i < Traits::ncols(v); ++i, ++col) {
+        for (std::size_t i = 0, col = col_.at(v); i < Traits::ncols(v); ++i, ++col) {
           *dest++ = colptr_[col][row];
         }
       }
@@ -176,7 +177,8 @@ namespace libgm {
     }
 
     //! Returns a range over the assignment-weight pairs.
-    iterator_range<assignment_iterator> assignments() const {
+    iterator_range<assignment_iterator>
+    assignments() const {
       return iterator_range<assignment_iterator>(
         assignment_iterator(args_, colptr_, weight_.get(), inserted_),
         assignment_iterator()
@@ -184,7 +186,8 @@ namespace libgm {
     }
 
     //! Returns a range over the assignment-weight pairs for a subset of args.
-    iterator_range<assignment_iterator> assignments(const domain_type& d) const {
+    iterator_range<assignment_iterator>
+    assignments(const domain_type& d) const {
       return iterator_range<assignment_iterator>(
         assignment_iterator(d, colptrs(d), weight_.get(), inserted_),
         assignment_iterator()
@@ -192,13 +195,14 @@ namespace libgm {
     }
 
     //! Returns the assignment and weight for a single datapoint.
-    std::pair<assignment_type, weight_type> assignment(size_t row) const {
+    std::pair<assignment_type, weight_type>
+    assignment(std::size_t row) const {
       return assignment(row, args_); // we don't optimize this call
     }
 
     //! Returns the assignment and weight for a single datapoint.
     std::pair<assignment_type, weight_type>
-    assignment(size_t row, const domain_type& dom) const {
+    assignment(std::size_t row, const domain_type& dom) const {
       std::pair<assignment_type, weight_type> a;
       for (argument_type v : dom) {
         Traits::copy(&colptr_[col_.at(v)], Traits::ncols(v), row, a.first[v]);
@@ -208,7 +212,8 @@ namespace libgm {
     }
 
     //! Prints the dataset summary to a stream
-    friend std::ostream& operator<<(std::ostream& out, const basic_dataset& ds) {
+    friend std::ostream&
+    operator<<(std::ostream& out, const basic_dataset& ds) {
       out << "basic_dataset(N=" << ds.size() << ", args=" << ds.args_ << ")";
       return out;
     }
@@ -217,7 +222,7 @@ namespace libgm {
     //==========================================================================
 
     //! Ensures that the dataset has allocated space for at least n datapoints.
-    void reserve(size_t n) {
+    void reserve(std::size_t n) {
       if (n > allocated_) {
         reallocate(n);
       }
@@ -232,7 +237,7 @@ namespace libgm {
       }
 
       assert(values.size() == num_cols());
-      for (size_t i = 0; i < values.size(); ++i) {
+      for (std::size_t i = 0; i < values.size(); ++i) {
         colptr_[i][inserted_] = values[i];
       }
       weight_[inserted_] = weight;
@@ -243,7 +248,7 @@ namespace libgm {
     void insert(const assignment_type& a, weight_type weight) {
       data_type values;
       values.resize(num_cols());
-      size_t col = 0;
+      std::size_t col = 0;
       for (argument_type v : args_) {
         Traits::copy(a.at(v), Traits::ncols(v), &values[col]);
         col += Traits::ncols(v);
@@ -257,7 +262,7 @@ namespace libgm {
     }
 
     //! Inserts n rows wit unit weights and "missing" values.
-    void insert(size_t nrows) {
+    void insert(std::size_t nrows) {
       check_initialized();
       reserve(inserted_ + nrows);
       for (element_type* ptr : colptr_) {
@@ -268,14 +273,14 @@ namespace libgm {
     }
 
     //! Reorders the rows according the given permutation.
-    void permute(const std::vector<size_t>& permutation) {
+    void permute(const std::vector<std::size_t>& permutation) {
       assert(permutation.size() == inserted_);
       basic_dataset ds;
       ds.initialize(args_, allocated_);
       data_type values(num_cols());
-      for (size_t row = 0; row < inserted_; ++row) {
-        size_t prow = permutation[row];
-        for (size_t i = 0; i < num_cols(); ++i) {
+      for (std::size_t row = 0; row < inserted_; ++row) {
+        std::size_t prow = permutation[row];
+        for (std::size_t i = 0; i < num_cols(); ++i) {
           values[i] = colptr_[i][prow];
         }
         ds.insert(values, weight_[prow]);
@@ -318,7 +323,7 @@ namespace libgm {
       //! begin constructor
       iterator(const std::vector<element_type*>& elems,
                weight_type* weight,
-               size_t nrows)
+               std::size_t nrows)
         : elems_(elems), weight_(weight), nrows_(nrows) {
         value_.first.resize(elems_.size());
         load_advance();
@@ -327,7 +332,7 @@ namespace libgm {
       //! begin move constructor
       iterator(std::vector<element_type*>&& elems,
                weight_type* weight,
-               size_t nrows)
+               std::size_t nrows)
         : elems_(std::move(elems)), weight_(weight), nrows_(nrows) {
         value_.first.resize(elems_.size());
         load_advance();
@@ -353,7 +358,7 @@ namespace libgm {
         return *this;
       }
 
-      iterator& operator+=(ptrdiff_t n) {
+      iterator& operator+=(std::ptrdiff_t n) {
         save();
         if (n != 0) {
           nrows_ -= n;
@@ -367,19 +372,19 @@ namespace libgm {
         // this operation is too expensive and is not supported
         throw std::logic_error("data iterators do not support postincrement");
       }
-    
+
       bool operator==(const iterator& other) const {
         return nrows_ == other.nrows_;
       }
-    
+
       bool operator!=(const iterator& other) const {
         return nrows_ != other.nrows_;
       }
-    
+
       bool operator==(const const_iterator& other) const {
         return nrows_ == other.nrows_;
       }
-    
+
       bool operator!=(const const_iterator other) const {
         return nrows_ != other.nrows_;
       }
@@ -391,17 +396,17 @@ namespace libgm {
         swap(a.nrows_, b.nrows_);
         swap(a.value_, b.value_);
       }
-    
+
     private:
       std::vector<element_type*> elems_; // the pointers to the next elements
       weight_type* weight_;              // the pointer to the next weight
-      size_t nrows_;                     // the number of rows left
+      std::size_t nrows_;                     // the number of rows left
       value_type value_;                 // user-facing data
 
       //! increments the storage pointers by n
-      void advance(ptrdiff_t n) {
+      void advance(std::ptrdiff_t n) {
         if (n != 0) {
-          for (size_t i = 0; i < elems_.size(); ++i) {
+          for (std::size_t i = 0; i < elems_.size(); ++i) {
             elems_[i] += n;
           }
           weight_ += n;
@@ -411,7 +416,7 @@ namespace libgm {
       //! loads the data into the value and increments the storage pointers
       void load_advance() {
         if (nrows_ > 0) {
-          for (size_t i = 0; i < elems_.size(); ++i) {
+          for (std::size_t i = 0; i < elems_.size(); ++i) {
             value_.first[i] = *elems_[i]++;
           }
           value_.second = *weight_++;
@@ -421,7 +426,7 @@ namespace libgm {
       //! saves the data from the value to the previous storage pointers
       void save() {
         if (nrows_ > 0) {
-          for (size_t i = 0; i < elems_.size(); ++i) {
+          for (std::size_t i = 0; i < elems_.size(); ++i) {
             *(elems_[i]-1) = value_.first[i];
           }
           *(weight_-1) = value_.second;
@@ -446,7 +451,7 @@ namespace libgm {
       //! begin constructor
       const_iterator(const std::vector<element_type*>& elems,
                      weight_type* weight,
-                     size_t nrows)
+                     std::size_t nrows)
         : elems_(elems), weight_(weight), nrows_(nrows) {
         value_.first.resize(elems_.size());
         load_advance();
@@ -455,7 +460,7 @@ namespace libgm {
       //! begin move constructor
       const_iterator(std::vector<element_type*>&& elems,
                      weight_type* weight,
-                     size_t nrows)
+                     std::size_t nrows)
         : elems_(std::move(elems)), weight_(weight), nrows_(nrows) {
         value_.first.resize(elems_.size());
         load_advance();
@@ -488,7 +493,7 @@ namespace libgm {
         value_.swap(it.value_);
         return *this;
       }
-    
+
       //! returns true if the iterator has reached the end of the range
       bool end() const {
         return nrows_ == 0;
@@ -508,7 +513,7 @@ namespace libgm {
         return *this;
       }
 
-      const_iterator& operator+=(ptrdiff_t n) {
+      const_iterator& operator+=(std::ptrdiff_t n) {
         if (n != 0) {
           nrows_ -= n;
           advance(n - 1);
@@ -521,23 +526,23 @@ namespace libgm {
         // this operation is too expensive and is not supported
         throw std::logic_error("data iterators do not support postincrement");
       }
-    
+
       bool operator==(const const_iterator& other) const {
         return nrows_ == other.nrows_;
       }
-      
+
       bool operator!=(const const_iterator& other) const {
         return nrows_ != other.nrows_;
       }
-      
+
       bool operator==(const iterator& other) const {
         return nrows_ == other.nrows_;
       }
-      
+
       bool operator!=(const iterator& other) const {
         return nrows_ != other.nrows_;
       }
-    
+
       friend void swap(const_iterator& a, const_iterator& b) {
         using std::swap;
         swap(a.elems_, b.elems_);
@@ -545,17 +550,17 @@ namespace libgm {
         swap(a.nrows_, b.nrows_);
         swap(a.value_, b.value_);
       }
-    
+
     private:
       std::vector<element_type*> elems_; // the pointers to the next elements
       weight_type* weight_;              // the pointer to the next weight
-      size_t nrows_;                     // the number of rows left
+      std::size_t nrows_;                     // the number of rows left
       value_type value_;                 // user-facing data
 
       //! increments the storage pointers by n
-      void advance(ptrdiff_t n) {
+      void advance(std::ptrdiff_t n) {
         if (n != 0) {
-          for (size_t i = 0; i < elems_.size(); ++i) {
+          for (std::size_t i = 0; i < elems_.size(); ++i) {
             elems_[i] += n;
           }
           weight_ += n;
@@ -565,7 +570,7 @@ namespace libgm {
       //! loads the data into the value and increments the storage pointers
       void load_advance() {
         if (nrows_ > 0) {
-          for (size_t i = 0; i < elems_.size(); ++i) {
+          for (std::size_t i = 0; i < elems_.size(); ++i) {
             value_.first[i] = *elems_[i]++;
           }
         value_.second = *weight_++;
@@ -592,7 +597,7 @@ namespace libgm {
       assignment_iterator(const domain_type& args,
                           const std::vector<element_type*>& elems,
                           weight_type* weight,
-                          size_t nrows)
+                          std::size_t nrows)
         : args_(args), elems_(elems), weight_(weight), nrows_(nrows) {
         load_advance();
       }
@@ -601,8 +606,8 @@ namespace libgm {
       assignment_iterator(const domain_type& args,
                           std::vector<element_type*>&& elems,
                           weight_type* weight,
-                          size_t nrows)
-        : args_(args), elems_(std::move(elems)), weight_(weight), nrows_(nrows) {
+                          std::size_t nrows)
+        : args_(args), elems_(std::move(elems)), weight_(weight), nrows_(nrows){
         load_advance();
       }
 
@@ -625,7 +630,7 @@ namespace libgm {
         return *this;
       }
 
-      assignment_iterator& operator+=(ptrdiff_t n) {
+      assignment_iterator& operator+=(std::ptrdiff_t n) {
         if (n != 0) {
           nrows_ -= n;
           advance(n - 1);
@@ -635,7 +640,9 @@ namespace libgm {
       }
 
       assignment_iterator operator++(int) {
-        throw std::logic_error("assignment iterators do not support posincrement");
+        throw std::logic_error(
+          "assignment iterators do not support posincrement"
+        );
       }
 
       bool operator==(const assignment_iterator& other) const {
@@ -659,13 +666,13 @@ namespace libgm {
       domain_type args_;                 // the underlying domain
       std::vector<element_type*> elems_; // the pointers to the next elements
       weight_type* weight_;              // the pointer to the next weight
-      size_t nrows_;                     // the number of rows left
+      std::size_t nrows_;                     // the number of rows left
       std::pair<assignment_type, weight_type> value_; // user-facing data
 
       //! increments the storage pointer by n
-      void advance(ptrdiff_t n) {
+      void advance(std::ptrdiff_t n) {
         if (n != 0) {
-          for (size_t i = 0; i < elems_.size(); ++i) {
+          for (std::size_t i = 0; i < elems_.size(); ++i) {
             elems_[i] += n;
           }
           weight_ += n;
@@ -675,12 +682,12 @@ namespace libgm {
       //! loads the data into the value and increments the storage pointers
       void load_advance() {
         if (nrows_ > 0) {
-          size_t col = 0;
+          std::size_t col = 0;
           for (argument_type v : args_) {
             Traits::copy(&elems_[col], Traits::ncols(v), 0, value_.first[v]);
             col += Traits::ncols(v);
           }
-          for (size_t i = 0; i < elems_.size(); ++i) {
+          for (std::size_t i = 0; i < elems_.size(); ++i) {
             ++elems_[i];
           }
           value_.second = *weight_++;
@@ -700,16 +707,18 @@ namespace libgm {
     }
 
     //! Computes the column pointers.
-    static void compute_colptr(element_type* data, size_t allocated, size_t cols,
+    static void compute_colptr(element_type* data,
+                               std::size_t allocated,
+                               std::size_t cols,
                                std::vector<element_type*>& colptr) {
       colptr.resize(cols);
-      for (size_t i = 0; i < cols; ++i) {
+      for (std::size_t i = 0; i < cols; ++i) {
         colptr[i] = data + allocated * i;
       }
     }
 
     //! Increases the number of allocated datapoints to n and copies the data.
-    void reallocate(size_t n) {
+    void reallocate(std::size_t n) {
       // allocate the new data
       assert(n >= inserted_);
       element_type* new_data = new element_type[n * num_cols()];
@@ -718,7 +727,7 @@ namespace libgm {
       compute_colptr(new_data, n, num_cols(), new_colptr);
 
       // copy the elements and weights to the new locations
-      for (size_t col = 0; col < num_cols(); ++col) {
+      for (std::size_t col = 0; col < num_cols(); ++col) {
         std::copy(colptr_[col], colptr_[col] + inserted_, new_colptr[col]);
       }
       std::copy(weight_.get(), weight_.get() + inserted_, new_weight);
@@ -735,8 +744,8 @@ namespace libgm {
       std::vector<element_type*> result;
       result.reserve(Traits::ncols(dom));
       for (argument_type v : dom) {
-        size_t col = col_.at(v);
-        for (size_t i = 0; i < Traits::ncols(v); ++i, ++col) {
+        std::size_t col = col_.at(v);
+        for (std::size_t i = 0; i < Traits::ncols(v); ++i, ++col) {
           result.push_back(colptr_[col]);
         }
       }
@@ -744,12 +753,12 @@ namespace libgm {
     }
 
     domain_type args_;                      //!< the dataset arguments
-    std::unordered_map<argument_type, size_t> col_; //!< the column of each arg
+    std::unordered_map<argument_type, std::size_t> col_; //!< column of each arg
     std::unique_ptr<element_type[]> data_;  //!< the data storage
     std::unique_ptr<weight_type[]> weight_; //!< the weight storage
     std::vector<element_type*> colptr_;     //!< pointers to the elements
-    size_t allocated_;                      //!< the number of allocated rows
-    size_t inserted_;                       //!< the number of inserted rows
+    std::size_t allocated_;                 //!< the number of allocated rows
+    std::size_t inserted_;                  //!< the number of inserted rows
 
   }; // class basic_dataset
 

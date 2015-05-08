@@ -1,8 +1,6 @@
 #ifndef LIBGM_INDEX_MAP_HPP
 #define LIBGM_INDEX_MAP_HPP
 
-#include <libgm/global.hpp>
-
 #include <initializer_list>
 #include <iostream>
 #include <numeric>
@@ -23,11 +21,11 @@ namespace libgm {
       : start_(0), size_(0) { }
 
     //! Constructs a contiguous index [start; start + size).
-    matrix_index(size_t start, size_t size)
+    matrix_index(std::size_t start, std::size_t size)
       : start_(start), size_(size) { }
 
     //! Constructs a non-contiguous index with given elements.
-    matrix_index(std::initializer_list<size_t> init)
+    matrix_index(std::initializer_list<std::size_t> init)
       : start_(0), size_(0), indices_(init) { }
 
     //! Returns true if the index is contiguous.
@@ -41,33 +39,33 @@ namespace libgm {
     }
 
     //! Returns the start if the index is contiguous and 0 otherwise.
-    size_t start() const {
+    std::size_t start() const {
       return start_;
     }
 
     //! Returns the number of elements in the index.
-    size_t size() const {
+    std::size_t size() const {
       return size_ + indices_.size();
     }
 
     //! Returns the i-th element in a non-contiguous index.
-    size_t operator[](size_t i) const {
+    std::size_t operator[](std::size_t i) const {
       assert(!indices_.empty());
       return indices_[i];
     }
 
     //! Returns the i-th element in the index.
-    size_t operator()(size_t i) const {
+    std::size_t operator()(std::size_t i) const {
       return indices_.empty() ? start_ + i : indices_[i];
     }
-    
+
     /**
      * Adds a range to the index. Attempts to preserve the contiguity
      * of the index, i.e., if the index is presently contiguous with
      * [old_start; start), the index will be still contiguous after
      * a call to this function with [old_start; start + size).
      */
-    void append(size_t start, size_t size) {
+    void append(std::size_t start, std::size_t size) {
       if (size == 0) {        // ignore
         return;
       } else if (empty()) {   // previously empty
@@ -98,8 +96,8 @@ namespace libgm {
     }
 
   private:
-    size_t start_, size_;
-    std::vector<size_t> indices_;
+    std::size_t start_, size_;
+    std::vector<std::size_t> indices_;
 
   }; // class matrix_index
 
@@ -115,7 +113,7 @@ namespace libgm {
           << ')';
     } else {
       out << '{';
-      for (size_t i = 0; i < index.size(); ++i) {
+      for (std::size_t i = 0; i < index.size(); ++i) {
         if (i > 0) out << ", ";
         out << index[i];
       }
@@ -123,7 +121,7 @@ namespace libgm {
     }
     return out;
   }
-  
+
   /**
    * Swaps the contents of two matrix_index objects.
    * \relates matrix_index

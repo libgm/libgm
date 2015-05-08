@@ -2,18 +2,20 @@
 #define LIBGM_COMMUTATIVE_SEMIRING_HPP
 
 namespace libgm {
-  
+
   /**
    * A base class that represents one of pre-defined commutative semirings
    * on factor types.
    */
   template <typename F>
   struct commutative_semiring {
+    typedef typename F::domain_type domain_type;
+
     //! destructor
     virtual ~commutative_semiring() { }
 
     //! the "cross" operation (e.g., marginal in the sum-product algorithm)
-    virtual F collapse(const F& x, const typename F::domain_type& retain) const = 0;
+    virtual F collapse(const F& x, const domain_type& retain) const = 0;
 
     //! the "dot" operation (e.g., multiplication in the sum-product algorithm)
     virtual F combine(const F& x, const F& y) const = 0;
@@ -25,11 +27,11 @@ namespace libgm {
     virtual F combine_init() const = 0;
 
     //! eliminates a variable from the factor
-    F collapse_out(const F& x, const typename F::domain_type& eliminate) const {
+    F collapse_out(const F& x, const domain_type& eliminate) const {
       return collapse(x, x.arguments() - eliminate);
     }
   };
-  
+
   /**
    * An object representing the sum product commutative semiring
    * \f$([0, \infty), +, \times, 0, 1)\f$.
@@ -37,7 +39,9 @@ namespace libgm {
    */
   template <typename F>
   struct sum_product : public commutative_semiring<F> {
-    F collapse(const F& x, const typename F::domain_type& retain) const override {
+    typedef typename F::domain_type domain_type;
+
+    F collapse(const F& x, const domain_type& retain) const override {
       return x.marginal(retain);
     }
     F combine(const F& x, const F& y) const override {
@@ -58,7 +62,9 @@ namespace libgm {
    */
   template <typename F>
   struct max_product : public commutative_semiring<F> {
-    F collapse(const F& x, const typename F::domain_type& retain) const override {
+    typedef typename F::domain_type domain_type;
+
+    F collapse(const F& x, const domain_type& retain) const override {
       return x.maximum(retain);
     }
     F combine(const F& x, const F& y) const override {
@@ -79,7 +85,9 @@ namespace libgm {
    */
   template <typename F>
   struct min_sum : public commutative_semiring<F> {
-    F collapse(const F& x, const typename F::domain_type& retain) const override {
+    typedef typename F::domain_type domain_type;
+
+    F collapse(const F& x, const domain_type& retain) const override {
       return x.minimum(retain);
     }
     F combine(const F& x, const F& y) const override {
@@ -100,7 +108,9 @@ namespace libgm {
    */
   template <typename F>
   struct max_sum : public commutative_semiring<F> {
-    F collapse(const F& x, const typename F::domain_type& retain) const override {
+    typedef typename F::domain_type domain_type;
+
+    F collapse(const F& x, const domain_type& retain) const override {
       return x.maximum(retain);
     }
     F combine(const F& x, const F& y) const override {

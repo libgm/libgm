@@ -30,7 +30,7 @@ namespace libgm {
      * regularization parameters.
      */
     explicit softmax_mle(T regul = T(),
-                         size_t max_iter = 1000,
+                         std::size_t max_iter = 1000,
                          bool verbose = false)
       : regul_(regul), max_iter_(max_iter), verbose_(verbose) { }
 
@@ -57,7 +57,7 @@ namespace libgm {
       );
       optimizer.objective(&objective);
       optimizer.solution(p);
-      for (size_t it = 0; !optimizer.converged() && it < max_iter_; ++it) {
+      for (std::size_t it = 0; !optimizer.converged() && it < max_iter_; ++it) {
         line_search_result<T> value = optimizer.iterate();
         if (verbose_) {
           std::cout << "Iteration " << it << ", " << value << std::endl;
@@ -77,7 +77,7 @@ namespace libgm {
     T regul_;
 
     //! The maximum number of iterations
-    size_t max_iter_;
+    std::size_t max_iter_;
 
     //! Set true for a verbose output
     bool verbose_;

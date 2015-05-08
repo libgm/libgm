@@ -1,7 +1,6 @@
 #ifndef LIBGM_FACTOR_GRAPH_HPP
 #define LIBGM_FACTOR_GRAPH_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/graph/bipartite_graph.hpp>
 #include <libgm/graph/property_fn.hpp>
 #include <libgm/math/logarithmic.hpp>
@@ -25,9 +24,9 @@ namespace libgm {
    */
   template <typename F>
   class factor_graph
-    : public bipartite_graph<size_t, typename F::variable_type, F> {
+    : public bipartite_graph<std::size_t, typename F::variable_type, F> {
 
-    typedef bipartite_graph<size_t, typename F::variable_type, F> base;
+    typedef bipartite_graph<std::size_t, typename F::variable_type, F> base;
 
     // Public type declarations
     // =========================================================================
@@ -54,7 +53,7 @@ namespace libgm {
 
     // bring functions from base
     using base::print_degree_distribution;
-    
+
     // Constructors
     //==========================================================================
   public:
@@ -76,7 +75,7 @@ namespace libgm {
     }
 
     //! Returns the arguments of the factor with the given id.
-    const domain_type& arguments(size_t id) const {
+    const domain_type& arguments(std::size_t id) const {
       return (*this)[id].arguments();
     }
 
@@ -87,12 +86,12 @@ namespace libgm {
     }
 
     //! Returns the number of variables in the graph (alias for num_vertices2).
-    size_t num_arguments() const {
+    std::size_t num_arguments() const {
       return this->num_vertices2();
     }
 
     //! Returns the number of factors in the graph (alias for num_vertices1).
-    size_t num_factors() const {
+    std::size_t num_factors() const {
       return this->num_vertices1();
     }
 
@@ -135,14 +134,14 @@ namespace libgm {
      * Adds a non-empty factor to the factor graph.
      * \returns the corresponding id or 0 if the factor has no arguments
      */
-    size_t add_factor(const F& f) {
+    std::size_t add_factor(const F& f) {
       if (f.arguments().empty()) {
         return 0; // not added
       }
       while (this->contains(next_id_)) {
         ++next_id_;
       }
-      size_t id = next_id_++;
+      std::size_t id = next_id_++;
       this->add_vertex(id, f);
       for (variable_type var : f.arguments()) {
         this->add_edge(id, var);
@@ -154,7 +153,7 @@ namespace libgm {
      * Updates the factor associated with the given id, modifying the
      * graph structure to reflect the new factor arguments.
      */
-    void update_factor(size_t id, const F& f) {
+    void update_factor(std::size_t id, const F& f) {
       // if the factor is a constant, just drop the factor
       if (f.arguments().empty()) {
         this->remove_vertex(id);
@@ -189,7 +188,7 @@ namespace libgm {
         if (!this->contains(var)) {
           continue;
         }
-        for (size_t id : this->neighbors(var)) {
+        for (std::size_t id : this->neighbors(var)) {
           if (arguments(id).count(var)) { // not processed yet
             update_factor(id, (*this)[id].restrict(a));
           }
@@ -204,11 +203,11 @@ namespace libgm {
      * g is multiplied by f, and f is removed from the model.
      */
     void simplify() {
-      std::vector<size_t> ids(factor_ids().begin(), factor_ids().end());
-      for (size_t f_id : ids) {
+      std::vector<std::size_t> ids(factor_ids().begin(), factor_ids().end());
+      for (std::size_t f_id : ids) {
         const domain_type& f_args = arguments(f_id);
         // identify the variable with the fewest connected factors
-        size_t min_degree = std::numeric_limits<size_t>::max();
+        std::size_t min_degree = std::numeric_limits<std::size_t>::max();
         variable_type var;
         for (variable_type v : f_args) {
           if (this->degree(v) < min_degree) {
@@ -217,7 +216,7 @@ namespace libgm {
           }
         }
         // identify a subsuming factor among the new neighbors of var
-        for (size_t g_id : this->neighbors(var)) {
+        for (std::size_t g_id : this->neighbors(var)) {
           if (f_id != g_id && subset(f_args, arguments(g_id))) {
             (*this)[g_id] *= (*this)[f_id];
             this->remove_vertex(f_id);
@@ -229,10 +228,10 @@ namespace libgm {
 
   private:
     //! The next id that will be used when inserting new factors
-    size_t next_id_;
+    std::size_t next_id_;
 
   }; // class factor_graph
 
 } // namespace libgm
- 
+
 #endif

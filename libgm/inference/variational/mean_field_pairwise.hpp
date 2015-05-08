@@ -1,7 +1,6 @@
 #ifndef LIBGM_MEAN_FIELD_PAIRWISE_HPP
 #define LIBGM_MEAN_FIELD_PAIRWISE_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/model/pairwise_markov_network.hpp>
 #include <libgm/traits/pairwise_compatible.hpp>
 
@@ -14,7 +13,7 @@ namespace libgm {
    * A class that runs the mean field algorithm for a pairwise Markov
    * network. The computation is performed sequentially in the order
    * of the vertices in Markov network.
-   * 
+   *
    * \tparam NodeF
    *         A factor type associated with vertices, typically in the
    *         canonical representation of the distribution, e.g., parray1.
@@ -42,7 +41,7 @@ namespace libgm {
     typedef pairwise_markov_network<NodeF, EdgeF> model_type;
     typedef typename model_type::vertex_type vertex_type;
     typedef typename model_type::edge_type edge_type;
-    
+
     // Public functions
     //==========================================================================
   public:
@@ -90,7 +89,7 @@ namespace libgm {
       swap(beliefs_.at(v), new_belief);
       return sum_diff(new_belief, belief(v));
     }
-    
+
     //! The underlying graphical model
     const model_type& model_;
 

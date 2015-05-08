@@ -16,7 +16,7 @@ namespace libgm {
     return { boost::make_reverse_iterator(boost::end(range)),
              boost::make_reverse_iterator(boost::begin(range)) };
   }
-  
+
 } // namespace libgm
 
 #endif

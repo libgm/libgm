@@ -62,7 +62,7 @@ namespace libgm {
       return x * y;
     }
   };
-    
+
   //! A binary operator that implements C++14-like divides operator.
   template <typename T = void>
   struct divides {
@@ -97,10 +97,11 @@ namespace libgm {
     }
   };
 
-  //! A binary operator that computes the ratio of two values with \f$0 / 0 = 0\f$.
+  //! A binary operator that computes the ratio of two values
+  //! with \f$0 / 0 = 0\f$.
   template <typename T>
   struct safe_divides {
-    T operator()(const T& x, const T& y) const { 
+    T operator()(const T& x, const T& y) const {
       return (x == T(0)) ? T(0) : (x / y);
     }
   };
@@ -226,7 +227,7 @@ namespace libgm {
     explicit incremented_by(const T& a) : a(a) { }
     T operator()(const T& x) const { return x + a; }
   };
-    
+
   /**
    * A unary operator that computes the difference of the argument and
    * a fixed value.

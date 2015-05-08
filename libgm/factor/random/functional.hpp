@@ -20,7 +20,7 @@ namespace libgm {
       return Result(gen(domain, engine));
     };
   }
-  
+
   template <typename Gen, typename Engine>
   std::function<
     typename Gen::result_type(const typename Gen::domain_type&,

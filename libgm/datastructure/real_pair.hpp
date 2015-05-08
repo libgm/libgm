@@ -70,14 +70,14 @@ namespace libgm {
 
     // Vector operations
     //==========================================================================
-    
+
     //! Adds another pair to this one.
     real_pair& operator+=(const real_pair& x) {
       first += x.first;
       second += x.second;
       return *this;
     }
-    
+
     //! Subtracts another pair from this one.
     real_pair& operator-=(const real_pair& x) {
       first -= x.first;
@@ -91,14 +91,14 @@ namespace libgm {
       second *= a;
       return *this;
     }
-  
+
     //! Divides the pair by a constant.
     real_pair& operator/=(T a) {
       first /= a;
       second /= a;
       return *this;
     }
-  
+
     //! Adds two pairs.
     friend real_pair operator+(const real_pair& x, const real_pair& y) {
       return real_pair(x.first + y.first, x.second + y.second);
@@ -123,9 +123,9 @@ namespace libgm {
     friend real_pair operator/(const real_pair& x, T a) {
       return real_pair(x.first / a, x.second / a);
     }
-    
+
   }; // class real_pair
-  
+
 } // namespace libgm
-  
+
 #endif

@@ -1,7 +1,6 @@
 #ifndef LIBGM_ARRAY_DOMAIN_HPP
 #define LIBGM_ARRAY_DOMAIN_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/serialization/array.hpp>
 
 #include <algorithm>
@@ -18,7 +17,7 @@ namespace libgm {
    * This domain type supports all operations of std::array and can be
    * serialized.
    */
-  template <typename Arg, size_t N>
+  template <typename Arg, std::size_t N>
   class array_domain : public std::array<Arg, N> {
   public:
     //! Default constructor. Creates an uninitialized (invalid) domain.
@@ -37,7 +36,7 @@ namespace libgm {
     }
 
     //! Returns the number of times an argument is present in the domain.
-    size_t count(const Arg& x) const {
+    std::size_t count(const Arg& x) const {
       return std::count(this->begin(), this->end(), x);
     }
   }; // class array_domain
@@ -46,9 +45,9 @@ namespace libgm {
    * Prints the domain to an output stream.
    * \relates array_domain
    */
-  template <typename Arg, size_t N>
+  template <typename Arg, std::size_t N>
   std::ostream& operator<<(std::ostream& out, const array_domain<Arg, N>& a) {
-    for (size_t i = 0; i < N; ++i) {
+    for (std::size_t i = 0; i < N; ++i) {
       if (!a[i]) break;
       out << (i == 0 ? '[' : ',') << a[i];
     }
@@ -63,7 +62,7 @@ namespace libgm {
    * The concatentation of two fixed-size domains.
    * \relates array_domain
    */
-  template <typename Arg, size_t M, size_t N>
+  template <typename Arg, std::size_t M, std::size_t N>
   array_domain<Arg, M+N>
   operator+(const array_domain<Arg, M>& a, const array_domain<Arg, N>& b) {
     array_domain<Arg, M+N> r;
@@ -77,12 +76,12 @@ namespace libgm {
    * This operation is valid only if b is a subset of a.
    * \relates array_domain
    */
-  template <typename Arg, size_t M, size_t N>
+  template <typename Arg, std::size_t M, std::size_t N>
   array_domain<Arg, M-N>
   operator-(const array_domain<Arg, M>& a, const array_domain<Arg, N>& b) {
     static_assert(M > N, "Arghe first argument must be the larger domain");
     array_domain<Arg, M-N> r;
-    size_t i = 0;
+    std::size_t i = 0;
     for (Arg x : a) {
       if (!b.count(x)) {
         assert(i < M-N);
@@ -98,35 +97,35 @@ namespace libgm {
    * This operation is valid only if the two domains are disjoint.
    * \relates array_domain
    */
-  template <typename Arg, size_t M, size_t N>
+  template <typename Arg, std::size_t M, std::size_t N>
   array_domain<Arg, M+N>
   operator|(const array_domain<Arg, M>& a, const array_domain<Arg, N>& b) {
     assert(disjoint(a, b));
     return a + b;
   }
-  
+
   /**
    * Returns the ordered intersection of two fixed-size domains.
    * This operation is valid only if domain a is a strict subset of b.
    * \relates array_domain
    */
-  template <typename Arg, size_t M, size_t N>
+  template <typename Arg, std::size_t M, std::size_t N>
   typename std::enable_if<(M < N), array_domain<Arg, M>>::type
   operator&(const array_domain<Arg, M>& a, const array_domain<Arg, N>& b) {
     assert(subset(a, b));
     return a;
   }
-  
+
   /**
    * Returns the ordered intersection of two fixed-size domains.
    * This operation is valid only if domain b is a subset of a.
    * \relates array_domain
    */
-  template <typename Arg, size_t M, size_t N>
+  template <typename Arg, std::size_t M, std::size_t N>
   typename std::enable_if<(M >= N), array_domain<Arg, N> >::type
   operator&(const array_domain<Arg, M>& a, const array_domain<Arg, N>& b) {
     array_domain<Arg, N> r;
-    size_t i = 0;
+    std::size_t i = 0;
     for (Arg x : a) {
       if (b.count(x)) {
         assert(i < N);
@@ -141,7 +140,7 @@ namespace libgm {
    * Returns true if two domains do not have any elements in common.
    * \relates array_domain
    */
-  template <typename Arg, size_t M, size_t N>
+  template <typename Arg, std::size_t M, std::size_t N>
   bool disjoint(const array_domain<Arg, M>& a, const array_domain<Arg, N>& b) {
     for (Arg x : a) {
       if (b.count(x)) { return false; }
@@ -172,8 +171,9 @@ namespace libgm {
    * they have the same sets of elements, disregarding their order.
    * \relates array_domain
    */
-  template <typename Arg, size_t N>
-  bool equivalent(const array_domain<Arg, N>& a, const array_domain<Arg, N>& b) {
+  template <typename Arg, std::size_t N>
+  bool
+  equivalent(const array_domain<Arg, N>& a, const array_domain<Arg, N>& b) {
     array_domain<Arg, N> as = a;
     array_domain<Arg, N> bs = b;
     std::sort(as.begin(), as.end());
@@ -186,7 +186,7 @@ namespace libgm {
    * they have the same sets of elements, disregarding their order.
    * \relates array_domain
    */
-  template <typename Arg, size_t M, size_t N>
+  template <typename Arg, std::size_t M, std::size_t N>
   typename std::enable_if<M != N, bool>::type
   equivalent(const array_domain<Arg, M>& a, const array_domain<Arg, N>& b) {
     return false;
@@ -198,7 +198,8 @@ namespace libgm {
    * \relates array_domain
    */
   template <typename Arg>
-  bool equivalent(const array_domain<Arg, 1>& a, const array_domain<Arg, 1>& b) {
+  bool
+  equivalent(const array_domain<Arg, 1>& a, const array_domain<Arg, 1>& b) {
     return a[0] == b[0];
   }
 
@@ -208,7 +209,8 @@ namespace libgm {
    * \relates array_domain
    */
   template <typename Arg>
-  bool equivalent(const array_domain<Arg, 2>& a, const array_domain<Arg, 2>& b) {
+  bool
+  equivalent(const array_domain<Arg, 2>& a, const array_domain<Arg, 2>& b) {
     return std::minmax(a[0], a[1]) == std::minmax(b[0], b[1]);
   }
 
@@ -217,7 +219,7 @@ namespace libgm {
    * the second domain.
    * \relates array_domain
    */
-  template <typename Arg, size_t M, size_t N>
+  template <typename Arg, std::size_t M, std::size_t N>
   bool subset(const array_domain<Arg, M>& a, const array_domain<Arg, N>& b) {
     for (Arg x : a) {
       if (!b.count(x)) { return false; }
@@ -234,13 +236,13 @@ namespace libgm {
   bool subset(const array_domain<Arg, 1>& a, const array_domain<Arg, 2>& b) {
     return a[0] == b[0] || a[0] == b[1];
   }
-  
+
   /**
    * Returns true if all the elements of the second domain are also present
    * in the first domain.
    * \relates array_domain
    */
-  template <typename Arg, size_t M, size_t N>
+  template <typename Arg, std::size_t M, std::size_t N>
   bool superset(const array_domain<Arg, M>& a, const array_domain<Arg, N>& b) {
     for (Arg x : b) {
       if (!a.count(x)) { return false; }
@@ -264,12 +266,12 @@ namespace libgm {
   /**
    * Returns the number of assignments for a collection of finite arguments.
    */
-  template <typename Arg, size_t N>
-  size_t finite_size(const array_domain<Arg, N>& dom) {
-    size_t size = 1;
+  template <typename Arg, std::size_t N>
+  std::size_t finite_size(const array_domain<Arg, N>& dom) {
+    std::size_t size = 1;
     for (Arg arg : dom) {
-      if (std::numeric_limits<size_t>::max() / arg.size() <= size) {
-        throw std::out_of_range("finite_size: possibly overflows size_t");
+      if (std::numeric_limits<std::size_t>::max() / arg.size() <= size) {
+        throw std::out_of_range("finite_size: possibly overflows std::size_t");
       }
       size *= arg.size();
     }
@@ -279,9 +281,9 @@ namespace libgm {
   /**
    * Returns the vector dimensionality for a collection of vector arguments.
    */
-  template <typename Arg, size_t N>
-  size_t vector_size(const array_domain<Arg, N>& dom) {
-    size_t size = 0;
+  template <typename Arg, std::size_t N>
+  std::size_t vector_size(const array_domain<Arg, N>& dom) {
+    std::size_t size = 0;
     for (Arg arg : dom) {
       size += arg.size();
     }
@@ -292,9 +294,9 @@ namespace libgm {
    * Returns true if two domains are type-compatible.
    * \relates domain
    */
-  template <typename Arg, size_t N>
+  template <typename Arg, std::size_t N>
   bool compatible(const array_domain<Arg, N>& a, const array_domain<Arg, N>& b) {
-    for (size_t i = 0; i < a.size(); ++i) {
+    for (std::size_t i = 0; i < a.size(); ++i) {
       if (!compatible(a[i], b[i])) {
         return false;
       }

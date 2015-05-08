@@ -47,7 +47,7 @@ namespace libgm {
   template <typename T>
   struct kld_op {
     T operator()(const T& x, const T& y) const {
-      return (x == T(0)) ? T(0) : x * (log(x) - log(y));
+      return (x == T(0)) ? T(0) : x * (std::log(x) - std::log(y));
     }
   };
 

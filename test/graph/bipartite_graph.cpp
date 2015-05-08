@@ -13,21 +13,23 @@
 #include "../predicates.hpp"
 
 namespace libgm {
-  template class bipartite_graph<std::string, size_t>;
-  template class bipartite_graph<std::string, size_t, double, double, double>;
+  template class bipartite_graph<std::string, std::size_t>;
+  template class bipartite_graph<std::string, std::size_t,
+                                 double, double, double>;
 }
 
 using namespace libgm;
 using std::string;
 
-typedef bipartite_graph<string, size_t, size_t, size_t, size_t> graph_type;
+typedef bipartite_graph<string, std::size_t, std::size_t, std::size_t,
+                        std::size_t> graph_type;
 // using strings for keys is hugely inefficient and generally not recommended,
 // but it's ok for short unit tests
 // in addition, using std::string is good to ensure that operator bool() is
 // not required for vertices by our implementation
 
 typedef graph_type::edge_type edge_type;
-typedef std::pair<string, size_t> vpair;
+typedef std::pair<string, std::size_t> vpair;
 
 BOOST_TEST_DONT_PRINT_LOG_VALUE(graph_type::vertex1_iterator);
 BOOST_TEST_DONT_PRINT_LOG_VALUE(graph_type::vertex2_iterator);
@@ -37,12 +39,12 @@ BOOST_AUTO_TEST_CASE(test_constructors) {
   // default constructor
   graph_type ga;
   BOOST_CHECK(ga.empty());
-  BOOST_CHECK_EQUAL(ga.edges().begin(), ga.edges().end()); 
+  BOOST_CHECK_EQUAL(ga.edges().begin(), ga.edges().end());
   BOOST_CHECK_EQUAL(ga.vertices1().begin(), ga.vertices1().end());
   BOOST_CHECK_EQUAL(ga.vertices2().begin(), ga.vertices2().end());
 
   // edge list constructor
-  std::vector<vpair> vertex_pairs = 
+  std::vector<vpair> vertex_pairs =
     {vpair("0", 2), vpair("1", 2), vpair("1", 3), vpair("1", 7),
      vpair("2", 3), vpair("3", 4), vpair("4", 3), vpair("4", 1)};
   graph_type gb(vertex_pairs);
@@ -73,8 +75,8 @@ BOOST_AUTO_TEST_CASE(test_constructors) {
 BOOST_AUTO_TEST_CASE(test_vertices) {
   graph_type g;
   std::vector<int> verts = {{1,2,3,4,5,6,7,8,9,10}};
-  std::map<string, size_t> vert1_map;
-  std::map<size_t, size_t> vert2_map;
+  std::map<string, std::size_t> vert1_map;
+  std::map<std::size_t, std::size_t> vert2_map;
   for (int v : verts) {
     std::string u(1, v + 'A');
     vert1_map[u] = v;
@@ -87,7 +89,7 @@ BOOST_AUTO_TEST_CASE(test_vertices) {
     BOOST_CHECK_EQUAL(g[v], vert1_map[v]);
     vert1_map.erase(v);
   }
-  for (size_t v : g.vertices2()) {
+  for (std::size_t v : g.vertices2()) {
     BOOST_CHECK(vert2_map.count(v) == 1);
     BOOST_CHECK_EQUAL(g[v], vert2_map[v]);
     vert2_map.erase(v);
@@ -98,19 +100,19 @@ BOOST_AUTO_TEST_CASE(test_vertices) {
 
 struct fixture {
   fixture() {
-    std::vector<vpair> connected_pairs = 
-      {vpair("0", 2), vpair("1", 9), vpair("1", 3), vpair("1", 10), 
+    std::vector<vpair> connected_pairs =
+      {vpair("0", 2), vpair("1", 9), vpair("1", 3), vpair("1", 10),
        vpair("2", 3), vpair("3", 4), vpair("4", 3), vpair("4", 4),
        vpair("2", 6), vpair("3", 5), vpair("1", 7), vpair("5", 1)};
-    size_t i = 0;
+    std::size_t i = 0;
     for (vpair vp : connected_pairs) {
       g.add_edge(vp.first, vp.second, i);
-      data[vp] = i; 
+      data[vp] = i;
     }
     ++i;
   }
   graph_type g;
-  std::map<vpair,size_t> data;
+  std::map<vpair,std::size_t> data;
 };
 
 
@@ -127,13 +129,13 @@ BOOST_FIXTURE_TEST_CASE(test_edges, fixture) {
 
 BOOST_FIXTURE_TEST_CASE(test_neighbors, fixture) {
   std::vector<string> correct3 = {"1", "2", "4"}; // neighbors of 3
-  std::vector<size_t> correct4 = {3, 4};          // neighbors of "4"
+  std::vector<std::size_t> correct4 = {3, 4};          // neighbors of "4"
 
   std::multiset<string> actual3;
-  std::multiset<size_t> actual4;
+  std::multiset<std::size_t> actual4;
   boost::copy(g.neighbors(3),   std::inserter(actual3, actual3.begin()));
   boost::copy(g.neighbors("4"), std::inserter(actual4, actual4.begin()));
-              
+
   BOOST_CHECK(boost::equal(correct3, actual3));
   BOOST_CHECK(boost::equal(correct4, actual4));
 }
@@ -141,22 +143,22 @@ BOOST_FIXTURE_TEST_CASE(test_neighbors, fixture) {
 
 BOOST_FIXTURE_TEST_CASE(test_in_edges, fixture) {
   string v1 = "2";
-  size_t v2 = 4;
+  std::size_t v2 = 4;
 
-  std::map<vpair, size_t> correct1;
-  std::map<vpair, size_t> correct2;
+  std::map<vpair, std::size_t> correct1;
+  std::map<vpair, std::size_t> correct2;
   for (const auto& d : data) {
     if (d.first.first == v1) correct1.insert(d);
     if (d.first.second == v2) correct2.insert(d);
   }
 
-  std::multimap<vpair, size_t> actual1;
+  std::multimap<vpair, std::size_t> actual1;
   for (edge_type e : g.in_edges(v1)) {
     BOOST_CHECK(!e.forward());
     actual1.insert(std::make_pair(e.endpoints(), g[e]));
   }
 
-  std::multimap<vpair, size_t> actual2;
+  std::multimap<vpair, std::size_t> actual2;
   for (edge_type e : g.in_edges(v2)) {
     BOOST_CHECK(e.forward());
     actual2.insert(std::make_pair(e.endpoints(), g[e]));
@@ -169,22 +171,22 @@ BOOST_FIXTURE_TEST_CASE(test_in_edges, fixture) {
 
 BOOST_FIXTURE_TEST_CASE(test_out_edges, fixture) {
   string v1 = "2";
-  size_t v2 = 4;
+  std::size_t v2 = 4;
 
-  std::map<vpair, size_t> correct1;
-  std::map<vpair, size_t> correct2;
+  std::map<vpair, std::size_t> correct1;
+  std::map<vpair, std::size_t> correct2;
   for (const auto& d : data) {
     if (d.first.first == v1) correct1.insert(d);
     if (d.first.second == v2) correct2.insert(d);
   }
 
-  std::multimap<vpair, size_t> actual1;
+  std::multimap<vpair, std::size_t> actual1;
   for (edge_type e : g.out_edges(v1)) {
     BOOST_CHECK(e.forward());
     actual1.insert(std::make_pair(e.endpoints(), g[e]));
   }
 
-  std::multimap<vpair, size_t> actual2;
+  std::multimap<vpair, std::size_t> actual2;
   for (edge_type e : g.out_edges(v2)) {
     BOOST_CHECK(!e.forward());
     actual2.insert(std::make_pair(e.endpoints(), g[e]));
@@ -198,7 +200,7 @@ BOOST_FIXTURE_TEST_CASE(test_out_edges, fixture) {
 BOOST_FIXTURE_TEST_CASE(test_contains, fixture) {
   for (const auto& d : data) {
     string v1 = d.first.first;
-    size_t v2 = d.first.second;
+    std::size_t v2 = d.first.second;
     BOOST_CHECK(g.contains(v1));
     BOOST_CHECK(g.contains(v2));
     BOOST_CHECK(g.contains(g.edge(v1, v2)));
@@ -215,7 +217,7 @@ BOOST_FIXTURE_TEST_CASE(test_contains, fixture) {
 BOOST_FIXTURE_TEST_CASE(test_edge, fixture) {
   for (const auto& d : data) {
     string v1 = d.first.first;
-    size_t v2 = d.first.second;
+    std::size_t v2 = d.first.second;
     BOOST_CHECK_EQUAL(g.edge(v1, v2).v1(), v1);
     BOOST_CHECK_EQUAL(g.edge(v1, v2).v2(), v2);
     BOOST_CHECK_EQUAL(g.edge(v1, v2).forward(), true);
@@ -229,8 +231,8 @@ BOOST_FIXTURE_TEST_CASE(test_edge, fixture) {
 
 
 BOOST_FIXTURE_TEST_CASE(test_degree, fixture) {
-  std::map<string, size_t> degree1;
-  std::map<size_t, size_t> degree2;
+  std::map<string, std::size_t> degree1;
+  std::map<std::size_t, std::size_t> degree2;
   for (const auto& d : data) {
     ++degree1[d.first.first];
     ++degree2[d.first.second];
@@ -239,7 +241,7 @@ BOOST_FIXTURE_TEST_CASE(test_degree, fixture) {
   for (string v1 : g.vertices1()) {
     BOOST_CHECK_EQUAL(g.degree(v1), degree1[v1]);
   }
-  for (size_t v2 : g.vertices2()) {
+  for (std::size_t v2 : g.vertices2()) {
     BOOST_CHECK_EQUAL(g.degree(v2), degree2[v2]);
   }
 }

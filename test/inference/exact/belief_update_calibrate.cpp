@@ -17,13 +17,13 @@ BOOST_FIXTURE_TEST_CASE(test_calibrate, fixture) {
 
   // check if clique marginals are correct
   engine.calibrate();
-  for (size_t v : engine.jt().vertices()) {
+  for (std::size_t v : engine.jt().vertices()) {
     check_belief(engine.belief(v), 1e-8);
   }
 
   // check if clique marginals are correct after normalization
   engine.normalize();
-  for (size_t v : engine.jt().vertices()) {
+  for (std::size_t v : engine.jt().vertices()) {
     check_belief_normalized(engine.belief(v), 1e-8);
   }
 }

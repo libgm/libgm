@@ -28,7 +28,7 @@ namespace libgm {
 
     //! The type representing the assignment to the tail.
     typedef finite_index tail_type;
-    
+
     //! Constructor for a distribution in the probability space.
     explicit table_distribution(const table<T>& p)
       : psum_(p) {
@@ -41,7 +41,7 @@ namespace libgm {
       std::transform(lp.begin(), lp.end(), psum_.begin(), exponent<T>());
       std::partial_sum(psum_.begin(), psum_.end(), psum_.begin());
     }
-    
+
     /**
      * Draws a random sample from a marginal distribution.
      * The distribution parameters must be normalized, so that the values
@@ -51,7 +51,7 @@ namespace libgm {
     finite_index operator()(Generator& rng) const {
       return operator()(rng, finite_index());
     }
-    
+
     /**
      * Draws a random sample from a conditional distribution.
      * The distribution must be normalized, so that the all the values
@@ -60,12 +60,12 @@ namespace libgm {
     template <typename Generator>
     finite_index operator()(Generator& rng, const finite_index& tail) const {
       assert(tail.size() < psum_.arity());
-      size_t nhead = psum_.arity() - tail.size();
-      size_t nelem = psum_.offset().multiplier(nhead);
+      std::size_t nhead = psum_.arity() - tail.size();
+      std::size_t nelem = psum_.offset().multiplier(nhead);
       const T* begin = psum_.begin() + psum_.offset().linear(tail, nhead);
       T p = std::uniform_real_distribution<T>()(rng);
       if (begin > psum_.begin()) { p += *(begin-1); }
-      size_t i = std::upper_bound(begin, begin + nelem, p) - begin;
+      std::size_t i = std::upper_bound(begin, begin + nelem, p) - begin;
       if (i < nelem) {
         return psum_.offset().finite(i, nhead);
       } else {

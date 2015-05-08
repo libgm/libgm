@@ -11,7 +11,7 @@ namespace libgm {
 
   /**
    * Kruskal Minimum Spanning Tree (MST) algorithm.
-   * 
+   *
    * \param graph the underlying undirected graph
    * \param weightfn a function object that maps edges to weights
    * \param out an output iterator to which the edges are stored

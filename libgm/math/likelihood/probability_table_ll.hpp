@@ -71,8 +71,8 @@ namespace libgm {
     void add_gradient(const table<T>& phead, const finite_index& tail, T w,
                       table<T>& g) const {
       assert(phead.arity() + tail.size() == g.arity());
-      size_t index = g.offset().linear(tail, phead.arity());
-      for (size_t i = 0; i < phead.size(); ++i) {
+      std::size_t index = g.offset().linear(tail, phead.arity());
+      for (std::size_t i = 0; i < phead.size(); ++i) {
         g[index + i] += phead[i] * w / f[index + i];
       }
     }
@@ -94,8 +94,8 @@ namespace libgm {
     void add_hessian_diag(const table<T>& phead, const finite_index& tail, T w,
                           table<T>& h) const {
       assert(phead.arity() + tail.size() == h.arity());
-      size_t index = h.offset().linear(tail, phead.arity());
-      for (size_t i = 0; i < phead.size(); ++i) {
+      std::size_t index = h.offset().linear(tail, phead.arity());
+      for (std::size_t i = 0; i < phead.size(); ++i) {
         h[index + i] -= phead[i] * w / (f[index + i] * f[index + i]);
       }
     }

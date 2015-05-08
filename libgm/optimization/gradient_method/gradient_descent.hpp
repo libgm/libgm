@@ -48,7 +48,7 @@ namespace libgm {
         return out;
       }
     };
-    
+
     /**
      * Creates a gradient_descent object using the given line search algorithm
      * and convergence parameters. The line_search object becomes owned by the

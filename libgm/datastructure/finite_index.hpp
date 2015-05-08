@@ -1,6 +1,8 @@
 #ifndef LIBGM_FINITE_INDEX_HPP
 #define LIBGM_FINITE_INDEX_HPP
 
+#include <vector>
+
 namespace libgm {
 
   /**
@@ -9,7 +11,7 @@ namespace libgm {
    *
    * \ingroup datastructure
    */
-  typedef std::vector<size_t> finite_index;
+  typedef std::vector<std::size_t> finite_index;
 
 } // namespace libgm
 

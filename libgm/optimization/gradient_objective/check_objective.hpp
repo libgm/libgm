@@ -34,7 +34,7 @@ namespace libgm {
     real_type operator()(real_type eta) const {
       return dot(g_, g_) - (objective_->value(x_ + g_ * eta) - f_) / eta;
     }
-                         
+
   private:
     gradient_objective<Vec> objective_;
     real_type f_;

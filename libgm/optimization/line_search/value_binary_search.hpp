@@ -1,7 +1,6 @@
 #ifndef LIBGM_VALUE_BINARY_SEARCH_HPP
 #define LIBGM_VALUE_BINARY_SEARCH_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/optimization/line_search/bracketing_parameters.hpp>
 #include <libgm/optimization/line_search/line_function.hpp>
 #include <libgm/optimization/line_search/line_search.hpp>
@@ -49,7 +48,7 @@ namespace libgm {
     void objective(gradient_objective<Vec>* obj) override {
       f_.objective(obj);
     }
-    
+
     result_type step(const Vec& x, const Vec& direction,
                      const result_type& init) override {
       // set the line
@@ -58,9 +57,9 @@ namespace libgm {
       result_type left  = init;
       result_type mid   = f_.value(1);
       result_type right = mid;
-      
+
       // identify the initial bracket
-      if (right.value > left.value) { // shrink mid until its objective is < left
+      if (right.value > left.value) { // shrink mid until its objective is<left
         mid = f_.value(1.0 / param_.multiplier);
         while (mid.value > left.value) {
           ++(this->bounding_steps_);

@@ -18,9 +18,9 @@
 BOOST_AUTO_TEST_CASE(test_convergence) {
   using namespace libgm;
 
-  size_t m = 8;
-  size_t n = 5;
-  size_t niters = 20;
+  std::size_t m = 8;
+  std::size_t n = 5;
+  std::size_t niters = 20;
 
   // Create a random grid Markov network
   universe u;
@@ -42,12 +42,12 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   // run mean field inference
   mean_field_pairwise<carray1, carray2> mf(&model);
   double diff;
-  for (size_t it = 0; it < niters; ++it) {
+  for (std::size_t it = 0; it < niters; ++it) {
     diff = mf.iterate();
     std::cout << "Iteration " << it << ": " << diff << std::endl;
   }
   BOOST_CHECK_LT(diff, 1e-4);
-  
+
   // compute the KL divergence from the exact to mean field result
   double kl = 0.0;
   for (variable v : model.vertices()) {

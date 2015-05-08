@@ -87,7 +87,7 @@ namespace libgm {
     const graph_type& graph() const { return *graph_; }
 
     //! The number of updates performed so far
-    size_t num_updates() const { return nupdates_; }
+    std::size_t num_updates() const { return nupdates_; }
 
     //! Computes the node belief.
     NodeF belief(vertex_type u) const {
@@ -216,7 +216,7 @@ namespace libgm {
     message_map message_;
 
     //! The total number of updates applied (possibly fewer than computed).
-    size_t nupdates_;
+    std::size_t nupdates_;
 
   }; // class pairwise_mn_bp
 
@@ -226,7 +226,7 @@ namespace libgm {
 
   /**
    * Loopy BP engine that updates the messages synchronously.
-   * 
+   *
    * \tparam NodeF the factor type associated with nodes of the Markov network
    * \tparam EdgeF the factor type associated with edges of the Markov network
    *
@@ -267,12 +267,12 @@ namespace libgm {
   protected:
     //! Updates the message along an edge and returns the residual.
     real_type update_message(const edge_type& e, real_type eta = real_type(1)) {
-      NodeF new_message = this->compute_message(e);
-      real_type residual = this->diff_(this->message(e), new_message);
+      NodeF newmsg = this->compute_message(e);
+      real_type residual = this->diff_(this->message(e), newmsg);
       if (eta == real_type(1)) {
-        new_message_[e.pair()] = std::move(new_message);
+        new_message_[e.pair()] = std::move(newmsg);
       } else {
-        new_message_[e.pair()] = weighted_update(this->message(e), new_message, eta);
+        new_message_[e.pair()] = weighted_update(this->message(e), newmsg, eta);
       }
       ++this->nupdates_;
       return residual;
@@ -289,7 +289,7 @@ namespace libgm {
 
   /**
    * Loopy BP engine that updates the messages in a round-robin manner
-   * 
+   *
    * \tparam NodeF the factor type associated with nodes of the Markov network
    * \tparam EdgeF the factor type associated with edges of the Markov network
    *
@@ -369,7 +369,8 @@ namespace libgm {
       initialize_residuals(); // base::reset() was already called
     }
 
-    void reset(std::function<NodeF(const domain_type&)> gen = nullptr) override {
+    void reset(std::function<NodeF(const domain_type&)> gen
+               = nullptr) override {
       base::reset(gen);
       initialize_residuals();
     }
@@ -440,7 +441,7 @@ namespace libgm {
    * This algorithm can be viewed as an approximation of residual belief
    * propagation which is particularly useful in distributed systems where
    * it is infeasible to maintain a global queue.
-   * 
+   *
    * \tparam NodeF the factor type associated with nodes of the Markov network
    * \tparam EdgeF the factor type associated with edges of the Markov network
    *
@@ -474,7 +475,8 @@ namespace libgm {
       initialize_priorities();
     }
 
-    void reset(std::function<NodeF(const domain_type&)> gen = nullptr) override {
+    void reset(std::function<NodeF(const domain_type&)> gen
+               = nullptr) override {
       base::reset(gen);
       initialize_priorities();
     }

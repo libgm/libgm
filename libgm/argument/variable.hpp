@@ -15,7 +15,7 @@ namespace libgm {
 
   /**
    * A class that represents a basic variable. Internally, a variable
-   * consists of a pointer to the argument object and time index 
+   * consists of a pointer to the argument object and time index
    * (which can be empty). The argument object is shared among the
    * variable copies and must persist past the lifetime of this one.
    * Variables are not created directly; instead, they are created
@@ -49,18 +49,18 @@ namespace libgm {
     }
 
     //! Returns the cardinality / dimensionality of the variable.
-    size_t size() const {
+    std::size_t size() const {
       return rep().size;
     }
 
-    //! Returns the index of the variable (for now, a size_t).
-    size_t index() const {
+    //! Returns the index of the variable (for now, a std::size_t).
+    std::size_t index() const {
       return index_;
     }
 
     //! Returns true if the variable is associated with a process.
     bool indexed() const {
-      return index_ != size_t(-1);
+      return index_ != std::size_t(-1);
     }
 
     //! Returns the category of the variable (finite / vector).
@@ -102,12 +102,12 @@ namespace libgm {
 
     //! Compares two variables.
     friend bool operator<(variable x, variable y) {
-      return std::make_pair(x.rep_, x.index_) < std::make_pair(y.rep_, y.index_);
+      return x.pair() < y.pair();
     }
 
     //! Compares two variables.
     friend bool operator>(variable x, variable y) {
-      return std::make_pair(x.rep_, x.index_) > std::make_pair(y.rep_, y.index_);
+      return x.pair() > y.pair();
     }
 
     //! Returns true if two variables are type-compatible.
@@ -116,8 +116,8 @@ namespace libgm {
     }
 
     //! Computes the hash of the variable.
-    friend size_t hash_value(variable x) {
-      size_t seed = 0;
+    friend std::size_t hash_value(variable x) {
+      std::size_t seed = 0;
       libgm::hash_combine(seed, x.rep_);
       libgm::hash_combine(seed, x.index_);
       return seed;
@@ -131,12 +131,17 @@ namespace libgm {
     }
 
   private:
+    //! Converts the variable to a pair of hte argument object and index.
+    std::pair<const argument_object*, std::size_t> pair() const {
+      return { rep_, index_ };
+    }
+
     //! Constructs a free variable with the given argument object.
     explicit variable(const argument_object* rep)
       : rep_(rep), index_(-1) { }
 
     //! Constructs a proces variable with the given argument object and index.
-    variable(const argument_object* rep, size_t index)
+    variable(const argument_object* rep, std::size_t index)
       : rep_(rep), index_(index) { }
 
     //! Returns a reference to the underlying argument object.
@@ -144,12 +149,12 @@ namespace libgm {
       assert(rep_ != nullptr);
       return *rep_;
     }
-    
+
     //! The underlying representation.
     const argument_object* rep_;
 
     //! The index associated with the variable.
-    size_t index_;
+    std::size_t index_;
 
     // Friends
     template <typename Index, typename Var> friend class process;
@@ -172,8 +177,8 @@ namespace std {
   template <>
   struct hash<libgm::variable> {
     typedef libgm::variable argument_type;
-    typedef size_t result_type;
-    size_t operator()(libgm::variable x) const {
+    typedef std::size_t result_type;
+    std::size_t operator()(libgm::variable x) const {
       return hash_value(x);
     }
   };

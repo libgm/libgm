@@ -75,13 +75,13 @@ namespace libgm {
       if (empty() || finite_args_ != args) {
         finite_args_ = args;
         finite_index shape(args.size());
-        for (size_t i = 0; i < args.size(); ++i) {
+        for (std::size_t i = 0; i < args.size(); ++i) {
           shape[i] = args[i].size();
         }
         param_.reset(shape);
       }
     }
-    
+
     // Accessors
     //==========================================================================
 
@@ -91,16 +91,16 @@ namespace libgm {
     }
 
     //! Returns the number of arguments of this factor.
-    size_t arity() const {
+    std::size_t arity() const {
       return param_.arity();
     }
 
     //! Returns the total number of elements of the factor.
-    size_t size() const {
+    std::size_t size() const {
       return param_.size();
     }
 
-    //! Returns true if the factor has an empty table (equivalent to size() == 0).
+    //! Returns true if the factor has an empty table (same as size() == 0).
     bool empty() const {
       return param_.empty();
     }
@@ -115,23 +115,23 @@ namespace libgm {
       return param_.begin();
     }
 
-    //! Returns the pointer to past the last element or NULL if the factor is empty.
+    //! Returns the pointer past the last element or NULL if the factor is empty
     T* end() {
       return param_.end();
     }
 
-    //! Returns the pointer to past the last element or NULL if the factor is empty.
+    //! Returns the pointer past the last element or NULL if the factor is empty
     const T* end() const {
       return param_.end();
     }
 
     //! Provides mutable access to the parameter with the given linear index.
-    T& operator[](size_t i) {
+    T& operator[](std::size_t i) {
       return param_[i];
     }
-    
+
     //! Returns the parameter with the given linear index.
-    const T& operator[](size_t i) const {
+    const T& operator[](std::size_t i) const {
       return param_[i];
     }
 
@@ -141,7 +141,7 @@ namespace libgm {
     }
 
     //! Returns the parameter table of this factor.
-    const table<T>& param() const { 
+    const table<T>& param() const {
       return param_;
     }
 
@@ -149,7 +149,7 @@ namespace libgm {
     T& param(const assignment_type& a) {
       return param_[index(a)];
     }
-    
+
     //! Returns the parameter for the given assignment.
     const T& param(const assignment_type& a) const {
       return param_[index(a)];
@@ -167,14 +167,15 @@ namespace libgm {
 
     // Indexing
     //==========================================================================
-    
+
     /**
      * Converts the index to this factor's arguments to an assignment.
-     * The index may be merely a prefix, and the output assignment is not cleared.
+     * The index may be merely a prefix, and the output assignment is
+     * not cleared.
      */
     void assignment(const finite_index& index, assignment_type& a) const {
       assert(index.size() <= finite_args_.size());
-      for(size_t i = 0; i < index.size(); i++) {
+      for(std::size_t i = 0; i < index.size(); i++) {
         a[finite_args_[i]] = index[i];
       }
     }
@@ -185,9 +186,9 @@ namespace libgm {
      * assignment. If not strict, the missing arguments will be associated
      * with value 0.
      */
-    size_t index(const assignment_type& a, bool strict = true) const {
-      size_t result = 0;
-      for (size_t i = 0; i < arity(); ++i) {
+    std::size_t index(const assignment_type& a, bool strict = true) const {
+      std::size_t result = 0;
+      for (std::size_t i = 0; i < arity(); ++i) {
         Var v = finite_args_[i];
         auto it = a.find(v);
         if (it != a.end()) {
@@ -205,7 +206,7 @@ namespace libgm {
      * Returns the mapping of this factor's arguments to the given var vector.
      * If strict, all the arguments must be present in the given vector.
      * If not strict, the missing variables will be assigned a NA value,
-     * std::numeric_limits<size_t>::max().
+     * std::numeric_limits<std::size_t>::max().
      *
      * When using this function in factor operations, always call the
      * dim_map function on the factor whose elements will be iterated
@@ -213,13 +214,15 @@ namespace libgm {
      * of the table that is iterated over in a linear fashion.
      */
     finite_index dim_map(const domain_type& vars, bool strict = true) const {
-      finite_index map(arity(), std::numeric_limits<size_t>::max());
-      for(size_t i = 0; i < map.size(); i++) {
+      finite_index map(arity(), std::numeric_limits<std::size_t>::max());
+      for(std::size_t i = 0; i < map.size(); i++) {
         auto it = std::find(vars.begin(), vars.end(), finite_args_[i]);
         if (it != vars.end()) {
           map[i] = it - vars.begin();
         } else if (strict) {
-          throw std::invalid_argument("Missing variable " + finite_args_[i].str());
+          throw std::invalid_argument(
+            "table factor: missing variable " + finite_args_[i].str()
+          );
         }
       }
       return map;
@@ -250,7 +253,7 @@ namespace libgm {
       if (param_.arity() != finite_args_.size()) {
         throw std::runtime_error("Invalid table arity");
       }
-      for (size_t i = 0; i < finite_args_.size(); ++i) {
+      for (std::size_t i = 0; i < finite_args_.size(); ++i) {
         if (param_.size(i) != finite_args_[i].size()) {
           throw std::runtime_error("Invalid table shape");
         }
@@ -283,7 +286,7 @@ namespace libgm {
       assert(finite_args_ == f.finite_args_);
       param_.transform(f.param_, op);
     }
-    
+
     /**
      * Aggregates the parameter table of this factor along all dimensions
      * other than those for the retained variables using the given binary
@@ -380,7 +383,7 @@ namespace libgm {
 
   /**
    * Transforms the parameters of two factors using a binary operation
-   * and returns the result. The two factors must have the same argument vectors.
+   * and returns the result. The two factors must have the same arguments
    */
   template <typename Result, typename T, typename Var, typename Op>
   Result transform(const table_factor<T, Var>& f,
@@ -402,7 +405,8 @@ namespace libgm {
                          JoinOp join_op,
                          AggOp agg_op) {
     assert(f.finite_args() == g.finite_args());
-    return std::inner_product(f.begin(), f.end(), g.begin(), T(0), agg_op, join_op);
+    return std::inner_product(f.begin(), f.end(), g.begin(),
+                              T(0), agg_op, join_op);
   }
 
 } // namespace libgm

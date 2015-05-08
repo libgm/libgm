@@ -1,7 +1,6 @@
 #ifndef LIBGM_MEAN_FIELD_BIPARTITE_HPP
 #define LIBGM_MEAN_FIELD_BIPARTITE_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/graph/bipartite_graph.hpp>
 #include <libgm/parallel/vector_processor.hpp>
 #include <libgm/traits/pairwise_compatible.hpp>
@@ -16,7 +15,7 @@ namespace libgm {
    * The computation is performed synchronously, first for all type-1
    * vertices and then for all type-2 vertices. The number of worker
    * threads is controlled by a parameter to the constructor.
-   * 
+   *
    * \tparam Vertex1 the type that represents a type-1 vertex
    * \tparam Vertex2 the type that represents a type-2 vertex
    * \tparam NodeF the factor type associated with vertices
@@ -52,7 +51,8 @@ namespace libgm {
      *
      * \param num_threads the number of worker threads
      */
-    explicit mean_field_bipartite(const model_type* model, size_t nthreads = 1)
+    explicit mean_field_bipartite(const model_type* model,
+                                  std::size_t nthreads = 1)
       : model_(*model), nthreads_(nthreads) {
       vertices1_.reserve(model_.num_vertices1());
       vertices2_.reserve(model_.num_vertices2());
@@ -134,12 +134,12 @@ namespace libgm {
       swap(const_cast<belief_type&>(belief(v)), new_belief);
       return sum_diff(new_belief, belief(v));
     }
-    
+
     //! The underlying graphical model.
     const model_type& model_;
 
     //! The number of worker threads.
-    size_t nthreads_;
+    std::size_t nthreads_;
 
     //! A vector of type-1 vertices for quick access.
     std::vector<Vertex1> vertices1_;

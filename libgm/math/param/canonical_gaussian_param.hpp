@@ -17,7 +17,7 @@ namespace libgm {
 
   // Forward declaration
   template <typename T> class moment_gaussian_param;
-  
+
   /**
    * The parameters of a Gaussian factor in the canonical parameterization.
    * This struct represents an unnormalized quadratic function
@@ -49,13 +49,13 @@ namespace libgm {
       : lm(lm) { }
 
     //! Constructs uninitialized canonical Gaussian parameters with given size.
-    explicit canonical_gaussian_param(size_t size)
+    explicit canonical_gaussian_param(std::size_t size)
       : lm(0) {
       resize(size);
     }
 
     //! Constructs canonical Gaussian parameters with the given log-multiplier.
-    canonical_gaussian_param(size_t size, T lm)
+    canonical_gaussian_param(std::size_t size, T lm)
       : lm(lm) {
       eta.setZero(size);
       lambda.setZero(size, size);
@@ -89,7 +89,7 @@ namespace libgm {
       }
       return *this;
     }
-    
+
     //! Move assignment operator.
     canonical_gaussian_param& operator=(canonical_gaussian_param&& other) {
       swap(*this, other);
@@ -106,14 +106,14 @@ namespace libgm {
         );
       }
       mat_type sol_xy = chol.solve(mg.coef);
-      
-      size_t m = mg.head_size();
-      size_t n = mg.tail_size();
+
+      std::size_t m = mg.head_size();
+      std::size_t n = mg.tail_size();
       resize(m + n);
 
       eta.segment(0, m) = chol.solve(mg.mean);
       eta.segment(m, n).noalias() = -sol_xy.transpose() * mg.mean;
-      
+
       lambda.block(0, 0, m, m) = chol.solve(mat_type::Identity(m, m));
       lambda.block(0, m, m, n) = -sol_xy;
       lambda.block(m, 0, n, m) = -sol_xy.transpose();
@@ -123,14 +123,14 @@ namespace libgm {
                              + logdet(chol) + m * std::log(two_pi<T>()));
       return *this;
     }
-    
+
     //! Swaps the two sets of parameters.
     friend void swap(canonical_gaussian_param& a, canonical_gaussian_param& b) {
       a.eta.swap(b.eta);
       a.lambda.swap(b.lambda);
       std::swap(a.lm, b.lm);
     }
-    
+
     //! Serializes the parameters to an archive.
     void save(oarchive& ar) const {
       ar << eta << lambda << lm;
@@ -142,13 +142,13 @@ namespace libgm {
     }
 
     //! Resizes the parameter vector to the given vector size.
-    void resize(size_t n) {
+    void resize(std::size_t n) {
       eta.resize(n);
       lambda.resize(n, n);
     }
 
     //! Initializes the parameter struct to 0 with given vector size.
-    void zero(size_t n) {
+    void zero(std::size_t n) {
       eta.setZero(n);
       lambda.setZero(n, n);
       lm = T(0);
@@ -158,7 +158,7 @@ namespace libgm {
     //==========================================================================
 
     //! Returns the size of the parameter struct.
-    size_t size() const {
+    std::size_t size() const {
       assert(eta.rows() == lambda.rows() && eta.rows() == lambda.cols());
       return eta.rows();
     }
@@ -210,7 +210,7 @@ namespace libgm {
      */
     T marginal() const {
       Eigen::LLT<mat_type> chol(lambda);
-      return lm + 
+      return lm +
         (+ size() * std::log(two_pi<T>())
          - logdet(chol)
          + eta.dot(chol.solve(eta))) / T(2);
@@ -389,7 +389,7 @@ namespace libgm {
      */
     canonical_gaussian_join(matrix_index&& f_map,
                             matrix_index&& g_map,
-                            size_t size)
+                            std::size_t size)
       : f_op(std::move(f_map)),
         g_op(std::move(g_map)),
         size(size) { }
@@ -401,10 +401,10 @@ namespace libgm {
       f_op(h, f);
       g_op(h, g);
     }
-    
+
     canonical_gaussian_join_inplace<T, libgm::plus_assign<> > f_op;
     canonical_gaussian_join_inplace<T, Update> g_op;
-    size_t size;
+    std::size_t size;
   };
 
   // Aggregate operations
@@ -469,7 +469,7 @@ namespace libgm {
     dynamic_matrix<T> sol_yx;
     dynamic_vector<T> sol_y;
   };
-  
+
   /**
    * A class that computes the marginal of a canonical Gaussian.
    */
@@ -552,7 +552,7 @@ namespace libgm {
   template <typename T, typename Update>
   struct canonical_gaussian_restrict_join {
     typedef canonical_gaussian_param<T> param_type;
-    
+
     /**
      * Constructs a restrict operator.
      * \param x the retained indices in f

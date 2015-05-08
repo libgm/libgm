@@ -13,7 +13,7 @@ BOOST_AUTO_TEST_CASE(test_load_save) {
   int argc = boost::unit_test::framework::master_test_suite().argc;
   BOOST_REQUIRE(argc > 1);
   std::string dir = boost::unit_test::framework::master_test_suite().argv[1];
-  
+
   symbolic_format format;
   universe u;
   format.load(dir + "/symbolic.cfg", u);
@@ -22,7 +22,7 @@ BOOST_AUTO_TEST_CASE(test_load_save) {
   BOOST_CHECK_EQUAL(format.skip_rows, 0);
   BOOST_CHECK_EQUAL(format.skip_cols, 1);
   BOOST_CHECK_EQUAL(format.weighted, 1);
-  
+
   BOOST_CHECK_EQUAL(format.var_infos.size(), 3);
 
   BOOST_CHECK_EQUAL(format.var_infos[0].name(), "plain_finite");
@@ -56,7 +56,7 @@ BOOST_AUTO_TEST_CASE(test_load_save) {
 
   std::ifstream in(filename2);
   std::string line;
-  for (size_t i = 0; i < 10; ++i) {
+  for (std::size_t i = 0; i < 10; ++i) {
     BOOST_CHECK(std::getline(in, line));
     BOOST_CHECK_EQUAL(line, lines[i]);
   }

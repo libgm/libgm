@@ -8,7 +8,7 @@
 #include <iostream>
 
 namespace libgm {
-  
+
   /**
    * An interface for gradient-based optimization algorithms that
    * minimize the given objective.
@@ -80,7 +80,7 @@ namespace libgm {
     gm.print(out);
     return out;
   }
-  
+
 
 } // namespace libgm
 

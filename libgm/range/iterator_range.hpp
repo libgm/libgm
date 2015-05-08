@@ -66,14 +66,15 @@ namespace libgm {
     friend bool operator==(const iterator_range& a, const iterator_range& b) {
       return a.begin_ == b.begin_ && a.end_ == b.end_;
     }
-    
+
     //! Returns true if tow ranges do not have the same begin or end.
     friend bool operator!=(const iterator_range& a, const iterator_range& b) {
       return !(a == b);
     }
 
     //! Prints the range to an output stream.
-    friend std::ostream& operator<<(std::ostream& out, const iterator_range& r) {
+    friend std::ostream&
+    operator<<(std::ostream& out, const iterator_range& r) {
       out << '(';
       for (const auto& val : r) { out << val << ' '; }
       out << ')';

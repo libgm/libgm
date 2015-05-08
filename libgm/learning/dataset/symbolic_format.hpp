@@ -1,7 +1,6 @@
 #ifndef LIBGM_SYMBOLIC_FORMAT_HPP
 #define LIBGM_SYMBOLIC_FORMAT_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/argument/basic_domain.hpp>
 #include <libgm/argument/hybrid_domain.hpp>
 #include <libgm/argument/process.hpp>
@@ -52,7 +51,7 @@ namespace libgm {
       }
 
       //! Returns the arity / dimensionality of the variable
-      size_t size() const {
+      std::size_t size() const {
         return v.size();
       }
 
@@ -93,10 +92,10 @@ namespace libgm {
 
       //! Returns the finite value corresponding to the given string.
       //! Requires that the variable is finite.
-      size_t parse(const char* str) const {
+      std::size_t parse(const char* str) const {
         assert(is_finite());
         if (labels.empty()) {
-          return parse_string<size_t>(str);
+          return parse_string<std::size_t>(str);
         }
         std::vector<std::string>::const_iterator it =
           std::find(labels.begin(), labels.end(), str);
@@ -111,7 +110,7 @@ namespace libgm {
       }
 
       //! Prints the finite value to a stream
-      void print(std::ostream& out, size_t value) const {
+      void print(std::ostream& out, std::size_t value) const {
         assert(is_finite());
         if (labels.empty()) {
           out << value;
@@ -144,7 +143,7 @@ namespace libgm {
       }
 
       //! Returns the arity / dimensionality of the process
-      size_t size() const {
+      std::size_t size() const {
         return p.size();
       }
 
@@ -185,10 +184,10 @@ namespace libgm {
 
       //! Returns the finite value corresponding to the given string.
       //! Requires that the process is finite.
-      size_t parse(const char* str) const {
+      std::size_t parse(const char* str) const {
         assert(is_finite());
         if (labels.empty()) {
-          return parse_string<size_t>(str);
+          return parse_string<std::size_t>(str);
         }
         std::vector<std::string>::const_iterator it =
           std::find(labels.begin(), labels.end(), str);
@@ -203,7 +202,7 @@ namespace libgm {
       }
 
       //! Prints the finite value to a stream
-      void print(std::ostream& out, size_t value) const {
+      void print(std::ostream& out, std::size_t value) const {
         assert(is_finite());
         if (labels.empty()) {
           out << value;
@@ -221,10 +220,10 @@ namespace libgm {
     std::string missing;
 
     //! The number of lines at the beginning of the file to skip (default = 0).
-    size_t skip_rows;
+    std::size_t skip_rows;
 
-    //! The number of columns at the beginning of each line to skip (default = 0).
-    size_t skip_cols;
+    //! The number of columns at the start of each line to skip (default = 0).
+    std::size_t skip_cols;
 
     //! Indicates if the dataset is weighted (default = false).
     bool weighted;
@@ -323,7 +322,7 @@ namespace libgm {
           if (info.is_vector()) {
             return info.var();
           } else {
-            throw std::domain_error("Variable \"" + name + "\" if not a vector");
+            throw std::domain_error("Variable \"" + name + "\" if not vector");
           }
         }
       }
@@ -484,9 +483,9 @@ namespace libgm {
      *        match the format.
      * \return false if the line should be ignored
      */
-    bool parse(size_t num_values,
+    bool parse(std::size_t num_values,
                std::string& line,
-               size_t& line_number,
+               std::size_t& line_number,
                std::vector<const char*>& tokens) const {
       if (++line_number <= skip_rows) {
         return false;
@@ -495,11 +494,12 @@ namespace libgm {
       if (tokens.empty()) {
         return false;
       }
-      size_t expected_cols = skip_cols + num_values + weighted;
+      std::size_t expected_cols = skip_cols + num_values + weighted;
       if (tokens.size() != expected_cols) {
         std::ostringstream os;
         os << "Line " << line_number << ": invalid number of columns "
-           << "(expected " << expected_cols << ", found " << tokens.size() << ")";
+           << "(expected " << expected_cols
+           << ", found " << tokens.size() << ")";
         throw std::runtime_error(os.str());
       }
       return true;
@@ -515,13 +515,13 @@ namespace libgm {
      * [variables]
      * variable_name=value0,value1,...,valuek-1 (where k >= 2) OR
      * variable_name=finite(k) (where k >= 2) OR
-     * variable_name=vector(k) (where k >= 1) 
+     * variable_name=vector(k) (where k >= 1)
      * other_variable_name=...
      *
      * [discrete_processes]
      * process_name=value0,value1,...,valuek-1 (where k >= 2) OR
      * process_name=finite(k) (where k >= 2) OR
-     * process_name=vector(k) (where k >= 1) 
+     * process_name=vector(k) (where k >= 1)
      * other_process_name=...
      *
      * [options]
@@ -544,7 +544,9 @@ namespace libgm {
 
       // empty formats are not allowed
       if (var_infos.empty() && discrete_infos.empty()) {
-        throw std::out_of_range("Please specify at least one variable or process");
+        throw std::out_of_range(
+          "Please specify at least one variable or process"
+        );
       }
     }
 
@@ -570,9 +572,9 @@ namespace libgm {
         } else if (entry.first == "missing") {
           missing = parse_escaped(entry.second);
         } else if (entry.first == "skip_rows") {
-          skip_rows = parse_string<size_t>(entry.second);
+          skip_rows = parse_string<std::size_t>(entry.second);
         } else if (entry.first == "skip_cols") {
-          skip_cols = parse_string<size_t>(entry.second);
+          skip_cols = parse_string<std::size_t>(entry.second);
         } else if (entry.first == "weighted") {
           weighted = parse_string<bool>(entry.second);
         } else {
@@ -588,9 +590,9 @@ namespace libgm {
       for (const config_entry& entry : config["variables"]) {
         if (entry.second.compare(0, 7, "vector(") == 0) {
           std::string param = entry.second.substr(7, entry.second.size() - 8);
-          size_t dim;
+          std::size_t dim;
           if (!parse_string(param, dim) || dim == 0) {
-            std::string msg = 
+            std::string msg =
               "Invalid specification of vector variable \"" + entry.first +
               "\": " + entry.second;
             throw std::invalid_argument(msg);
@@ -598,10 +600,10 @@ namespace libgm {
           var_infos.emplace_back(u.new_vector_variable(entry.first, dim));
         } else if (entry.second.compare(0, 7, "finite(") == 0) {
           std::string param = entry.second.substr(7, entry.second.size() - 8);
-          size_t arity;
+          std::size_t arity;
           if (!parse_string(param, arity) || arity <= 1) {
-            std::string msg = 
-              "Invalid specification of finite variable \"" + entry.first + 
+            std::string msg =
+              "Invalid specification of finite variable \"" + entry.first +
               "\": " + entry.second;
             throw std::invalid_argument(msg);
           }
@@ -634,9 +636,9 @@ namespace libgm {
         if (entry.second.compare(0, 7, "vector(") == 0) {
           std::string name = entry.first;
           std::string param = entry.second.substr(7, entry.second.size() - 8);
-          size_t dim;
+          std::size_t dim;
           if (!parse_string(param, dim) || dim == 0) {
-            std::string msg = 
+            std::string msg =
               "Invalid specification of vector discrete process \"" + name +
               "\": " + entry.second;
             throw std::invalid_argument(msg);
@@ -645,10 +647,10 @@ namespace libgm {
         } else if (entry.second.compare(0, 7, "finite(") == 0) {
           std::string name = entry.first;
           std::string param = entry.second.substr(7, entry.second.size() - 8);
-          size_t arity;
+          std::size_t arity;
           if (!parse_string(param, arity) || arity <= 1) {
-            std::string msg = 
-              "Invalid specification of finite discrete process \"" + name + 
+            std::string msg =
+              "Invalid specification of finite discrete process \"" + name +
               "\": " + entry.second;
             throw std::invalid_argument(msg);
           }

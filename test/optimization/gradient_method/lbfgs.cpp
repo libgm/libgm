@@ -19,7 +19,7 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   lbfgs<vec_type> gd(search);
   gd.objective(&objective);
   gd.solution(vec2(0, 0));
-  for (size_t it = 0; it < 5 && !gd.converged(); ++it) {
+  for (std::size_t it = 0; it < 5 && !gd.converged(); ++it) {
     line_search_result<double> result = gd.iterate();
     std::cout << "Iteration " << it << ", result " << result << std::endl;
   }

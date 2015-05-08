@@ -25,22 +25,22 @@ namespace std {
   template<>
   struct hash<::vertex1> {
     typedef ::vertex1 argument_type;
-    typedef size_t result_type;
-    size_t operator()(::vertex1 v) const { return hash_value(v.t); }
+    typedef std::size_t result_type;
+    std::size_t operator()(::vertex1 v) const { return hash_value(v.t); }
   };
 
   template<>
   struct hash<::vertex2> {
     typedef ::vertex2 argument_type;
-    typedef size_t result_type;
-    size_t operator()(::vertex2 v) const { return hash_value(v.t); }
+    typedef std::size_t result_type;
+    std::size_t operator()(::vertex2 v) const { return hash_value(v.t); }
   };
 }
 
 BOOST_AUTO_TEST_CASE(test_convergence) {
-  size_t nvertices = 20;
-  size_t nedges = 50;
-  size_t niters = 20;
+  std::size_t nvertices = 20;
+  std::size_t nedges = 50;
+  std::size_t niters = 20;
 
   // Create a random bipartite graph
   universe u;
@@ -52,7 +52,7 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   std::vector<ptable> factors;
 
   // node potentials
-  for (size_t i = 0; i < nvertices; ++i) {
+  for (std::size_t i = 0; i < nvertices; ++i) {
     vertex1 v1(u.new_finite_variable("x" + std::to_string(i), 2));
     vertex2 v2(u.new_finite_variable("y" + std::to_string(i), 2));
     model.add_vertex(v1, node_gen({v1.t}, rng));
@@ -62,7 +62,7 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   }
 
   // edge potentials
-  for (size_t i = 0; i < nedges; /* advanced on success */) {
+  for (std::size_t i = 0; i < nedges; /* advanced on success */) {
     vertex1 v1 = model.sample_vertex1(rng);
     vertex2 v2 = model.sample_vertex2(rng);
     auto result = model.add_edge(v1, v2, edge_gen({v1.t, v2.t}, rng));
@@ -82,12 +82,12 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   // run mean field inference
   mean_field_bipartite<vertex1, vertex2, carray1, carray2> mf(&model, 4);
   double diff;
-  for (size_t it = 0; it < niters; ++it) {
+  for (std::size_t it = 0; it < niters; ++it) {
     diff = mf.iterate();
     std::cout << "Iteration " << it << ": " << diff << std::endl;
   }
   BOOST_CHECK_LT(diff, 1e-4);
-  
+
   // compute the KL divergence from exact to mean field
   double kl1 = 0.0;
   double kl2 = 0.0;
@@ -109,19 +109,19 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
 #if 0
 // consider boost strong typedef
 template <int index>
-struct vertex { 
+struct vertex {
   variable v;
   vertex() : v(NULL) { }
   vertex(variable v) : v(v) { }
-  size_t id() const { return v ? v->id() : -1; }
+  std::size_t id() const { return v ? v->id() : -1; }
   bool operator<(vertex u) const { return id() < u.id(); }
   bool operator==(vertex u) const { return id() == u.id(); }
   bool operator!=(vertex u) const { return id() != u.id(); }
 };
 
-namespace 
+namespace
 template <int index>
-size_t hash_value(vertex<index> v) {
+std::size_t hash_value(vertex<index> v) {
   return v.id();
 }
 

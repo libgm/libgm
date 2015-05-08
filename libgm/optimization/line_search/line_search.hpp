@@ -1,7 +1,6 @@
 #ifndef LIBGM_LINE_SEARCH_HPP
 #define LIBGM_LINE_SEARCH_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/optimization/gradient_objective/gradient_objective.hpp>
 #include <libgm/optimization/line_search/line_search_result.hpp>
 #include <libgm/traits/vector_value.hpp>
@@ -64,18 +63,18 @@ namespace libgm {
      * search, where a valid range for the step size must be
      * initially computed.
      */
-    size_t bounding_steps() const { return bounding_steps_; }
+    std::size_t bounding_steps() const { return bounding_steps_; }
 
     /**
      * Returns the number of selection steps performed so far.
      * These are the steps to narrow down the initial estimate
      * into an acceptable value.
      */
-    size_t selection_steps() const { return selection_steps_; }
+    std::size_t selection_steps() const { return selection_steps_; }
 
   protected:
-    size_t bounding_steps_;
-    size_t selection_steps_;
+    std::size_t bounding_steps_;
+    std::size_t selection_steps_;
 
   }; // class line_search
 

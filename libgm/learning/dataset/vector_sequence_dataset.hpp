@@ -21,7 +21,7 @@ namespace libgm {
    */
   template <typename T, typename Var>
   struct vector_sequence_traits {
-    typedef process<size_t, Var>            process_type;
+    typedef process<std::size_t, Var>       process_type;
     typedef Var                             variable_type;
     typedef basic_domain<process_type>      proc_domain_type;
     typedef basic_domain<variable_type>     var_domain_type;
@@ -32,12 +32,13 @@ namespace libgm {
     typedef matrix_index                    index_type;
     typedef std::pair<dynamic_matrix<T>, T> proc_value_type;
     typedef std::pair<dynamic_vector<T>, T> var_value_type;
-    typedef std::unordered_map<process_type, size_t>  column_map_type;
-    typedef std::unordered_map<variable_type, size_t> offset_map_type;
+    typedef std::unordered_map<process_type, std::size_t>  column_map_type;
+    typedef std::unordered_map<variable_type, std::size_t> offset_map_type;
 
     //! Computes the column indices for the given process domain.
-    static void initialize(const proc_domain_type& procs, column_map_type& cols) {
-      size_t col = 0;
+    static void initialize(const proc_domain_type& procs,
+                           column_map_type& cols) {
+      std::size_t col = 0;
       for (process_type proc : procs) {
         cols.emplace(proc, col);
         col += proc.size();
@@ -46,12 +47,12 @@ namespace libgm {
 
     //! Computes the argument set and offsets for a step view.
     static matrix_index initialize(const proc_domain_type& procs,
-                                   size_t first, size_t length,
+                                   std::size_t first, std::size_t length,
                                    var_domain_type& variables,
                                    offset_map_type& offsets) {
-      size_t ndims = vector_size(procs);
-      size_t offset = ndims * first;
-      for (size_t t = 0; t < length; ++t) {
+      std::size_t ndims = vector_size(procs);
+      std::size_t offset = ndims * first;
+      for (std::size_t t = 0; t < length; ++t) {
         for (process_type proc : procs) {
           variable_type v = proc(t);
           variables.push_back(v);
@@ -86,7 +87,7 @@ namespace libgm {
     static void load(const proc_value_type& from,
                      const index_type& index,
                      proc_value_type& to) {
-      size_t nsteps = from.first.cols();
+      std::size_t nsteps = from.first.cols();
       set(to.first, submat(from.first, index, matrix_index(0, nsteps)));
       to.second = from.second;
     }
@@ -95,7 +96,7 @@ namespace libgm {
     static void save(const proc_value_type& from,
                      const index_type& index,
                      proc_value_type& to) {
-      size_t nsteps = from.first.cols();
+      std::size_t nsteps = from.first.cols();
       set(submat(to.first, index, matrix_index(0, nsteps)), from.first);
       to.second = from.second;
     }
@@ -105,13 +106,13 @@ namespace libgm {
                         const proc_domain_type& procs,
                         const column_map_type& colmap,
                         std::pair<assignment_type, T>& to) {
-      size_t nsteps = from.first.cols();
+      std::size_t nsteps = from.first.cols();
       assignment_type& a = to.first;
       a.clear();
       a.reserve(procs.size() * nsteps);
       for (process_type proc : procs) {
-        size_t row = colmap.at(proc);
-        for (size_t t = 0; t < nsteps; ++t) {
+        std::size_t row = colmap.at(proc);
+        for (std::size_t t = 0; t < nsteps; ++t) {
           a[proc(t)] = from.first.block(row, t, proc.size(), 1);
         }
       }
@@ -121,15 +122,15 @@ namespace libgm {
     //! Extracts the data for a subset of variables.
     static void extract(const proc_value_type& from,
                         const index_type& index,
-                        size_t tstart,
+                        std::size_t tstart,
                         var_value_type& to) {
-      size_t offset = tstart * from.first.rows();
+      std::size_t offset = tstart * from.first.rows();
       to.first.resize(index.size());
       if (index.contiguous()) {
         const T* begin = from.first.data() + index.start() + offset;
         std::copy(begin, begin + index.size(), to.first.data());
       } else {
-        for (size_t i = 0; i < to.first.size(); ++i) {
+        for (std::size_t i = 0; i < to.first.size(); ++i) {
           to.first[i] = from.first(index[i] + offset);
         }
       }
@@ -140,9 +141,9 @@ namespace libgm {
     static void extract(const proc_value_type& from,
                         const var_domain_type& vars,
                         const offset_map_type& offsets,
-                        size_t tstart,
+                        std::size_t tstart,
                         std::pair<assignment_type, T>& to) {
-      size_t offset = tstart * from.first.rows();
+      std::size_t offset = tstart * from.first.rows();
       assignment_type& a = to.first;
       a.clear();
       a.reserve(vars.size());
@@ -180,7 +181,7 @@ namespace libgm {
   template <typename T = double, typename Var = variable>
   using vector_sequence_dataset =
     basic_sequence_dataset<vector_sequence_traits<T, Var> >;
-  
+
 } // namespace libgm
 
 #endif

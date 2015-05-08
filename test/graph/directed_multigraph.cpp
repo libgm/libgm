@@ -13,15 +13,15 @@
 #include "../predicates.hpp"
 
 namespace libgm {
-  template class directed_multigraph<size_t>;
-  template class directed_multigraph<size_t, std::string, double>;
+  template class directed_multigraph<std::size_t>;
+  template class directed_multigraph<std::size_t, std::string, double>;
 }
 
 using namespace libgm;
 
-typedef directed_multigraph<size_t, size_t, size_t> graph_type;
-typedef directed_edge<size_t> edge_type;
-typedef std::pair<size_t, size_t> vpair;
+typedef directed_multigraph<std::size_t, std::size_t, std::size_t> graph_type;
+typedef directed_edge<std::size_t> edge_type;
+typedef std::pair<std::size_t, std::size_t> vpair;
 
 BOOST_AUTO_TEST_CASE(test_directed_edge) {
   edge_type e1, e2;
@@ -39,8 +39,8 @@ BOOST_AUTO_TEST_CASE(test_constructors) {
   BOOST_CHECK(g1.edges().empty());
 
   // edge list constructor
-  std::vector<vpair> vpairs = 
-    {vpair(5, 2), vpair(1, 2), vpair(1, 3), vpair(1, 7), 
+  std::vector<vpair> vpairs =
+    {vpair(5, 2), vpair(1, 2), vpair(1, 3), vpair(1, 7),
      vpair(2, 3), vpair(3, 4), vpair(4, 5), vpair(4, 1)};
   graph_type g2(vpairs);
   for (vpair vp : vpairs) {
@@ -67,13 +67,13 @@ BOOST_AUTO_TEST_CASE(test_constructors) {
 
 BOOST_AUTO_TEST_CASE(test_vertices) {
   graph_type g;
-  std::vector<size_t> verts = {1, 2, 3, 4, 5, 6, 7, 9, 10};
-  std::map<size_t, size_t> vert_map;
-  for (size_t v : verts) {
+  std::vector<std::size_t> verts = {1, 2, 3, 4, 5, 6, 7, 9, 10};
+  std::map<std::size_t, std::size_t> vert_map;
+  for (std::size_t v : verts) {
     vert_map[v] = v+2;
     g.add_vertex(v, v+2);
   }
-  for (size_t v : g.vertices()) {
+  for (std::size_t v : g.vertices()) {
     BOOST_CHECK(vert_map.count(v));
     BOOST_CHECK_EQUAL(g[v], vert_map[v]);
     vert_map.erase(v);
@@ -83,13 +83,13 @@ BOOST_AUTO_TEST_CASE(test_vertices) {
 
 
 BOOST_AUTO_TEST_CASE(test_edges) {
-  std::vector<vpair> vpairs = 
-    {vpair(9, 2), vpair(1, 9), vpair(1, 3), vpair(1, 10), 
+  std::vector<vpair> vpairs =
+    {vpair(9, 2), vpair(1, 9), vpair(1, 3), vpair(1, 10),
      vpair(2, 3), vpair(3, 4), vpair(4, 9), vpair(4, 1),
      vpair(2, 6), vpair(3, 5), vpair(1, 7), vpair(5, 8)};
-  std::map<vpair, size_t> data;
+  std::map<vpair, std::size_t> data;
   graph_type g;
-  size_t i = 0;
+  std::size_t i = 0;
   for (vpair vp : vpairs) {
     g.add_edge(vp.first, vp.second, i);
     data[vp] = i;
@@ -105,13 +105,13 @@ BOOST_AUTO_TEST_CASE(test_edges) {
 
 
 BOOST_AUTO_TEST_CASE(test_parents) {
-  std::vector<vpair> vpairs = 
-    {vpair(9, 2), vpair(4, 9), vpair(1, 3), vpair(1, 10), 
+  std::vector<vpair> vpairs =
+    {vpair(9, 2), vpair(4, 9), vpair(1, 3), vpair(1, 10),
      vpair(2, 3), vpair(3, 4), vpair(4, 9), vpair(1, 4),
      vpair(2, 6), vpair(3, 5), vpair(7, 4), vpair(5, 8)};
   graph_type g(vpairs);
-  std::set<size_t> parents = {1, 3, 7};
-  for (size_t v : g.parents(4)) {
+  std::set<std::size_t> parents = {1, 3, 7};
+  for (std::size_t v : g.parents(4)) {
     BOOST_CHECK(parents.count(v));
     parents.erase(v);
   }
@@ -120,13 +120,13 @@ BOOST_AUTO_TEST_CASE(test_parents) {
 
 
 BOOST_AUTO_TEST_CASE(test_children) {
-  std::vector<vpair> vpairs = 
-    {vpair(9, 2), vpair(4, 9), vpair(1, 3), vpair(1, 10), 
+  std::vector<vpair> vpairs =
+    {vpair(9, 2), vpair(4, 9), vpair(1, 3), vpair(1, 10),
      vpair(2, 3), vpair(3, 4), vpair(4, 2), vpair(4, 1),
      vpair(2, 6), vpair(3, 5), vpair(4, 7), vpair(5, 8)};
   graph_type g(vpairs);
-  std::set<size_t> children = {1, 2, 7, 9};
-  for (size_t v : g.children(4)) {
+  std::set<std::size_t> children = {1, 2, 7, 9};
+  for (std::size_t v : g.children(4)) {
     BOOST_CHECK(children.count(v));
     children.erase(v);
   }
@@ -135,21 +135,21 @@ BOOST_AUTO_TEST_CASE(test_children) {
 
 
 BOOST_AUTO_TEST_CASE(test_in_edges) {
-  std::vector<vpair> vpairs = 
-    {vpair(9, 2), vpair(1, 9), vpair(1, 3), vpair(1, 10), 
+  std::vector<vpair> vpairs =
+    {vpair(9, 2), vpair(1, 9), vpair(1, 3), vpair(1, 10),
      vpair(2, 3), vpair(3, 4), vpair(4, 9), vpair(4, 1),
      vpair(2, 6), vpair(3, 5), vpair(7, 3), vpair(3, 8)};
   graph_type g;
-  std::map<vpair, size_t> data;
-  size_t i = 0;
-  for (vpair vp : vpairs) { 
+  std::map<vpair, std::size_t> data;
+  std::size_t i = 0;
+  for (vpair vp : vpairs) {
     if(vp.second == 3) {
       g.add_edge(vp.first, vp.second, i);
       data[vp] = i;
       ++i;
     }
   }
-  for (edge_type e : g.in_edges(3)) { 
+  for (edge_type e : g.in_edges(3)) {
     vpair vp(e.source(), e.target());
     BOOST_CHECK(data.count(vp));
     BOOST_CHECK_EQUAL(g[e], data[vp]);
@@ -160,13 +160,13 @@ BOOST_AUTO_TEST_CASE(test_in_edges) {
 
 
 BOOST_AUTO_TEST_CASE(test_out_edges) {
-  std::vector<vpair> vpairs = 
-    {vpair(9, 2), vpair(1, 9), vpair(1, 3), vpair(1, 10), 
+  std::vector<vpair> vpairs =
+    {vpair(9, 2), vpair(1, 9), vpair(1, 3), vpair(1, 10),
      vpair(2, 3), vpair(3, 4), vpair(4, 2), vpair(4, 1),
      vpair(6, 3), vpair(3, 5), vpair(7, 3), vpair(3, 8)};
   graph_type g;
-  std::map<vpair, size_t> data;
-  size_t i = 0;
+  std::map<vpair, std::size_t> data;
+  std::size_t i = 0;
   for (vpair vp : vpairs) {
     if(vp.first == 3) {
       g.add_edge(vp.first, vp.second, i);
@@ -174,7 +174,7 @@ BOOST_AUTO_TEST_CASE(test_out_edges) {
       ++i;
     }
   }
-  for (edge_type e : g.out_edges(3)) { 
+  for (edge_type e : g.out_edges(3)) {
     vpair vp(e.source(), e.target());
     BOOST_CHECK(data.count(vp));
     BOOST_CHECK_EQUAL(g[e], data[vp]);
@@ -185,12 +185,12 @@ BOOST_AUTO_TEST_CASE(test_out_edges) {
 
 
 BOOST_AUTO_TEST_CASE(test_contains) {
-  std::vector<vpair> vpairs = 
-    {vpair(9, 2), vpair(1, 9), vpair(1, 3), vpair(1, 10), 
+  std::vector<vpair> vpairs =
+    {vpair(9, 2), vpair(1, 9), vpair(1, 3), vpair(1, 10),
      vpair(2, 3), vpair(3, 4), vpair(4, 9), vpair(4, 1),
      vpair(2, 6), vpair(3, 5), vpair(7, 3), vpair(3, 8)};
   graph_type g(vpairs);
-  for (size_t i = 1; i <= 10; ++i) {
+  for (std::size_t i = 1; i <= 10; ++i) {
     BOOST_CHECK(g.contains(i));
   }
   BOOST_CHECK(!g.contains(11));
@@ -205,16 +205,16 @@ BOOST_AUTO_TEST_CASE(test_contains) {
 
 
 BOOST_AUTO_TEST_CASE(test_edge) {
-  std::vector<vpair> vpairs = 
-    {vpair(9, 2), vpair(1, 9), vpair(1, 3), vpair(1, 10), 
+  std::vector<vpair> vpairs =
+    {vpair(9, 2), vpair(1, 9), vpair(1, 3), vpair(1, 10),
      vpair(2, 3), vpair(3, 4), vpair(4, 9), vpair(4, 1),
      vpair(2, 6), vpair(3, 5), vpair(1, 7), vpair(5, 8)};
-  std::map<vpair, size_t> data;
+  std::map<vpair, std::size_t> data;
   graph_type g;
-  size_t i = 0;
+  std::size_t i = 0;
   for (vpair vp : vpairs) {
     g.add_edge(vp.first, vp.second, i);
-    data[vp] = i; 
+    data[vp] = i;
     ++i;
   }
   g.sort_edges();
@@ -244,7 +244,7 @@ BOOST_AUTO_TEST_CASE(test_degree) {
 
 
   std::vector<vpair> vpairs =
-    {vpair(9, 2), vpair(1, 9), vpair(1, 3), vpair(1, 10), 
+    {vpair(9, 2), vpair(1, 9), vpair(1, 3), vpair(1, 10),
      vpair(2, 3), vpair(3, 4), vpair(4, 9), vpair(4, 1),
      vpair(2, 6), vpair(3, 5), vpair(7, 3), vpair(3, 8)};
   graph_type g2(vpairs);
@@ -255,8 +255,8 @@ BOOST_AUTO_TEST_CASE(test_degree) {
 
 
 BOOST_AUTO_TEST_CASE(test_num) {
-  std::vector<vpair> vpairs = 
-    {vpair(9, 2), vpair(1, 9), vpair(1, 3), vpair(1, 10), 
+  std::vector<vpair> vpairs =
+    {vpair(9, 2), vpair(1, 9), vpair(1, 3), vpair(1, 10),
      vpair(2, 3), vpair(3, 4), vpair(4, 9), vpair(4, 1),
      vpair(2, 6), vpair(3, 5), vpair(7, 3), vpair(3, 8)};
   graph_type g(vpairs);
@@ -280,7 +280,7 @@ BOOST_AUTO_TEST_CASE(test_num) {
 
 typedef boost::mpl::list<int, double, void_> test_types;
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_comparison, EP, test_types) {
-  typedef directed_multigraph<size_t, int, EP> Graph;
+  typedef directed_multigraph<std::size_t, int, EP> Graph;
 
   Graph g1;
   g1.add_vertex(1, 0);
@@ -289,7 +289,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_comparison, EP, test_types) {
   g1.add_edge(1, 2);
   g1.add_edge(2, 3);
   g1.sort_edges();
-  
+
   Graph g2;
   g2.add_vertex(1, 0);
   g2.add_vertex(3, 2);
@@ -327,14 +327,14 @@ BOOST_AUTO_TEST_CASE(test_serialization) {
 // the following test is too slow for a unit test;
 // it should be in timings instead
 // BOOST_AUTO_TEST_CASE(test_large) {
-//   size_t n = 100000;
-//   size_t m = 100;  
-//   directed_graph<size_t, size_t, size_t> g;
-//   for(size_t u = 0; u < n; u++) {
+//   std::size_t n = 100000;
+//   std::size_t m = 100;
+//   directed_graph<std::size_t, std::size_t, std::size_t> g;
+//   for(std::size_t u = 0; u < n; u++) {
 //     g.add_vertex(u,u);
-//     for(size_t v = 0; v < m; v++) {
+//     for(std::size_t v = 0; v < m; v++) {
 //       g.add_vertex(v,v);
 //       g.add_edge(u,v, u * v);
-//     } 
+//     }
 //   }
 // }

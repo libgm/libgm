@@ -20,36 +20,39 @@ namespace libgm {
     typedef basic_domain<Var>      domain_type;
     typedef finite_assignment<Var> assignment_type;
     typedef finite_index           data_type;
-    typedef size_t                 element_type;
+    typedef std::size_t            element_type;
     typedef T                      weight_type;
 
     //! Returns the number of columns occupied by a variable (always 1).
-    static constexpr size_t ncols(Var v) {
+    static constexpr std::size_t ncols(Var v) {
       return 1;
     }
 
     //! Returns the number of columns occupied by a domain.
-    static size_t ncols(const domain_type& dom) {
+    static std::size_t ncols(const domain_type& dom) {
       return dom.size();
     }
 
     //! Returns the special "missing" value.
-    static constexpr size_t missing() {
-      return std::numeric_limits<size_t>::max();
+    static constexpr std::size_t missing() {
+      return std::numeric_limits<std::size_t>::max();
     }
 
     //! Extracts the value for a single variable.
-    static void copy(size_t* const* ptrs, size_t ncols, size_t row, size_t& val) {
+    static void copy(std::size_t* const* ptrs,
+                     std::size_t ncols,
+                     std::size_t row,
+                     std::size_t& val) {
       val = ptrs[0][row];
     }
 
     //! Copies the value for a single variable.
-    static void copy(size_t val, size_t ncols, size_t* dest) {
+    static void copy(std::size_t val, std::size_t ncols, std::size_t* dest) {
       *dest = val;
     }
 
   }; // struct finite_data_traits
-  
+
   /**
    * A dense dataset that stores observations for finite variables
    * in memory. The observations are stored in the column-major

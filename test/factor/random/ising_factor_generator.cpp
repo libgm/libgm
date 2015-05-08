@@ -10,7 +10,7 @@
 
 using namespace libgm;
 
-size_t nsamples = 100;
+std::size_t nsamples = 100;
 const double lower = -0.7;
 const double upper = +0.5;
 const double exp_lower = std::exp(lower);
@@ -28,14 +28,14 @@ BOOST_AUTO_TEST_CASE(test_all) {
   ising_factor_generator gen(lower, upper);
 
   // check the node marginals
-  for (size_t i = 0; i < nsamples; ++i) {
+  for (std::size_t i = 0; i < nsamples; ++i) {
     table_factor f = gen(xs, rng);
     BOOST_CHECK_CLOSE(f(1), 1.0/f(0), 1e-8);
     BOOST_CHECK(f(1) >= exp_lower && f(1) <= exp_upper);
   }
 
   // check the pairwise marginals
-  for (size_t i = 0; i < nsamples; ++i) {
+  for (std::size_t i = 0; i < nsamples; ++i) {
     table_factor f = gen(xy, rng);
     double val = f(0, 0);
     BOOST_CHECK(val >= exp_lower && val <= exp_upper);

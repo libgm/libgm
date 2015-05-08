@@ -1,7 +1,6 @@
 #ifndef LIBGM_CANONICAL_TABLE_HPP
 #define LIBGM_CANONICAL_TABLE_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/factor/base/table_factor.hpp>
 #include <libgm/factor/traits.hpp>
 #include <libgm/functional/operators.hpp>
@@ -34,7 +33,7 @@ namespace libgm {
    */
   template <typename T, typename Var>
   class canonical_table : public table_factor<T, Var> {
-  public: 
+  public:
     // Public types
     //==========================================================================
 
@@ -49,13 +48,13 @@ namespace libgm {
     typedef table<T>     param_type;
     typedef finite_index index_type;
     typedef table_distribution<T> distribution_type;
-    
+
     // LearnableDistributionFactor member types
     typedef canonical_table_ll<T> ll_type;
-    
+
     // ExponentialFamilyFactor member types
     typedef probability_table<T, Var> probability_type;
-    
+
     // Constructors and conversion operators
     //==========================================================================
 
@@ -147,19 +146,19 @@ namespace libgm {
       return this->param(index);
     }
 
-    //! Returns true if the two factors have the same argument vectors and values.
+    //! Returns true if the two factors have the same arguments and values.
     friend bool operator==(const canonical_table& f, const canonical_table& g) {
       return f.arguments() == g.arguments() && f.param() == g.param();
     }
 
-    //! Returns true if the two factors do not have the same arguments or values.
+    //! Returns true if the factors do not have the same arguments or values.
     friend bool operator!=(const canonical_table& f, const canonical_table& g) {
       return !(f == g);
     }
 
     // Factor operations
     //==========================================================================
-    
+
     //! Multiplies another factor into this one.
     canonical_table& operator*=(const canonical_table& f) {
       this->join_inplace(f, std::plus<T>());
@@ -237,7 +236,7 @@ namespace libgm {
     max(const canonical_table& f, const canonical_table& g) {
       return transform<canonical_table>(f, g, libgm::maximum<T>());
     }
-  
+
     //! Element-wise minimum of two factors.
     friend canonical_table
     min(const canonical_table& f, const canonical_table& g) {
@@ -336,7 +335,7 @@ namespace libgm {
     bool is_normalizable() const {
       return boost::math::isfinite(maximum().lv);
     }
-    
+
     //! Restricts this factor to an assignment.
     canonical_table restrict(const assignment_type& a) const {
       canonical_table result;
@@ -351,7 +350,7 @@ namespace libgm {
 
     // Sampling
     //==========================================================================
-    
+
     //! Returns the distribution with the parameters of this factor.
     table_distribution<T> distribution() const {
       return table_distribution<T>(this->param_, log_tag());
@@ -400,7 +399,7 @@ namespace libgm {
                                                std::plus<T>());
     }
 
-    //! Computes the entropy for a subset of variables. Performs marginalization.
+    //! Computes the entropy for a subset of variables via marginalization.
     T entropy(const domain_type& a) const {
       return equivalent(arguments(), a) ? entropy() : marginal(a).entropy();
     }
@@ -430,7 +429,7 @@ namespace libgm {
     friend T sum_diff(const canonical_table& p, const canonical_table& q) {
       return transform_accumulate(p, q, abs_difference<T>(), std::plus<T>());
     }
-    
+
     //! Computes the max of absolute differences between the parameters of p and q.
     friend T max_diff(const canonical_table& p, const canonical_table& q) {
       return transform_accumulate(p, q, abs_difference<T>(), libgm::maximum<T>());

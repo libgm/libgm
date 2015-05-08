@@ -15,12 +15,12 @@ namespace libgm {
   struct vertex_property_fn {
     typedef typename Graph::vertex_type argument_type;
     typedef typename Graph::vertex_property vertex_property;
-    typedef typename std::conditional< 
-      std::is_const<Graph>::value, const vertex_property&, vertex_property& 
+    typedef typename std::conditional<
+      std::is_const<Graph>::value, const vertex_property&, vertex_property&
     >::type result_type;
 
     vertex_property_fn(Graph* graph) : graph_(graph) { }
-    
+
     result_type operator()(argument_type v) const {
       return (*graph_)[v];
     }
@@ -39,12 +39,12 @@ namespace libgm {
   struct vertex1_property_fn {
     typedef typename Graph::vertex1_type argument_type;
     typedef typename Graph::vertex1_property vertex_property;
-    typedef typename std::conditional< 
-      std::is_const<Graph>::value, const vertex_property&, vertex_property& 
+    typedef typename std::conditional<
+      std::is_const<Graph>::value, const vertex_property&, vertex_property&
     >::type result_type;
 
     vertex1_property_fn(Graph* graph) : graph_(graph) { }
-    
+
     result_type operator()(argument_type v) const {
       return (*graph_)[v];
     }
@@ -63,12 +63,12 @@ namespace libgm {
   struct vertex2_property_fn {
     typedef typename Graph::vertex2_type argument_type;
     typedef typename Graph::vertex2_property vertex_property;
-    typedef typename std::conditional< 
-      std::is_const<Graph>::value, const vertex_property&, vertex_property& 
+    typedef typename std::conditional<
+      std::is_const<Graph>::value, const vertex_property&, vertex_property&
     >::type result_type;
 
     vertex2_property_fn(Graph* graph) : graph_(graph) { }
-    
+
     result_type operator()(argument_type v) const {
       return (*graph_)[v];
     }
@@ -87,10 +87,10 @@ namespace libgm {
   struct edge_property_fn {
     typedef typename Graph::edge_type argument_type;
     typedef typename Graph::edge_property edge_property;
-    typedef typename std::conditional< 
-      std::is_const<Graph>::value, const edge_property&, edge_property& 
+    typedef typename std::conditional<
+      std::is_const<Graph>::value, const edge_property&, edge_property&
     >::type result_type;
-  
+
     edge_property_fn(Graph* graph) : graph_(graph) { }
 
     result_type operator()(const argument_type& e) const {

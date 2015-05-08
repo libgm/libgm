@@ -25,11 +25,11 @@ int main(int argc, char** argv) {
     std::cout << desc << std::endl;
     return 0;
   }
-  
+
   // Create the line_search object
   std::unique_ptr<line_search<dynamic_vector<double>>> ls(builder.get());
   // TODO: change to std::unique_ptr
   std::cout << *ls << std::endl;
-  
+
   return 0;
 }

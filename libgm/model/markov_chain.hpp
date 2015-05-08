@@ -6,7 +6,7 @@
 #include <libgm/math/logarithmic.hpp>
 
 namespace libgm {
-  
+
   template <typename F>
   class markov_chain {
     // Public type declarations
@@ -25,18 +25,18 @@ namespace libgm {
     //! Default constructor. Creates an empty chain.
     markov_chain()
       : order_(0) { }
-    
+
     //! Creates a chain with the given processes.
-    explicit markov_chain(const domain_type& processes, size_t order = 1)
+    explicit markov_chain(const domain_type& processes, std::size_t order = 1)
       : processes_(processes), order_(order) { }
 
-    //! Creates a chain with the given initial distribution and transition model.
+    //! Creates a chain with the given initial distribution and transition model
     markov_chain(const F& initial, const F& transition)
       : processes_(make_vector(discrete_processes(initial.arguments()))) {
       this->initial(initial);
       this->transition(transition);
     }
-    
+
     //! Returns the processes associated with this chain.
     const domain_type& arguments() const {
       return processes_;
@@ -46,17 +46,17 @@ namespace libgm {
     var_domain_type current() const {
       return variables(processes_, current_step);
     }
-    
+
     //! Returns the vairables representing the next state of this chain
     var_domain_type next() const {
       return variables(processes_, next_step);
     }
 
     //! Returns the order of the chain
-    size_t order() const {
+    std::size_t order() const {
       return order_;
     }
-    
+
     //! Returns the initial distribution
     const F& initial() const {
       return initial_;
@@ -90,21 +90,21 @@ namespace libgm {
         ll_type init_ll(initial_.param());
         result += init_ll.value(index.col(0));
         ll_type trans_ll(transition_.param());
-        for (size_t t = 1; t < index.cols(); ++t) {
+        for (std::size_t t = 1; t < index.cols(); ++t) {
           result += trans_ll.value(index.col(t), idnex.col(t-1)); // FIXME
         }
       }
       return result;
     }
-    
+
     //! Draws a random chain of the given length.
     template <typename Generator>
-    index_type sample(Generator& rng, size_t len) const {
+    index_type sample(Generator& rng, std::size_t len) const {
       var_index_type prior = initial_.sample(rng);
       index_type result = replicate(prior, len);
       if (len > 1) {
         auto cpd = transition_.distribution();
-        for (size_t t = 1; t < len; ++t) {
+        for (std::size_t t = 1; t < len; ++t) {
           result.col(t) = cpd(rng, resul.col(t-1));
         }
       }
@@ -113,7 +113,7 @@ namespace libgm {
 
   private:
     domain_type processes_;
-    size_t order_;
+    std::size_t order_;
     F initial_;
     F transition_;
 

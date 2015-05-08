@@ -18,7 +18,7 @@ namespace libgm {
 
 using namespace libgm;
 
-size_t nsamples = 100;
+std::size_t nsamples = 100;
 const double lower = -0.7;
 const double upper = +0.5;
 
@@ -37,7 +37,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_all, F, factor_types) {
 
   // check the marginals
   double sum = 0.0;
-  for (size_t i = 0; i < nsamples; ++i) {
+  for (std::size_t i = 0; i < nsamples; ++i) {
     F f = gen(xy, rng);
     for (double x : f.param()) {
       BOOST_CHECK(x >= lower && x <= upper);
@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_all, F, factor_types) {
 
   /*
   // check the conditionals
-  for (size_t i = 0; i < nsamples; ++i) {
+  for (std::size_t i = 0; i < nsamples; ++i) {
     table_factor f = gen(ys, xs, rng);
     BOOST_CHECK(f.is_conditional(xs));
   }

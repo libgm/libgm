@@ -65,12 +65,12 @@ namespace libgm {
     void add_gradient(const table<T>& phead, const finite_index& tail, T w,
                       table<T>& g) const {
       assert(phead.arity() + tail.size() == g.arity());
-      size_t index = g.offset().linear(tail, phead.arity());
-      for (size_t i = 0; i < phead.size(); ++i) {
+      std::size_t index = g.offset().linear(tail, phead.arity());
+      for (std::size_t i = 0; i < phead.size(); ++i) {
         g[index + i] += phead[i] * w;
       }
     }
-      
+
     /**
      * Adds the diagonal of the Hessian of log-likleihood of the specified
      * data point with weight w to the Hessian diagonal h.
@@ -86,7 +86,7 @@ namespace libgm {
   private:
     //! The parameters at which we evaluate the log-likelihood derivatives.
     const table<T>& f;
-    
+
   }; // class canonical_table_ll
 
 } // namespace libgm

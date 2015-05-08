@@ -18,7 +18,7 @@ namespace libgm {
   template <typename F>
   class belief_update_calibrate {
 
-    // Public type declarations    
+    // Public type declarations
     //==========================================================================
   public:
     // FactorizedInference types
@@ -30,7 +30,7 @@ namespace libgm {
     typedef F                           factor_type;
     typedef cluster_graph<domain_type, F, F> graph_type;
 
-    // The descriptors for the junction tree 
+    // The descriptors for the junction tree
     typedef typename graph_type::vertex_type vertex_type;
     typedef typename graph_type::edge_type edge_type;
 
@@ -85,7 +85,7 @@ namespace libgm {
 
       // multiply in the factors to cliques that cover them
       for (const F& factor : factors) {
-        size_t v = jt_.find_cluster_cover(factor.arguments());
+        std::size_t v = jt_.find_cluster_cover(factor.arguments());
         assert(v);
         jt_[v] *= factor;
       }
@@ -99,7 +99,7 @@ namespace libgm {
       jt_ = jt;
       assert(valid());
     }
-    
+
     // Functions running the algorithm
     //==========================================================================
 
@@ -125,7 +125,7 @@ namespace libgm {
       for (edge_type e : jt_.edges()) {
         jt_[e].normalize();
       }
-    } 
+    }
 
     /**
      * Conditions the inference on an assignment to one or more variables
@@ -155,7 +155,7 @@ namespace libgm {
     const graph_type& jt() const {
       return jt_;
     }
-    
+
     /**
      * Returns the belief assocaited with a vertex.
      * The caller must not alter the belief arguments.
@@ -176,8 +176,8 @@ namespace libgm {
 
     /**
      * Returns the belief for a set of variables.
-     * \throw std::invalid_argument 
-     *        if the specified set is not covered by a clique of 
+     * \throw std::invalid_argument
+     *        if the specified set is not covered by a clique of
      *        the junction tree constructed by the engine.
      */
     F belief(const domain_type& vars) const {

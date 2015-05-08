@@ -1,7 +1,6 @@
 #ifndef LIBGM_PROBABILITY_ARRAY_HPP
 #define LIBGM_PROBABILITY_ARRAY_HPP
 
-#include <libgm/global.hpp>
 #include <libgm/argument/finite_assignment.hpp>
 #include <libgm/factor/base/array_factor.hpp>
 #include <libgm/functional/assign.hpp>
@@ -16,7 +15,7 @@
 namespace libgm {
 
   // Forward declarations
-  template <typename T, size_t N, typename Var> class canonical_array;
+  template <typename T, std::size_t N, typename Var> class canonical_array;
   template <typename T, typename Var> class probability_table;
 
   /**
@@ -30,20 +29,20 @@ namespace libgm {
    * (e.g., when used in a hidden Markov model). In other cases, e.g.
    * in a pairwise Markov network, there are no constraints on the
    * normalization of f.
-   * 
+   *
    * \tparam T a type of values stored in the factor
    * \tparam N the number of arguments
    *
    * \ingroup factor_types
    * \see Factor
    */
-  template <typename T, size_t N, typename Var>
+  template <typename T, std::size_t N, typename Var>
   class probability_array : public array_factor<T, N, Var> {
   public:
     // Helper types
     typedef array_factor<T, N, Var> base;
     typedef array_domain<Var, 1>    unary_domain_type;
- 
+
     // Factor member types
     typedef T                      real_type;
     typedef T                      result_type;
@@ -54,19 +53,19 @@ namespace libgm {
     // ParametricFactor member types
     typedef typename base::array_type param_type;
     typedef finite_index              index_type;
-    typedef array_distribution<T, N> distribution_type; 
-    
+    typedef array_distribution<T, N> distribution_type;
+
     // LearnableDistributionFactor member types
     typedef probability_array_ll<T, N>  ll_type;
     typedef probability_array_mle<T, N> mle_type;
-    
+
     // Constructors and conversion operators
     //==========================================================================
   public:
     //! Default constructor. Creates an empty factor.
     probability_array() { }
 
-    //! Constructs a factor with the given arguments and uninitialized parameters.
+    //! Constructs a factor with given arguments and uninitialized parameters.
     explicit probability_array(const domain_type& args) {
       this->reset(args);
     }
@@ -105,7 +104,7 @@ namespace libgm {
       this->param_ = exp(f.param());
       return *this;
     }
-    
+
     //! Assigns a probability_table to this factor
     probability_array& operator=(const probability_table<T, Var>& f) {
       this->reset(f.arguments());
@@ -119,14 +118,14 @@ namespace libgm {
       f.swap(g);
     }
 
-    //! Replaces NaNs with 0s (used when dividing two probability_array factors).
+    //! Replaces NaNs with 0s (when dividing two probability_array factors).
     probability_array& clear_nan() {
       for (T& value : *this) {
         if (std::isnan(value)) { value = T(0); }
       }
       return *this;
     }
-    
+
     // Accessors
     //==========================================================================
     //! Returns the value of this factor for an assignment
@@ -149,16 +148,16 @@ namespace libgm {
       return std::log(this->param(index));
     }
 
-    //! Returns true if the two factors have the same argument vectors and values.
+    //! Returns true if the two factors have the same arguments and values.
     friend bool operator==(const probability_array& f,
                            const probability_array& g) {
-      return f->equal(g);
+      return f.equal(g);
     }
 
-    //! Returns true if the two factors do not have the same arguments or values.
+    //! Returns true if the factors do not have the same arguments or values.
     friend bool operator!=(const probability_array& f,
                            const probability_array& g) {
-      return !f->equal(g);
+      return !f.equal(g);
     }
 
     // Factor operations
@@ -177,13 +176,13 @@ namespace libgm {
       this->param_ -= f.param_;
       return *this;
     }
-    
+
     /**
      * Multiplies another factor with arity M into this one.
      * This operation is only supported when M <= N, i.e.,
      * the given factor has no more arguments than this one.
      */
-    template <size_t M>
+    template <std::size_t M>
     typename std::enable_if<M <= N, probability_array&>::type
     operator*=(const probability_array<T, M, Var>& f) {
       join_inplace(*this, f, libgm::multiplies_assign<>());
@@ -195,7 +194,7 @@ namespace libgm {
      * This operation is only supported when M <= N, i.e.,
      * the given factor has no more arguments than this one.
      */
-    template <size_t M>
+    template <std::size_t M>
     typename std::enable_if<M <= N, probability_array&>::type
     operator/=(const probability_array<T, M, Var>& f) {
       join_inplace(*this, f, libgm::divides_assign<>());
@@ -301,7 +300,7 @@ namespace libgm {
       check_same_arguments(f, g);
       return probability_array(f.arguments(), f.param().max(g.param()));
     }
-  
+
     //! Element-wise minimum of two factors.
     friend probability_array
     min(const probability_array& f, const probability_array& g) {
@@ -327,7 +326,7 @@ namespace libgm {
     marginal(const unary_domain_type& retain) const {
       return aggregate<probability_array<T, 1, Var>>(*this, retain, sum_op());
     }
-    
+
     /**
      * Computes the maximum of the factor over a single variable.
      * This operation is only supported for binary factors.
@@ -335,7 +334,8 @@ namespace libgm {
     template <bool B = (N == 2)>
     typename std::enable_if<B, probability_array<T, 1, Var> >::type
     maximum(const unary_domain_type& retain) const {
-      return aggregate<probability_array<T, 1, Var>>(*this, retain, max_coeff_op());
+      return aggregate<probability_array<T, 1, Var>>(*this, retain,
+                                                     max_coeff_op());
     }
 
     /**
@@ -345,7 +345,8 @@ namespace libgm {
     template <bool B = (N == 2)>
     typename std::enable_if<B, probability_array<T, 1, Var> >::type
     minimum(const unary_domain_type& retain) const {
-      return aggregate<probability_array<T, 1, Var>>(*this, retain, min_coeff_op());
+      return aggregate<probability_array<T, 1, Var>>(*this, retain,
+                                                     min_coeff_op());
     }
 
     /**
@@ -443,7 +444,7 @@ namespace libgm {
       restrict_assign(*this, a, result);
       return result;
     }
-    
+
     /**
      * Restricts this factor to an assignment and stores the result
      * in a unary factor. This operation is only supported for binary
@@ -523,7 +524,7 @@ namespace libgm {
                       const probability_array& q) {
       return transform_accumulate(p, q, abs_difference<T>(), std::plus<T>());
     }
-    
+
     //! Computes the max of absolute differences between the parameters of p and q.
     friend T max_diff(const probability_array& p,
                       const probability_array& q) {
@@ -551,7 +552,7 @@ namespace libgm {
    * Outputs a human-readable representation of the factor to the stream.
    * \relates probability_array
    */
-  template <typename T, size_t N, typename Var>
+  template <typename T, std::size_t N, typename Var>
   std::ostream&
   operator<<(std::ostream& out, const probability_array<T, N, Var>& f) {
     out << f.arguments() << std::endl
@@ -569,7 +570,7 @@ namespace libgm {
    * \return a probability_array factor whose arity is the maximum of M and N
    * \relates probability_array
    */
-  template <typename T, size_t M, size_t N, typename Var>
+  template <typename T, std::size_t M, std::size_t N, typename Var>
   probability_array<T, (M >= N) ? M : N, Var>
   operator*(const probability_array<T, M, Var>& f,
             const probability_array<T, N, Var>& g) {
@@ -584,7 +585,7 @@ namespace libgm {
    * \return a probability_array factor whose arity is the maximum of M and N
    * \relates probability_array
    */
-  template <typename T, size_t M, size_t N, typename Var>
+  template <typename T, std::size_t M, std::size_t N, typename Var>
   probability_array<T, (M >= N) ? M : N, Var>
   operator/(const probability_array<T, M, Var>& f,
             const probability_array<T, N, Var>& g) {
@@ -627,7 +628,7 @@ namespace libgm {
       return expectation<probability_array<T, 1, Var> >(f, g);
     }
   }
- 
+
 } // namespace libgm
 
 #endif

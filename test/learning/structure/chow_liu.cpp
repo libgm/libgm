@@ -15,7 +15,7 @@
 
 /*
 
-Tests Chow-Liu on data generated from a Bayesian network with the 
+Tests Chow-Liu on data generated from a Bayesian network with the
 following structure:
 
                 0
@@ -25,19 +25,19 @@ following structure:
                / \
               /   \
              2     3
-                  / \ 
+                  / \
                  /   \
                 4     5
 
 */
-               
+
 // int main(int argc, char** argv) {
 
 BOOST_AUTO_TEST_CASE(test_simple) {
   using namespace libgm;
   using namespace std;
 
-  size_t nsamples = 10000;
+  std::size_t nsamples = 10000;
 
   universe u;
   domain v = u.new_finite_variables(6, "v", 3);
@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_CASE(test_simple) {
   // generate a dataset
   finite_dataset<> data(v, nsamples);
   finite_assignment<> a;
-  for (size_t i = 0; i < nsamples; ++i) {
+  for (std::size_t i = 0; i < nsamples; ++i) {
     bn.sample(rng, a);
     data.insert(a, 1.0);
   }
@@ -71,15 +71,15 @@ BOOST_AUTO_TEST_CASE(test_simple) {
   for (const auto& p : learner.scores()) {
     std::cout << p.first << " : " << p.second << std::endl;
   }
-  
+
   // verify the cliques
   std::unordered_set<domain> cliques;
-  for (size_t v : dm.vertices()) {
+  for (std::size_t v : dm.vertices()) {
     const domain& clique = dm.clique(v);
     cliques.emplace(clique);
     std::cout << clique << std::endl;
   }
-  
+
   BOOST_CHECK(cliques.size() == 5);
   BOOST_CHECK(cliques.count(domain({v[0], v[1]}).unique()));
   BOOST_CHECK(cliques.count(domain({v[1], v[2]}).unique()));

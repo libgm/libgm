@@ -17,7 +17,7 @@ namespace libgm {
    * \tparam LabelF a type representing the prior distribution
    * \tparam FeatureF a type representing the conditional distribution of
    *                  a feature given the label.
-   */ 
+   */
   template <typename LabelF, typename FeatureF = LabelF>
   class naive_bayes {
   public:
@@ -46,7 +46,7 @@ namespace libgm {
   public:
     //! Default constructor. Creates an empty naive Bayes model.
     naive_bayes() { }
-    
+
     //! Creates a naive Bayes model with the given label and uniform prior.
     explicit naive_bayes(variable_type label)
       : prior_({label}, result_type(1)) {
@@ -59,7 +59,9 @@ namespace libgm {
       check_prior(prior_);
     }
 
-    //! Sets the prior. Must not change the label variable if one is set already.
+    /**
+     * Sets the prior. Must not change the label variable if one is set already.
+     */
     void prior(const F& prior) {
       check_prior(prior);
       if (prior_.empty() || prior_.arguments() == prior.arguments()) {
@@ -114,7 +116,7 @@ namespace libgm {
     const LabelF& prior() const {
       return prior_;
     }
-    
+
     //! Returns the feature CPD.
     const FeatureF& cpd(variable_type v) const {
       return feature_.at(v);
@@ -220,8 +222,8 @@ namespace libgm {
         throw std::invalid_argument("the prior must have exactly one argument");
       }
     }
-    
-    //! The prior distribution (empty if this naive_bayes object is uninitialized).
+
+    //! The prior distribution (empty if this naive_bayes is uninitialized).
     LabelF prior_;
 
     //! The map from feature variables to CPDs.

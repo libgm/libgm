@@ -26,12 +26,12 @@ namespace libgm {
       : vec_(vec), rows_(rows) { }
 
     //! Returns the number of rows of this view.
-    size_t rows() const {
+    std::size_t rows() const {
       return rows_.size();
     }
 
     //! Returns the number of columns of this view.
-    size_t cols() const {
+    std::size_t cols() const {
       return 1;
     }
 
@@ -46,7 +46,7 @@ namespace libgm {
     }
 
     //! Returns the given row index.
-    size_t row_index(size_t i) const {
+    std::size_t row_index(std::size_t i) const {
       return rows_[i];
     }
 
@@ -54,13 +54,13 @@ namespace libgm {
     auto ptr() const -> decltype(Vector().data()) {
       return vec_.data() + rows_.start();
     }
-    
+
     //! Returns a block represented by this subvector (must be contiguous).
     Eigen::VectorBlock<Vector> block() const {
       assert(contiguous());
       return vec_.segment(rows_.start(), rows_.size());
     }
-    
+
     //! Extracts a plain object represented by this subvector.
     plain_type plain() const {
       plain_type result;
@@ -75,7 +75,7 @@ namespace libgm {
       } else {
         assert(rows() == other.rows());
         scalar_type result(0);
-        for (size_t i = 0; i < other.rows(); ++i) {
+        for (std::size_t i = 0; i < other.rows(); ++i) {
           result += vec_[rows_[i]] * other[i];
         }
         return result;
@@ -113,7 +113,7 @@ namespace libgm {
       typedef typename Vector::Scalar scalar_type;
       const scalar_type* src = a.ptr();
       scalar_type* dest = result.data();
-      for (size_t i = 0; i < result.rows(); ++i) {
+      for (std::size_t i = 0; i < result.rows(); ++i) {
         op(*dest++, src[a.row_index(i)]);
       }
     }
@@ -134,7 +134,7 @@ namespace libgm {
       typedef typename Vector::Scalar scalar_type;
       const scalar_type* src = a.data();
       scalar_type* dest = result.ptr();
-      for (size_t i = 0; i < a.rows(); ++i) {
+      for (std::size_t i = 0; i < a.rows(); ++i) {
         op(dest[result.row_index(i)], *src++);
       }
     }
