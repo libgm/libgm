@@ -1,0 +1,3 @@
+*.cpp text eol=lf
+*.hpp text eol=lf
+*.txt text eol=lf
