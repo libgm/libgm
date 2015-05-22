@@ -38,10 +38,8 @@ namespace libgm {
      * over the given domain.
      */
     template <typename Dataset>
-    F operator()(const Dataset& ds, const domain_type& args) const {
-      F f(args);
-      mle_.estimate(ds(args), f.param());
-      return f;
+    F operator()(const Dataset& ds, const domain_type& args) {
+      return F(args, mle_(ds(args), F::param_shape(args)));
     }
 
     /**
@@ -50,7 +48,7 @@ namespace libgm {
      */
     template <typename Dataset>
     F operator()(const Dataset& ds,
-                 const domain_type& head, const domain_type& tail) const {
+                 const domain_type& head, const domain_type& tail) {
       assert(disjoint(head, tail));
       return operator()(ds, head + tail).conditional(tail);
     }

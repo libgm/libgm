@@ -3,6 +3,7 @@
 
 #include <libgm/datastructure/table.hpp>
 #include <libgm/functional/operators.hpp>
+#include <libgm/math/likelihood/mle_eval.hpp>
 
 #include <functional>
 
@@ -13,14 +14,20 @@ namespace libgm {
    *
    * \tparam T the real type representing the parameters
    */
-  template <typename T>
+  template <typename T = double>
   class probability_table_mle {
   public:
     //! The regularization parameter.
     typedef T regul_type;
 
-    //! The parameters returned by this estimator.
+    //! The parameters of the distribution computed by this estimator.
     typedef table<T> param_type;
+
+    //! A type that represents an unweighted observation.
+    typedef finite_index data_type;
+
+    //! The type that represents the weight of an observation.
+    typedef T weight_type;
 
     /**
      * Constructs a maximum-likelihood estimator with the specified
@@ -31,39 +38,25 @@ namespace libgm {
 
     /**
      * Computes the maximum likelihood estimate of a probability table
-     * using the samples in the specified range. The table must be
-     * preallocated with the shape that matches the samples, but it
-     * does not need to be initialized with any specific value.
+     * using the samples in the specified range, given the specified
+     * table shape. Each sample must have exact shape.size() values.
      *
-     * \return The total weight of the samples including the regularization
-     * \tparam Range a range with values convertible to
-     *         std::pair<finite_index, T>
+     * \tparam Range a range with values convertible to std::pair<data_type, T>
      */
     template <typename Range>
-    T estimate(const Range& samples, table<T>& p) const {
-      initialize(p);
-      for (const auto& r : samples) {
-        process(r.first, r.second, p);
-      }
-      return finalize(p);
+    table<T> operator()(const Range& samples, const finite_index& shape) {
+      return incremental_mle_eval(*this, samples, shape);
     }
 
-    /**
-     * Initializes the probability table for a maximum likelihood estimate
-     * computed incrementally. The table p must be preallocated with the
-     * shape that matches the values in the subsequent call to process,
-     * but it does not need to be initialized with any specific value.
-     */
-    void initialize(table<T>& p) const {
-      p.fill(regul_);
+    //! Initializes the estimator to the given table shape.
+    void initialize(const finite_index& shape) {
+      counts_.reset(shape);
+      counts_.fill(regul_);
     }
 
-    /**
-     * Processes a single weighted data point, updating the parameters in p
-     * incrementally.
-     */
-    void process(const finite_index& values, T weight, table<T>& p) const {
-      p(values) += weight;
+    //! Processes a single weighted data point.
+    void process(const finite_index& values, T weight) {
+      counts_(values) += weight;
     }
 
     /**
@@ -73,36 +66,34 @@ namespace libgm {
      *
      * \param head the fixed values of a prefix of arguments
      * \param tail the distribution over the tail arguments
-     * \param p the distribution to be updated
      */
-    void process(const finite_index& head, const table<T>& ptail,
-                 table<T>& p) const {
+    void process(const finite_index& head, const table<T>& ptail) {
       std::size_t nhead = head.size();
       std::size_t ntail = ptail.arity();
-      assert(nhead + ntail == p.arity());
+      assert(nhead + ntail == counts_.arity());
 
-      T* dest = p.begin() + p.offset().linear(head, 0);
-      std::size_t inc = (ntail > 0) ? p.offset().multiplier(nhead) : p.size();
-      assert(inc * ptail.size() == p.size());
+      T* dest = counts_.begin() + counts_.offset().linear(head, 0);
+      std::size_t inc = counts_.offset().multiplier(nhead);
+      assert(inc * ptail.size() == counts_.size());
       for (T w : ptail) {
         *dest += w;
         dest += inc;
       }
     }
 
-    /**
-     * Finalizes the estimate of parameters in p and returns the total
-     * weight of the samples processed and regularization (if any).
-     */
-    T finalize(table<T>& p) const {
-      T weight = p.accumulate(T(0), std::plus<T>());
-      p.transform(divided_by<T>(weight));
-      return weight;
+    //! Returns the parameters based on all the data points processed so far.
+    param_type param() const {
+      param_type p(counts_);
+      p /= p.accumulate(T(0), std::plus<T>());
+      return p;
     }
 
   private:
     //! The regularization parameter.
     T regul_;
+
+    //! A table that counts the occurrences of each assignment.
+    table<T> counts_;
 
   }; // class probability_table_mle
 

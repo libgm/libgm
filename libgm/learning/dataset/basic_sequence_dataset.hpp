@@ -1,11 +1,13 @@
 #ifndef LIBGM_BASIC_SEQUENCE_DATASET_HPP
 #define LIBGM_BASIC_SEQUENCE_DATASET_HPP
 
+#include <libgm/functional/utility.hpp>
 #include <libgm/range/iterator_range.hpp>
 
 #include <algorithm>
 #include <iostream>
 #include <iterator>
+#include <numeric>
 #include <utility>
 #include <vector>
 
@@ -33,6 +35,7 @@ namespace libgm {
     typedef typename Traits::assignment_type  assignment_type;
     typedef typename Traits::weight_type      weight_type;
     class assignment_iterator;
+    class weight_iterator;
 
     // Range concept types
     typedef std::pair<data_type, weight_type> value_type;
@@ -176,6 +179,19 @@ namespace libgm {
       return a;
     }
 
+    //! Returns the range of all the weights in the dataset.
+    iterator_range<weight_iterator> weights() const {
+      return { weight_iterator(values_.begin(), values_.end()),
+               weight_iterator(values_.end(), values_.end()) };
+    }
+
+    //! Computes the total weight of all the samples in this dataset.
+    weight_type weight() const {
+      weight_type result(0);
+      for (const auto& p : values_) { result += p.second; }
+      return result;
+    }
+
     //! Prints the dataset summary to a stream
     friend std::ostream&
     operator<<(std::ostream& out, const basic_sequence_dataset& ds) {
@@ -257,17 +273,17 @@ namespace libgm {
         }
       }
 
-      //! returns true if the iterator has reached the end of the range
-      bool end() const {
-        return cur_ == end_;
+      //! evaluates to true if the iterator has not reached the end of the range
+      explicit operator bool() const {
+        return cur_ != end_;
       }
 
-      value_type& operator*() {
-        return direct_ ? *cur_ : value_;
+      value_type& operator*() const {
+        return direct_ ? *cur_ : const_cast<value_type&>(value_);
       }
 
-      value_type* operator->() {
-        return direct_ ? &*cur_ : &value_;
+      value_type* operator->() const {
+        return direct_ ? &*cur_ : const_cast<value_type*>(&value_);
       }
 
       iterator& operator++() {
@@ -383,9 +399,9 @@ namespace libgm {
         return *this;
       }
 
-      //! returns true if the iterator has reached the end of the range
-      bool end() const {
-        return cur_ == end_;
+      //! evaluate to true if the iterator has not reached the end of the range
+      explicit operator bool() const {
+        return cur_ != end_;
       }
 
       const value_type& operator*() const {
@@ -444,7 +460,7 @@ namespace libgm {
       }
 
       base_iterator cur_; // iterator to the current value in the dataset
-      base_iterator end_; // iteraotr to the one past last value in the dataset
+      base_iterator end_; // iterator to the one past last value in the dataset
       index_type index_;  // the indices for the extracted arguments
       value_type value_;  // user-facing data for a subset of arguments
       bool direct_;       // if true, ignore index and access data directly
@@ -474,14 +490,14 @@ namespace libgm {
                           const domain_type& args,
                           const column_map_type* colmap)
         : cur_(cur), end_(end), args_(args), colmap_(colmap) {
-        if (!this->end()) {
+        if (cur_ != end_) {
           Traits::extract(*cur_, args_, *colmap_, value_);
         }
       }
 
-      //! returns true if the iterator has reached the end of the range
-      bool end() const {
-        return cur_ == end_;
+      //! evaluate to true if the iterator has not reached the end of the range
+      explicit operator bool() const {
+        return cur_ != end_;
       }
 
       const std::pair<assignment_type, weight_type>& operator*() const {
@@ -494,7 +510,7 @@ namespace libgm {
 
       assignment_iterator& operator++() {
         ++cur_;
-        if (!end()) {
+        if (cur_ != end_) {
           Traits::extract(*cur_, args_, *colmap_, value_);
         }
         return *this;
@@ -502,7 +518,7 @@ namespace libgm {
 
       assignment_iterator& operator+=(std::ptrdiff_t n) {
         cur_ += n;
-        if (!end() && n != 0) {
+        if (cur_ != end_ && n != 0) {
           Traits::extract(*cur_, args_, *colmap_, value_);
         }
         return *this;
@@ -532,12 +548,75 @@ namespace libgm {
 
     private:
       base_iterator cur_; // iterator to the current value in the dataset
-      base_iterator end_; // iteraotr to the one past last value in the dataset
+      base_iterator end_; // iterator to the one past last value in the dataset
       domain_type args_;  // the processes to which we seek assignment
       const column_map_type* colmap_; // the map from dataset arguments to columns
       std::pair<assignment_type, weight_type> value_; // user-facing data
 
     }; // class assignment_iterator
+
+    /**
+     * Iterator over the weights of a basic_sequence_dataset.
+     */
+    class weight_iterator
+      : public std::iterator<std::forward_iterator_tag, const weight_type> {
+    public:
+      typedef typename std::vector<value_type>::const_iterator base_iterator;
+
+      //! default constructor
+      weight_iterator() { }
+
+      //! begin/end constructor
+      weight_iterator(base_iterator cur, base_iterator end)
+        : cur_(cur), end_(end) { }
+
+      //! evaluate to true if the iterator has not reached the end of the range
+      explicit operator bool() const {
+        return cur_ != end_;
+      }
+
+      const weight_type& operator*() const {
+        return cur_->second;
+      }
+
+      const weight_type* operator->() const {
+        return &cur_->second;
+      }
+
+      weight_iterator& operator++() {
+        ++cur_;
+        return *this;
+      }
+
+      weight_iterator& operator+=(std::ptrdiff_t n) {
+        cur_ += n;
+        return *this;
+      }
+
+      weight_iterator operator++(int) {
+        // this operation is too expensive and is not supported
+        throw std::logic_error("data iterators do not support postincrement");
+      }
+
+      bool operator==(const weight_iterator& other) const {
+        return cur_ == other.cur_;
+      }
+
+      bool operator!=(const weight_iterator other) const {
+        return cur_ != other.cur_;
+      }
+
+      friend void swap(weight_iterator& a, weight_iterator& b) {
+        using std::swap;
+        swap(a.cur_, b.cur_);
+        swap(a.end_, b.end_);
+      }
+
+    private:
+      base_iterator cur_; // iterator to the current value in the dataset
+      base_iterator end_; // iterator to the one past last value in the dataset
+
+    }; // class weight_iterator
 
     // Private functions and data
     //==========================================================================

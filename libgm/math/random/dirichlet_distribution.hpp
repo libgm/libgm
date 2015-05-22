@@ -3,6 +3,8 @@
 
 #include <random>
 
+#include <Eigen/Core>
+
 namespace libgm {
 
   /**
@@ -10,11 +12,11 @@ namespace libgm {
    *
    * \ingroup math_random
    */
-  template <typename T>
+  template <typename T = double>
   class dirichlet_distribution {
   public:
     //! The type representing the parameter set.
-    typedef std::vector<T> param_type;
+    typedef Eigen::Array<T, Eigen::Dynamic, 1> param_type;
 
     //! The type representing a random draw.
     typedef std::vector<T> result_type;
@@ -33,11 +35,12 @@ namespace libgm {
 
     /**
      * Constructs a Dirichlet distribution with given dimentionality n and
-     * fixed alpha.
+     * a fixed alpha.
      */
     dirichlet_distribution(std::size_t n, T alpha)
-      : alpha_(n, alpha), gamma_(n, std::gamma_distribution<T>(alpha, T(1))) { }
-
+      : gamma_(n, std::gamma_distribution<T>(alpha, T(1))) {
+      alpha_.setScalar(n, alpha);
+    }
 
     //! Returns the dimensionality of the random vector.
     std::size_t n() const {
@@ -65,7 +68,7 @@ namespace libgm {
     }
 
   private:
-    //! Shape parameters (length 1 if all identical).
+    //! Shape parameters.
     param_type alpha_;
 
     //! The gamma distributions.

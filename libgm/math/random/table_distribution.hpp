@@ -16,7 +16,7 @@ namespace libgm {
    * A categorical distribution over multiple arguments,
    * whose probabilities are represented by a table.
    */
-  template <typename T>
+  template <typename T = double>
   class table_distribution {
   public:
 

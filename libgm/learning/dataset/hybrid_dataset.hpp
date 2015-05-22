@@ -10,6 +10,7 @@
 #include <iostream>
 #include <iterator>
 #include <memory>
+#include <numeric>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -42,6 +43,7 @@ namespace libgm {
     typedef hybrid_index<T>           data_type;
     typedef T                         weight_type;
     class assignment_iterator;
+    typedef const T* weight_iterator;
 
     // Range concept types
     typedef std::pair<hybrid_index<T>, T> value_type;
@@ -235,6 +237,17 @@ namespace libgm {
       return a;
     }
 
+    //! Returns the range of all the weights in the dataset.
+    iterator_range<weight_iterator> weights() const {
+      return { weight_.get(), weight_.get() + inserted_ };
+    }
+
+    //! Computes the total weight of all the samples in this dataset.
+    weight_type weight() const {
+      auto range = weights();
+      return std::accumulate(range.begin(), range.end(), weight_type(0));
+    }
+
     //! Prints the dataset summary to a stream
     friend std::ostream& operator<<(std::ostream& out, const hybrid_dataset& ds) {
       out << "hybrid_dataset(N=" << ds.size() << ", args=" << ds.args_ << ")";
@@ -387,9 +400,9 @@ namespace libgm {
         load_advance();
       }
 
-      //! returns true if the iterator has reached the end of the range
-      bool end() const {
-        return nrows_ == 0;
+      //! evaluates to true if the iterator has not reached the end of the range
+      explicit operator bool() const {
+        return nrows_ != 0;
       }
 
       value_type& operator*() {
@@ -562,9 +575,9 @@ namespace libgm {
         return *this;
       }
 
-      //! returns true if the iterator has reached the end of the range
-      bool end() const {
-        return nrows_ == 0;
+      //! evaluates to true if the iterator has not reached the end of the range
+      explicit operator bool() const {
+        return nrows_ != 0;
       }
 
       const value_type& operator*() const {
@@ -701,9 +714,9 @@ namespace libgm {
         load_advance();
       }
 
-      //! returns true if the iterator has reached the end of the range
-      bool end() const {
-        return nrows_ == 0;
+      //! evaluates to true if the iterator has not reached the end of the range
+      explicit operator bool() const {
+        return nrows_ != 0;
       }
 
       const std::pair<assignment_type, T>& operator*() const {

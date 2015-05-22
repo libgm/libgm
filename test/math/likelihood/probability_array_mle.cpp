@@ -36,8 +36,7 @@ double reconstruction_error(const Array& param) {
 
   // compute the MLE and compare against ground truth
   probability_array_mle<double, N> mle;
-  Array estim(param.rows(), param.cols());
-  mle.estimate(samples, estim);
+  Array estim = mle(samples, param.rows(), param.cols());
 
   typedef range_ll<probability_array_ll<double, N> > range_ll_type;
   double ll_truth = range_ll_type(param).value(samples);

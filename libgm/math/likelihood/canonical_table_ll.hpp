@@ -13,7 +13,7 @@ namespace libgm {
    *
    * \tparam T the real type representing the parameters
    */
-  template <typename T>
+  template <typename T = double>
   class canonical_table_ll {
   public:
     //! The regularization parameter type.

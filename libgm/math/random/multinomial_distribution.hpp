@@ -3,14 +3,13 @@
 
 #include <libgm/math/numerical_error.hpp>
 
+#include <algorithm>
+#include <functional>
 #include <numeric>
 #include <random>
 #include <vector>
 
-namespace Eigen {
-  // Forward declaration, so that we do not need to include Eigen by default
-  template <typename Derived> class DenseBase;
-}
+#include <Eigen/Core>
 
 namespace libgm {
 
@@ -20,46 +19,48 @@ namespace libgm {
    *
    * \tparam T a real type representing the parameters
    */
-  template <typename T>
+  template <typename T = double>
   class multinomial_distribution {
   public:
     //! The type of outcomes.
     typedef std::size_t result_type;
 
     //! The type representing the parameters.
-    typedef std::vector<T> param_type;
+    typedef Eigen::Array<T, Eigen::Dynamic, 1> param_type;
 
     //! Constructs a multinomial distribution with the given parameters.
     explicit multinomial_distribution(const param_type& param)
-      : psum_(param) {
-      std::partial_sum(psum_.begin(), psum_.end(), psum_.begin());
+      : psum_(param.size()) {
+      std::partial_sum(param.data(), param.data() + param.size(), psum_.data());
     }
 
     /**
-     * Constructs a multinomial distribution with parameters specified
-     * by a 1D Eigen vector / array.
+     * Draws a sample from the distribution for a single trial using
+     * the specified random number generator.
      */
-    template <typename Derived>
-    explicit multinomial_distribution(const Eigen::DenseBase<Derived>& derived)
-      : psum_(derived.size()) {
-      T accu(0);
-      for (std::size_t i = 0; i < psum_.size(); ++i) {
-        accu += derived[i];
-        psum_[i] = accu;
-      }
-    }
-
-    //! Draws a sample from the distribution using the specified generator.
     template <typename Generator>
     std::size_t operator()(Generator& rng) const {
       std::uniform_real_distribution<T> unif;
-      auto it = std::upper_bound(psum_.begin(), psum_.end(), unif(rng));
-      if (it == psum_.end()) {
+      auto begin = psum_.data(), end = psum_.data() + psum_.size();
+      auto it = std::upper_bound(begin, end, unif(rng));
+      if (it == end) {
         throw numerical_error("The probabilities are less than 1");
       } else {
-        return it - psum_.begin();
+        return it - begin;
       }
     }
+
+    /**
+     * Draws samples from the distribution for multiple trials using
+     * the specified random number generator.
+     */
+    template <typename Generator>
+    std::vector<std::size_t> operator()(std::size_t n, Generator& rng) const {
+      std::vector<std::size_t> result(n);
+      std::generate_n(result.begin(), n, std::bind(this, std::ref(rng)));
+      return result;
+    }
+
   private:
     //! The vector of partial sums.
     param_type psum_;

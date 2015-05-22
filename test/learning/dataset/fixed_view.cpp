@@ -71,6 +71,7 @@ BOOST_FIXTURE_TEST_CASE(test_accessors, finite_fixture) {
   BOOST_CHECK_EQUAL(view1.arity(), 2);
   BOOST_CHECK_EQUAL(view1.size(), 2);
   BOOST_CHECK(!view1.empty());
+  BOOST_CHECK_CLOSE(view1.weight(), 4.0, 1e-6);
   std::cout << view1 << std::endl;
 
   // view over two steps
@@ -80,6 +81,7 @@ BOOST_FIXTURE_TEST_CASE(test_accessors, finite_fixture) {
   BOOST_CHECK_EQUAL(view2.arity(), 4);
   BOOST_CHECK_EQUAL(view2.size(), 1);
   BOOST_CHECK(!view2.empty());
+  BOOST_CHECK_CLOSE(view2.weight(), 1.0, 1e-6);
 
   // view over three steps
   view_type view3(&ds, 1, 3);
@@ -88,6 +90,7 @@ BOOST_FIXTURE_TEST_CASE(test_accessors, finite_fixture) {
   BOOST_CHECK_EQUAL(view3.arity(), 6);
   BOOST_CHECK_EQUAL(view3.size(), 0);
   BOOST_CHECK(view3.empty());
+  BOOST_CHECK_EQUAL(view3.weight(), 0.0);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_const_iterator, finite_fixture) {
@@ -98,17 +101,17 @@ BOOST_FIXTURE_TEST_CASE(test_const_iterator, finite_fixture) {
 
   BOOST_CHECK_EQUAL(it->first, finite_index({1, 4}));
   BOOST_CHECK_EQUAL(it->second, 1.0);
-  BOOST_CHECK(!it.end());
+  BOOST_CHECK(it);
   BOOST_CHECK(it != end);
   ++it;
 
   BOOST_CHECK_EQUAL(it->first, finite_index({3, 0}));
   BOOST_CHECK_EQUAL(it->second, 3.0);
-  BOOST_CHECK(!it.end());
+  BOOST_CHECK(it);
   BOOST_CHECK(it != end);
   ++it;
 
-  BOOST_CHECK(it.end());
+  BOOST_CHECK(!it);
   BOOST_CHECK(it == end);
 
   // view over two steps, iterate over a subset of variables
@@ -117,11 +120,11 @@ BOOST_FIXTURE_TEST_CASE(test_const_iterator, finite_fixture) {
 
   BOOST_CHECK_EQUAL(it->first, finite_index({2, 1, 4}));
   BOOST_CHECK_EQUAL(it->second, 1.0);
-  BOOST_CHECK(!it.end());
+  BOOST_CHECK(it);
   BOOST_CHECK(it != end);
   ++it;
 
-  BOOST_CHECK(it.end());
+  BOOST_CHECK(!it);
   BOOST_CHECK(it == end);
 }
 
@@ -135,7 +138,7 @@ BOOST_FIXTURE_TEST_CASE(test_assignment_iterator, finite_fixture) {
   BOOST_CHECK_EQUAL(it->first.at(a0), 1);
   BOOST_CHECK_EQUAL(it->first.at(b0), 4);
   BOOST_CHECK_EQUAL(it->second, 1.0);
-  BOOST_CHECK(!it.end());
+  BOOST_CHECK(it);
   BOOST_CHECK(it != end);
   ++it;
 
@@ -143,11 +146,11 @@ BOOST_FIXTURE_TEST_CASE(test_assignment_iterator, finite_fixture) {
   BOOST_CHECK_EQUAL(it->first.at(a0), 3);
   BOOST_CHECK_EQUAL(it->first.at(b0), 0);
   BOOST_CHECK_EQUAL(it->second, 3.0);
-  BOOST_CHECK(!it.end());
+  BOOST_CHECK(it);
   BOOST_CHECK(it != end);
   ++it;
 
-  BOOST_CHECK(it.end());
+  BOOST_CHECK(!it);
   BOOST_CHECK(it == end);
 
   // view over two steps, iterate over a subset of variables
@@ -159,12 +162,32 @@ BOOST_FIXTURE_TEST_CASE(test_assignment_iterator, finite_fixture) {
   BOOST_CHECK_EQUAL(it->first.at(a0), 1);
   BOOST_CHECK_EQUAL(it->first.at(b0), 4);
   BOOST_CHECK_EQUAL(it->second, 1.0);
-  BOOST_CHECK(!it.end());
+  BOOST_CHECK(it);
   BOOST_CHECK(it != end);
   ++it;
 
-  BOOST_CHECK(it.end());
+  BOOST_CHECK(!it);
   BOOST_CHECK(it == end);
+}
+
+BOOST_FIXTURE_TEST_CASE(test_weight_iterator, finite_fixture) {
+  // view over a single step
+  view_type view1(&ds, 1, 1);
+  view_type::weight_iterator it, end;
+  std::tie(it, end) = view1.weights();
+
+  BOOST_CHECK_EQUAL(*it, 1.0);
+  BOOST_CHECK(it != end);
+  BOOST_CHECK(it);
+  ++it;
+
+  BOOST_CHECK_EQUAL(*it, 3.0);
+  BOOST_CHECK(it != end);
+  BOOST_CHECK(it);
+  ++it;
+
+  BOOST_CHECK(it == end);
+  BOOST_CHECK(!it);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_finite_access, finite_fixture) {

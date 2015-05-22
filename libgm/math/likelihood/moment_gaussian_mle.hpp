@@ -1,6 +1,7 @@
 #ifndef LIBGM_MOMENT_GAUSSIAN_MLE_HPP
 #define LIBGM_MOMENT_GAUSSIAN_MLE_HPP
 
+#include <libgm/math/likelihood/mle_eval.hpp>
 #include <libgm/math/param/moment_gaussian_param.hpp>
 
 namespace libgm {
@@ -11,17 +12,20 @@ namespace libgm {
    *
    * \tparam T the real type representing the parameters
    */
-  template <typename T>
+  template <typename T = double>
   class moment_gaussian_mle {
   public:
     //! The regularization parameter.
     typedef T regul_type;
 
-    //! The parameters returned by this estimator.
+    //! The parameters of the distribution computed by this estimator.
     typedef moment_gaussian_param<T> param_type;
 
-    //! The index accepted in the incremental functions.
-    typedef dynamic_vector<T> vec_type;
+    //! The type that represents an unweighted observations.
+    typedef dynamic_vector<T> data_type;
+
+    //! The type that represents the weight of an observation.
+    typedef T weight_type;
 
     /**
      * Creates a maximum likelihood estimator with the specified
@@ -32,61 +36,51 @@ namespace libgm {
 
     /**
      * Computes the maximum-likelihood estimate of a marginal moment
-     * Gaussian distribution using the samples in the given range.
-     * The parameters must be preallocated to the desired size,
-     * but do not need to be initialized to any specific value.
+     * Gaussian distribution using the samples in the given range,
+     * for a marginal Gaussian with given dimensionality n of the
+     * random vector. The samples in the range must all have
+     * dimensionality n.
      *
-     * \return the total weight of the samples processed
-     * \tparam Range a range with values convertible to
-     *         std::pair<dynamic_vector<T>, T>
+     * \tparam Range a range with values convertible to std::pair<data_type, T>
      */
     template <typename Range>
-    T estimate(const Range& samples, param_type& p) const {
-      initialize(p);
-      for (const auto& r : samples) {
-        process(r.first, r.second, p);
-      }
-      return finalize(p);
+    param_type operator()(const Range& samples, std::size_t n) {
+      return incremental_mle_eval(*this, samples, n);
     }
 
-    /**
-     * Initializes the maximum likelihood estimate of a marginal
-     * moment Gaussian computed incrementally.
-     */
-    void initialize(param_type& p) const {
-      assert(p.is_marginal());
-      p.check();
-      p.mean.fill(T(0));
-      std::size_t n = p.head_size();
-      p.cov = dynamic_matrix<T>::Identity(n, n) * regul_;
+    //! Initializes the estimator to the given dimensionality of data.
+    void initialize(std::size_t n) {
+      sumx_.setZero(n);
+      sumxxt_ = dynamic_matrix<T>::Identity(n, n) * regul_;
+      weight_ = T(0);
     }
 
-    /**
-     * Processes a single weighted data point, updating the parameters in p
-     * incrementally.
-     */
-    void process(const vec_type& values, T weight, param_type& p) const {
-      p.mean += values * weight;
-      p.cov += values * values.transpose() * weight;
-      p.lm += weight;
+    //! Processes a single weighted data point.
+    void process(const dynamic_vector<T>& x, T weight) {
+      sumx_   += weight * x;
+      sumxxt_ += weight * x * x.transpose();
+      weight_ += weight;
     }
 
-    /**
-     * Finalizes the estimate of parameters in p and returns the total
-     * weight of the samples processed.
-     */
-    T finalize(param_type& p) const {
-      T weight = p.lm;
-      p.mean /= weight;
-      p.cov /= weight;
-      p.cov -= p.mean * p.mean.transpose();
-      p.lm = T(0);
-      return weight;
+    //! Returns the parameters based on all the data points processed so far.
+    param_type param() const {
+      param_type p;
+      p.mean = sumx_ / weight_;
+      p.cov  = sumxxt_ / weight_ - p.mean * p.mean.transpose();
+      p.coef.resize(sumx_.size(), 0);
+      return p;
+    }
+
+    //! Returns the weight of all the data points processed so far.
+    T weight() const {
+      return weight_;
     }
 
   private:
-    //! The regularization parameter
-    T regul_;
+    T regul_;                  //!< The regularization parameter.
+    dynamic_vector<T> sumx_;   //!< The accumulated first moment.
+    dynamic_matrix<T> sumxxt_; //!< The accumulated second moment.
+    T weight_;                 //!< The accumulated weight.
 
   }; // class moment_gaussian_mle
 

@@ -19,7 +19,7 @@ namespace libgm {
    * \tparam T a real type representing each parameter
    * \ingroup math_functions
    */
-  template <typename T>
+  template <typename T = double>
   struct logistic_param {
 
     //! The type of values stored in this container.

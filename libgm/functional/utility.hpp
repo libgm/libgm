@@ -8,7 +8,7 @@ namespace libgm {
   //! Returns the first value of a pair.
   struct pair_first {
     template <typename T, typename U>
-    T operator()(const std::pair<T, U>& value) const {
+    const T& operator()(const std::pair<T, U>& value) const {
       return value.first;
     }
   };
@@ -16,7 +16,7 @@ namespace libgm {
   //! Returns the second value of a pair.
   struct pair_second {
     template <typename T, typename U>
-    U operator()(const std::pair<T, U>& value) const {
+    const U& operator()(const std::pair<T, U>& value) const {
       return value.second;
     }
   };

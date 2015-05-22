@@ -13,7 +13,7 @@ namespace libgm {
    *
    * \tparam T the real type representing the value and the parameters.
    */
-  template <typename T>
+  template <typename T = double>
   class moment_gaussian_ll {
   public:
     //! The real type representing the value.

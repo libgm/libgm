@@ -51,7 +51,12 @@ namespace libgm {
       }
       return result;
     }
-    
+
+    //! Returns the dimensionality of a marginal Gaussian with given arguments.
+    static std::size_t param_shape(const domain_type& args) {
+      return vector_size(args);
+    }
+
   protected:
     // Protected members
     //==========================================================================

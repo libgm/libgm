@@ -15,7 +15,7 @@ namespace libgm {
    *
    * \tparam T the real type representing the probabilities
    */
-  template <typename T>
+  template <typename T = double>
   class probability_table_ll {
   public:
     //! The real type representing the log-likelihood.

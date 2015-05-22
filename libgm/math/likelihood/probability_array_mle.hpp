@@ -2,6 +2,7 @@
 #define LIBGM_PROBABILITY_ARRAY_MLE_HPP
 
 #include <libgm/datastructure/finite_index.hpp>
+#include <libgm/math/likelihood/mle_eval.hpp>
 
 #include <Eigen/Core>
 
@@ -29,8 +30,14 @@ namespace libgm {
     //! The regularization parameter type.
     typedef T regul_type;
 
-    //! The parameters returned by this estimator.
+    //! The parameters of the distribution computed by this estimator.
     typedef Eigen::Array<T, Eigen::Dynamic, 1> param_type;
+
+    //! The type that represents an unweighted observation.
+    typedef finite_index data_type;
+
+    //! The type that represents the weight of an observation.
+    typedef T weight_type;
 
     /**
      * Constructs a maximum likelihood estimator with the specified
@@ -41,61 +48,45 @@ namespace libgm {
 
     /**
      * Computes the maximum likelihood estimate of a probability array
-     * using the samples in the specified range. The array must have
-     * the desired length at the time of the call, but it does not
-     * need to be initialized with any specific value.
+     * of the given length m using the samples in the specified range.
      *
-     * \return The total weight of the samples including the regularization
-     * \tparam Range a range with values convertible to
-     *         std::pair<finite_index<T>, T> or std::pair<std::size_t, T>
+     * \tparam Range a range of values convertible to std::pair<data_type, T>
+     *         or std::pair<std::size_t, T>
      */
     template <typename Range>
-    T estimate(const Range& samples, param_type& p) const {
-      initialize(p);
-      for (const auto& r : samples) {
-        process(r.first, r.second, p);
-      }
-      return finalize(p);
+    param_type
+    operator()(const Range& samples, std::size_t m, std::size_t n = 1) {
+      assert(n == 1);
+      return incremental_mle_eval(*this, samples, m);
     }
 
-    /**
-     * Initializes the maximum likelihood estimate of a probability array.
-     * The array must have the desired length at the time of invocation.
-     */
-    void initialize(param_type& p) const {
-      p.fill(regul_);
+    //! Initializes the estimator to the given size of the array.
+    void initialize(size_t m) {
+      counts_.setConstant(m, regul_);
     }
 
-    /**
-     * Processes a single weighted data point, updating the parameters
-     * in p incrementally.
-     */
-    void process(std::size_t i, T weight, param_type& p) const {
-      p[i] += weight;
+    //! Processes a single weighted data point.
+    void process(std::size_t i, T weight) {
+      counts_[i] += weight;
     }
 
-    /**
-     * Processes a single weighted data point, updating the parameters
-     * in p incrementally.
-     */
-    void process(const finite_index& values, T weight, param_type& p) const {
+    //! Processes a single weighted data point.
+    void process(const finite_index& values, T weight) {
       assert(values.size() == 1);
-      p[values[0]] += weight;
+      counts_[values[0]] += weight;
     }
 
-    /**
-     * Finalizes the estimate of parameters in p and returns the total
-     * weight of the samples processed and regularization (if any).
-     */
-    T finalize(param_type& p) const {
-      T weight = p.sum();
-      p /= weight;
-      return weight;
+    //! Returns the parameters based on all the data points processed so far.
+    param_type param() const {
+      return counts_ / counts_.sum();
     }
 
   private:
     //! The regularization parameter.
     T regul_;
+
+    //! An array that counts the occurrences of each assignment.
+    param_type counts_;
 
   }; // class probability_array_mle<T, 1>
 
@@ -111,11 +102,20 @@ namespace libgm {
     //! The regularization parameter type.
     typedef T regul_type;
 
-    //! The parameters returned by this estimator.
+    //! The parameters of the distribution computed by this estimator.
     typedef Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic> param_type;
 
     //! A 1D array of probabilities.
     typedef Eigen::Array<T, Eigen::Dynamic, 1> array1_type;
+
+    //! The type that represents an unweighted observation.
+    typedef finite_index data_type;
+
+    //! The type that represents the weight of an observation.
+    typedef T weight_type;
+
+    //! The type that represents the shape of the array.
+    typedef std::pair<std::size_t, std::size_t> shape_type;
 
     /**
      * Constructs a maximum likelihood estimator with the specified
@@ -126,38 +126,35 @@ namespace libgm {
 
     /**
      * Computes the maximum likelihood estimate of a probability array
-     * using the samples in the specified range. The array must have
-     * the desired dimensions at the time of the call, but it does not
-     * need to be initialized with any specific value.
+     * with m rows and n columns, using the samples in the specified range.
      *
-     * \return The total weight of the samples including the regularization
-     * \tparam Range a range with values convertible to
-     *         std::pair<finite_index<T>, T>
+     * \tparam Range a range of values convertible to std::pair<data_type, T>
      */
     template <typename Range>
-    T estimate(const Range& samples, param_type& p) const {
-      initialize(p);
-      for (const auto& r : samples) {
-        process(r.first, r.second, p);
-      }
-      return finalize(p);
+    param_type operator()(const Range& samples, std::size_t m, std::size_t n) {
+      return incremental_mle_eval(*this, samples, std::make_pair(m, n));
     }
 
     /**
-     * Initializes the maximum likelihood estimate of a probability array.
-     * The array must have the desired dimensions at the time of invocation.
+     * Computes the maximum likelihood estimat of a probability array
+     * with given shape, using hte samples in the specified range.
+     *
+     * \tparam Range a range of values convertible to std::pair<data_type, T>
      */
-    void initialize(param_type& p) const {
-      p.fill(regul_);
+    template <typename Range>
+    param_type operator()(const Range& samples, const shape_type& shape) {
+      return incremental_mle_eval(*this, samples, shape);
     }
 
-    /**
-     * Processes a single weighted data point, updating the parameters
-     * in p incrementally.
-     */
-    void process(const finite_index& values, T weight, param_type& p) const {
+    //! Processes a single weighted data point.
+    void initialize(const shape_type& shape) {
+      counts_.setConstant(shape.first, shape.second, regul_);
+    }
+
+    //! Processes a single weighted data point.
+    void process(const finite_index& values, T weight) {
       assert(values.size() == 2);
-      p(values[0], values[1]) += weight;
+      counts_(values[0], values[1]) += weight;
     }
 
     /**
@@ -166,28 +163,24 @@ namespace libgm {
      * algorithms, such as EM.
      * \param head an index of size 1 containing the row
      * \param tail a distribution over the column indices
-     * \param p the distribution to be updated
      */
-    void process(const finite_index& head, const array1_type& ptail,
-                 param_type& p) const {
+    void process(const finite_index& head, const array1_type& ptail) {
       assert(head.size() == 1);
-      assert(ptail.size() == p.cols());
-      p.row(head[0]) += ptail.transpose();
+      assert(ptail.size() == counts_.cols());
+      counts_.row(head[0]) += ptail.transpose();
     }
 
-    /**
-     * Finalizes the estimate of parameters in p and returns the total
-     * weight of the samples processed and regularization (if any).
-     */
-    T finalize(param_type& p) const {
-      T weight = p.sum();
-      p /= weight;
-      return weight;
+    //! Returns the parameters based on all the data points processed so far.
+    param_type param() const {
+      return counts_ / counts_.sum();
     }
 
   private:
     //! The regularization parameter.
     T regul_;
+
+    //! An array that counts the occurrences of each assignment.
+    param_type counts_;
 
   }; // class probability_array_mle<T, 2>
 

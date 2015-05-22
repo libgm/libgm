@@ -65,6 +65,9 @@ BOOST_AUTO_TEST_CASE(test_insert) {
   BOOST_CHECK_EQUAL(ds.size(), 12);
   BOOST_CHECK(!ds.empty());
 
+  // check the total weight
+  BOOST_CHECK_CLOSE(ds.weight(), 11.2, 1e-6);
+
   // value iteraotr checks
   vector_dataset<>::const_iterator it, end;
   const auto& cds = ds;
@@ -123,17 +126,17 @@ BOOST_AUTO_TEST_CASE(test_value_iterators) {
   BOOST_CHECK(it1 != end2);
   BOOST_CHECK(it2 != end1);
   BOOST_CHECK(it2 != end2);
-  BOOST_CHECK(!it1.end());
-  BOOST_CHECK(!it2.end());
+  BOOST_CHECK(it1);
+  BOOST_CHECK(it2);
 
   BOOST_CHECK(++it1 == end1);
   BOOST_CHECK(++it2 == end2);
-  BOOST_CHECK(it1.end());
-  BOOST_CHECK(it2.end());
+  BOOST_CHECK(!it1);
+  BOOST_CHECK(!it2);
 }
 
 
-BOOST_AUTO_TEST_CASE(test_assignment_iterators) {
+BOOST_AUTO_TEST_CASE(test_assignment_iterator) {
   universe u;
   variable x = u.new_vector_variable("x", 1);
   variable y = u.new_vector_variable("y", 1);
@@ -157,7 +160,7 @@ BOOST_AUTO_TEST_CASE(test_assignment_iterators) {
   BOOST_CHECK_EQUAL(it->second, 0.5);
   BOOST_CHECK_EQUAL(*it, ds.assignment(0));
   BOOST_CHECK_EQUAL(*it, ds.assignment(0, v));
-  BOOST_CHECK(!it.end());
+  BOOST_CHECK(it);
   ++it;
 
   // check the second sample
@@ -167,12 +170,37 @@ BOOST_AUTO_TEST_CASE(test_assignment_iterators) {
   BOOST_CHECK_EQUAL(it->first.at(z), vec2(2.0, 0.4));
   BOOST_CHECK_EQUAL(*it, ds.assignment(1));
   BOOST_CHECK_EQUAL(*it, ds.assignment(1, v));
-  BOOST_CHECK(!it.end());
+  BOOST_CHECK(it);
   ++it;
 
   // check if finished
   BOOST_CHECK(it == end);
-  BOOST_CHECK(it.end());
+  BOOST_CHECK(!it);
+}
+
+BOOST_AUTO_TEST_CASE(test_weight_iterator) {
+  domain v;
+  vector_dataset<> ds(v);
+
+  // insert 2 records
+  ds.insert(dynamic_vector<>(), 0.5);
+  ds.insert(dynamic_vector<>(), 0.2);
+
+  vector_dataset<>::weight_iterator it, end;
+  std::tie(it, end) = ds.weights();
+
+  // check the first sample
+  BOOST_CHECK_EQUAL(*it, 0.5);
+  BOOST_CHECK(it != end);
+  ++it;
+
+  // check the second sample
+  BOOST_CHECK_EQUAL(*it, 0.2);
+  BOOST_CHECK(it != end);
+  ++it;
+
+  // check if finished
+  BOOST_CHECK(it == end);
 }
 
 struct fixture {

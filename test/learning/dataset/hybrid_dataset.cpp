@@ -61,6 +61,9 @@ BOOST_AUTO_TEST_CASE(test_insert) {
   BOOST_CHECK_EQUAL(ds.size(), 12);
   BOOST_CHECK(!ds.empty());
 
+  // check the total weight
+  BOOST_CHECK_CLOSE(ds.weight(), 11.2, 1e-6);
+
   hybrid_dataset<>::const_iterator it, end;
   const auto& cds = ds;
   std::tie(it, end) = cds(v);
@@ -121,16 +124,16 @@ BOOST_AUTO_TEST_CASE(test_value_iterators) {
   BOOST_CHECK(it1 != end2);
   BOOST_CHECK(it2 != end1);
   BOOST_CHECK(it2 != end2);
-  BOOST_CHECK(!it1.end());
-  BOOST_CHECK(!it2.end());
+  BOOST_CHECK(it1);
+  BOOST_CHECK(it2);
 
   BOOST_CHECK(++it1 == end1);
   BOOST_CHECK(++it2 == end2);
-  BOOST_CHECK(it1.end());
-  BOOST_CHECK(it2.end());
+  BOOST_CHECK(!it1);
+  BOOST_CHECK(!it2);
 }
 
-BOOST_AUTO_TEST_CASE(test_assignment_iterators) {
+BOOST_AUTO_TEST_CASE(test_assignment_iterator) {
   universe u;
   domain fv = u.new_finite_variables(3, "fv", 3);
   domain vv = u.new_vector_variables(1, "vv", 2);
@@ -160,7 +163,7 @@ BOOST_AUTO_TEST_CASE(test_assignment_iterators) {
   BOOST_CHECK_EQUAL(it->second, 0.5);
   BOOST_CHECK_EQUAL(*it, ds.assignment(0));
   BOOST_CHECK_EQUAL(*it, ds.assignment(0, v));
-  BOOST_CHECK(!it.end());
+  BOOST_CHECK(it);
   ++it;
 
   // check the second sample
@@ -173,12 +176,35 @@ BOOST_AUTO_TEST_CASE(test_assignment_iterators) {
   BOOST_CHECK_EQUAL(it->second, 0.2);
   BOOST_CHECK_EQUAL(*it, ds.assignment(1));
   BOOST_CHECK_EQUAL(*it, ds.assignment(1, v));
-  BOOST_CHECK(!it.end());
+  BOOST_CHECK(it);
   ++it;
 
   // check if finisehd
   BOOST_CHECK(it == end);
-  BOOST_CHECK(it.end());
+  BOOST_CHECK(!it);
+}
+
+BOOST_AUTO_TEST_CASE(test_weight_iterator) {
+  hybrid_domain<> v;
+  hybrid_dataset<> ds(v);
+
+  // insert 2 samples
+  hybrid_index<double> values;
+  ds.insert(values, 0.5);
+  ds.insert(values, 0.2);
+
+  hybrid_dataset<>::weight_iterator it, end;
+  std::tie(it, end) = ds.weights();
+
+  BOOST_CHECK_EQUAL(*it, 0.5);
+  BOOST_CHECK(it != end);
+  ++it;
+
+  BOOST_CHECK_EQUAL(*it, 0.2);
+  BOOST_CHECK(it != end);
+  ++it;
+
+  BOOST_CHECK(it == end);
 }
 
 BOOST_AUTO_TEST_CASE(test_sample) {

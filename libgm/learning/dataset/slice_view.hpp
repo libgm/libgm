@@ -3,6 +3,8 @@
 
 #include <libgm/range/iterator_range.hpp>
 
+#include <iterator>
+#include <numeric>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
@@ -68,6 +70,8 @@ namespace libgm {
     typedef typename BaseDS::weight_type     weight_type;
     typedef slice_iterator<typename BaseDS::assignment_iterator>
       assignment_iterator;
+    typedef slice_iterator<typename BaseDS::weight_iterator>
+      weight_iterator;
 
     // Range concept types
     typedef typename BaseDS::value_type value_type;
@@ -215,6 +219,18 @@ namespace libgm {
       return dataset().assignment(absolute(row), dom);
     }
 
+    //! Returns the range of all the weights in the datset.
+    iterator_range<weight_iterator> weights() const {
+      return { weight_iterator(slices_, dataset().weights().begin()),
+               weight_iterator(slices_) };
+    }
+
+    //! Returns the total weight of all the samples in the dataset.
+    weight_type weight() const {
+      auto range = weights();
+      return std::accumulate(range.begin(), range.end(), weight_type(0));
+    }
+
     //! Prints the view summary to a stream.
     friend std::ostream& operator<<(std::ostream& out, const slice_view& view) {
       out << "slice_view(N=" << view.size()
@@ -236,7 +252,7 @@ namespace libgm {
     template <typename BaseIt>
     class slice_iterator
       : public std::iterator<std::forward_iterator_tag,
-                             typename BaseIt::value_type> {
+                             typename std::iterator_traits<BaseIt>::value_type>{
     public:
       // default constructor
       slice_iterator()
@@ -317,16 +333,16 @@ namespace libgm {
         return *this;
       }
 
-      //! returns true if the iterator has reached the end of the range
-      bool end() const {
-        return cur_ == end_;
+      //! evaluates to true if the iterator has not reached the end of the range
+      explicit operator bool() const {
+        return cur_ != end_;
       }
 
-      typename BaseIt::value_type& operator*() {
+      typename std::iterator_traits<BaseIt>::reference operator*() const {
         return *it_;
       }
 
-      typename BaseIt::value_type* operator->() {
+      typename std::iterator_traits<BaseIt>::pointer operator->() const {
         return &*it_;
       }
 

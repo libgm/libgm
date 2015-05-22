@@ -4,6 +4,7 @@
 #include <libgm/range/iterator_range.hpp>
 
 #include <iterator>
+#include <numeric>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -30,6 +31,7 @@ namespace libgm {
     typedef typename traits_type::assignment_type assignment_type;
     typedef typename traits_type::weight_type     weight_type;
     class assignment_iterator;
+    class weight_iterator;
 
     // Range concept types
     typedef std::pair<data_type, weight_type> value_type;
@@ -178,6 +180,18 @@ namespace libgm {
       return a;
     }
 
+    //! Returns the range of all the weights in the dataset.
+    iterator_range<weight_iterator> weights() const {
+      return { weight_iterator(dataset().begin(), length_),
+               weight_iterator(dataset().end()) };
+    }
+
+    //! Computes the total weight of all the samples in this dataset.
+    weight_type weight() const {
+      auto range = weights();
+      return std::accumulate(range.begin(), range.end(), weight_type(0));
+    }
+
     //! Prints the view summary to a stream.
     friend std::ostream&
     operator<<(std::ostream& out, const sliding_view& view) {
@@ -205,7 +219,7 @@ namespace libgm {
         : time_(0) { }
 
       //! end constructor
-      const_iterator(base_iterator&& it)
+      explicit const_iterator(base_iterator&& it)
         : it_(std::move(it)),
           time_(0) { }
 
@@ -218,9 +232,9 @@ namespace libgm {
         load();
       }
 
-      //! returns true if the iterator has reached the end of the range
-      bool end() const {
-        return it_.end();
+      //! evaluates to true if the iterator has not reached the end of the range
+      explicit operator bool() const {
+        return bool(it_);
       }
 
       const value_type& operator*() const {
@@ -262,20 +276,20 @@ namespace libgm {
     private:
       //! Searches for the next valid sequence and loads the data
       void load() {
-        while (!it_.end() && it_->first.cols() < time_ + length_) {
+        while (it_ && it_->first.cols() < time_ + length_) {
           ++it_;
           time_ = 0;
         }
-        if (!it_.end()) {
+        if (it_) {
           traits_type::extract(*it_, index_, time_, value_);
         }
       }
 
-      base_iterator it_; // the iterator over the underlying sequence dataset
-      std::size_t time_;      // the current time offset
-      std::size_t length_;    // the length of the window
-      index_type index_; // linear index of the values
-      value_type value_; // user-facing data
+      base_iterator it_;   // the iterator over the underlying sequence dataset
+      std::size_t time_;   // the current time offset
+      std::size_t length_; // the length of the window
+      index_type index_;   // linear index of the values
+      value_type value_;   // user-facing data
 
     }; // class const_iterator
 
@@ -294,7 +308,7 @@ namespace libgm {
         : time_(0) { }
 
       //! end constructor
-      assignment_iterator(const base_iterator& it)
+      explicit assignment_iterator(const base_iterator& it)
         : it_(it),
           time_(0) { }
 
@@ -311,9 +325,9 @@ namespace libgm {
         load();
       }
 
-      //! returns true if the iterator has reached the end of the range
-      bool end() const {
-        return it_.end();
+      //! evaluates to true if the iterator has not reached the end of the range
+      explicit operator bool() const {
+        return bool(it_);
       }
 
       const std::pair<assignment_type, weight_type>& operator*() const {
@@ -340,7 +354,7 @@ namespace libgm {
       }
 
       bool operator!=(const assignment_iterator other) const {
-        return it_ != other.it_ || time_ == other.time_;
+        return it_ != other.it_ || time_ != other.time_;
       }
 
       friend void swap(assignment_iterator& a, assignment_iterator& b) {
@@ -356,23 +370,99 @@ namespace libgm {
     private:
       //! Searches for the next valid sequence and loads the data
       void load() {
-        while (!it_.end() && it_->first.cols() < time_ + length_) {
+        while (it_ && it_->first.cols() < time_ + length_) {
           ++it_;
           time_ = 0;
         }
-        if (!it_.end()) {
+        if (it_) {
           traits_type::extract(*it_, args_, *offset_, time_, value_);
         }
       }
 
-      base_iterator it_; //!< the iterator over the underlying sequence dataset
-      std::size_t time_;      //!< the current time offset
-      std::size_t length_;    //!< the length of the window
-      domain_type args_; //!< the arguments iterated over
+      base_iterator it_;   //!< the iterator over an underlying sequence dataset
+      std::size_t time_;   //!< the current time offset
+      std::size_t length_; //!< the length of the window
+      domain_type args_;   //!< the arguments iterated over
       const offset_map_type* offset_; //!< map from arguments to offsets
       std::pair<assignment_type, weight_type> value_; //!< user-facing data
 
     }; // class assignment_iterator
+
+    /**
+     * Iterator over the weghts of a sliding_view.
+     */
+    class weight_iterator
+      : public std::iterator<std::forward_iterator_tag, const weight_type> {
+    public:
+      typedef typename BaseDS::const_iterator base_iterator;
+
+      //! default constructor
+      weight_iterator()
+        : time_(0) { }
+
+      //! end constructor
+      explicit weight_iterator(const base_iterator& it)
+        : it_(it), time_(0) { }
+
+      //! begin constructor
+      weight_iterator(const base_iterator& it, std::size_t length)
+        : it_(std::move(it)), time_(0), length_(length) {
+        load();
+      }
+
+      //! evaluates to true if the iterator has not reached the end of the range
+      explicit operator bool() const {
+        return bool(it_);
+      }
+
+      const weight_type& operator*() const {
+        return it_->second;
+      }
+
+      const weight_type* operator->() const {
+        return &it_->second;
+      }
+
+      weight_iterator& operator++() {
+        ++time_;
+        load();
+        return *this;
+      }
+
+      weight_iterator operator++(int) {
+        // this operation is too expensive and is not supported
+        throw std::logic_error("data iterators do not support postincrement");
+      }
+
+      bool operator==(const weight_iterator& other) const {
+        return it_ == other.it_ && time_ == other.time_;
+      }
+
+      bool operator!=(const weight_iterator other) const {
+        return it_ != other.it_ || time_ != other.time_;
+      }
+
+      friend void swap(weight_iterator& a, weight_iterator& b) {
+        using std::swap;
+        swap(a.it_, b.it_);
+        swap(a.time_, b.time_);
+        swap(a.length_, b.length_);
+      }
+
+    private:
+      //! Searches for the next valid sequence and loads the data
+      void load() {
+        while (it_ && it_->first.cols() < time_ + length_) {
+          ++it_;
+          time_ = 0;
+        }
+      }
+
+      base_iterator it_;   //!< the iterator over an underlying sequence dataset
+      std::size_t time_;   //!< the current time offset
+      std::size_t length_; //!< the length of the window
+
+    }; // class weight_iterator
 
   private:
     //! Returns the absolute row and time offset for the given logical row

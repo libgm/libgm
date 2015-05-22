@@ -10,7 +10,7 @@ using namespace libgm;
 BOOST_AUTO_TEST_CASE(test_sampling) {
   std::mt19937 rng;
 
-  std::vector<double> p = {0.2, 0.2, 0.5, 0.1};
+  Eigen::Array4d p = {0.2, 0.2, 0.5, 0.1};
   std::vector<double> count(4);
   multinomial_distribution<double> dist(p);
 
@@ -23,4 +23,3 @@ BOOST_AUTO_TEST_CASE(test_sampling) {
     BOOST_CHECK_CLOSE(p[i], count[i], 1);
   }
 }
-

@@ -74,11 +74,7 @@ namespace libgm {
     void reset(const domain_type& args = domain_type()) {
       if (empty() || finite_args_ != args) {
         finite_args_ = args;
-        finite_index shape(args.size());
-        for (std::size_t i = 0; i < args.size(); ++i) {
-          shape[i] = args[i].size();
-        }
-        param_.reset(shape);
+        param_.reset(param_shape(args));
       }
     }
 
@@ -167,6 +163,17 @@ namespace libgm {
 
     // Indexing
     //==========================================================================
+
+    /**
+     * Returns the shape of the table for a given arguments.
+     */
+    static finite_index param_shape(const domain_type& args) {
+      finite_index shape(args.size());
+      for (std::size_t i = 0; i < args.size(); ++i) {
+        shape[i] = args[i].size();
+      }
+      return shape;
+    }
 
     /**
      * Converts the index to this factor's arguments to an assignment.

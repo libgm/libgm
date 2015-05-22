@@ -7,6 +7,7 @@
 #include <iostream>
 #include <iterator>
 #include <memory>
+#include <numeric>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -40,6 +41,7 @@ namespace libgm {
     typedef typename Traits::data_type       data_type;
     typedef typename Traits::weight_type     weight_type;
     class assignment_iterator;
+    typedef const weight_type* weight_iterator;
 
     // Range concept types
     typedef std::pair<data_type, weight_type> value_type;
@@ -211,6 +213,17 @@ namespace libgm {
       return a;
     }
 
+    //! Returns the range of all the weights in the dataset.
+    iterator_range<weight_iterator> weights() const {
+      return { weight_.get(), weight_.get() + inserted_ };
+    }
+
+    //! Computes the total weight of all the samples in this dataset.
+    weight_type weight() const {
+      auto range = weights();
+      return std::accumulate(range.begin(), range.end(), weight_type(0));
+    }
+
     //! Prints the dataset summary to a stream
     friend std::ostream&
     operator<<(std::ostream& out, const basic_dataset& ds) {
@@ -338,17 +351,17 @@ namespace libgm {
         load_advance();
       }
 
-      //! returns true if the iterator has reached the end of the range
-      bool end() const {
-        return nrows_ == 0;
+      //! evaluates to true if the iterator has not reached the end of the range
+      explicit operator bool() const {
+        return nrows_ != 0;
       }
 
-      value_type& operator*() {
-        return value_;
+      value_type& operator*() const {
+        return const_cast<value_type&>(value_);
       }
 
-      value_type* operator->() {
-        return &value_;
+      value_type* operator->() const {
+        return const_cast<value_type*>(&value_);
       }
 
       iterator& operator++() {
@@ -494,9 +507,9 @@ namespace libgm {
         return *this;
       }
 
-      //! returns true if the iterator has reached the end of the range
-      bool end() const {
-        return nrows_ == 0;
+      //! evaluates to true if the iterator has not reached the end of the range
+      explicit operator bool() const {
+        return nrows_ != 0;
       }
 
       const value_type& operator*() const {
@@ -611,9 +624,9 @@ namespace libgm {
         load_advance();
       }
 
-      //! returns true if the iterator has reached the end of the range
-      bool end() const {
-        return nrows_ == 0;
+      //! evaluates to true if the iterator has not reached the end of the range
+      explicit operator bool() const {
+        return nrows_ != 0;
       }
 
       const std::pair<assignment_type, weight_type>& operator*() const {

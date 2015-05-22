@@ -16,14 +16,20 @@ namespace libgm {
    *
    * \tparam T the real type representing the parameters
    */
-  template <typename T>
+  template <typename T = double>
   class softmax_mle {
   public:
     //! The regularization parameter
     typedef T regul_type;
-    
+
     //! The parameters returned by this estimator.
     typedef softmax_param<T> param_type;
+
+    //! The type that represents an unweighted observations.
+    typedef hybrid_index<T> data_type;
+
+    //! The type that represents the weight of an observation.
+    typedef T weight_type;
 
     /**
      * Creates a maximum likelihood estimator with the specified
@@ -36,17 +42,15 @@ namespace libgm {
 
     /**
      * Computes the maximum likelihood estimate of a softmax distribution
-     * using the samples in the given range. The finite portion of each
-     * record represents the label, while the vector represents the features.
-     * The softmax parameter structure must be preallocated to the correct
-     * size, but does not need to be initialized to any particular values.
+     * using the samples in the given range for the specified number of
+     * labels and features. The finite component of each sample represents
+     * the label, while the vector component represents the features.
      *
-     * \tparam Range a range with values convertible to
-     *         std::pair<hybrid_index<T>, T>
+     * \tparam Range a range with values convertible to std::pair<data_type, T>
      */
     template <typename Range>
-    void estimate(const Range& samples, softmax_param<T>& p) const {
-      p.fill(T(0));
+    param_type
+    operator()(const Range& samples, std::size_t labels, std::size_t features) {
       conjugate_gradient<param_type> optimizer(
         new slope_binary_search<param_type>(1e-6, wolfe<T>::conjugate_gradient()),
         {1e-6, false}
@@ -56,7 +60,7 @@ namespace libgm {
         regul_ ? new l2_regularization<param_type>(regul_) : nullptr
       );
       optimizer.objective(&objective);
-      optimizer.solution(p);
+      optimizer.solution(param_type(labels, features, T(0)));
       for (std::size_t it = 0; !optimizer.converged() && it < max_iter_; ++it) {
         line_search_result<T> value = optimizer.iterate();
         if (verbose_) {
@@ -69,7 +73,7 @@ namespace libgm {
       if (verbose_) {
         std::cout << "Number of calls: " << objective.calls() << std::endl;
       }
-      p = optimizer.solution();
+      return optimizer.solution();
     }
 
   private:

@@ -443,6 +443,8 @@ namespace libgm {
     //! The regularization paramters for the MLE.
     typedef typename mle_type::regul_type regul_type;
 
+    typedef softmax<T, Var> factor_type;
+
     /**
      * Constructs a factor estimator with the specified regularization
      * parameters.
@@ -455,24 +457,19 @@ namespace libgm {
      * p(f | v), where f and v are components of a hybrid domain.
      */
     template <typename Dataset>
-    softmax<T, Var>
-    operator()(const Dataset& ds, const hybrid_domain<Var>& args) const {
-      softmax<T, Var> f(args);
-      mle_.estimate(ds(args), f.param());
-      return f;
+    factor_type operator()(const Dataset& ds, const domain_type& args) const {
+      return factor_type(args, mle_(ds(args), factor_type::param_shape(args)));
     }
 
     /**
      * Computes the maximun likelihood estimate of a conditional distribution
-     * p(finite | vector).
+     * p(head | tail).
      */
     template <typename Dataset>
-    softmax<T, Var>
-    operator()(const Dataset& ds,
-               Var head, const basic_domain<Var>& tail) const {
-      softmax<T, Var> f(head, tail);
-      mle_.estimate(ds(f.arguments()), f.param());
-      return f;
+    factor_type operator()(const Dataset& ds,
+                           Var head, const basic_domain<Var>& tail) const {
+      domain_type args({head}, tail);
+      return factor_type(args, mle_(ds(args), factor_type::param_shape(args)));
     }
 
   private:

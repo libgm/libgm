@@ -34,7 +34,7 @@ namespace libgm {
    *
    * \tparam T a real type for storing the parameters
    */
-  template <typename T>
+  template <typename T = double>
   struct moment_gaussian_param {
     // The underlying representation
     typedef dynamic_matrix<T> mat_type;

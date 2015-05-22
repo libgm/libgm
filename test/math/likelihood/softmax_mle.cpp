@@ -28,8 +28,8 @@ BOOST_AUTO_TEST_CASE(test_mle) {
 
   // generate a few samples
   std::mt19937 rng;
-  std::uniform_real_distribution<double> unif;
-  softmax_distribution<double> dist(param);
+  std::uniform_real_distribution<> unif;
+  softmax_distribution<> dist(param);
   typedef hybrid_index<double> vec_type;
   std::vector<std::pair<vec_type, double>> samples;
   samples.reserve(nsamples);
@@ -41,13 +41,10 @@ BOOST_AUTO_TEST_CASE(test_mle) {
   }
 
   // compute the MLE and evaluate its log-likelihood on the training set
-  softmax_mle<double> mle(0.01, 100, true);
-  softmax_param<double> estim(3, 4);
-  mle.estimate(samples, estim);
-
+  softmax_param<> estim = softmax_mle<>(0.01, 100, true)(samples, 3, 4);
   std::cout << "Solution: " << estim << std::endl;
 
-  typedef range_ll<softmax_ll<double> > range_ll_type;
+  typedef range_ll<softmax_ll<> > range_ll_type;
   double ll_truth = range_ll_type(param).value(samples);
   double ll_estim = range_ll_type(estim).value(samples);
   std::cout << "Log-likelihood of the original: " << ll_truth << std::endl;

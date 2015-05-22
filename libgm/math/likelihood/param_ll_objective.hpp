@@ -24,8 +24,8 @@ namespace libgm {
     typedef typename BaseLL::param_type param_type;
 
     /**
-     * Constructs the objective for the given samples and, optionally,
-     * the regularization function (which becomes owned by this object).
+     * Constructs the objective for the given samples (stored by reference) and,
+     * optionally, the regularization function (becomes owned by this object).
      */
     explicit param_ll_objective(const Range& samples,
                                 gradient_objective<param_type>* regul = nullptr)

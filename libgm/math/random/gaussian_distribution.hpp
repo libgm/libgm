@@ -14,7 +14,7 @@ namespace libgm {
    * A multivariate normal (Gaussian) distribution with parameters
    * specified in moment form.
    */
-  template <typename T>
+  template <typename T = double>
   class gaussian_distribution {
     typedef dynamic_matrix<T> mat_type;
     typedef dynamic_vector<T> vec_type;

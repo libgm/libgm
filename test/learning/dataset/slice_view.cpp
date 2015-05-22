@@ -54,6 +54,9 @@ BOOST_AUTO_TEST_CASE(test_accessors) {
   BOOST_CHECK_EQUAL(view.size(), 3);
   BOOST_CHECK_EQUAL(view.num_slices(), 1);
 
+  // total weight
+  BOOST_CHECK_CLOSE(view.weight(), 3.3, 1e-6);
+
   // operator[]
   BOOST_CHECK_EQUAL(view[0].first, finite_index({0, 1}));
   BOOST_CHECK_EQUAL(view[2].first, finite_index({1, 0}));
@@ -106,6 +109,7 @@ BOOST_AUTO_TEST_CASE(test_value_iterators) {
   BOOST_CHECK(it != end);
   BOOST_CHECK_EQUAL(it->first, finite_index({2, 0}));
   BOOST_CHECK_EQUAL(it->second, 1.0);
+  BOOST_CHECK(it);
   ++it;
 
   // absolute index 3
@@ -113,16 +117,19 @@ BOOST_AUTO_TEST_CASE(test_value_iterators) {
   BOOST_CHECK(it == it2);
   BOOST_CHECK_EQUAL(it->first, finite_index({1, 0}));
   BOOST_CHECK_EQUAL(it->second, 2.0);
+  BOOST_CHECK(it);
   ++it;
 
   // absolute index 0
   BOOST_CHECK(it != end);
   BOOST_CHECK_EQUAL(it->first, finite_index({1, 2}));
   BOOST_CHECK_EQUAL(it->second, 0.5);
+  BOOST_CHECK(it);
   ++it;
 
   // reached the end?
   BOOST_CHECK(it == end);
+  BOOST_CHECK(!it);
 }
 
 
@@ -146,6 +153,7 @@ BOOST_AUTO_TEST_CASE(test_assignment_iterator) {
   BOOST_CHECK_EQUAL(it->first.size(), 1);
   BOOST_CHECK_EQUAL(it->first.at(x), 2);
   BOOST_CHECK_EQUAL(it->second, 1.0);
+  BOOST_CHECK(it);
   ++it;
 
   // absolute index 3
@@ -153,6 +161,7 @@ BOOST_AUTO_TEST_CASE(test_assignment_iterator) {
   BOOST_CHECK_EQUAL(it->first.size(), 1);
   BOOST_CHECK_EQUAL(it->first.at(x), 1);
   BOOST_CHECK_EQUAL(it->second, 2.0);
+  BOOST_CHECK(it);
   ++it;
 
   // absolute index 1
@@ -160,6 +169,41 @@ BOOST_AUTO_TEST_CASE(test_assignment_iterator) {
   BOOST_CHECK_EQUAL(it->first.size(), 1);
   BOOST_CHECK_EQUAL(it->first.at(x), 0);
   BOOST_CHECK_EQUAL(it->second, 0.3);
+  BOOST_CHECK(it);
+  ++it;
+
+  // reached the end?
+  BOOST_CHECK(it == end);
+  BOOST_CHECK(!it);
+}
+
+
+BOOST_AUTO_TEST_CASE(test_weight_iterator) {
+  domain v;
+
+  finite_dataset<> ds(v);
+  ds.insert(finite_index(), 0.5);
+  ds.insert(finite_index(), 0.3);
+  ds.insert(finite_index(), 1.0);
+  ds.insert(finite_index(), 2.0);
+
+  view_type view = subset(ds, {slice(2, 2), slice(1, 1)});
+  view_type::weight_iterator it, end;
+  std::tie(it, end) = view.weights();
+
+  // absolute index 2
+  BOOST_CHECK_EQUAL(*it, 1.0);
+  BOOST_CHECK(it != end);
+  ++it;
+
+  // absolute index 3
+  BOOST_CHECK_EQUAL(*it, 2.0);
+  BOOST_CHECK(it != end);
+  ++it;
+
+  // absolute index 1
+  BOOST_CHECK_EQUAL(*it, 0.3);
+  BOOST_CHECK(it != end);
   ++it;
 
   // reached the end?

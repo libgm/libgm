@@ -26,7 +26,7 @@ namespace libgm {
    *
    * \tparam T a real type for storing the coefficients
    */
-  template <typename T>
+  template <typename T = double>
   struct canonical_gaussian_param {
     // Underlying representation
     typedef dynamic_matrix<T> mat_type;

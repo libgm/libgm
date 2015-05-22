@@ -5,10 +5,10 @@
 
 namespace libgm {
 
-  template <typename T>
+  template <typename T = double>
   using dynamic_vector = Eigen::Matrix<T, Eigen::Dynamic, 1>;
 
-  template <typename T>
+  template <typename T = double>
   using dynamic_matrix = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
 
 } // namespace libgm

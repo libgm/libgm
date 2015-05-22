@@ -12,7 +12,7 @@ namespace libgm {
    * given by the softmax
    * p(y=i | x) = exp(b_i + w_i^T x) / sum_j exp(b_j + w_j^T x).
    */
-  template <typename T>
+  template <typename T = double>
   class softmax_distribution {
   public:
     //! The type representing the parameters of the distribution

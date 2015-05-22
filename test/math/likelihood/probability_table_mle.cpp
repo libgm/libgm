@@ -25,7 +25,7 @@ BOOST_AUTO_TEST_CASE(test_mle) {
 
   // generate a few samples
   std::mt19937 rng;
-  table_distribution<double> dist(param);
+  table_distribution<> dist(param);
   std::vector<std::pair<finite_index, double>> samples;
   samples.reserve(nsamples);
   for (std::size_t i = 0; i < nsamples; ++i) {
@@ -33,15 +33,13 @@ BOOST_AUTO_TEST_CASE(test_mle) {
   }
 
   // compute the MLE and compare against ground truth
-  probability_table_mle<double> mle;
-  table<double> estim(param.shape());
-  mle.estimate(samples, estim);
+  table<double> estim = probability_table_mle<>()(samples, param.shape());
   double diff =
     std::inner_product(estim.begin(), estim.end(), param.begin(),
                        0.0, maximum<double>(), abs_difference<double>());
   BOOST_CHECK_SMALL(diff, tol);
 
-  typedef range_ll<probability_table_ll<double> > range_ll_type;
+  typedef range_ll<probability_table_ll<> > range_ll_type;
   double ll_truth = range_ll_type(param).value(samples);
   double ll_estim = range_ll_type(estim).value(samples);
   std::cout << "Log-likelihood of the original: " << ll_truth << std::endl;

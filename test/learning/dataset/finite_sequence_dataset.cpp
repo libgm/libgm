@@ -50,6 +50,9 @@ BOOST_FIXTURE_TEST_CASE(test_insert, fixture) {
   BOOST_CHECK_EQUAL(ds.size(), 12);
   BOOST_CHECK(!ds.empty());
 
+  // check the total weight
+  BOOST_CHECK_CLOSE(ds.weight(), 11.5, 1e-6);
+
   // direct iteration
   finite_sequence_dataset<>::const_iterator it = ds.begin();
   finite_sequence_dataset<>::const_iterator end = ds.end();
@@ -108,21 +111,21 @@ BOOST_FIXTURE_TEST_CASE(test_value_iterators, fixture) {
   BOOST_CHECK(it1 != end2);
   BOOST_CHECK(it2 != end1);
   BOOST_CHECK(it2 != end2);
-  BOOST_CHECK(!it1.end());
-  BOOST_CHECK(!it2.end());
+  BOOST_CHECK(it1);
+  BOOST_CHECK(it2);
 
   ++it1;
   ++it2;
-  BOOST_CHECK(!it1.end());
-  BOOST_CHECK(!it2.end());
+  BOOST_CHECK(it1);
+  BOOST_CHECK(it2);
 
   BOOST_CHECK(++it1 == end1);
   BOOST_CHECK(++it2 == end2);
-  BOOST_CHECK(it1.end());
-  BOOST_CHECK(it2.end());
+  BOOST_CHECK(!it1);
+  BOOST_CHECK(!it2);
 }
 
-BOOST_FIXTURE_TEST_CASE(test_asignment_iterators, fixture) {
+BOOST_FIXTURE_TEST_CASE(test_asignment_iterator, fixture) {
   dprocess_domain p01 = {p[0], p[1]};
 
   finite_sequence_dataset<>::assignment_iterator it, end;
@@ -136,7 +139,7 @@ BOOST_FIXTURE_TEST_CASE(test_asignment_iterators, fixture) {
   BOOST_CHECK_EQUAL(it->first.at(p[1](1)), seq0(1, 1));
   BOOST_CHECK_EQUAL(it->second, 0.5);
   BOOST_CHECK_EQUAL(*it, ds.assignment(0, p01));
-  BOOST_CHECK(!it.end());
+  BOOST_CHECK(it);
   ++it;
 
   // check the second sample
@@ -145,12 +148,30 @@ BOOST_FIXTURE_TEST_CASE(test_asignment_iterators, fixture) {
   BOOST_CHECK_EQUAL(it->first.at(p[1](0)), seq1(1, 0));
   BOOST_CHECK_EQUAL(it->second, 1.0);
   BOOST_CHECK_EQUAL(*it, ds.assignment(1, p01));
-  BOOST_CHECK(!it.end());
+  BOOST_CHECK(it);
   ++it;
 
   // check if finished
   BOOST_CHECK(it == end);
-  BOOST_CHECK(it.end());
+  BOOST_CHECK(!it);
+}
+
+BOOST_FIXTURE_TEST_CASE(test_weight_iterator, fixture) {
+  finite_sequence_dataset<>::weight_iterator it, end;
+  std::tie(it, end) = ds.weights();
+
+  BOOST_CHECK_EQUAL(*it, 0.5);
+  BOOST_CHECK(it != end);
+  BOOST_CHECK(it);
+  ++it;
+
+  BOOST_CHECK_EQUAL(*it, 1.0);
+  BOOST_CHECK(it != end);
+  BOOST_CHECK(it);
+  ++it;
+
+  BOOST_CHECK(it == end);
+  BOOST_CHECK(!it);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_mutation, fixture) {

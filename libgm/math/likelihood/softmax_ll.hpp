@@ -27,7 +27,7 @@ namespace libgm {
    *
    * \tparam T the real type representing the coefficients
    */
-  template <typename T>
+  template <typename T = double>
   class softmax_ll {
   public:
     //! The real type representing the log-likelihood.

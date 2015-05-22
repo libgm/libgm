@@ -26,7 +26,7 @@ namespace libgm {
    * \tparam T a real type for representing each parameter.
    * \ingroup math_functions
    */
-  template <typename T>
+  template <typename T = double>
   class softmax_param {
   public:
     // Public types

@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <initializer_list>
 #include <numeric>
+#include <utility>
 
 namespace libgm {
 
@@ -222,6 +223,21 @@ namespace libgm {
 
     // Indexing
     //==========================================================================
+
+    /**
+     * Returns the size of the parameter array for a single argument.
+     */
+    static std::size_t param_shape(const array_domain<Var, 1>& args) {
+      return args[0].size();
+    }
+
+    /**
+     * Returns the shape of the parmeter array for 2-argument domain.
+     */
+    static std::pair<std::size_t, std::size_t>
+    param_shape(const array_domain<Var, 2>& args) {
+      return { args[0].size(), args[1].size() };
+    }
 
     /**
      * Converts a linear index to the corresponding assignment to the
