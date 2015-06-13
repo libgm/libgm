@@ -22,7 +22,7 @@ namespace libgm {
     typedef std::size_t result_type;
 
     //! The type representing the assignment to the tail.
-    typedef dynamic_vector<T> tail_type;
+    typedef real_vector<T> tail_type;
 
     //! Constructs a soft max distribution with the given parameters.
     softmax_distribution(const softmax_param<T>& param)

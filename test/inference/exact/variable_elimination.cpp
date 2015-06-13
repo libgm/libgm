@@ -23,7 +23,7 @@ BOOST_AUTO_TEST_CASE(test_grid) {
   universe u;
   std::size_t m = 4;
   std::size_t n = 3;
-  domain variables = u.new_finite_variables(m * n, "v", 2);
+  domain variables = u.new_discrete_variables(m * n, "v", 2);
 
   // generate a random Markov network
   pairwise_markov_network<ptable> mn;

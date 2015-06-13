@@ -1,8 +1,8 @@
-#ifndef LIBGM_FINITE_DATASET_IO_HPP
-#define LIBGM_FINITE_DATASET_IO_HPP
+#ifndef LIBGM_UINT_DATASET_IO_HPP
+#define LIBGM_UINT_DATASET_IO_HPP
 
-#include <libgm/learning/dataset/finite_dataset.hpp>
-#include <libgm/learning/dataset/symbolic_format.hpp>
+#include <libgm/learning/dataset/text_dataset_format.hpp>
+#include <libgm/learning/dataset/uint_dataset.hpp>
 
 #include <fstream>
 #include <iostream>
@@ -11,23 +11,22 @@
 namespace libgm {
 
   /**
-   * Loads a finite memory dataset using the symbolic format.
-   * All the variables in the format must be finite.
-   * The dataset must not be initialized.
-   * \throw std::domain_error if the format contains variables that are
-   *        not finite
-   * \relates finite_dataset
+   * Loads data into an uninitialized uint_dataset from a text file using
+   * the specified format. All the variables in the format must be discrete.
+   *
+   * \throw std::domain_error if the format contains non-discrete variables
+   * \relates uint_dataset
    */
   template <typename T>
   void load(const std::string& filename,
-            const symbolic_format& format,
-            finite_dataset<T>& ds) {
-    if (!format.is_finite()) {
+            const text_dataset_format& format,
+            uint_dataset<T>& ds) {
+    if (!format.all_variables_discrete()) {
       throw std::domain_error(
-        "The dataset contains variable(s) that are not finite"
+        "The dataset contains variable(s) that are not discrete"
       );
     }
-    domain vars = format.finite_vars();
+    domain vars = format.variables;
     ds.initialize(vars);
 
     std::ifstream in(filename);
@@ -37,41 +36,42 @@ namespace libgm {
 
     std::string line;
     std::size_t line_number = 0;
-    finite_index index(vars.size());
+    uint_vector values(vars.size());
+    std::vector<const char*> tokens;
     while (std::getline(in, line)) {
-      std::vector<const char*> tokens;
-      if (format.parse(vars.size(), line, line_number, tokens)) {
+      if (format.tokenize(vars.size(), line, line_number, tokens)) {
         for (std::size_t i = 0; i < vars.size(); ++i) {
           const char* token = tokens[i + format.skip_cols];
           if (token == format.missing) {
-            index[i] = -1;
+            values[i] = -1;
           } else {
-            index[i] = format.var_infos[i].parse(token);
+            values[i] = vars[i].parse_discrete(token);
           }
         }
         T weight = format.weighted ? parse_string<T>(tokens.back()) : T(1);
-        ds.insert(index, weight);
+        ds.insert(values, weight);
       }
     }
   }
 
   /**
-   * Saves a finite dataset using the symbolic format.
-   * All the variables in the format must be finite.
-   * \throw std::domain_error if the format contains variables that are
-   *        not finite
-   * \relates finite_dataset, finite_memory_dataset
+   * Saves the data from an uint_dataset to a text file using the specified
+   * format. Only the data for the variables that are present in the format
+   * are stored. All the variables in the format must be discrete.
+   *
+   * \throw std::domain_error if the format contains non-discrete variables
+   * \relates uint_dataset
    */
   template <typename T>
   void save(const std::string& filename,
-            const symbolic_format& format,
-            const finite_dataset<T>& ds) {
-    if (!format.is_finite()) {
+            const text_dataset_format& format,
+            const uint_dataset<T>& ds) {
+    if (!format.all_variables_discrete()) {
       throw std::domain_error(
-        "The dataset contains variable(s) that are not finite"
+        "The dataset contains variable(s) that are not discrete"
       );
     }
-    domain vars = format.finite_vars();
+    domain vars = format.variables;
 
     std::ofstream out(filename);
     if (!out) {
@@ -92,7 +92,7 @@ namespace libgm {
         if (p.first[i] == std::size_t(-1)) {
           out << format.missing;
         } else {
-          format.var_infos[i].print(out, p.first[i]);
+          vars[i].print_discrete(out, p.first[i]);
         }
       }
       if (format.weighted) {

@@ -3,7 +3,8 @@
 
 #include <libgm/argument/universe.hpp>
 #include <libgm/factor/base/array_factor.hpp>
-#include <libgm/functional/operators.hpp>
+#include <libgm/functional/arithmetic.hpp>
+#include <libgm/functional/assign.hpp>
 #include <libgm/functional/eigen.hpp>
 
 namespace libgm {
@@ -39,8 +40,8 @@ typedef iarray<2> iarray2;
 
 BOOST_AUTO_TEST_CASE(test_join) {
   universe u;
-  variable x = u.new_finite_variable("x", 2);
-  variable y = u.new_finite_variable("y", 3);
+  variable x = u.new_discrete_variable("x", 2);
+  variable y = u.new_discrete_variable("y", 3);
 
   iarray1 fx({x}, {1, 2});
   iarray1 fy({y}, {2, 3, 4});
@@ -80,8 +81,8 @@ BOOST_AUTO_TEST_CASE(test_join) {
 
 BOOST_AUTO_TEST_CASE(test_join_inplace) {
   universe u;
-  variable x = u.new_finite_variable("x", 2);
-  variable y = u.new_finite_variable("y", 3);
+  variable x = u.new_discrete_variable("x", 2);
+  variable y = u.new_discrete_variable("y", 3);
 
   iarray1 fx({x}, {1, 2});
   iarray1 fy({y}, {2, 3, 4});
@@ -110,8 +111,8 @@ BOOST_AUTO_TEST_CASE(test_join_inplace) {
 
 BOOST_AUTO_TEST_CASE(test_aggregate) {
   universe u;
-  variable x = u.new_finite_variable("x", 2);
-  variable y = u.new_finite_variable("y", 3);
+  variable x = u.new_discrete_variable("x", 2);
+  variable y = u.new_discrete_variable("y", 3);
 
   iarray2 fxy({x, y}, {-1, -2, -3, 4, 5, 6});
 
@@ -126,10 +127,10 @@ BOOST_AUTO_TEST_CASE(test_aggregate) {
 
 BOOST_AUTO_TEST_CASE(test_restrict) {
   universe u;
-  variable x = u.new_finite_variable("x", 2);
-  variable y = u.new_finite_variable("y", 3);
-  variable z = u.new_finite_variable("z", 3);
-  finite_assignment<> empty = {{z, 2}};
+  variable x = u.new_discrete_variable("x", 2);
+  variable y = u.new_discrete_variable("y", 3);
+  variable z = u.new_discrete_variable("z", 3);
+  uint_assignment<> empty = {{z, 2}};
 
   iarray2 fxy({x, y}, {-1, -2, -3, 4, 5, 6});
 
@@ -144,10 +145,10 @@ BOOST_AUTO_TEST_CASE(test_restrict) {
 
 BOOST_AUTO_TEST_CASE(test_restrict_join) {
   universe u;
-  variable x = u.new_finite_variable("x", 2);
-  variable y = u.new_finite_variable("y", 3);
-  variable z = u.new_finite_variable("z", 2);
-  finite_assignment<> empty = {{z, 1}};
+  variable x = u.new_discrete_variable("x", 2);
+  variable y = u.new_discrete_variable("y", 3);
+  variable z = u.new_discrete_variable("z", 2);
+  uint_assignment<> empty = {{z, 1}};
 
   iarray1 fy({y}, {2, 3, 4});
   iarray2 fxy({x, y}, {-1, -2, -3, 4, 5, 6});

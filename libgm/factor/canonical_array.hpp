@@ -2,10 +2,11 @@
 #define LIBGM_CANONICAL_ARRAY_HPP
 
 #include <libgm/factor/base/array_factor.hpp>
+#include <libgm/functional/algorithm.hpp>
+#include <libgm/functional/arithmetic.hpp>
 #include <libgm/functional/assign.hpp>
 #include <libgm/functional/eigen.hpp>
 #include <libgm/functional/entropy.hpp>
-#include <libgm/functional/operators.hpp>
 #include <libgm/math/constants.hpp>
 #include <libgm/math/likelihood/canonical_array_ll.hpp>
 #include <libgm/math/logarithmic.hpp>
@@ -43,16 +44,16 @@ namespace libgm {
     typedef array_domain<Var, 1> unary_domain_type;
 
     // Factor member types
-    typedef T                      real_type;
-    typedef logarithmic<T>         result_type;
-    typedef Var                    variable_type;
-    typedef array_domain<Var, N>   domain_type;
-    typedef finite_assignment<Var> assignment_type;
+    typedef T                    real_type;
+    typedef logarithmic<T>       result_type;
+    typedef Var                  variable_type;
+    typedef array_domain<Var, N> domain_type;
+    typedef uint_assignment<Var> assignment_type;
 
     // ParametricFactor member types
     typedef typename base::array_type param_type;
-    typedef finite_index              index_type;
-    typedef array_distribution<T, N> distribution_type;
+    typedef uint_vector               index_type;
+    typedef array_distribution<T, N>  distribution_type;
 
     // LearnableFactor types
     typedef canonical_array_ll<T, N> ll_type;
@@ -126,7 +127,7 @@ namespace libgm {
     }
 
     //! Returns the value of this factor for an index
-    logarithmic<T> operator()(const finite_index& index) const {
+    logarithmic<T> operator()(const uint_vector& index) const {
       return logarithmic<T>(this->param(index), log_tag());
     }
 
@@ -136,7 +137,7 @@ namespace libgm {
     }
 
     //! Returns the log-value of teh factor for the given index.
-    T log(const finite_index& index) const {
+    T log(const uint_vector& index) const {
       return this->param(index);
     }
 
@@ -194,7 +195,7 @@ namespace libgm {
     //! Returns the sum of the probabilities of two factors.
     friend canonical_array
     operator+(const canonical_array& f, const canonical_array& g) {
-      return transform<canonical_array>(f, g, log_sum_exp<T>());
+      return transform<canonical_array>(f, g, log_plus_exp<T>());
     }
 
     //! Multiplies a canonical_array factor by a constant.

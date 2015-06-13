@@ -62,7 +62,7 @@ namespace libgm {
                    const param_type& param = param_type())
       : search_(search),
         param_(param),
-        objective_(NULL),
+        objective_(nullptr),
         shist_(param.history),
         yhist_(param.history),
         rhist_(param.history),

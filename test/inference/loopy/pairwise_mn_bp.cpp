@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
 
   // construct a grid network with attractive Gaussian potentials
   universe u;
-  domain variables = u.new_vector_variables(m * n, "v", 1);
+  domain variables = u.new_continuous_variables(m * n, "v", 1);
   pairwise_markov_network<cgaussian> model;
   make_grid_graph(variables, m, n, model);
   moment_gaussian_generator<double> gen;

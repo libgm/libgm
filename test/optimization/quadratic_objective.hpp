@@ -4,13 +4,13 @@
 #include <libgm/optimization/gradient_objective/gradient_objective.hpp>
 #include <libgm/optimization/line_search/line_search_result.hpp>
 
-#include <libgm/math/eigen/dynamic.hpp>
+#include <libgm/math/eigen/real.hpp>
 #include <libgm/math/eigen/optimization.hpp>
 
 #include "../math/eigen/helpers.hpp"
 
-typedef libgm::dynamic_matrix<double> mat_type;
-typedef libgm::dynamic_vector<double> vec_type;
+typedef libgm::real_matrix<double> mat_type;
+typedef libgm::real_vector<double> vec_type;
 
 // a quadratic objective 0.5 * (x-ctr)^T cov (x-ctr)
 struct quadratic_objective

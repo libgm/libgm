@@ -5,6 +5,8 @@
 #include <libgm/argument/variable.hpp>
 #include <libgm/functional/hash.hpp>
 
+#include <unordered_map>
+
 namespace libgm {
 
   /**
@@ -29,64 +31,42 @@ namespace libgm {
   public:
     typedef argument_object::category_enum category_enum;
 
-    //! The index type of the variables represented by this process.
-    typedef Index index_type;
-
-    //! The type of variables represented by this process.
-    typedef variable variable_type;
-
     //! Constructs an empty process.
     process()
       : rep_(nullptr) { }
 
-    //! Converts the process to bool indicating if the proces is empty.
-    explicit operator bool() const {
-      return rep_ != nullptr;
-    }
-
-    //! Saves the process to an archive.
-    void save(oarchive& ar) const {
-      ar.serialize_dynamic(rep_);
-    }
-
-    //! Loads the process from an archive.
-    void load(iarchive& ar) {
-      rep_ = ar.deserialize_dynamic<argument_object>();
-    }
-
-    //! Returns the cardinality / dimensionality of the process variables.
-    std::size_t size() const {
-      return rep().size;
-    }
-
-    //! Returns the categoru of the process (discrete / continuous).
+    //! Returns the category of the process (discrete / continuous).
     category_enum category() const {
       return rep().category;
     }
 
-    //! Returns true if the variable is finite.
-    bool finite() const {
-      return rep().category == argument_object::FINITE;
-    }
-
-    //! Returns true if the variable is vector.
-    bool vector() const {
-      return rep().category == argument_object::VECTOR;
-    }
-
-    //! Returns the variable with the given index.
-    variable operator()(Index index) const{
-      return variable(rep_, index);
-    }
-
-    //! Returns the name of the variable.
+    //! Returns the name of the process.
     const std::string& name() const {
       return rep().name;
     }
 
-    //! Conversion to human-readable representation.
-    std::string str() const {
-      return rep().str();
+   //! Returns the levels of the process.
+    const std::vector<std::string>& levels() const {
+      return rep().levels;
+    }
+
+    //! Parses the value of a discrete process from a string.
+    std::size_t parse_discrete(const char* str) const {
+      return rep().parse_discrete(str);
+    }
+
+    //! Prints the value of a discrete process using the stored levels if any.
+    void print_discrete(std::ostream& out, std::size_t value) const {
+      return rep().print_discrete(out, value);
+    }
+
+    // Argument concept
+    //==========================================================================
+
+    //! Returns true if two processes are compatible.
+    friend bool compatible(process x, process y) {
+      return x.rep().category == y.rep().category
+        && x.rep().size == y.rep().size;
     }
 
     //! Compares two processes.
@@ -109,11 +89,6 @@ namespace libgm {
       return x.rep_ > y.rep_;
     }
 
-    //! Returns true if two processes are type-compatible.
-    friend bool compatible(process x, process y) {
-      return x.size() == y.size() && x.category() == y.category();
-    }
-
     //! Computes the hash of the variable.
     friend std::size_t hash_value(process x) {
       return boost::hash_value(x.rep_);
@@ -125,6 +100,73 @@ namespace libgm {
       return out;
     }
 
+    //! Saves the process to an archive.
+    void save(oarchive& ar) const {
+      ar.serialize_dynamic(rep_);
+    }
+
+    //! Loads the process from an archive.
+    void load(iarchive& ar) {
+      rep_ = ar.deserialize_dynamic<argument_object>();
+    }
+
+    // DiscreteArgument concept
+    //==========================================================================
+
+    //! Returns the number of values for a discrete process.
+    friend std::size_t num_values(process p) {
+      if (p.rep().category == argument_object::DISCRETE) {
+        return p.rep().size;
+      } else {
+        throw std::invalid_argument(
+          "Attempt to call num_values() on a process that is not discrete"
+        );
+      }
+    }
+
+    // ContinuousArgument concept
+    //==========================================================================
+
+    //! Returns the number of dimensions for a continuous process.
+    friend std::size_t num_dimensions(process p) {
+      if (p.rep().category == argument_object::CONTINUOUS) {
+        return p.rep().size;
+      } else {
+        throw std::invalid_argument(
+         "Attempt to call num_dimensions() on a process that is not continouous"
+        );
+      }
+    }
+
+    // HybridArgument concept
+    //==========================================================================
+
+    //! Returns true if the process is discrete.
+    friend bool is_discrete(process p) {
+      return p.rep().category == argument_object::DISCRETE;
+    }
+
+    //! Returns true if the process is continuous.
+    friend bool is_continuous(process p) {
+      return p.rep().category == argument_object::CONTINUOUS;
+    }
+
+    // ProcessVariable concept
+    //==========================================================================
+
+    //! The index type of the variables represented by this process.
+    typedef Index index_type;
+
+    //! The type of variables represented by this process.
+    typedef variable variable_type;
+
+    //! Returns the variable with the given index.
+    variable operator()(Index index) const {
+      return variable(rep_, index);
+    }
+
+    // Private members
+    //==========================================================================
   private:
     //! Constructs process with the given argument object.
     explicit process(const argument_object* rep)
@@ -169,13 +211,8 @@ namespace libgm {
 namespace std {
 
   template <typename Index>
-  struct hash<libgm::process<Index, libgm::variable>> {
-    typedef libgm::process<Index, libgm::variable> argument_type;
-    typedef std::size_t result_type;
-    std::size_t operator()(argument_type x) const {
-      return hash_value(x);
-    }
-  };
+  struct hash<libgm::process<Index, libgm::variable>>
+    : libgm::default_hash<libgm::process<Index, libgm::variable>> { };
 
 } // namespace std
 

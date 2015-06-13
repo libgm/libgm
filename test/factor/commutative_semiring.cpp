@@ -29,7 +29,7 @@ BOOST_AUTO_TEST_CASE(test_ops) {
   std::size_t arity = 2;
 
   universe u;
-  domain vars = u.new_finite_variables(nvars, "x", arity);
+  domain vars = u.new_discrete_variables(nvars, "x", arity);
   variable v = vars[0];
 
   uniform_table_generator<ptable> gen;

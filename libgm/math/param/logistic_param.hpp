@@ -1,7 +1,7 @@
 #ifndef LIBGM_LOGISTIC_PARAM_HPP
 #define LIBGM_LOGISTIC_PARAM_HPP
 
-#include <libgm/math/eigen/dynamic.hpp>
+#include <libgm/math/eigen/real.hpp>
 #include <libgm/serialization/eigen.hpp>
 
 #include <cmath>
@@ -26,7 +26,7 @@ namespace libgm {
     typedef T value_type;
 
     //! The type representing the weight.
-    typedef dynamic_vector<T> vec_type;
+    typedef real_vector<T> vec_type;
 
     //! The weight vector.
     vec_type weight;

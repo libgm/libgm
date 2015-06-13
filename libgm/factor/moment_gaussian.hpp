@@ -1,11 +1,11 @@
 #ifndef LIBGM_MOMENT_GAUSSIAN_HPP
 #define LIBGM_MOMENT_GAUSSIAN_HPP
 
-#include <libgm/argument/vector_assignment.hpp>
+#include <libgm/argument/real_assignment.hpp>
 #include <libgm/factor/base/gaussian_factor.hpp>
 #include <libgm/factor/traits.hpp>
 #include <libgm/math/logarithmic.hpp>
-#include <libgm/math/eigen/dynamic.hpp>
+#include <libgm/math/eigen/real.hpp>
 #include <libgm/math/likelihood/moment_gaussian_mle.hpp>
 #include <libgm/math/param/moment_gaussian_param.hpp>
 #include <libgm/math/random/gaussian_distribution.hpp>
@@ -30,19 +30,19 @@ namespace libgm {
     typedef gaussian_factor<Var> base;
 
     // Underlying storage
-    typedef dynamic_matrix<T> mat_type;
-    typedef dynamic_vector<T> vec_type;
+    typedef real_matrix<T> mat_type;
+    typedef real_vector<T> vec_type;
 
     // Factor member types
-    typedef T                         real_type;
-    typedef logarithmic<T>            result_type;
-    typedef Var                       variable_type;
-    typedef basic_domain<Var>         domain_type;
-    typedef vector_assignment<T, Var> assignment_type;
+    typedef T                       real_type;
+    typedef logarithmic<T>          result_type;
+    typedef Var                     variable_type;
+    typedef basic_domain<Var>       domain_type;
+    typedef real_assignment<T, Var> assignment_type;
 
     // ParametricFactor member types
     typedef moment_gaussian_param<T> param_type;
-    typedef dynamic_vector<T>        index_type;
+    typedef real_vector<T>           index_type;
     typedef gaussian_distribution<T> distribution_type;
 
     // LearnableDistributionFactor member types
@@ -297,13 +297,13 @@ namespace libgm {
 
     //! Returns the mean for a single variable.
     Eigen::VectorBlock<const vec_type> mean(Var v) const {
-      return param_.mean.segment(this->start(v), v.size());
+      return param_.mean.segment(this->start(v), num_dimensions(v));
     }
 
     //! Returns the covariance matrix for a single variable.
     Eigen::Block<const mat_type> covariance(Var v) const {
       std::size_t i = this->start(v);
-      return param_.cov.block(i, i, v.size(), v.size());
+      return param_.cov.block(i, i, num_dimensions(v), num_dimensions(v));
     }
 
     //! Returns the mean for a subset of the arguments
@@ -341,8 +341,8 @@ namespace libgm {
       assert(vec.size() == head_size());
       std::size_t i = 0;
       for (Var v : head()) {
-        a[v] = vec.segment(i, v.size());
-        i += v.size();
+        a[v] = vec.segment(i, num_dimensions(v));
+        i += num_dimensions(v);
       }
     }
 
@@ -380,10 +380,10 @@ namespace libgm {
      */
     void check_param() const {
       param_.check();
-      if (param_.head_size() != vector_size(head_)) {
+      if (param_.head_size() != num_dimensions(head_)) {
         throw std::runtime_error("moment_gaussian: Invalid head size");
       }
-      if (param_.tail_size() != vector_size(tail_)) {
+      if (param_.tail_size() != num_dimensions(tail_)) {
         throw std::runtime_error("moment_gaussian: Invalid tail size");
       }
     }
@@ -802,7 +802,7 @@ namespace libgm {
   template <typename T, typename Var>
   moment_gaussian_restrict<T>
   restrict_op(const moment_gaussian<T, Var>& f,
-              const vector_assignment<T>& a,
+              const real_assignment<T>& a,
               moment_gaussian<T, Var>& h) {
     if (subset(f.tail(), a)) {
       // case 1: partially restricted head, fully restricted tail

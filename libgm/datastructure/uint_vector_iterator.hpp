@@ -1,7 +1,7 @@
-#ifndef LIBGM_FINITE_INDEX_ITERATOR_HPP
-#define LIBGM_FINITE_INDEX_ITERATOR_HPP
+#ifndef LIBGM_UINT_VECTOR_ITERATOR_HPP
+#define LIBGM_UINT_VECTOR_ITERATOR_HPP
 
-#include <libgm/datastructure/finite_index.hpp>
+#include <libgm/datastructure/uint_vector.hpp>
 
 #include <iterator>
 #include <vector>
@@ -25,26 +25,26 @@ namespace libgm {
    *
    * \ingroup datastructure
    */
-  class finite_index_iterator
-    : public std::iterator<std::forward_iterator_tag, const finite_index> {
+  class uint_vector_iterator
+    : public std::iterator<std::forward_iterator_tag, const uint_vector> {
   public:
     //! The type of values returned by this iterator
-    typedef const finite_index& reference;
+    typedef const uint_vector& reference;
 
     //! End iterator constructor for the given number of dimensions
-    explicit finite_index_iterator(std::size_t n = 0)
-      : card_(NULL), index_(n, 0), digit_(n) { }
+    explicit uint_vector_iterator(std::size_t n = 0)
+      : cardinality_(nullptr), index_(n, 0), digit_(n) { }
 
     //! Begin iterator constructor for the given cardinality vector.
-    explicit finite_index_iterator(const finite_index* card)
-      : card_(card),
+    explicit uint_vector_iterator(const uint_vector* card)
+      : cardinality_(card),
         index_(card->size(), 0),
         digit_(-1) { }
 
     //! Prefix increment
-    finite_index_iterator& operator++() {
+    uint_vector_iterator& operator++() {
       for(digit_ = 0; digit_ < index_.size(); ++digit_) {
-        if (index_[digit_] == (*card_)[digit_] - 1) {
+        if (index_[digit_] == (*cardinality_)[digit_] - 1) {
           index_[digit_] = 0;
         } else {
           ++index_[digit_];
@@ -55,19 +55,19 @@ namespace libgm {
     }
 
     //! Postfix increment
-    finite_index_iterator operator++(int) {
-      finite_index_iterator tmp(*this);
+    uint_vector_iterator operator++(int) {
+      uint_vector_iterator tmp(*this);
       ++(*this);
       return tmp;
     }
 
     //! Returns a const reference to the current index
-    const finite_index& operator*() const {
+    const uint_vector& operator*() const {
       return index_;
     }
 
     //! Returns a const pointer to the current index
-    const finite_index* operator->() const {
+    const uint_vector* operator->() const {
       return &index_;
     }
 
@@ -77,26 +77,26 @@ namespace libgm {
     }
 
     //! Returns true if the two iterators refer to the same index
-    bool operator==(const finite_index_iterator& it) const {
+    bool operator==(const uint_vector_iterator& it) const {
       return (digit_ == it.digit_) && (index_ == it.index_);
     }
 
     //! Returns false if the two iterators refer to the same index
-    bool operator!=(const finite_index_iterator& it) const {
+    bool operator!=(const uint_vector_iterator& it) const {
       return !(*this == it);
     }
 
   private:
     //! The cardinalities of the underlying sets
-    const finite_index* card_;
+    const uint_vector* cardinality_;
 
     //! The current index
-    finite_index index_;
+    uint_vector index_;
 
     //! The index of the highest order digit that got incremented last time
     std::size_t digit_;
 
-  }; // class finite_index_iterator
+  }; // class uint_vector_iterator
 
 } // namespace libgm
 

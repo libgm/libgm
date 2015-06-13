@@ -18,8 +18,8 @@ const double exp_upper = std::exp(upper);
 
 BOOST_AUTO_TEST_CASE(test_all) {
   universe u;
-  variable x = u.new_finite_variable(2);
-  variable y = u.new_finite_variable(2);
+  variable x = u.new_discrete_variable(2);
+  variable y = u.new_discrete_variable(2);
   finite_domain xs = make_domain(x);
   finite_domain ys = make_domain(y);
   finite_domain xy = make_domain(x, y);
@@ -39,7 +39,7 @@ BOOST_AUTO_TEST_CASE(test_all) {
     table_factor f = gen(xy, rng);
     double val = f(0, 0);
     BOOST_CHECK(val >= exp_lower && val <= exp_upper);
-    foreach(finite_assignment a, assignments(xy)) {
+    foreach(uint_assignment a, assignments(xy)) {
       if (a[x] == a[y]) {
         BOOST_CHECK_CLOSE(f(a), val, 1e-8);
       } else {

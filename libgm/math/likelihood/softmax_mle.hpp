@@ -26,7 +26,7 @@ namespace libgm {
     typedef softmax_param<T> param_type;
 
     //! The type that represents an unweighted observations.
-    typedef hybrid_index<T> data_type;
+    typedef hybrid_vector<T> data_type;
 
     //! The type that represents the weight of an observation.
     typedef T weight_type;

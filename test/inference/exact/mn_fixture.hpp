@@ -19,7 +19,7 @@ struct fixture {
   fixture() {
     std::size_t m = 5;
     std::size_t n = 4;
-    vars = u.new_finite_variables(m * n, "v", 2);
+    vars = u.new_discrete_variables(m * n, "v", 2);
     std::mt19937 rng;
     make_grid_graph(vars, m, n, mn);
     mn.initialize(marginal_fn(uniform_table_generator<ptable>(), rng),

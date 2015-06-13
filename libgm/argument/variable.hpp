@@ -21,7 +21,7 @@ namespace libgm {
    * Variables are not created directly; instead, they are created
    * through the universe class.
    *
-   * This class models the Argument concept.
+   * This class models the MixedArgument and ProcessVariable concepts.
    */
   class variable {
   public:
@@ -31,51 +31,9 @@ namespace libgm {
     variable()
       : rep_(nullptr), index_(-1) { }
 
-    //! Converts the variable to bool indicating if the variable is empty.
-    explicit operator bool() const {
-      return rep_ != nullptr;
-    }
-
-    //! Saves the variable to an archive.
-    void save(oarchive& ar) const {
-      ar.serialize_dynamic(rep_);
-      ar << index_;
-    }
-
-    //! Loads the variable from an archive.
-    void load(iarchive& ar) {
-      rep_ = ar.deserialize_dynamic<argument_object>();
-      ar >> index_;
-    }
-
-    //! Returns the cardinality / dimensionality of the variable.
-    std::size_t size() const {
-      return rep().size;
-    }
-
-    //! Returns the index of the variable (for now, a std::size_t).
-    std::size_t index() const {
-      return index_;
-    }
-
-    //! Returns true if the variable is associated with a process.
-    bool indexed() const {
-      return index_ != std::size_t(-1);
-    }
-
-    //! Returns the category of the variable (finite / vector).
+    //! Returns the category of the variable (discrete / continuous).
     category_enum category() const {
       return rep().category;
-    }
-
-    //! Returns true if the variable is finite.
-    bool finite() const {
-      return rep().category == argument_object::FINITE;
-    }
-
-    //! Returns true if the variable is vector.
-    bool vector() const {
-      return rep().category == argument_object::VECTOR;
     }
 
     //! Returns the name of the variable.
@@ -83,11 +41,28 @@ namespace libgm {
       return rep().name;
     }
 
-    //! Conversion to human-readable representation.
-    std::string str() const {
-      return indexed()
-        ? rep().str() + '(' + std::to_string(index_) + ')'
-        : rep().str();
+    //! Returns the levels of the variable.
+    const std::vector<std::string>& levels() const {
+      return rep().levels;
+    }
+
+    //! Parses the value of a discrete variable from a string.
+    std::size_t parse_discrete(const char* str) const {
+      return rep().parse_discrete(str);
+    }
+
+    //! Prints the value of a discrete variable using the stored levels if any.
+    void print_discrete(std::ostream& out, std::size_t value) const {
+      return rep().print_discrete(out, value);
+    }
+
+    // Argument concept
+    //==========================================================================
+
+    //! Returns true if two variables are compatible.
+    friend bool compatible(variable x, variable y) {
+      return x.rep().category == y.rep().category
+        && x.rep().size == y.rep().size;
     }
 
     //! Compares two variables.
@@ -110,11 +85,6 @@ namespace libgm {
       return x.pair() > y.pair();
     }
 
-    //! Returns true if two variables are type-compatible.
-    friend bool compatible(variable x, variable y) {
-      return x.size() == y.size() && x.category() == y.category();
-    }
-
     //! Computes the hash of the variable.
     friend std::size_t hash_value(variable x) {
       std::size_t seed = 0;
@@ -126,10 +96,78 @@ namespace libgm {
     //! Prints a variable to an output stream.
     friend std::ostream& operator<<(std::ostream& out, variable x) {
       out << x.rep();
-      if (x.indexed()) out << '(' << x.index() << ')';
+      if (is_indexed(x)) { out << '(' << index(x) << ')'; }
       return out;
     }
 
+    //! Saves the variable to an archive.
+    void save(oarchive& ar) const {
+      ar.serialize_dynamic(rep_);
+      ar << index_;
+    }
+
+    //! Loads the variable from an archive.
+    void load(iarchive& ar) {
+      rep_ = ar.deserialize_dynamic<argument_object>();
+      ar >> index_;
+    }
+
+    // DiscreteArgument concept
+    //==========================================================================
+
+    //! Returns the number of values for a discrete variable.
+    friend std::size_t num_values(variable v) {
+      if (v.rep().category == argument_object::DISCRETE) {
+        return v.rep().size;
+      } else {
+        throw std::invalid_argument(
+          "Attempt to call num_values() on a variable that is not discrete"
+        );
+      }
+    }
+
+    // ContinuousArgument concept
+    //==========================================================================
+
+    //! Returns the number of dimensions for continuous variable.
+    friend std::size_t num_dimensions(variable v) {
+      if (v.rep().category == argument_object::CONTINUOUS) {
+        return v.rep().size;
+      } else {
+        throw std::invalid_argument(
+        "Attempt to call num_dimensions() on a variable that is not continouous"
+        );
+      }
+    }
+
+    // HybridArgument concept
+    //==========================================================================
+
+    //! Returns true if the variable is discrete.
+    friend bool is_discrete(variable v) {
+      return v.rep().category == argument_object::DISCRETE;
+    }
+
+    //! Returns true if the variable is continuous.
+    friend bool is_continuous(variable v) {
+      return v.rep().category == argument_object::CONTINUOUS;
+    }
+
+    // ProcessVariable concept
+    //==========================================================================
+
+    //! Returns the index of the variable.
+    friend std::size_t index(variable v) {
+      return v.index_;
+    }
+
+    //! Returns true if the variable is associated with a process.
+    friend bool is_indexed(variable v) {
+      return v.index_ != std::size_t(-1);
+    }
+
+    // Private members
+    //==========================================================================
   private:
     //! Converts the variable to a pair of hte argument object and index.
     std::pair<const argument_object*, std::size_t> pair() const {
@@ -150,6 +188,9 @@ namespace libgm {
       return *rep_;
     }
 
+    // Representation
+    //==========================================================================
+
     //! The underlying representation.
     const argument_object* rep_;
 
@@ -159,7 +200,6 @@ namespace libgm {
     // Friends
     template <typename Index, typename Var> friend class process;
     friend class universe;
-    friend class std::hash<variable>;
 
   }; // class variable
 
@@ -175,13 +215,8 @@ namespace libgm {
 namespace std {
 
   template <>
-  struct hash<libgm::variable> {
-    typedef libgm::variable argument_type;
-    typedef std::size_t result_type;
-    std::size_t operator()(libgm::variable x) const {
-      return hash_value(x);
-    }
-  };
+  struct hash<libgm::variable>
+    : libgm::default_hash<libgm::variable> { };
 
 } // namespace std
 

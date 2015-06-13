@@ -20,7 +20,7 @@ namespace libgm {
     typedef domain<process_type>           domain_type;
     typedef typename F::assignment_type     assignment_type;
     typedef typename F::index_type          var_index_type;
-    typedef dynamic_matrix<real_type>       index_type; // for now
+    typedef real_matrix<real_type>       index_type; // for now
 
     //! Default constructor. Creates an empty chain.
     markov_chain()

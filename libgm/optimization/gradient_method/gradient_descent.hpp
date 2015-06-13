@@ -58,7 +58,7 @@ namespace libgm {
                               const param_type& param = param_type())
       : search_(search),
         param_(param),
-        objective_(NULL),
+        objective_(nullptr),
         converged_(false) { }
 
     void objective(gradient_objective<Vec>* obj) override {

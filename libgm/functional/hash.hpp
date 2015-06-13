@@ -11,6 +11,16 @@ namespace libgm {
   using boost::hash_combine;
   using boost::hash_range;
 
+  //! A hash object that delegates to the hash_value() function
+  template <typename T>
+  struct default_hash {
+    typedef T argument_type;
+    typedef std::size_t result_type;
+    std::size_t operator()(const T& x) const {
+      return hash_value(x);
+    }
+  }; // default_hash
+
   template <typename T, typename U>
   struct pair_hash {
     typedef std::pair<T, U> argument_type;
@@ -22,6 +32,14 @@ namespace libgm {
       return seed;
     }
   }; // struct pair_hash
+
+  //! Returns the hash value of the given object.
+  struct invoke_hash {
+    template <typename T>
+    std::size_t operator()(const T& value) const {
+      return hash_value(value);
+    }
+  };
 
 } // namespace libgm
 

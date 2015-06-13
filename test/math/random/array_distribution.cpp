@@ -34,7 +34,7 @@ double marginal_diff(const dist2_type& d, const array2_type& a) {
   std::mt19937 rng;
   array2_type estimate = array2_type::Zero(a.rows(), a.cols());
   for (std::size_t i = 0; i < nsamples; ++i) {
-    finite_index sample = d(rng);
+    uint_vector sample = d(rng);
     BOOST_REQUIRE_EQUAL(sample.size(), 2);
     ++estimate(sample[0], sample[1]);
   }

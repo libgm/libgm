@@ -2,7 +2,7 @@
 #define LIBGM_CANONICAL_GAUSSIAN_PARAM_HPP
 
 #include <libgm/math/constants.hpp>
-#include <libgm/math/eigen/dynamic.hpp>
+#include <libgm/math/eigen/real.hpp>
 #include <libgm/math/eigen/logdet.hpp>
 #include <libgm/math/eigen/submatrix.hpp>
 #include <libgm/math/eigen/subvector.hpp>
@@ -29,8 +29,8 @@ namespace libgm {
   template <typename T = double>
   struct canonical_gaussian_param {
     // Underlying representation
-    typedef dynamic_matrix<T> mat_type;
-    typedef dynamic_vector<T> vec_type;
+    typedef real_matrix<T> mat_type;
+    typedef real_vector<T> vec_type;
 
     //! The information vector.
     vec_type eta;
@@ -453,7 +453,7 @@ namespace libgm {
         h.eta.noalias() -= sol_yx.transpose() * eta_y;
         h.lm = f.lm + T(0.5) * sol_y.dot(eta_y);
       }
-      submatrix<const dynamic_matrix<T>> lam_xy(f.lambda, x, y);
+      submatrix<const real_matrix<T>> lam_xy(f.lambda, x, y);
       if (lam_xy.contiguous()) {
         h.lambda.noalias() -= lam_xy.block() * sol_yx;
       } else {
@@ -464,10 +464,10 @@ namespace libgm {
     matrix_index x;
     matrix_index y;
 
-    Eigen::LLT<dynamic_matrix<T>> chol_yy;
-    dynamic_matrix<T> lam_yy;
-    dynamic_matrix<T> sol_yx;
-    dynamic_vector<T> sol_y;
+    Eigen::LLT<real_matrix<T>> chol_yy;
+    real_matrix<T> lam_yy;
+    real_matrix<T> sol_yx;
+    real_vector<T> sol_y;
   };
 
   /**
@@ -504,8 +504,8 @@ namespace libgm {
   template <typename T>
   struct canonical_gaussian_restrict {
     typedef canonical_gaussian_param<T> param_type;
-    typedef dynamic_vector<T> vec_type;
-    typedef dynamic_matrix<T> mat_type;
+    typedef real_vector<T> vec_type;
+    typedef real_matrix<T> mat_type;
 
     /**
      * Constructs a restrict operator.
@@ -542,7 +542,7 @@ namespace libgm {
 
     matrix_index x;
     matrix_index y;
-    dynamic_vector<T> vec_y;
+    real_vector<T> vec_y;
   };
 
   /**
@@ -563,7 +563,7 @@ namespace libgm {
     canonical_gaussian_restrict_join(matrix_index&& x,
                                      matrix_index&& y,
                                      matrix_index&& h_map,
-                                     dynamic_vector<T>&& vec_y)
+                                     real_vector<T>&& vec_y)
       : restrict_op(std::move(x), std::move(y), std::move(vec_y)),
         h_map(std::move(h_map)) { }
 

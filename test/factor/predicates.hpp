@@ -12,7 +12,7 @@
 template <typename F>
 boost::test_tools::predicate_result
 table_properties(const F& f, const typename F::domain_type& vars) {
-  std::size_t n = finite_size(vars);
+  std::size_t n = num_values(vars);
 
   if (f.empty()) {
     boost::test_tools::predicate_result result(false);

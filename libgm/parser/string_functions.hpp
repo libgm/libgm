@@ -265,8 +265,10 @@ namespace libgm {
    * \param sep A string of delimiters.
    * \param tokens A vector of tokens. These are pointers to str.
    */
-  inline void string_split(std::string& str, const std::string& sep,
+  inline void string_split(std::string& str,
+                           const std::string& sep,
                            std::vector<const char*>& tokens) {
+    tokens.clear();
     const char* begin = str.c_str();
     std::size_t pos1 = str.find_first_not_of(sep);
     while (pos1 != std::string::npos) {
@@ -287,8 +289,10 @@ namespace libgm {
    * \param sep A string of delimiters.
    * \param tokens A vector of tokens.
    */
-  inline void string_split(const std::string& str, const std::string& sep,
-                            std::vector<std::string>& tokens) {
+  inline void string_split(const std::string& str,
+                           const std::string& sep,
+                           std::vector<std::string>& tokens) {
+    tokens.clear();
     std::size_t pos1 = str.find_first_not_of(sep);
     while (pos1 != std::string::npos) {
       std::size_t pos2 = str.find_first_of(sep, pos1);

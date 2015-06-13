@@ -2,7 +2,7 @@
 #define LIBGM_FINITE_ASSIGNMENT_ITERATOR_HPP
 
 #include <libgm/argument/basic_domain.hpp>
-#include <libgm/argument/finite_assignment.hpp>
+#include <libgm/argument/uint_assignment.hpp>
 #include <libgm/range/iterator_range.hpp>
 
 #include <iterator>
@@ -24,19 +24,19 @@ namespace libgm {
    * \ingroup base_types
    */
   template <typename Var = variable>
-  class finite_assignment_iterator
+  class uint_assignment_iterator
     : public std::iterator<std::forward_iterator_tag,
-                           const finite_assignment<Var> > {
+                           const uint_assignment<Var> > {
   public:
     typedef basic_domain<Var> domain_type;
-    typedef finite_assignment<Var> assignment_type;
+    typedef uint_assignment<Var> assignment_type;
 
     //! Default constructor. Creates the "end" iterator.
-    finite_assignment_iterator()
+    uint_assignment_iterator()
       : done_(true) { }
 
     //! Constructs an iterator pointing to the all-0 assignment for the domain.
-    explicit finite_assignment_iterator(const domain_type& vars)
+    explicit uint_assignment_iterator(const domain_type& vars)
       : vars_(vars), done_(false) {
       for (Var v : vars) {
         a_.emplace(v, 0);
@@ -44,10 +44,10 @@ namespace libgm {
     }
 
     //! Prefix increment.
-    finite_assignment_iterator& operator++() {
+    uint_assignment_iterator& operator++() {
       for (Var v : vars_) {
         std::size_t value = a_[v] + 1;
-        if (value >= v.size()) {
+        if (value >= num_values(v)) {
           a_[v] = 0;
         } else {
           a_[v] = value;
@@ -59,8 +59,8 @@ namespace libgm {
     }
 
     //! Postfix increment (inefficient and should be avoided).
-    finite_assignment_iterator operator++(int) {
-      finite_assignment_iterator tmp(*this);
+    uint_assignment_iterator operator++(int) {
+      uint_assignment_iterator tmp(*this);
       ++*this;
       return tmp;
     }
@@ -76,12 +76,12 @@ namespace libgm {
     }
 
     //! Returns truth if the two assignments are the same.
-    bool operator==(const finite_assignment_iterator& it) const {
+    bool operator==(const uint_assignment_iterator& it) const {
       return done_ ? it.done_ : !it.done_ && a_ == it.a_;
     }
 
     //! Returns truth if the two assignments are different.
-    bool operator!=(const finite_assignment_iterator& it) const {
+    bool operator!=(const uint_assignment_iterator& it) const {
       return !(*this == it);
     }
 
@@ -97,16 +97,16 @@ namespace libgm {
     //! A flag indicating whether the index has wrapped around.
     bool done_;
 
-  }; // class finite_assignment_iterator
+  }; // class uint_assignment_iterator
 
   /**
    * Returns a range over all assignments to variables in the domain.
    */
   template <typename Var>
-  iterator_range<finite_assignment_iterator<Var> >
-  finite_assignments(const basic_domain<Var>& vars) {
-    return { finite_assignment_iterator<Var>(vars),
-             finite_assignment_iterator<Var>() };
+  iterator_range<uint_assignment_iterator<Var> >
+  uint_assignments(const basic_domain<Var>& vars) {
+    return { uint_assignment_iterator<Var>(vars),
+             uint_assignment_iterator<Var>() };
   }
 
 } // namespace libgm

@@ -15,8 +15,8 @@ using namespace libgm;
 
 BOOST_AUTO_TEST_CASE(test_constructors) {
   universe u;
-  variable x = u.new_finite_variable("x", 2);
-  variable y = u.new_finite_variable("y", 3);
+  variable x = u.new_discrete_variable("x", 2);
+  variable y = u.new_discrete_variable("y", 3);
 
   domain a;
   BOOST_CHECK(a.empty());
@@ -33,10 +33,10 @@ BOOST_AUTO_TEST_CASE(test_constructors) {
 
 BOOST_AUTO_TEST_CASE(test_operations) {
   universe u;
-  variable x = u.new_finite_variable("x", 2);
-  variable y = u.new_finite_variable("y", 3);
-  variable z = u.new_finite_variable("z", 4);
-  variable w = u.new_finite_variable("w", 3);
+  variable x = u.new_discrete_variable("x", 2);
+  variable y = u.new_discrete_variable("y", 3);
+  variable z = u.new_discrete_variable("z", 4);
+  variable w = u.new_discrete_variable("w", 3);
 
   domain xyz  = {x, y, z};
   domain x1   = {x};
@@ -92,22 +92,22 @@ BOOST_AUTO_TEST_CASE(test_num_assignments) {
   universe u;
 
   domain v;
-  v.push_back(u.new_finite_variable("a", 2));
-  v.push_back(u.new_finite_variable("b", 3));
-  v.push_back(u.new_finite_variable("c", 4));
-  v.push_back(u.new_finite_variable("d", 5));
-  v.push_back(u.new_finite_variable("e", 6));
-  v.push_back(u.new_finite_variable("f", 7));
-  v.push_back(u.new_finite_variable("g", 8));
-  v.push_back(u.new_finite_variable("h", 9));
-  v.push_back(u.new_finite_variable("i", 10));
-  v.push_back(u.new_finite_variable("j", 11));
+  v.push_back(u.new_discrete_variable("a", 2));
+  v.push_back(u.new_discrete_variable("b", 3));
+  v.push_back(u.new_discrete_variable("c", 4));
+  v.push_back(u.new_discrete_variable("d", 5));
+  v.push_back(u.new_discrete_variable("e", 6));
+  v.push_back(u.new_discrete_variable("f", 7));
+  v.push_back(u.new_discrete_variable("g", 8));
+  v.push_back(u.new_discrete_variable("h", 9));
+  v.push_back(u.new_discrete_variable("i", 10));
+  v.push_back(u.new_discrete_variable("j", 11));
 
-  BOOST_CHECK_EQUAL(finite_size(v), 39916800);
+  BOOST_CHECK_EQUAL(num_values(v), 39916800);
 
-  v.push_back(u.new_finite_variable("k", 1000000));
-  v.push_back(u.new_finite_variable("l", 1000000));
-  v.push_back(u.new_finite_variable("m", 1000000));
-  v.push_back(u.new_finite_variable("n", 1000000));
-  BOOST_CHECK_THROW(finite_size(v), std::out_of_range);
+  v.push_back(u.new_discrete_variable("k", 1000000));
+  v.push_back(u.new_discrete_variable("l", 1000000));
+  v.push_back(u.new_discrete_variable("m", 1000000));
+  v.push_back(u.new_discrete_variable("n", 1000000));
+  BOOST_CHECK_THROW(num_values(v), std::out_of_range);
 }

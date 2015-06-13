@@ -4,10 +4,14 @@
 #include <libgm/argument/basic_domain.hpp>
 #include <libgm/argument/variable.hpp>
 
+#include <sstream>
+
 namespace libgm {
 
   /**
-   * A domain that consists of a finite and a vector component.
+   * A domain that consists of a discrete and a continuous component.
+   *
+   * \tparam Arg a type that satisfies the MixedArgument concept
    */
   template <typename Arg = variable>
   class hybrid_domain {
@@ -16,73 +20,80 @@ namespace libgm {
     hybrid_domain() { }
 
     //! Constructs a hybrid domain with the given finite and vector components.
-    hybrid_domain(const basic_domain<Arg>& finite,
-                  const basic_domain<Arg>& vector)
-      : finite_(finite), vector_(vector) { }
+    hybrid_domain(const basic_domain<Arg>& discrete,
+                  const basic_domain<Arg>& continuous)
+      : discrete_(discrete), continuous_(continuous) { }
 
     //! Constructs a hybrid domain with the given finite and vector components.
-    hybrid_domain(basic_domain<Arg>&& finite,
-                  basic_domain<Arg>&& vector)
-      : finite_(std::move(finite)), vector_(std::move(vector)) { }
+    hybrid_domain(basic_domain<Arg>&& discrete,
+                  basic_domain<Arg>&& continuous)
+      : discrete_(std::move(discrete)), continuous_(std::move(continuous)) { }
+
+    //! Conversion from a vector.
+    hybrid_domain(const std::vector<Arg>& args) {
+      for (Arg arg : args) {
+        push_back(arg);
+      }
+    }
 
     //! Saves the domain to an archive.
     void save(oarchive& ar) const {
-      finite_.save(ar);
-      vector_.save(ar);
+      discrete_.save(ar);
+      continuous_.save(ar);
     }
 
     //! Loads the domain from an archive.
     void load(iarchive& ar) {
-      finite_.load(ar);
-      vector_.load(ar);
+      discrete_.load(ar);
+      continuous_.load(ar);
     }
 
-    //! Returns the finite component of the domain.
-    basic_domain<Arg>& finite() {
-      return finite_;
+    //! Returns the discrete component of the domain.
+    basic_domain<Arg>& discrete() {
+      return discrete_;
     }
 
-    //! Returns the finite component of the domain.
-    const basic_domain<Arg>& finite() const {
-      return finite_;
+    //! Returns the discrete component of the domain.
+    const basic_domain<Arg>& discrete() const {
+      return discrete_;
     }
 
-    //! Returns the vector component of the domain.
-    basic_domain<Arg>& vector() {
-      return vector_;
+    //! Returns the continuous component of the domain.
+    basic_domain<Arg>& continuous() {
+      return continuous_;
     }
 
-    //! Returns the vector component of the domain.
-    const basic_domain<Arg>& vector() const {
-      return vector_;
+    //! Returns the continuous component of the domain.
+    const basic_domain<Arg>& continuous() const {
+      return continuous_;
     }
 
-    //! Returns the number of variables in this domain.
+    //! Returns the number of arguments in this domain.
     std::size_t size() const {
-      return finite_.size() + vector_.size();
+      return discrete_.size() + continuous_.size();
     }
 
-    //! Returns the number of finite variables in this domain.
-    std::size_t finite_size() const {
-      return finite_.size();
+    //! Returns the number of arguments in the discrete component.
+    std::size_t discrete_size() const {
+      return discrete_.size();
     }
 
-    //! Returns the total dimensionality of the vector variables.
-    std::size_t vector_size() const {
-      return libgm::vector_size(vector_);
+    //! Returns the number of argumetnsin the continuous component.
+    std::size_t continuous_size() const {
+      return continuous_.size();
     }
 
     //! Returns true if the domain contains no arguments.
     bool empty() const {
-      return finite_.empty() && vector_.empty();
+      return discrete_.empty() && continuous_.empty();
     }
 
     //! Returns the number of times a variable is present in the domain.
-    std::size_t count(Arg v) const {
-      if (v.finite()) {
-        return finite_.count(v);
-      } else if (v.vector()) {
-        return vector_.count(v);
+    std::size_t count(Arg arg) const {
+      if (is_discrete(arg)) {
+        return discrete_.count(arg);
+      } else if (is_continuous(arg)) {
+        return continuous_.count(arg);
       } else {
         return 0;
       }
@@ -90,7 +101,7 @@ namespace libgm {
 
     //! Returns true if two hybrid domains have the same variables.
     bool operator==(const hybrid_domain& other) const {
-      return finite_ == other.finite_ && vector_ == other.vector_;
+      return discrete_ == other.discrete_ && continuous_ == other.continuous_;
     }
 
     //! Returns true if two hybrid domian do not have the same variables.
@@ -105,8 +116,8 @@ namespace libgm {
     template <typename Map>
     void partition(const Map& map,
                    hybrid_domain& intersect, hybrid_domain& difference) const {
-      finite_.partition(map, intersect.finite_, difference.finite_);
-      vector_.partition(map, intersect.vector_, difference.vector_);
+      discrete_.partition(map, intersect.discrete_, difference.discrete_);
+      continuous_.partition(map, intersect.continuous_, difference.continuous_);
     }
 
     // Mutations
@@ -114,40 +125,42 @@ namespace libgm {
 
     //! Adds a variable at the end.
     void push_back(Arg arg) {
-      if (arg.finite()) {
-        finite().push_back(arg);
-      } else if (arg.vector()) {
-        vector().push_back(arg);
+      if (is_discrete(arg)) {
+        discrete().push_back(arg);
+      } else if (is_continuous(arg)) {
+        continuous().push_back(arg);
       } else {
-        throw std::invalid_argument("Invalid type for " + arg.str());
+        std::ostringstream out;
+        out << "hybrid_domain::push_back: unknown type of " << arg;
+        throw std::invalid_argument(out.str());
       }
     }
 
     //! Removes all variables from the domain.
     void clear() {
-      finite_.clear();
-      vector_.clear();
+      discrete_.clear();
+      continuous_.clear();
     }
 
     //! Substitutes arguments in-place according to a map.
     template <typename Map>
     void subst(const Map& map) {
-      finite_.subst(map);
-      vector_.subst(map);
+      discrete_.subst(map);
+      continuous_.subst(map);
     }
 
     //! Swaps the contents of two domains
     friend void swap(hybrid_domain& a, hybrid_domain& b) {
-      swap(a.finite(), b.finite());
-      swap(a.vector(), b.vector());
+      swap(a.discrete(), b.discrete());
+      swap(a.continuous(), b.continuous());
     }
 
   private:
-    //! The finite component.
-    basic_domain<Arg> finite_;
+    //! The discrete component.
+    basic_domain<Arg> discrete_;
 
-    //! The vector component.
-    basic_domain<Arg> vector_;
+    //! The continuous component.
+    basic_domain<Arg> continuous_;
 
   }; // struct hybrid_domain
 
@@ -157,11 +170,10 @@ namespace libgm {
    */
   template <typename Arg>
   std::ostream&
-  operator<<(std::ostream& out, const hybrid_domain<Arg>& d) {
-    out << '(' << d.finite() << ", " << d.vector() << ')';
+  operator<<(std::ostream& out, const hybrid_domain<Arg>& dom) {
+    out << '(' << dom.discrete() << ", " << dom.continuous() << ')';
     return out;
   }
-
 
   // Set operations
   //============================================================================
@@ -173,7 +185,8 @@ namespace libgm {
   template <typename Arg>
   hybrid_domain<Arg>
   operator+(const hybrid_domain<Arg>& a, const hybrid_domain<Arg>& b) {
-    return hybrid_domain<Arg>(a.finite() + b.finite(), a.vector() + b.vector());
+    return hybrid_domain<Arg>(a.discrete() + b.discrete(),
+                              a.continuous() + b.continuous());
   }
 
   /**
@@ -183,7 +196,8 @@ namespace libgm {
   template <typename Arg>
   hybrid_domain<Arg>
   operator-(const hybrid_domain<Arg>& a, const hybrid_domain<Arg>& b) {
-    return hybrid_domain<Arg>(a.finite() - b.finite(), a.vector() - b.vector());
+    return hybrid_domain<Arg>(a.discrete() - b.discrete(),
+                              a.continuous() - b.continuous());
   }
 
   /**
@@ -193,7 +207,8 @@ namespace libgm {
   template <typename Arg>
   hybrid_domain<Arg>
   operator|(const hybrid_domain<Arg>& a, const hybrid_domain<Arg>& b) {
-    return hybrid_domain<Arg>(a.finite() | b.finite(), a.vector() | b.vector());
+    return hybrid_domain<Arg>(a.discrete() | b.discrete(),
+                              a.continuous() | b.continuous());
   }
 
   /**
@@ -203,7 +218,8 @@ namespace libgm {
   template <typename Arg>
   hybrid_domain<Arg>
   operator&(const hybrid_domain<Arg>& a, const hybrid_domain<Arg>& b) {
-    return hybrid_domain<Arg>(a.finite() & b.finite(), a.vector() & b.vector());
+    return hybrid_domain<Arg>(a.discrete() & b.discrete(),
+                              a.continuous() & b.continuous());
   }
 
   /**
@@ -212,19 +228,20 @@ namespace libgm {
    */
   template <typename Arg>
   bool disjoint(const hybrid_domain<Arg>& a, const hybrid_domain<Arg>& b) {
-    return disjoint(a.finite(), b.finite()) && disjoint(a.vector(), b.vector());
+    return disjoint(a.discrete(), b.discrete())
+      && disjoint(a.continuous(), b.continuous());
   }
 
   /**
    * Returns true if two hybrid domains are equivalent.
-   * Two hybrid domains are equivalent if their respective finite and
-   * vector components are equivalent.
+   * Two hybrid domains are equivalent if their respective discrete and
+   * continuous components are equivalent.
    * \relates hybrid_domain
    */
   template <typename Arg>
   bool equivalent(const hybrid_domain<Arg>& a, const hybrid_domain<Arg>& b) {
-    return equivalent(a.finite(), b.finite())
-      && equivalent(a.vector(), b.vector());
+    return equivalent(a.discrete(), b.discrete())
+      && equivalent(a.continuous(), b.continuous());
   }
 
   /**
@@ -234,7 +251,8 @@ namespace libgm {
    */
   template <typename Arg>
   bool subset(const hybrid_domain<Arg>& a, const hybrid_domain<Arg>& b) {
-    return subset(a.finite(), b.finite()) && subset(a.vector(), b.vector());
+    return subset(a.discrete(), b.discrete())
+      && subset(a.continuous(), b.continuous());
   }
 
   /**
@@ -244,18 +262,42 @@ namespace libgm {
    */
   template <typename Arg>
   bool superset(const hybrid_domain<Arg>& a, const hybrid_domain<Arg>& b) {
-    return superset(a.finite(), b.finite())
-      && superset(a.vector(), b.vector());
+    return superset(a.discrete(), b.discrete())
+      && superset(a.continuous(), b.continuous());
   }
 
+  // Argument operations
+  //============================================================================
+
   /**
-   * Returns true if two domains are type-compatible.
+   * Returns true if two domains are compatible.
    * \relates hybrid_domain
    */
   template <typename Arg>
   bool compatible(const hybrid_domain<Arg>& a, const hybrid_domain<Arg>& b) {
-    return compatible(a.finite(), b.finite())
-      && compatible(a.vector(), b.vector());
+    return compatible(a.discrete(), b.discrete())
+      && compatible(a.continuous(), b.continuous());
+  }
+
+  /**
+   * Returns the number of values for the discrete component of
+   * a hybrid_domain.
+   * \throws std::out_of_range in case of overflow
+   * \relates hybrid_domain
+   */
+  template <typename Arg>
+  std::size_t num_values(const hybrid_domain<Arg>& dom) {
+    return num_values(dom.discrete());
+  }
+
+  /**
+   * Returns the number of dimensions for the continuous component of
+   * a hybrid_domain.
+   * \relates hybrid_domain
+   */
+  template <typename Arg>
+  std::size_t num_dimensions(const hybrid_domain<Arg>& dom) {
+    return num_dimensions(dom.continuous());
   }
 
 } // namespace libgm

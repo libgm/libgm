@@ -82,7 +82,7 @@ namespace libgm {
     //! Constructor which permits setting the edge_property
     directed_edge(Vertex source,
                   Vertex target,
-                  void* property = NULL)
+                  void* property = nullptr)
       : source_(source), target_(target), property_(property) { }
 
     //! Vertex from which the edge originates

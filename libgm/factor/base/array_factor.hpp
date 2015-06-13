@@ -2,14 +2,15 @@
 #define LIBGM_ARRAY_FACTOR_HPP
 
 #include <libgm/argument/array_domain.hpp>
-#include <libgm/argument/finite_assignment.hpp>
-#include <libgm/datastructure/finite_index.hpp>
+#include <libgm/argument/uint_assignment.hpp>
+#include <libgm/datastructure/uint_vector.hpp>
 #include <libgm/factor/base/factor.hpp>
-#include <libgm/functional/assign.hpp>
-#include <libgm/functional/operators.hpp>
+#include <libgm/functional/algorithm.hpp>
+#include <libgm/serialization/eigen.hpp>
 
 #include <Eigen/Core>
 
+#include <sstream>
 #include <stdexcept>
 #include <initializer_list>
 #include <numeric>
@@ -44,7 +45,7 @@ namespace libgm {
 
     // Domain
     typedef array_domain<Var, N> domain_type;
-    typedef finite_assignment<Var> assignment_type;
+    typedef uint_assignment<Var> assignment_type;
 
     // Constructors
     //==========================================================================
@@ -104,12 +105,12 @@ namespace libgm {
 
     //! Serializes members.
     void save(oarchive& ar) const {
-      //ar << args_ << param_;
+      ar << args_ << param_;
     }
 
     //! Deserializes members.
     void load(iarchive& ar) {
-      //ar >> args_ >> param_;
+      ar >> args_ >> param_;
       check_param();
     }
 
@@ -121,9 +122,9 @@ namespace libgm {
       if (args_ != args || empty()) {
         args_ = args;
         if (N == 1) {
-          param_.resize(x().size(), 1);
+          param_.resize(num_values(x()), 1);
         } else {
-          param_.resize(x().size(), y().size());
+          param_.resize(num_values(x()), num_values(y()));
         }
       }
     }
@@ -161,22 +162,22 @@ namespace libgm {
       return !param_.data();
     }
 
-    //! Returns the pointer to the first element (NULL if the factor is empty).
+    //! Returns the pointer to the first element (null if the factor is empty).
     T* begin() {
       return param_.data();
     }
 
-    //! Returns the pointer to the first element (NULL if the factor is empty).
+    //! Returns the pointer to the first element (null if the factor is empty).
     const T* begin() const {
       return param_.data();
     }
 
-    //! Returns the pointer past the last element (NULL if the factor is empty).
+    //! Returns the pointer past the last element (null if the factor is empty).
     T* end() {
       return param_.data() + param_.size();
     }
 
-    //! Returns the pointer past the last element (NULL if the factor is empty).
+    //! Returns the pointer past the last element (null if the factor is empty).
     const T* end() const {
       return param_.data() + param_.size();
     }
@@ -212,12 +213,12 @@ namespace libgm {
     }
 
     //! Returns the parameter for the given index.
-    T& param(const finite_index& index) {
+    T& param(const uint_vector& index) {
       return param_(linear_index(index));
     }
 
     //! Returns the parameter of rthe given index.
-    const T& param(const finite_index& index) const {
+    const T& param(const uint_vector& index) const {
       return param_(linear_index(index));
     }
 
@@ -228,7 +229,7 @@ namespace libgm {
      * Returns the size of the parameter array for a single argument.
      */
     static std::size_t param_shape(const array_domain<Var, 1>& args) {
-      return args[0].size();
+      return num_values(args[0]);
     }
 
     /**
@@ -236,7 +237,7 @@ namespace libgm {
      */
     static std::pair<std::size_t, std::size_t>
     param_shape(const array_domain<Var, 2>& args) {
-      return { args[0].size(), args[1].size() };
+      return { num_values(args[0]), num_values(args[1]) };
     }
 
     /**
@@ -266,7 +267,7 @@ namespace libgm {
     /**
      * Returns the linear index corresponding to the given finite index.
      */
-    std::size_t linear_index(const finite_index& index) const {
+    std::size_t linear_index(const uint_vector& index) const {
       if (index.size() != N) {
         throw std::invalid_argument("Index size does not match the arity");
       }
@@ -285,10 +286,9 @@ namespace libgm {
       for (Var& x : args_) {
         Var xn = var_map.at(x);
         if (!compatible(x, xn)) {
-          throw std::invalid_argument(
-            "subst_args: " + x.str() + " and " + xn.str() +
-            " are not compatible"
-          );
+          std::ostringstream out;
+          out << "subst_args: " << x << " and " << xn << " are not compatible";
+          throw std::invalid_argument(out.str());
         }
         x = xn;
       }
@@ -300,10 +300,10 @@ namespace libgm {
      * \throw std::runtime_error if some of the dimensions do not match
      */
     void check_param() const {
-      if (param_.rows() != x().size()) {
+      if (param_.rows() != num_values(x())) {
         throw std::runtime_error("Invalid number of rows");
       }
-      if (param_.cols() != (y() ? y().size() : 1)) {
+      if (param_.cols() != (N == 2 ? num_values(y()) : 1)) {
         throw std::runtime_error("Invalid number of columns");
       }
     }
@@ -563,7 +563,7 @@ namespace libgm {
    */
   template <typename T, typename Var>
   void restrict_assign(const array_factor<T, 2, Var>& f,
-                       const finite_assignment<Var>& a,
+                       const uint_assignment<Var>& a,
                        array_factor<T, 1, Var>& result) {
     auto itx = a.find(f.x());
     auto ity = a.find(f.y());
@@ -586,7 +586,7 @@ namespace libgm {
    */
   template <typename T, typename Var, typename Op>
   void restrict_join(const array_factor<T, 2, Var>& f,
-                     const finite_assignment<Var>& a,
+                     const uint_assignment<Var>& a,
                      array_factor<T, 1, Var>& result,
                      Op op) {
     auto itx = result.x() != f.x() ? a.find(f.x()) : a.end();

@@ -35,7 +35,7 @@ struct fixture {
     // Create some variables
     x.resize(nvars);
     for(std::size_t i = 0; i < nvars; ++i) {
-      x[i] = u.new_finite_variable("Variable: " + std::to_string(i), 2);
+      x[i] = u.new_discrete_variable("Variable: " + std::to_string(i), 2);
     }
 
     // Create some unary factors

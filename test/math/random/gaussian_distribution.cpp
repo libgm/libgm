@@ -24,11 +24,11 @@ BOOST_AUTO_TEST_CASE(test_marginal) {
                 1.0, 1.0, 1.5;
 
   distribution_type d(param);
-  dynamic_vector<double> mean; mean.setZero(3);
-  dynamic_matrix<double> cov; cov.setZero(3, 3);
+  real_vector<double> mean; mean.setZero(3);
+  real_matrix<double> cov; cov.setZero(3, 3);
   std::mt19937 rng;
   for (std::size_t i = 0; i < nsamples; ++i) {
-    dynamic_vector<double> sample = d(rng);
+    real_vector<double> sample = d(rng);
     mean += sample;
     cov += sample * sample.transpose();
   }

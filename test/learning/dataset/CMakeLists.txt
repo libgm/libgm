@@ -1,23 +1,23 @@
 set(DATA_DIR ${CMAKE_CURRENT_LIST_DIR}/data)
 
 # Supporting classes
-add_executable(symbolic_format symbolic_format.cpp)
-add_test(symbolic_format symbolic_format ${DATA_DIR})
+add_executable(text_dataset_format text_dataset_format.cpp)
+add_test(text_dataset_format text_dataset_format ${DATA_DIR})
 
 # Static datasets
-add_executable(finite_dataset finite_dataset.cpp)
-add_executable(vector_dataset vector_dataset.cpp)
+add_executable(uint_dataset uint_dataset.cpp)
+add_executable(real_dataset real_dataset.cpp)
 add_executable(hybrid_dataset hybrid_dataset.cpp)
-add_test(finite_dataset finite_dataset ${DATA_DIR})
-add_test(vector_dataset vector_dataset ${DATA_DIR})
+add_test(uint_dataset uint_dataset ${DATA_DIR})
+add_test(real_dataset real_dataset ${DATA_DIR})
 add_test(hybrid_dataset hybrid_dataset ${DATA_DIR})
 
 # Sequence datasets
-add_executable(finite_sequence_dataset finite_sequence_dataset.cpp)
-add_executable(vector_sequence_dataset vector_sequence_dataset.cpp)
+add_executable(uint_sequence_dataset uint_sequence_dataset.cpp)
+add_executable(real_sequence_dataset real_sequence_dataset.cpp)
 # add_executable(hybrid_sequence_dataset hybrid_sequence_dataset.cpp)
-add_test(finite_sequence_dataset finite_sequence_dataset ${DATA_DIR})
-add_test(vector_sequence_dataset vector_sequence_dataset ${DATA_DIR})
+add_test(uint_sequence_dataset uint_sequence_dataset ${DATA_DIR})
+add_test(real_sequence_dataset real_sequence_dataset ${DATA_DIR})
 # add_test(hybrid_sequence_dataset hybrid_sequence_dataset ${DATA_DIR})
 
 # Views

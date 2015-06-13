@@ -1,7 +1,7 @@
 #ifndef LIBGM_TEST_MODEL_PREDICATES_HPP
 #define LIBGM_TEST_MODEL_PREDICATES_HPP
 
-#include <libgm/argument/finite_assignment_iterator.hpp>
+#include <libgm/argument/uint_assignment_iterator.hpp>
 #include <algorithm>
 #include <vector>
 
@@ -43,7 +43,7 @@ model_close_log_likelihoods(const Model& a, const Model& b, double eps) {
                      << arga.unique() << " != " << argb.unique();
     return result;
   }
-  libgm::finite_assignment_iterator<> it(arga), end;
+  libgm::uint_assignment_iterator<> it(arga), end;
   for(; it != end; ++it) {
     if (std::abs(a.log(*it) - b.log(*it)) > eps) {
       boost::test_tools::predicate_result result(false);

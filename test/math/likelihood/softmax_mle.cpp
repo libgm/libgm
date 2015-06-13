@@ -30,13 +30,13 @@ BOOST_AUTO_TEST_CASE(test_mle) {
   std::mt19937 rng;
   std::uniform_real_distribution<> unif;
   softmax_distribution<> dist(param);
-  typedef hybrid_index<double> vec_type;
+  typedef hybrid_vector<> vec_type;
   std::vector<std::pair<vec_type, double>> samples;
   samples.reserve(nsamples);
   vec_type sample(1, 4);
   for (std::size_t i = 0; i < nsamples; ++i) {
-    for (std::size_t j = 0; j < 4; ++j) { sample.vector()[j] = unif(rng); }
-    sample.finite()[0] = dist(rng, sample.vector());
+    for (std::size_t j = 0; j < 4; ++j) { sample.real()[j] = unif(rng); }
+    sample.uint()[0] = dist(rng, sample.real());
     samples.emplace_back(sample, 1.0);
   }
 

@@ -1,8 +1,8 @@
 #ifndef LIBGM_SOFTMAX_PARAM_HPP
 #define LIBGM_SOFTMAX_PARAM_HPP
 
-#include <libgm/datastructure/hybrid_index.hpp>
-#include <libgm/math/eigen/dynamic.hpp>
+#include <libgm/datastructure/hybrid_vector.hpp>
+#include <libgm/math/eigen/real.hpp>
 #include <libgm/serialization/eigen.hpp>
 
 #include <cmath>
@@ -35,8 +35,8 @@ namespace libgm {
     typedef T value_type;
 
     // Underlying representation
-    typedef dynamic_matrix<T> mat_type;
-    typedef dynamic_vector<T> vec_type;
+    typedef real_matrix<T> mat_type;
+    typedef real_vector<T> vec_type;
 
     // Constructors
     //======================================================================

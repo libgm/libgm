@@ -28,7 +28,7 @@ namespace libgm {
    *         core functions for determining the number of columns
    *         occupied by a variable and copying values to an assignment.
    *
-   * \see Dataset, finite_dataset, vector_dataset
+   * \see Dataset, uint_dataset, real_dataset
    */
   template <typename Traits>
   class basic_dataset {

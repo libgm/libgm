@@ -8,7 +8,7 @@
 #include <libgm/factor/moment_gaussian.hpp>
 #include <libgm/factor/probability_table.hpp>
 #include <libgm/factor/util/operations.hpp>
-#include <libgm/learning/dataset/finite_dataset.hpp>
+#include <libgm/learning/dataset/uint_dataset.hpp>
 #include <libgm/learning/parameter/factor_mle.hpp>
 
 #include "predicates.hpp"
@@ -23,7 +23,7 @@ using namespace libgm;
 
 struct fixture {
   fixture()
-    : x(u.new_finite_variables(5, "x", 2)) {
+    : x(u.new_discrete_variables(5, "x", 2)) {
 
     /* Create factors for a Bayesian network with this structure:
      * 0, 1 (no parents)
@@ -69,7 +69,7 @@ BOOST_FIXTURE_TEST_CASE(test_markov_graph, fixture) {
 }
 
 BOOST_FIXTURE_TEST_CASE(test_conditioning, fixture) {
-  finite_assignment<> a;
+  uint_assignment<> a;
   a[x[0]] = 0;
   a[x[1]] = 1;
   double likelihood(bn.condition(a));
@@ -85,8 +85,8 @@ BOOST_FIXTURE_TEST_CASE(test_conditioning, fixture) {
 }
 
 BOOST_FIXTURE_TEST_CASE(test_sample, fixture) {
-  finite_dataset<> ds(x);
-  finite_assignment<> a;
+  uint_dataset<> ds(x);
+  uint_assignment<> a;
   std::size_t nsamples = 5000;
   std::mt19937 rng;
   for (std::size_t i = 0; i < nsamples; ++i) {

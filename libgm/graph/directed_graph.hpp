@@ -105,7 +105,7 @@ namespace libgm {
       data_ = other.data_;
       edge_count_ = other.edge_count_;
       for (edge_type e : edges()) {
-        if(e.property_ != NULL) {
+        if(e.property_ != nullptr) {
           EdgeProperty* ptr =
             new EdgeProperty(*static_cast<EdgeProperty*>(e.property_));
           data_[e.source()].children[e.target()] = ptr;
@@ -379,7 +379,7 @@ namespace libgm {
       edge_count_ -= parents.size();
       for (const auto& p : parents) {
         data_[p.first].children.erase(u);
-        if (p.second != NULL) { delete p.second; }
+        if (p.second != nullptr) { delete p.second; }
       }
       parents.clear();
     }
@@ -390,7 +390,7 @@ namespace libgm {
       edge_count_ -= children.size();
       for (const auto& c : children) {
         data_[c.first].parents.erase(u);
-        if (c.second != NULL) { delete c.second; }
+        if (c.second != nullptr) { delete c.second; }
       }
       children.clear();
     }

@@ -2,7 +2,7 @@
 #define LIBGM_HYBRID_DATASET_IO_HPP
 
 #include <libgm/learning/dataset/hybrid_dataset.hpp>
-#include <libgm/learning/dataset/symbolic_format.hpp>
+#include <libgm/learning/dataset/text_dataset_format.hpp>
 
 #include <cmath>
 #include <fstream>
@@ -11,15 +11,16 @@
 namespace libgm {
 
   /**
-   * Loads a hybrid memory dataset using the symbolic format.
-   * The dataset must not be initialized.
-   * \relates hybrid_memory_dataset
+   * Loads data into an uninitialized hybrid_dataset from a text file using
+   * the specified format.
+   *
+   * \relates hybrid_dataset
    */
   template <typename T>
   void load(const std::string& filename,
-            const symbolic_format& format,
+            const text_dataset_format& format,
             hybrid_dataset<T>& ds) {
-    hybrid_domain<> vars = format.vars();
+    hybrid_domain<> vars = format.variables;
     ds.initialize(vars);
 
     std::ifstream in(filename);
@@ -29,57 +30,60 @@ namespace libgm {
 
     std::string line;
     std::size_t line_number = 0;
-    hybrid_index<T> index(vars.finite_size(), vars.vector_size());
-    std::size_t ncols = index.finite_size() + index.vector_size();
+    hybrid_vector<T> values(vars.discrete_size(), num_dimensions(vars));
+    std::size_t ncols = values.uint_size() + values.real_size();
+    std::vector<const char*> tokens;
     while (std::getline(in, line)) {
-      std::vector<const char*> tokens;
-      if (format.parse(ncols, line, line_number, tokens)) {
+      if (format.tokenize(ncols, line, line_number, tokens)) {
         std::size_t col = format.skip_cols;
-        std::size_t fi = 0;
-        std::size_t vi = 0;
-        for (const symbolic_format::variable_info& info : format.var_infos) {
-          if (info.is_finite()) {
+        std::size_t ui = 0;
+        std::size_t ri = 0;
+        for (variable v : format.variables) {
+          if (is_discrete(v)) {
             const char* token = tokens[col++];
             if (token == format.missing) {
-              index.finite()[fi++] = std::size_t(-1);
+              values.uint()[ui++] = std::size_t(-1);
             } else {
-              index.finite()[fi++] = info.parse(token);
+              values.uint()[ui++] = v.parse_discrete(token);
             }
-          } else if (info.is_vector()) {
-            std::size_t size = info.size();
+          } else if (is_continuous(v)) {
+            std::size_t size = num_dimensions(v);
             if (std::count(&tokens[col], &tokens[col] + size, format.missing)) {
               // TODO: warning if only a subset of columns missing
-              std::fill(index.vector().data() + vi,
-                        index.vector().data() + vi + size,
+              std::fill(values.real().data() + ri,
+                        values.real().data() + ri + size,
                         std::numeric_limits<T>::quiet_NaN());
               col += size;
-              vi += size;
+              ri += size;
             } else {
               for (std::size_t j = 0; j < size; ++j) {
-                index.vector()[vi++] = parse_string<T>(tokens[col++]);
+                values.real()[ri++] = parse_string<T>(tokens[col++]);
               }
             }
           } else {
-            throw std::logic_error("Unsupported variable type " + info.name());
+            throw std::logic_error("Unsupported type of variable " + v.name());
           }
         }
-        assert(index.finite_size() == fi);
-        assert(index.vector_size() == vi);
+        assert(values.uint_size() == ui);
+        assert(values.real_size() == ri);
         T weight = format.weighted ? parse_string<T>(tokens[col]) : 1.0;
-        ds.insert(index, weight);
+        ds.insert(values, weight);
       }
     }
   }
 
   /**
-   * Saves a hybrid dataset using the symbolic format.
-   * \relates hybrid_dataset, hybrid_memory_dataset
+   * Saves the data from a hybrid dataset to a text file using the specified
+   * format. Only the data for the variables that are present in the format
+   * are stored.
+   *
+   * \relates hybrid_dataset
    */
   template <typename T>
   void save(const std::string& filename,
-            const symbolic_format& format,
+            const text_dataset_format& format,
             const hybrid_dataset<T>& data) {
-    hybrid_domain<> vars = format.vars();
+    hybrid_domain<> vars = format.variables;
 
     std::ofstream out(filename);
     if (!out) {
@@ -95,22 +99,22 @@ namespace libgm {
       for (std::size_t i = 0; i < format.skip_cols; ++i) {
         out << "0" << separator;
       }
-      std::size_t fi = 0;
-      std::size_t vi = 0;
+      std::size_t ui = 0;
+      std::size_t ri = 0;
       bool first = true;
-      for (const symbolic_format::variable_info& info : format.var_infos) {
-        if (info.is_finite()) {
+      for (variable v : format.variables) {
+        if (is_discrete(v)) {
           if (first) { first = false; } else { out << separator; }
-          std::size_t value = s.first.finite()[fi++];
+          std::size_t value = s.first.uint()[ui++];
           if (value == std::size_t(-1)) {
             out << format.missing;
           } else {
-            info.print(out, value);
+            v.print_discrete(out, value);
           }
         } else {
-          for (std::size_t j = 0; j < info.size(); ++j) {
+          for (std::size_t j = 0; j < num_dimensions(v); ++j) {
             if (first) { first = false; } else { out << separator; }
-            T value = s.first.vector()[vi++];
+            T value = s.first.real()[ri++];
             if (std::isnan(value)) {
               out << format.missing;
             } else {

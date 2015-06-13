@@ -34,7 +34,7 @@ namespace libgm {
   public:
     //! Constructs an input archive with the given stream.
     iarchive(std::istream& in)
-      :in_(&in), u_(NULL), bytes_(0) { }
+      :in_(&in), u_(nullptr), bytes_(0) { }
 
     //! Sets the universe associated with the archive.
     void universe(libgm::universe* u) {

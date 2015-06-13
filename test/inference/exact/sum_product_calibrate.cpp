@@ -33,7 +33,7 @@ BOOST_FIXTURE_TEST_CASE(test_calibrate, fixture) {
   }
 
   // condition on an assignment
-  finite_assignment<> a = {{vars[6], 0}, {vars[15], 1}, {vars[16], 0}};
+  uint_assignment<> a = {{vars[6], 0}, {vars[15], 1}, {vars[16], 0}};
   engine.condition(a);
   engine.calibrate();
   engine.normalize();

@@ -24,10 +24,10 @@ namespace libgm {
     typedef line_search_result<real_type> result_type;
 
     //! Creates a line function with the given base function and gradient.
-    explicit line_function(gradient_objective<Vec>* objective = NULL)
+    explicit line_function(gradient_objective<Vec>* objective = nullptr)
       : objective_(objective),
-        origin_(NULL),
-        direction_(NULL) { }
+        origin_(nullptr),
+        direction_(nullptr) { }
 
     /**
      * Sets the objective that defines the value and gradient of

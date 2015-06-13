@@ -1,7 +1,7 @@
 #ifndef LIBGM_DIAGONAL_TABLE_GENERATOR_HPP
 #define LIBGM_DIAGONAL_TABLE_GENERATOR_HPP
 
-#include <libgm/datastructure/finite_index.hpp>
+#include <libgm/datastructure/uint_vector.hpp>
 
 #include <iostream>
 #include <random>
@@ -70,15 +70,15 @@ namespace libgm {
       if (!args.empty()) {
         real_type x = std::uniform_real_distribution<real_type>(
           param_.lower, param_.upper)(rng);
-        std::size_t size = args[0].size();
+        std::size_t size = num_values(args[0]);
         for (variable_type v : args) {
-          if (v.size() != size) {
+          if (num_values(v) != size) {
             throw std::invalid_argument(
               "diagonal_table_generator: all arguments must have the same size"
             );
           }
         }
-        finite_index index;
+        uint_vector index;
         for (std::size_t k = 0; k < size; ++k) {
           index.assign(args.size(), k);
           f.param(index) = x;

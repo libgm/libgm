@@ -105,7 +105,7 @@ namespace libgm {
       data_ = g.data_;
       edge_count_ = g.edge_count_;
       for (edge_type e : edges()) {
-        if(e.property_ != NULL) {
+        if(e.property_ != nullptr) {
           edge_property* ptr =
             new edge_property(*static_cast<edge_property*>(e.property_));
           data_[e.source()].neighbors[e.target()] = ptr;
@@ -362,7 +362,7 @@ namespace libgm {
       edge_count_ -= neighbors.size();
       for (const auto& n : neighbors) {
         if(n.first != u) { data_[n.first].neighbors.erase(u); }
-        if(n.second != NULL) { delete n.second; }
+        if(n.second != nullptr) { delete n.second; }
       }
       neighbors.clear();
     }

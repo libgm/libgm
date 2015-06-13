@@ -3,7 +3,8 @@
 
 #include <libgm/factor/base/table_factor.hpp>
 #include <libgm/factor/traits.hpp>
-#include <libgm/functional/operators.hpp>
+#include <libgm/functional/algorithm.hpp>
+#include <libgm/functional/arithmetic.hpp>
 #include <libgm/functional/entropy.hpp>
 #include <libgm/math/constants.hpp>
 #include <libgm/math/likelihood/canonical_table_ll.hpp>
@@ -38,15 +39,15 @@ namespace libgm {
     //==========================================================================
 
     // Factor member types
-    typedef T                      real_type;
-    typedef logarithmic<T>         result_type;
-    typedef Var                    variable_type;
-    typedef basic_domain<Var>      domain_type;
-    typedef finite_assignment<Var> assignment_type;
+    typedef T                    real_type;
+    typedef logarithmic<T>       result_type;
+    typedef Var                  variable_type;
+    typedef basic_domain<Var>    domain_type;
+    typedef uint_assignment<Var> assignment_type;
 
     // ParametricFactor types
     typedef table<T>     param_type;
-    typedef finite_index index_type;
+    typedef uint_vector  index_type;
     typedef table_distribution<T> distribution_type;
 
     // LearnableDistributionFactor member types
@@ -132,7 +133,7 @@ namespace libgm {
     }
 
     //! Returns the value of the factor for the given index.
-    logarithmic<T> operator()(const finite_index& index) const {
+    logarithmic<T> operator()(const uint_vector& index) const {
       return logarithmic<T>(this->param(index), log_tag());
     }
 
@@ -142,7 +143,7 @@ namespace libgm {
     }
 
     //! Returns the log-value of the factor for the given index.
-    T log(const finite_index& index) const {
+    T log(const uint_vector& index) const {
       return this->param(index);
     }
 
@@ -186,7 +187,7 @@ namespace libgm {
     //! Returns the sum of the probabilities of two factors.
     friend canonical_table
     operator+(const canonical_table& f, const canonical_table& g) {
-      return transform<canonical_table>(f, g, log_sum_exp<T>());
+      return transform<canonical_table>(f, g, log_plus_exp<T>());
     }
 
     //! Multiplies two canonical_table factors.
@@ -358,13 +359,13 @@ namespace libgm {
 
     //! Draws a random sample from a marginal distribution.
     template <typename Generator>
-    finite_index sample(Generator& rng) const {
-      return sample(rng, finite_index());
+    uint_vector sample(Generator& rng) const {
+      return sample(rng, uint_vector());
     }
 
     //! Draws a random sample from a conditional distribution.
     template <typename Generator>
-    finite_index sample(Generator& rng, const finite_index& tail) const {
+    uint_vector sample(Generator& rng, const uint_vector& tail) const {
       return this->param_.sample(exponent<T>(), rng, tail);
     }
 

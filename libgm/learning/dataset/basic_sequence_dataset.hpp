@@ -22,7 +22,7 @@ namespace libgm {
    *         core functions for determining the number of columns occupied
    *         by a process and copying values to an assignment.
    *
-   * \see Dataset, finite_sequence_dataset, vector_sequence_dataset
+   * \see Dataset, uint_sequence_dataset, real_sequence_dataset
    */
   template <typename Traits>
   class basic_sequence_dataset {

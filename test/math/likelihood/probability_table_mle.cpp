@@ -3,6 +3,7 @@
 
 #include <libgm/math/likelihood/probability_table_mle.hpp>
 
+#include <libgm/functional/algorithm.hpp>
 #include <libgm/math/likelihood/probability_table_ll.hpp>
 #include <libgm/math/likelihood/range_ll.hpp>
 #include <libgm/math/random/table_distribution.hpp>
@@ -26,7 +27,7 @@ BOOST_AUTO_TEST_CASE(test_mle) {
   // generate a few samples
   std::mt19937 rng;
   table_distribution<> dist(param);
-  std::vector<std::pair<finite_index, double>> samples;
+  std::vector<std::pair<uint_vector, double>> samples;
   samples.reserve(nsamples);
   for (std::size_t i = 0; i < nsamples; ++i) {
     samples.emplace_back(dist(rng), 1.0);

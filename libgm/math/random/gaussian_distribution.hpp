@@ -16,18 +16,18 @@ namespace libgm {
    */
   template <typename T = double>
   class gaussian_distribution {
-    typedef dynamic_matrix<T> mat_type;
-    typedef dynamic_vector<T> vec_type;
+    typedef real_matrix<T> mat_type;
+    typedef real_vector<T> vec_type;
 
   public:
     //! The type of parameters of this distribution.
     typedef moment_gaussian_param<T> param_type;
 
     //! The type representing the sample.
-    typedef dynamic_vector<T> result_type;
+    typedef real_vector<T> result_type;
 
     //! The type representing an assignment to the tail.
-    typedef dynamic_vector<T> tail_type;
+    typedef real_vector<T> tail_type;
 
     /**
      * Constructs a marginal or conditional distribution

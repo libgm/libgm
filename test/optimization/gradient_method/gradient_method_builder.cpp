@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
   }
 
   // Create the gradient_method object
-  boost::shared_ptr<gradient_method<arma::vec> > gm(builder.get(NULL));
+  boost::shared_ptr<gradient_method<arma::vec> > gm(builder.get(nullptr));
   std::cout << *gm << std::endl;
 
   return 0;

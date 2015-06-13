@@ -3,7 +3,7 @@
 
 #include <libgm/argument/hybrid_assignment.hpp>
 #include <libgm/argument/hybrid_domain.hpp>
-#include <libgm/datastructure/hybrid_index.hpp>
+#include <libgm/datastructure/hybrid_vector.hpp>
 #include <libgm/factor/base/factor.hpp>
 #include <libgm/factor/probability_array.hpp>
 #include <libgm/factor/traits.hpp>
@@ -15,13 +15,15 @@
 #include <libgm/math/random/softmax_distribution.hpp>
 
 #include <iostream>
+#include <sstream>
 
 namespace libgm {
 
   /**
-   * A factor that represents a conditional distribution over a finite variable
-   * given a set of vector variables. The conditional distribution is given by
-   * a normalized exponential, p(y = j | x) \propto exp(b_j + x^T w_j).
+   * A factor that represents a conditional distribution over a discrete
+   * variable given a collection of continuous variables. The conditional
+   * distribution is given by a normalized exponential,
+   * p(y = j | x) \propto exp(b_j + x^T w_j).
    *
    * \tparam T a real type for representing each parameter
    *
@@ -42,7 +44,7 @@ namespace libgm {
 
     // ParametricFactor member types
     typedef softmax_param<T> param_type;
-    typedef hybrid_index<T>  index_type;
+    typedef hybrid_vector<T> index_type;
     typedef softmax_distribution<T> distribution_type;
 
     // LearnableFactor member types
@@ -50,8 +52,8 @@ namespace libgm {
     typedef softmax_mle<T> mle_type;
 
     // Types to represent the parameters
-    typedef dynamic_matrix<T> mat_type;
-    typedef dynamic_vector<T> vec_type;
+    typedef real_matrix<T> mat_type;
+    typedef real_vector<T> vec_type;
 
     // Constructors and conversion operators
     //==========================================================================
@@ -62,7 +64,7 @@ namespace libgm {
     softmax() { }
 
     /**
-     * Constructs a factor with the given arguments. The finite component
+     * Constructs a factor with the given arguments. The discrete component
      * of the domain must have exactly one variable.
      * Allocates the parameters but doesnot initialize their values.
      */
@@ -80,7 +82,7 @@ namespace libgm {
 
     /**
      * Constructs a factor with the given domain which must contain exactly
-     * one finite argument. Sets the parameters to the given parameter vector.
+     * one discreteargument. Sets the parameters to the given parameter vector.
      */
     softmax(const domain_type& args, const param_type& param)
       : args_(args), param_(param) {
@@ -89,7 +91,7 @@ namespace libgm {
 
     /**
      * Constructs a factor with the given domain which must contain exactly
-     * one finite argument. Sets the parameters to the given parameter vector.
+     * one discrete argument. Sets the parameters to the given parameter vector.
      */
     softmax(const domain_type& args, param_type&& param)
       : args_(args), param_(std::move(param)) {
@@ -112,21 +114,21 @@ namespace libgm {
      */
     void reset(const domain_type& args) {
       if (args_ != args) {
-        assert(args.finite().size() == 1);
+        assert(args.discrete().size() == 1);
         args_ = args;
-        param_.resize(args.finite()[0].size(), vector_size(args.vector()));
+        param_.resize(num_values(args.discrete()[0]),
+                      num_dimensions(args.continuous()));
       }
     }
 
     /**
-     * Resets the content of this factor to the given finite and vector
+     * Resets the content of this factor to the given head and tail
      * arguments. The parameter values may become invalidated.
      */
     void reset(Var head, const basic_domain<Var>& tail) {
-      assert(head);
-      args_.finite().assign(1, head);
-      args_.vector() = tail;
-      param_.resize(head.size(), vector_size(tail));
+      args_.discrete().assign(1, head);
+      args_.continuous() = tail;
+      param_.resize(num_values(head), num_dimensions(tail));
     }
 
     // Accessors and comparison operators
@@ -137,14 +139,15 @@ namespace libgm {
       return args_;
     }
 
-    //! Returns the label variable or null if this factor is empty.
+    //! Returns the label variable.
     Var head() const {
-      return args_.finite().empty() ? Var() : args_.finite()[0];
+      assert(!args_.empty());
+      return args_.discrete()[0];
     }
 
     //! Returns the feature arguments of this factor.
     const basic_domain<Var>& tail() const {
-      return args_.vector();
+      return args_.continuous();
     }
 
     //! Returns true if the factor is empty.
@@ -189,10 +192,10 @@ namespace libgm {
 
     /**
      * Returns the value of the factor for the given index.
-     * The first finite value is assumed to be the label.
+     * The first integral value is assumed to be the label.
      */
-    T operator()(const hybrid_index<T>& index) const {
-      return param_(index.vector())[index.finite()[0]];
+    T operator()(const hybrid_vector<T>& index) const {
+      return param_(index.real())[index.uint()[0]];
     }
 
     /**
@@ -203,26 +206,21 @@ namespace libgm {
      *        missing features are assumed to be 0.
      */
     T operator()(const assignment_type& a, bool strict = true) const {
-      std::size_t finite = a.finite().at(head());
+      std::size_t label = a.uint().at(head());
       if (strict) {
         vec_type features;
-        extract_features(a.vector(), features);
-        return param_(features)[finite];
+        extract_features(a.real(), features);
+        return param_(features)[label];
       } else {
-        assert(false);
-        /*
-        sparse_index<T> features;
-        extract_features(a.vector(), features);
-        return param_(features)[finite];
-        */
+        assert(false); // not implemented yet
       }
     }
 
     /**
      * Returns the log-value of the factor for the given index.
-     * The first finite value is assumed ot be the label.
+     * The first integral value is assumed ot be the label.
      */
-    T log(const hybrid_index<T>& index) const {
+    T log(const hybrid_vector<T>& index) const {
       return std::log(operator()(index));
     }
 
@@ -238,7 +236,7 @@ namespace libgm {
     }
 
     /**
-     * Returns true if the two factors have the same argument vectors and
+     * Returns true if the two factors have the same domains and
      * parameters.
      */
     friend bool operator==(const softmax& f, const softmax& g) {
@@ -246,7 +244,7 @@ namespace libgm {
     }
 
     /**
-     * Returns true if the two factors do not have the same argument vectors
+     * Returns true if the two factors do not have the same domains
      * or parameters.
      */
     friend bool operator!=(const softmax& f, const softmax& g) {
@@ -260,19 +258,19 @@ namespace libgm {
      * Extracts a dense feature vector from an assignment. All the tail
      * variables must be present in the assignment.
      */
-    void extract_features(const vector_assignment<T, Var>& a,
+    void extract_features(const real_assignment<T, Var>& a,
                           vec_type& result) const {
       result.resize(features());
       std::size_t row = 0;
       for (Var v : tail()) {
         auto it = a.find(v);
         if (it != a.end()) {
-          result.segment(row, v.size()) = it->second;
-          row += v.size();
+          result.segment(row, num_dimensions(v)) = it->second;
+          row += num_dimensions(v);
         } else {
-          throw std::invalid_argument(
-            "The assignment does not contain the variable " + v.str()
-          );
+          std::ostringstream out;
+          out << "The assignment does not contain the tail variable " << v;
+          throw std::invalid_argument(out.str());
         }
       }
     }
@@ -282,10 +280,10 @@ namespace libgm {
      * Extracts a sparse vector of features from an assignment. Tail variables
      * that are missing in the assignment are assumed to have a value of 0.
      */
-    void extract_features(const vector_assignment<T>& a,
+    void extract_features(const real_assignment<T>& a,
                           sparse_index<T>& result) const {
       result.clear();
-      result.reserve(vector_size(tail()));
+      result.reserve(num_dimensions(tail()));
       std::size_t id = 0;
       for (Var v : tail()) {
         auto it = a.find(v);
@@ -311,10 +309,10 @@ namespace libgm {
           );
         }
       } else {
-        if (param_.labels() != head().size()) {
+        if (param_.labels() != num_values(head())) {
           throw std::runtime_error("Invalid number of labels");
         }
-        if (param_.features() != vector_size(tail())) {
+        if (param_.features() != num_dimensions(tail())) {
           throw std::runtime_error("Invalid number of features");
         }
       }
@@ -347,7 +345,7 @@ namespace libgm {
      *        in the assignment.
      */
     probability_array<T, 1, Var>
-    condition(const vector_assignment<T, Var>& a, bool strict = true) const {
+    condition(const real_assignment<T, Var>& a, bool strict = true) const {
       if (strict) {
         vec_type features;
         extract_features(a, features);
@@ -396,7 +394,7 @@ namespace libgm {
      */
     template <typename Generator>
     void sample(Generator& rng, assignment_type& a) const {
-      a.finite()[head()] = param_.sample(rng, extract(a, tail()));
+      a.uint()[head()] = param_.sample(rng, extract(a, tail()));
     }
 
     // Private members
@@ -416,8 +414,12 @@ namespace libgm {
    */
   template <typename T, typename Var>
   std::ostream& operator<<(std::ostream& out, const softmax<T, Var>& f) {
-    out << "softmax(" << f.head() << "|" << f.tail() << ")" << std::endl
-        << f.param();
+    if (f.empty()) {
+      out << "softmax()" << std::endl;
+    } else {
+      out << "softmax(" << f.head() << "|" << f.tail() << ")" << std::endl
+          << f.param();
+    }
     return out;
   }
 

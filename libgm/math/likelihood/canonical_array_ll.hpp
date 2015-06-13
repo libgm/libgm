@@ -1,7 +1,7 @@
 #ifndef LIBGM_CANONICAL_ARRAY_LL_HPP
 #define LIBGM_CANONICAL_ARRAY_LL_HPP
 
-#include <libgm/datastructure/finite_index.hpp>
+#include <libgm/datastructure/uint_vector.hpp>
 #include <libgm/datastructure/real_pair.hpp>
 #include <libgm/traits/is_sample_range.hpp>
 
@@ -57,7 +57,7 @@ namespace libgm {
     /**
      * Returns the log-likelihood of the specified data point.
      */
-    T value(const finite_index& index) const {
+    T value(const uint_vector& index) const {
       return a(linear(index));
     }
 
@@ -84,7 +84,7 @@ namespace libgm {
      * Returns the log-likelihood of the specified datapoint
      * and the slope along the given direction.
      */
-    real_pair<T> value_slope(const finite_index& index,
+    real_pair<T> value_slope(const uint_vector& index,
                              const param_type& dir) const {
       assert(a.rows() == dir.rows() && a.cols() == dir.cols());
       std::size_t i = linear(index);
@@ -113,7 +113,7 @@ namespace libgm {
      * Adds a gradient of the log-likelihood of the specified data
      * point with weight w to the gradient array g
      */
-    void add_gradient(const finite_index& index, T w, param_type& g) const {
+    void add_gradient(const uint_vector& index, T w, param_type& g) const {
       assert(a.rows() == g.rows() && a.cols() == g.cols());
       g(linear(index)) += w;
     }
@@ -150,7 +150,7 @@ namespace libgm {
      * Adds the diagonal of the Hessian of log-likelihood of the specified
      * data point with weight w to the Hessian diagonal h.
      */
-    void add_hessian_diag(const finite_index& index, T w, param_type& h) const {
+    void add_hessian_diag(const uint_vector& index, T w, param_type& h) const {
       assert(a.rows() == h.rows() && a.cols() == h.cols());
     }
 
@@ -164,8 +164,8 @@ namespace libgm {
                           param_type& h) const { }
 
   private:
-    //! Returns the linear index corresponding to a finite_index.
-    std::size_t linear(const finite_index& index) const {
+    //! Returns the linear index corresponding to a uint_vector.
+    std::size_t linear(const uint_vector& index) const {
       switch (index.size()) {
       case 1:
         assert(a.cols() == 1);

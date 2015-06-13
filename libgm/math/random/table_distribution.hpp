@@ -2,7 +2,7 @@
 #define LIBGM_TABLE_DISTRIBUTION_HPP
 
 #include <libgm/datastructure/table.hpp>
-#include <libgm/functional/operators.hpp>
+#include <libgm/functional/arithmetic.hpp>
 #include <libgm/math/log_tag.hpp>
 
 #include <algorithm>
@@ -24,10 +24,10 @@ namespace libgm {
     typedef table<T> param_type;
 
     //! The type representing the sample.
-    typedef finite_index result_type;
+    typedef uint_vector result_type;
 
     //! The type representing the assignment to the tail.
-    typedef finite_index tail_type;
+    typedef uint_vector tail_type;
 
     //! Constructor for a distribution in the probability space.
     explicit table_distribution(const table<T>& p)
@@ -48,8 +48,8 @@ namespace libgm {
      * sum to 1.
      */
     template <typename Generator>
-    finite_index operator()(Generator& rng) const {
-      return operator()(rng, finite_index());
+    uint_vector operator()(Generator& rng) const {
+      return operator()(rng, uint_vector());
     }
 
     /**
@@ -58,7 +58,7 @@ namespace libgm {
      * for the given tail index sum to one.
      */
     template <typename Generator>
-    finite_index operator()(Generator& rng, const finite_index& tail) const {
+    uint_vector operator()(Generator& rng, const uint_vector& tail) const {
       assert(tail.size() < psum_.arity());
       std::size_t nhead = psum_.arity() - tail.size();
       std::size_t nelem = psum_.offset().multiplier(nhead);

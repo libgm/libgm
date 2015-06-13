@@ -3,7 +3,7 @@
 
 #include <libgm/functional/hash.hpp>
 #include <libgm/range/iterator_range.hpp>
-#include <libgm/serialization/serialize.hpp>
+#include <libgm/serialization/vector.hpp>
 
 #include <algorithm>
 #include <array>
@@ -16,6 +16,8 @@ namespace libgm {
 
   /**
    * A domain that holds the elements in an std::vector.
+   *
+   * \tparam Arg a type that satisfies the Argument concept
    */
   template <typename Arg>
   class basic_domain : public std::vector<Arg> {
@@ -105,6 +107,11 @@ namespace libgm {
       auto new_end = std::unique(this->begin(), this->end());
       this->erase(new_end, this->end());
       return *this;
+    }
+
+    //! Returns the hash value of a domain.
+    friend std::size_t hash_value(const basic_domain& dom) {
+      return hash_range(dom.begin(), dom.end());
     }
 
   };
@@ -266,34 +273,7 @@ namespace libgm {
   //============================================================================
 
   /**
-   * Returns the number of assignments for a collection of finite arguments.
-   */
-  template <typename Arg>
-  std::size_t finite_size(const basic_domain<Arg>& dom) {
-    std::size_t size = 1;
-    for (Arg arg : dom) {
-      if (std::numeric_limits<std::size_t>::max() / arg.size() <= size) {
-        throw std::out_of_range("finite_size: possibly overflows std::size_t");
-      }
-      size *= arg.size();
-    }
-    return size;
-  }
-
-  /**
-   * Returns the vector dimensionality for a collection of vector arguments.
-   */
-  template <typename Arg>
-  std::size_t vector_size(const basic_domain<Arg>& dom) {
-    std::size_t size = 0;
-    for (Arg arg : dom) {
-      size += arg.size();
-    }
-    return size;
-  }
-
-  /**
-   * Returns true if two domains are type-compatible.
+   * Returns true if two domains are compatible.
    * \relates basic_domain
    */
   template <typename Arg>
@@ -309,19 +289,52 @@ namespace libgm {
     return true;
   }
 
+  /**
+   * Returns the number of values for a collection of discrete arguments.
+   * This is equal to to the product of the numbers of values of the argument.
+   *
+   * \tparam Arg a type that satisfies the DiscreteArgument concept
+   * \throws std::out_of_range in case of overflow
+   * \relates basic_domain
+   */
+  template <typename Arg>
+  std::size_t num_values(const basic_domain<Arg>& dom) {
+    std::size_t size = 1;
+    for (Arg arg : dom) {
+      if (std::numeric_limits<std::size_t>::max() / num_values(arg) <= size) {
+        throw std::out_of_range("num_values: possibly overflows std::size_t");
+      }
+      size *= num_values(arg);
+    }
+    return size;
+  }
+
+  /**
+   * Returns the dimensionality for a collection of continuous arguments.
+   * This is equal to the sum of the numbers of dimensions of the arguments.
+   *
+   * \relates basic_domain
+   * \tparam Arg a type that satisfies the ContinuousArgument concept
+   * \throws std::out_of_range in case of overflow
+   */
+  template <typename Arg>
+  std::size_t num_dimensions(const basic_domain<Arg>& dom) {
+    std::size_t size = 0;
+    for (Arg arg : dom) {
+      size += num_dimensions(arg);
+    }
+    return size;
+  }
+
 } // namespace libgm
 
 
 namespace std {
-  //! \relates basic_domain
+
   template <typename Arg>
-  struct hash<libgm::basic_domain<Arg>> {
-    typedef libgm::basic_domain<Arg> argument_type;
-    typedef std::size_t result_type;
-    std::size_t operator()(const libgm::basic_domain<Arg>& dom) const {
-      return libgm::hash_range(dom.begin(), dom.end());
-    }
-  };
+  struct hash<libgm::basic_domain<Arg>>
+    : libgm::default_hash<libgm::basic_domain<Arg>> { };
+
 } // namespace std
 
 #endif

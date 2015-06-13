@@ -35,6 +35,16 @@ namespace libgm {
       std::copy(elems.begin(), elems.end(), this->begin());
     }
 
+    //! Serializes the domain.
+    void save(oarchive& ar) const {
+      ar << static_cast<const std::array<Arg, N>&>(*this);
+    }
+
+    //! Deserializes the domain.
+    void load(iarchive& ar) {
+      ar >> static_cast<std::array<Arg, N>&>(*this);
+    }
+
     //! Returns the number of times an argument is present in the domain.
     std::size_t count(const Arg& x) const {
       return std::count(this->begin(), this->end(), x);
@@ -48,7 +58,6 @@ namespace libgm {
   template <typename Arg, std::size_t N>
   std::ostream& operator<<(std::ostream& out, const array_domain<Arg, N>& a) {
     for (std::size_t i = 0; i < N; ++i) {
-      if (!a[i]) break;
       out << (i == 0 ? '[' : ',') << a[i];
     }
     out << ']';
@@ -267,13 +276,13 @@ namespace libgm {
    * Returns the number of assignments for a collection of finite arguments.
    */
   template <typename Arg, std::size_t N>
-  std::size_t finite_size(const array_domain<Arg, N>& dom) {
+  std::size_t num_values(const array_domain<Arg, N>& dom) {
     std::size_t size = 1;
     for (Arg arg : dom) {
-      if (std::numeric_limits<std::size_t>::max() / arg.size() <= size) {
-        throw std::out_of_range("finite_size: possibly overflows std::size_t");
+      if (std::numeric_limits<std::size_t>::max() / num_values(arg) <= size) {
+        throw std::out_of_range("num_values: possibly overflows std::size_t");
       }
-      size *= arg.size();
+      size *= num_values(arg);
     }
     return size;
   }
@@ -282,10 +291,10 @@ namespace libgm {
    * Returns the vector dimensionality for a collection of vector arguments.
    */
   template <typename Arg, std::size_t N>
-  std::size_t vector_size(const array_domain<Arg, N>& dom) {
+  std::size_t num_dimensions(const array_domain<Arg, N>& dom) {
     std::size_t size = 0;
     for (Arg arg : dom) {
-      size += arg.size();
+      size += num_dimensions(arg);
     }
     return size;
   }

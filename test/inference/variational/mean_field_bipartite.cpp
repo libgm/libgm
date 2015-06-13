@@ -11,7 +11,7 @@
 #include <libgm/graph/bipartite_graph.hpp>
 #include <libgm/inference/exact/sum_product_calibrate.hpp>
 
-#include <boost/strong_typedef.hpp>
+#include <boost/serialization/strong_typedef.hpp>
 
 #include <random>
 
@@ -53,8 +53,8 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
 
   // node potentials
   for (std::size_t i = 0; i < nvertices; ++i) {
-    vertex1 v1(u.new_finite_variable("x" + std::to_string(i), 2));
-    vertex2 v2(u.new_finite_variable("y" + std::to_string(i), 2));
+    vertex1 v1(u.new_discrete_variable("x" + std::to_string(i), 2));
+    vertex2 v2(u.new_discrete_variable("y" + std::to_string(i), 2));
     model.add_vertex(v1, node_gen({v1.t}, rng));
     model.add_vertex(v2, node_gen({v2.t}, rng));
     factors.emplace_back(model[v1]);
@@ -111,7 +111,7 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
 template <int index>
 struct vertex {
   variable v;
-  vertex() : v(NULL) { }
+  vertex() : v(nullptr) { }
   vertex(variable v) : v(v) { }
   std::size_t id() const { return v ? v->id() : -1; }
   bool operator<(vertex u) const { return id() < u.id(); }

@@ -18,7 +18,7 @@ using namespace libgm;
 
 struct fixture {
   fixture()
-    : v(u.new_finite_variables(6, "v", 2)) {
+    : v(u.new_discrete_variables(6, "v", 2)) {
     cg.add_cluster(1, {v[0], v[1]});
     cg.add_cluster(2, {v[1], v[2], v[3]});
     cg.add_cluster(3, {v[2], v[3], v[4]});

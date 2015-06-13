@@ -1,7 +1,7 @@
 #ifndef LIBGM_PROBABILITY_ARRAY_MLE_HPP
 #define LIBGM_PROBABILITY_ARRAY_MLE_HPP
 
-#include <libgm/datastructure/finite_index.hpp>
+#include <libgm/datastructure/uint_vector.hpp>
 #include <libgm/math/likelihood/mle_eval.hpp>
 
 #include <Eigen/Core>
@@ -34,7 +34,7 @@ namespace libgm {
     typedef Eigen::Array<T, Eigen::Dynamic, 1> param_type;
 
     //! The type that represents an unweighted observation.
-    typedef finite_index data_type;
+    typedef uint_vector data_type;
 
     //! The type that represents the weight of an observation.
     typedef T weight_type;
@@ -71,7 +71,7 @@ namespace libgm {
     }
 
     //! Processes a single weighted data point.
-    void process(const finite_index& values, T weight) {
+    void process(const uint_vector& values, T weight) {
       assert(values.size() == 1);
       counts_[values[0]] += weight;
     }
@@ -109,7 +109,7 @@ namespace libgm {
     typedef Eigen::Array<T, Eigen::Dynamic, 1> array1_type;
 
     //! The type that represents an unweighted observation.
-    typedef finite_index data_type;
+    typedef uint_vector data_type;
 
     //! The type that represents the weight of an observation.
     typedef T weight_type;
@@ -152,7 +152,7 @@ namespace libgm {
     }
 
     //! Processes a single weighted data point.
-    void process(const finite_index& values, T weight) {
+    void process(const uint_vector& values, T weight) {
       assert(values.size() == 2);
       counts_(values[0], values[1]) += weight;
     }
@@ -164,7 +164,7 @@ namespace libgm {
      * \param head an index of size 1 containing the row
      * \param tail a distribution over the column indices
      */
-    void process(const finite_index& head, const array1_type& ptail) {
+    void process(const uint_vector& head, const array1_type& ptail) {
       assert(head.size() == 1);
       assert(ptail.size() == counts_.cols());
       counts_.row(head[0]) += ptail.transpose();

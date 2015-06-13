@@ -1,6 +1,6 @@
 #include <libgm/optimization/line_search/line_search_builder.hpp>
 
-#include <libgm/math/eigen/dynamic.hpp>
+#include <libgm/math/eigen/real.hpp>
 #include <libgm/math/eigen/optimization.hpp>
 
 #include <memory>
@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
   namespace po = boost::program_options;
   po::options_description desc("line_search_builder test");
   desc.add_options()("help", "Print command options");
-  line_search_builder<dynamic_vector<double>> builder;
+  line_search_builder<real_vector<double>> builder;
   builder.add_options(desc);
 
   // Parse the options
@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
   }
 
   // Create the line_search object
-  std::unique_ptr<line_search<dynamic_vector<double>>> ls(builder.get());
+  std::unique_ptr<line_search<real_vector<double>>> ls(builder.get());
   // TODO: change to std::unique_ptr
   std::cout << *ls << std::endl;
 

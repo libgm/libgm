@@ -2,7 +2,7 @@
 #define LIBGM_MOMENT_GAUSSIAN_PARAM_HPP
 
 #include <libgm/math/constants.hpp>
-#include <libgm/math/eigen/dynamic.hpp>
+#include <libgm/math/eigen/real.hpp>
 #include <libgm/math/eigen/logdet.hpp>
 #include <libgm/math/eigen/submatrix.hpp>
 #include <libgm/math/eigen/subvector.hpp>
@@ -37,8 +37,8 @@ namespace libgm {
   template <typename T = double>
   struct moment_gaussian_param {
     // The underlying representation
-    typedef dynamic_matrix<T> mat_type;
-    typedef dynamic_vector<T> vec_type;
+    typedef real_matrix<T> mat_type;
+    typedef real_vector<T> vec_type;
 
     //! The conditional mean.
     vec_type mean;
@@ -417,7 +417,7 @@ namespace libgm {
       h.lm = f.lm + g.lm;
 
       // extract the coefficients
-      dynamic_matrix<T> a;
+      real_matrix<T> a;
       set(a, submat(q.coef, qall, qy));
       h.coef.block(hq.start(), 0, a.rows(), a.cols()) = a;
       set(a, submat(q.coef, qall, q1));
@@ -493,8 +493,8 @@ namespace libgm {
   template <typename T>
   struct moment_gaussian_conditional {
     typedef moment_gaussian_param<T> param_type;
-    typedef dynamic_matrix<T> mat_type;
-    typedef dynamic_vector<T> vec_type;
+    typedef real_matrix<T> mat_type;
+    typedef real_vector<T> vec_type;
 
     //! Constructs a conditioning operator.
     moment_gaussian_conditional(matrix_index&& x,
@@ -554,8 +554,8 @@ namespace libgm {
   template <typename T>
   struct moment_gaussian_restrict {
     typedef moment_gaussian_param<T> param_type;
-    typedef dynamic_matrix<T> mat_type;
-    typedef dynamic_vector<T> vec_type;
+    typedef real_matrix<T> mat_type;
+    typedef real_vector<T> vec_type;
 
     enum restrict_type { MARGINAL, CONDITIONAL };
     restrict_type type; //!< which version to perform

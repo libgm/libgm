@@ -19,13 +19,13 @@ namespace libgm {
 using namespace libgm;
 
 typedef canonical_gaussian_param<double> param_type;
-typedef dynamic_vector<double> vec_type;
-typedef dynamic_matrix<double> mat_type;
+typedef real_vector<double> vec_type;
+typedef real_matrix<double> mat_type;
 
 boost::test_tools::predicate_result
 cg_properties(const cgaussian& f,
               const domain& vars) {
-  std::size_t n = vector_size(vars);
+  std::size_t n = num_dimensions(vars);
 
   if (f.empty() && !vars.empty()) {
     boost::test_tools::predicate_result result(false);
@@ -80,8 +80,8 @@ cg_params(const cgaussian& f,
 
 BOOST_AUTO_TEST_CASE(test_constructors) {
   universe u;
-  variable x = u.new_vector_variable("x", 2);
-  variable y = u.new_vector_variable("y", 1);
+  variable x = u.new_continuous_variable("x", 2);
+  variable y = u.new_continuous_variable("y", 1);
 
   cgaussian a;
   BOOST_CHECK(a.empty());
@@ -115,8 +115,8 @@ BOOST_AUTO_TEST_CASE(test_constructors) {
 
 BOOST_AUTO_TEST_CASE(test_assignment_swap) {
   universe u;
-  variable x = u.new_vector_variable("x", 2);
-  variable y = u.new_vector_variable("y", 1);
+  variable x = u.new_continuous_variable("x", 2);
+  variable y = u.new_continuous_variable("y", 1);
 
   cgaussian f;
   f = logd(2.0);
@@ -149,20 +149,20 @@ BOOST_AUTO_TEST_CASE(test_assignment_swap) {
 
 BOOST_AUTO_TEST_CASE(test_indexing) {
   universe u;
-  variable x = u.new_vector_variable("x", 2);
-  variable y = u.new_vector_variable("y", 1);
+  variable x = u.new_continuous_variable("x", 2);
+  variable y = u.new_continuous_variable("y", 1);
 
   cgaussian f({x, y}, vec3(2, 1, 0), 2*mat_type::Identity(3, 3), 0.5);
   vec_type vec = vec3(0.5, -2, 0);
   BOOST_CHECK_CLOSE(f.log(vec), -0.5*8.5 + 2*0.5 - 1*2 + 0.5, 1e-8);
 
-  vector_assignment<double> a;
+  real_assignment<double> a;
   f.assignment(vec3(3, 2, 1), a);
   BOOST_CHECK_EQUAL(a[x], vec2(3, 2));
   BOOST_CHECK_EQUAL(a[y], vec1(1));
 
-  variable v = u.new_vector_variable("v", 2);
-  variable w = u.new_vector_variable("w", 1);
+  variable v = u.new_continuous_variable("v", 2);
+  variable w = u.new_continuous_variable("w", 1);
   f.subst_args({{x, v}, {y, w}});
   BOOST_CHECK(cg_properties(f, {v, w}));
 }
@@ -170,8 +170,8 @@ BOOST_AUTO_TEST_CASE(test_indexing) {
 
 BOOST_AUTO_TEST_CASE(test_operators) {
   universe u;
-  variable x = u.new_vector_variable("x", 2);
-  variable y = u.new_vector_variable("y", 1);
+  variable x = u.new_continuous_variable("x", 2);
+  variable y = u.new_continuous_variable("y", 1);
 
   vec_type eta = vec3(2, 0.5, 0.2);
   mat_type lambda = mat33(2, 1, 1, 1, 2, 1, 1, 1, 2);
@@ -244,9 +244,9 @@ BOOST_AUTO_TEST_CASE(test_operators) {
 
 BOOST_AUTO_TEST_CASE(test_collapse) {
   universe u;
-  variable x = u.new_vector_variable("x", 1);
-  variable y = u.new_vector_variable("y", 1);
-  variable z = u.new_vector_variable("z", 1);
+  variable x = u.new_continuous_variable("x", 1);
+  variable y = u.new_continuous_variable("y", 1);
+  variable z = u.new_continuous_variable("z", 1);
 
   vec_type eta = vec3(2, 0.5, 0.2);
   mat_type lambda = mat33(2, 1, 1, 1, 2, 1, 1, 1, 2);
@@ -278,7 +278,7 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
   BOOST_CHECK(cg_params(h, etazx, lamzx, czx));
 
   // test maximum assignment
-  vector_assignment<double> a;
+  real_assignment<double> a;
   logd max = f.maximum(a);
   vec_type mean = lambda.inverse() * eta;
   BOOST_CHECK_CLOSE(a[x][0], mean[0], 1e-8);
@@ -290,16 +290,16 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
 
 BOOST_AUTO_TEST_CASE(test_restrict) {
   universe u;
-  variable x = u.new_vector_variable("x", 1);
-  variable y = u.new_vector_variable("y", 1);
-  variable z = u.new_vector_variable("z", 1);
+  variable x = u.new_continuous_variable("x", 1);
+  variable y = u.new_continuous_variable("y", 1);
+  variable z = u.new_continuous_variable("z", 1);
 
   vec_type eta = vec3(2, 0.5, 0.2);
   mat_type lambda = mat33(2, 1, 1, 1, 3, 1, 1, 1, 4);
   cgaussian f({x, y, z}, eta, lambda, 2.0);
 
   // test block restrict (z) = (1.5)
-  vector_assignment<double> a;
+  real_assignment<double> a;
   a[z] = vec1(1.5);
   cgaussian h = f.restrict(a);
   BOOST_CHECK(cg_properties(h, {x, y}));
@@ -323,9 +323,9 @@ BOOST_AUTO_TEST_CASE(test_restrict) {
 
 BOOST_AUTO_TEST_CASE(test_entropy) {
   universe u;
-  variable x = u.new_vector_variable("x", 1);
-  variable y = u.new_vector_variable("y", 1);
-  variable z = u.new_vector_variable("z", 1);
+  variable x = u.new_continuous_variable("x", 1);
+  variable y = u.new_continuous_variable("y", 1);
+  variable z = u.new_continuous_variable("z", 1);
 
   vec_type eta = vec3(2, 0.5, 0.2);
   mat_type lambda = mat33(2, 1, 1, 1, 3, 1, 1, 1, 4);

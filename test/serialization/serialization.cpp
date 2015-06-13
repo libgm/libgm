@@ -36,7 +36,7 @@ BOOST_AUTO_TEST_CASE(basic_datatypes) {
   long long r6;
   float r7;
   double r8;
-  char* r9 = NULL;
+  char* r9 = nullptr;
   char r10[10];
 
   // serialize t1-10

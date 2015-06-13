@@ -1,21 +1,21 @@
 #define BOOST_TEST_MODULE submatrix
 #include <boost/test/unit_test.hpp>
 
-#include <libgm/math/eigen/dynamic.hpp>
+#include <libgm/math/eigen/real.hpp>
 #include <libgm/math/eigen/submatrix.hpp>
 
 #include "helpers.hpp"
 
 namespace libgm {
-  template class submatrix<dynamic_matrix<double> >;
-  template class submatrix<dynamic_matrix<float> >;
-  template class submatrix<const dynamic_matrix<double> >;
-  template class submatrix<const dynamic_matrix<float> >;
+  template class submatrix<real_matrix<double> >;
+  template class submatrix<real_matrix<float> >;
+  template class submatrix<const real_matrix<double> >;
+  template class submatrix<const real_matrix<float> >;
 }
 
 using namespace libgm;
 
-typedef dynamic_matrix<double> mat_type;
+typedef real_matrix<double> mat_type;
 
 BOOST_AUTO_TEST_CASE(test_operations) {
   mat_type m = mat23(4, 3, 2, 1, 0, -1);

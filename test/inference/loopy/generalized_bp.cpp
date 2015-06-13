@@ -76,7 +76,7 @@ struct fixture {
     std::size_t n = 4;
 
     // generate a random model
-    domain varvec = u.new_finite_variables(m * n, "v", 2);
+    domain varvec = u.new_discrete_variables(m * n, "v", 2);
     arma::field<variable> vars = make_grid_graph(varvec, m, n, mn);
     uniform_table_generator<ptable> gen;
     std::mt19937 rng;

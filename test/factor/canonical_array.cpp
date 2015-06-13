@@ -3,7 +3,7 @@
 
 #include <libgm/factor/canonical_array.hpp>
 
-#include <libgm/argument/finite_assignment_iterator.hpp>
+#include <libgm/argument/uint_assignment_iterator.hpp>
 #include <libgm/argument/universe.hpp>
 #include <libgm/factor/canonical_table.hpp>
 #include <libgm/factor/probability_array.hpp>
@@ -24,8 +24,8 @@ typedef carray2::param_type param2_type;
 
 BOOST_AUTO_TEST_CASE(test_constructors) {
   universe u;
-  variable x = u.new_finite_variable("x", 2);
-  variable y = u.new_finite_variable("y", 3);
+  variable x = u.new_discrete_variable("x", 2);
+  variable y = u.new_discrete_variable("y", 3);
 
   carray2 b({x, y});
   BOOST_CHECK(table_properties(b, {x, y}));
@@ -49,8 +49,8 @@ BOOST_AUTO_TEST_CASE(test_constructors) {
 
 BOOST_AUTO_TEST_CASE(test_assignment_swap) {
   universe u;
-  variable x = u.new_finite_variable("x", 2);
-  variable y = u.new_finite_variable("y", 3);
+  variable x = u.new_discrete_variable("x", 2);
+  variable y = u.new_discrete_variable("y", 3);
 
   carray1 f;
   carray2 g;
@@ -87,36 +87,36 @@ BOOST_AUTO_TEST_CASE(test_assignment_swap) {
 
 BOOST_AUTO_TEST_CASE(test_indexing) {
   universe u;
-  variable x = u.new_finite_variable("x", 2);
-  variable y = u.new_finite_variable("y", 3);
+  variable x = u.new_discrete_variable("x", 2);
+  variable y = u.new_discrete_variable("y", 3);
 
   carray2 f({x, y});
   std::iota(f.begin(), f.end(), 1);
-  BOOST_CHECK_CLOSE(f(finite_index{0,0}).lv, 1.0, 1e-8);
-  BOOST_CHECK_CLOSE(f(finite_index{1,0}).lv, 2.0, 1e-8);
-  BOOST_CHECK_CLOSE(f(finite_index{0,1}).lv, 3.0, 1e-8);
-  BOOST_CHECK_CLOSE(f(finite_index{1,1}).lv, 4.0, 1e-8);
-  BOOST_CHECK_CLOSE(f(finite_index{0,2}).lv, 5.0, 1e-8);
-  BOOST_CHECK_CLOSE(f(finite_index{1,2}).lv, 6.0, 1e-8);
+  BOOST_CHECK_CLOSE(f(uint_vector{0,0}).lv, 1.0, 1e-8);
+  BOOST_CHECK_CLOSE(f(uint_vector{1,0}).lv, 2.0, 1e-8);
+  BOOST_CHECK_CLOSE(f(uint_vector{0,1}).lv, 3.0, 1e-8);
+  BOOST_CHECK_CLOSE(f(uint_vector{1,1}).lv, 4.0, 1e-8);
+  BOOST_CHECK_CLOSE(f(uint_vector{0,2}).lv, 5.0, 1e-8);
+  BOOST_CHECK_CLOSE(f(uint_vector{1,2}).lv, 6.0, 1e-8);
 
-  BOOST_CHECK_CLOSE(f(finite_assignment<>{{x,0}, {y,0}}).lv, 1.0, 1e-8);
-  BOOST_CHECK_CLOSE(f(finite_assignment<>{{x,1}, {y,0}}).lv, 2.0, 1e-8);
-  BOOST_CHECK_CLOSE(f(finite_assignment<>{{x,0}, {y,1}}).lv, 3.0, 1e-8);
-  BOOST_CHECK_CLOSE(f(finite_assignment<>{{x,1}, {y,1}}).lv, 4.0, 1e-8);
-  BOOST_CHECK_CLOSE(f(finite_assignment<>{{x,0}, {y,2}}).lv, 5.0, 1e-8);
-  BOOST_CHECK_CLOSE(f(finite_assignment<>{{x,1}, {y,2}}).lv, 6.0, 1e-8);
+  BOOST_CHECK_CLOSE(f(uint_assignment<>{{x,0}, {y,0}}).lv, 1.0, 1e-8);
+  BOOST_CHECK_CLOSE(f(uint_assignment<>{{x,1}, {y,0}}).lv, 2.0, 1e-8);
+  BOOST_CHECK_CLOSE(f(uint_assignment<>{{x,0}, {y,1}}).lv, 3.0, 1e-8);
+  BOOST_CHECK_CLOSE(f(uint_assignment<>{{x,1}, {y,1}}).lv, 4.0, 1e-8);
+  BOOST_CHECK_CLOSE(f(uint_assignment<>{{x,0}, {y,2}}).lv, 5.0, 1e-8);
+  BOOST_CHECK_CLOSE(f(uint_assignment<>{{x,1}, {y,2}}).lv, 6.0, 1e-8);
 
-  BOOST_CHECK_CLOSE(f.log(finite_index{0,2}), 5.0, 1e-8);
-  BOOST_CHECK_CLOSE(f.log(finite_assignment<>{{x,0},{y,2}}), 5.0, 1e-8);
+  BOOST_CHECK_CLOSE(f.log(uint_vector{0,2}), 5.0, 1e-8);
+  BOOST_CHECK_CLOSE(f.log(uint_assignment<>{{x,0},{y,2}}), 5.0, 1e-8);
 
-  finite_assignment<> a;
+  uint_assignment<> a;
   f.assignment(5, a);
   BOOST_CHECK_EQUAL(a[x], 1);
   BOOST_CHECK_EQUAL(a[y], 2);
   BOOST_CHECK_EQUAL(f.linear_index(a), 5);
 
-  variable v = u.new_finite_variable("v", 2);
-  variable w = u.new_finite_variable("w", 3);
+  variable v = u.new_discrete_variable("v", 2);
+  variable w = u.new_discrete_variable("w", 3);
   f.subst_args({{x, v}, {y, w}});
   BOOST_CHECK(table_properties(f, {v, w}));
 }
@@ -124,76 +124,76 @@ BOOST_AUTO_TEST_CASE(test_indexing) {
 
 BOOST_AUTO_TEST_CASE(test_operators) {
   universe u;
-  variable x = u.new_finite_variable("x", 2);
-  variable y = u.new_finite_variable("y", 2);
-  variable z = u.new_finite_variable("z", 3);
+  variable x = u.new_discrete_variable("x", 2);
+  variable y = u.new_discrete_variable("y", 2);
+  variable z = u.new_discrete_variable("z", 3);
 
   carray2 f({x, y}, {0, 1, 2, 3});
   carray1 g({y}, {3, 4});
   carray2 h;
   h = f * g;
   BOOST_CHECK(table_properties(h, {x, y}));
-  for (const finite_assignment<>& a : finite_assignments(domain{x, y})) {
+  for (const uint_assignment<>& a : uint_assignments(domain{x, y})) {
     BOOST_CHECK_CLOSE(h.log(a), f.log(a) + g.log(a), 1e-8);
   }
 
   h *= g;
   BOOST_CHECK(table_properties(h, {x, y}));
-  for (const finite_assignment<>& a : finite_assignments(domain{x, y})) {
+  for (const uint_assignment<>& a : uint_assignments(domain{x, y})) {
     BOOST_CHECK_CLOSE(h.log(a), f.log(a) + 2*g.log(a), 1e-8);
   }
 
   h = f / g;
   BOOST_CHECK(table_properties(h, {x, y}));
-  for (const finite_assignment<>& a : finite_assignments(domain{x, y})) {
+  for (const uint_assignment<>& a : uint_assignments(domain{x, y})) {
     BOOST_CHECK_CLOSE(h.log(a), f.log(a) - g.log(a), 1e-8);
   }
 
   h /= f;
   BOOST_CHECK(table_properties(h, {x, y}));
-  for (const finite_assignment<>& a : finite_assignments(domain{x, y})) {
+  for (const uint_assignment<>& a : uint_assignments(domain{x, y})) {
     BOOST_CHECK_CLOSE(h.log(a), -g.log(a), 1e-8);
   }
 
   h = f * logd(2.0, log_tag());
   BOOST_CHECK(table_properties(h, {x, y}));
-  for (const finite_assignment<>& a : finite_assignments(domain{x, y})) {
+  for (const uint_assignment<>& a : uint_assignments(domain{x, y})) {
     BOOST_CHECK_CLOSE(h.log(a), f.log(a) + 2.0, 1e-8);
   }
 
   h *= logd(1.0, log_tag());
   BOOST_CHECK(table_properties(h, {x, y}));
-  for (const finite_assignment<>& a : finite_assignments(domain{x, y})) {
+  for (const uint_assignment<>& a : uint_assignments(domain{x, y})) {
     BOOST_CHECK_CLOSE(h.log(a), f.log(a) + 3.0, 1e-8);
   }
 
   h = logd(2.0, log_tag()) * f;
   BOOST_CHECK(table_properties(h, {x, y}));
-  for (const finite_assignment<>& a : finite_assignments(domain{x, y})) {
+  for (const uint_assignment<>& a : uint_assignments(domain{x, y})) {
     BOOST_CHECK_CLOSE(h.log(a), f.log(a) + 2.0, 1e-8);
   }
 
   h /= logd(1.0, log_tag());
   BOOST_CHECK(table_properties(h, {x, y}));
-  for (const finite_assignment<>& a : finite_assignments(domain{x, y})) {
+  for (const uint_assignment<>& a : uint_assignments(domain{x, y})) {
     BOOST_CHECK_CLOSE(h.log(a), f.log(a) + 1.0, 1e-8);
   }
 
   h = f / logd(2.0, log_tag());
   BOOST_CHECK(table_properties(h, {x, y}));
-  for (const finite_assignment<>& a : finite_assignments(domain{x, y})) {
+  for (const uint_assignment<>& a : uint_assignments(domain{x, y})) {
     BOOST_CHECK_CLOSE(h.log(a), f.log(a) - 2.0, 1e-8);
   }
 
   h = logd(2.0, log_tag()) / f;
   BOOST_CHECK(table_properties(h, {x, y}));
-  for (const finite_assignment<>& a : finite_assignments(domain{x, y})) {
+  for (const uint_assignment<>& a : uint_assignments(domain{x, y})) {
     BOOST_CHECK_CLOSE(h.log(a), 2.0 - f.log(a), 1e-8);
   }
 
   h = pow(f, 2.0);
   BOOST_CHECK(table_properties(h, {x, y}));
-  for (const finite_assignment<>& a : finite_assignments(domain{x, y})) {
+  for (const uint_assignment<>& a : uint_assignments(domain{x, y})) {
     BOOST_CHECK_CLOSE(h.log(a), 2.0 * f.log(a), 1e-8);
   }
 
@@ -219,12 +219,12 @@ BOOST_AUTO_TEST_CASE(test_operators) {
 
 BOOST_AUTO_TEST_CASE(test_collapse) {
   universe u;
-  variable x = u.new_finite_variable("x", 2);
-  variable y = u.new_finite_variable("y", 3);
+  variable x = u.new_discrete_variable("x", 2);
+  variable y = u.new_discrete_variable("y", 3);
 
   carray2 f({x, y}, {0, 1, 2, 3, 5, 6});
   carray1 h;
-  finite_assignment<> a;
+  uint_assignment<> a;
 
   std::vector<double> hmax = {1, 3, 6};
   std::vector<double> hmin = {0, 2, 5};
@@ -265,8 +265,8 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
 
 BOOST_AUTO_TEST_CASE(test_restrict) {
   universe u;
-  variable x = u.new_finite_variable("x", 2);
-  variable y = u.new_finite_variable("y", 3);
+  variable x = u.new_discrete_variable("x", 2);
+  variable y = u.new_discrete_variable("y", 3);
 
   carray2 f({x, y}, {0, 1, 2, 3, 5, 6});
   carray1 h = f.restrict({{x, 1}});
@@ -278,8 +278,8 @@ BOOST_AUTO_TEST_CASE(test_restrict) {
 BOOST_AUTO_TEST_CASE(test_entropy) {
   using std::log;
   universe u;
-  variable x = u.new_finite_variable("x", 2);
-  variable y = u.new_finite_variable("y", 2);
+  variable x = u.new_discrete_variable("x", 2);
+  variable y = u.new_discrete_variable("y", 2);
 
   parray2 pxy({x, y}, {0.1, 0.2, 0.3, 0.4});
   parray2 qxy({x, y}, {0.4*0.3, 0.6*0.3, 0.4*0.7, 0.6*0.7});

@@ -37,7 +37,7 @@ namespace libgm {
     /**
      * Returns the log-likelihood of the specified data point.
      */
-    T value(const finite_index& index) const {
+    T value(const uint_vector& index) const {
       return std::log(f(index));
     }
 
@@ -45,7 +45,7 @@ namespace libgm {
      * Returns the log-likelihood of the specified datapoint
      * and the slope along the given direction.
      */
-    real_pair<T> value_slope(const finite_index& index,
+    real_pair<T> value_slope(const uint_vector& index,
                              const table<T>& dir) const {
       T p = f(index);
       return { std::log(p), dir(index) / p };
@@ -55,7 +55,7 @@ namespace libgm {
      * Adds a gradient of the log-likelihood of the specified data
      * point with weight w to the gradient table g.
      */
-    void add_gradient(const finite_index& index, T w,
+    void add_gradient(const uint_vector& index, T w,
                       table<T>& g) const {
       g(index) += w / f(index);
     }
@@ -68,7 +68,7 @@ namespace libgm {
      * \param tail a fixed assignment to the remaining indices of f
      * \param w the weight of the data point
      */
-    void add_gradient(const table<T>& phead, const finite_index& tail, T w,
+    void add_gradient(const table<T>& phead, const uint_vector& tail, T w,
                       table<T>& g) const {
       assert(phead.arity() + tail.size() == g.arity());
       std::size_t index = g.offset().linear(tail, phead.arity());
@@ -81,7 +81,7 @@ namespace libgm {
      * Adds the diagonal of the Hessian of log-likleihood of the specified
      * data point with weight w to the Hessian diagonal h.
      */
-    void add_hessian_diag(const finite_index& index, T w,
+    void add_hessian_diag(const uint_vector& index, T w,
                           table<T>& h) const {
       T fval = f(index);
       h(index) -= w / (fval * fval);
@@ -91,7 +91,7 @@ namespace libgm {
      * Adds the diagonal of the Hessia of the expected log-likelihoood of
      * the specified data point to the Hessian diagonal h.
      */
-    void add_hessian_diag(const table<T>& phead, const finite_index& tail, T w,
+    void add_hessian_diag(const table<T>& phead, const uint_vector& tail, T w,
                           table<T>& h) const {
       assert(phead.arity() + tail.size() == h.arity());
       std::size_t index = h.offset().linear(tail, phead.arity());

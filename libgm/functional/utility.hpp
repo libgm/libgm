@@ -37,6 +37,41 @@ namespace libgm {
     }
   };
 
+  //! Invokes swap on its arguments.
+  struct invoke_swap {
+    template <typename T>
+    void operator()(T& x, T& y) const {
+      using std::swap;
+      swap(x, y);
+    }
+  };
+
+  //! Copies or moves the given value into into the specified buffer.
+  struct placement_new {
+    void* buf;
+    explicit placement_new(void* buf) : buf(buf) { }
+    template <typename T>
+    void operator()(T&& value) const {
+      new (buf) typename std::decay<T>::type(std::forward<T>(value));
+    }
+  };
+
+  //! Invokes the default constructor on the given object.
+  struct invoke_constructor {
+    template <typename T>
+    void operator()(T& value) const {
+      new (&value) T();
+    }
+  };
+
+  //! Invokes the destructor on the given object.
+  struct invoke_destructor {
+    template <typename T>
+    void operator()(T& value) const {
+      value.~T();
+    }
+  };
+
 } // namespace libgm
 
 #endif

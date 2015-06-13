@@ -1,9 +1,11 @@
 add_executable(mutable_queue mutable_queue.cpp)
+add_executable(typesafe_union typesafe_union.cpp)
 add_executable(set_index set_index.cpp)
 add_executable(vector_map vector_map.cpp)
 add_executable(table table)
 
 add_test(mutable_queue mutable_queue)
+add_test(typesafe_union typesafe_union)
 add_test(set_index set_index)
 add_test(vector_map vector_map)
 add_test(table table)

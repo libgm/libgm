@@ -7,7 +7,7 @@
 #include <libgm/factor/canonical_table.hpp>
 #include <libgm/factor/probability_table.hpp>
 #include <libgm/factor/random/uniform_table_generator.hpp>
-#include <libgm/learning/dataset/finite_dataset.hpp>
+#include <libgm/learning/dataset/uint_dataset.hpp>
 #include <libgm/model/bayesian_network.hpp>
 
 #include <iostream>
@@ -40,7 +40,7 @@ BOOST_AUTO_TEST_CASE(test_simple) {
   std::size_t nsamples = 10000;
 
   universe u;
-  domain v = u.new_finite_variables(6, "v", 3);
+  domain v = u.new_discrete_variables(6, "v", 3);
 
   // generate a random Bayesian network with the given structure
   bayesian_network<ptable> bn;
@@ -56,8 +56,8 @@ BOOST_AUTO_TEST_CASE(test_simple) {
   //cout << bn << endl;
 
   // generate a dataset
-  finite_dataset<> data(v, nsamples);
-  finite_assignment<> a;
+  uint_dataset<> data(v, nsamples);
+  uint_assignment<> a;
   for (std::size_t i = 0; i < nsamples; ++i) {
     bn.sample(rng, a);
     data.insert(a, 1.0);

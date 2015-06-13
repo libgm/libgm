@@ -1,9 +1,9 @@
 #ifndef LIBGM_TABLE_HPP
 #define LIBGM_TABLE_HPP
 
-#include <libgm/datastructure/finite_index.hpp>
-#include <libgm/datastructure/finite_index_iterator.hpp>
-#include <libgm/functional/operators.hpp>
+#include <libgm/datastructure/uint_vector.hpp>
+#include <libgm/datastructure/uint_vector_iterator.hpp>
+#include <libgm/functional/arithmetic.hpp>
 #include <libgm/range/iterator_range.hpp>
 #include <libgm/serialization/vector.hpp>
 
@@ -22,7 +22,7 @@
 namespace libgm {
 
   /**
-   * A class that can perform conversions between finite_index and linear
+   * A class that can perform conversions between uint_vector and linear
    * index in a dense table. It stores the multipliers for each dimension
    * and the total size of the table.
    *
@@ -42,7 +42,7 @@ namespace libgm {
      * empty vector), but none of the dimensions themselves may be zero
      * (i.e., the shape may not contain any zero elements).
      */
-    explicit table_offset(const finite_index& shape) {
+    explicit table_offset(const uint_vector& shape) {
       reset(shape);
     }
 
@@ -55,7 +55,7 @@ namespace libgm {
     }
 
     //! Resets the table_offset object to the given shape.
-    void reset(const finite_index& shape) {
+    void reset(const uint_vector& shape) {
       multiplier_.resize(shape.size());
       nelem_ = 1;
       for (std::size_t i = 0; i < shape.size(); ++i) {
@@ -85,7 +85,7 @@ namespace libgm {
     }
 
     //! Calculates the linear index for the given finite index.
-    std::size_t linear(const finite_index& index) const {
+    std::size_t linear(const uint_vector& index) const {
       assert(multiplier_.size() == index.size());
       std::size_t result = 0;
       for (std::size_t i = 0; i < multiplier_.size(); ++i) {
@@ -100,7 +100,7 @@ namespace libgm {
      * be shorter than the remaining dimensions. The finite values in the
      * omitted dimensions are assumed to be 0.
      */
-    std::size_t linear(const finite_index& index, std::size_t pos) const {
+    std::size_t linear(const uint_vector& index, std::size_t pos) const {
       assert(index.size() + pos <= multiplier_.size());
       std::size_t result = 0;
       for (std::size_t i = 0; i < index.size(); ++i) {
@@ -112,8 +112,8 @@ namespace libgm {
     /**
      * Returns the finite index for the given linear index.
      */
-    finite_index finite(std::size_t offset) const {
-      finite_index ind(multiplier_.size());
+    uint_vector finite(std::size_t offset) const {
+      uint_vector ind(multiplier_.size());
       // must use int here to avoid wrap-around
       for(int i = multiplier_.size() - 1; i >= 0; --i) {
         ind[i] = offset / multiplier_[i];
@@ -128,8 +128,8 @@ namespace libgm {
      * not exceed the total number of elements in the first n
      * dimensions.
      */
-    finite_index finite(std::size_t offset, std::size_t n) const {
-      finite_index ind(n);
+    uint_vector finite(std::size_t offset, std::size_t n) const {
+      uint_vector ind(n);
       for (int i = n - 1; i >= 0; --i) {
         ind[i] = offset / multiplier_[i];
         offset = offset % multiplier_[i];
@@ -164,9 +164,9 @@ namespace libgm {
      * the offset of table B, and mapping of dimensions of table B
      * to table A.
      */
-    table_increment(const finite_index& a_shape,
+    table_increment(const uint_vector& a_shape,
                     const table_offset& b_offset,
-                    const finite_index& b_map)
+                    const uint_vector& b_map)
       : inc_(a_shape.size() + 1, 0) {
       assert(b_offset.size() == b_map.size());
       for (std::size_t i = 0; i < b_map.size(); ++i) {
@@ -226,10 +226,10 @@ namespace libgm {
     typedef const T* const_iterator;
 
     //! The type used to represent the indices and shape
-    typedef finite_index index_type;
+    typedef uint_vector index_type;
 
     //! The iterator over all indices in this table
-    typedef finite_index_iterator index_iterator;
+    typedef uint_vector_iterator index_iterator;
 
     // Constructors and initialization
     //==========================================================================
@@ -244,7 +244,7 @@ namespace libgm {
      * initialize the table elements. If needed, the table contents can be
      * initialized with other constructors or with the the fill() function.
      */
-    explicit table(const finite_index& shape) {
+    explicit table(const uint_vector& shape) {
       reset(shape);
     }
 
@@ -252,7 +252,7 @@ namespace libgm {
      * Constructs a table with the given shape and initializes its elements
      * to the given value.
      */
-    table(const finite_index& shape, const T& init) {
+    table(const uint_vector& shape, const T& init) {
       reset(shape);
       fill(init);
     }
@@ -261,7 +261,7 @@ namespace libgm {
      * Constructs a table with the given shape and initializes its elements
      * to the given list.
      */
-    table(const finite_index& shape, std::initializer_list<T> values) {
+    table(const uint_vector& shape, std::initializer_list<T> values) {
       reset(shape);
       assert(size() == values.size());
       std::copy(values.begin(), values.end(), data());
@@ -315,7 +315,7 @@ namespace libgm {
 
     //! Loads the table from an archive.
     void load(iarchive& ar) {
-      finite_index shape;
+      uint_vector shape;
       ar >> shape;
       reset(shape);
       ar.deserialize_range<T>(data());
@@ -325,7 +325,7 @@ namespace libgm {
      * Reset the table to the given shape. Allocates the memory, but does
      * not initialize the elements.
      */
-    void reset(const finite_index& shape) {
+    void reset(const uint_vector& shape) {
       std::size_t old_size = size();
       shape_ = shape;
       offset_.reset(shape); // affects size()
@@ -347,7 +347,7 @@ namespace libgm {
     }
 
     //! Returns the dimensions of this table.
-    const finite_index& shape() const {
+    const uint_vector& shape() const {
       return shape_;
     }
 
@@ -402,7 +402,7 @@ namespace libgm {
     }
 
     //! Returns the index associated with an iterator position
-    finite_index index(const T* it) const {
+    uint_vector index(const T* it) const {
       assert(it >= begin() && it < end());
       return offset_.finite(it - begin());
     }
@@ -428,12 +428,12 @@ namespace libgm {
     }
 
     //! Returns the element with the specified finite index
-    T& operator()(const finite_index& index) {
+    T& operator()(const uint_vector& index) {
       return data_[offset_.linear(index)];
     }
 
     //! Returns the element with the specified finite index
-    const T& operator()(const finite_index& index) const {
+    const T& operator()(const uint_vector& index) const {
       return data_[offset_.linear(index)];
     }
 
@@ -525,8 +525,8 @@ namespace libgm {
      * \param tail the assignment to tail arguments
      */
     template <typename TransOp, typename Generator>
-    finite_index
-    sample(TransOp trans, Generator& rng, const finite_index& tail) const {
+    uint_vector
+    sample(TransOp trans, Generator& rng, const uint_vector& tail) const {
       assert(tail.size() < arity());
       std::size_t nhead = arity() - tail.size();
       std::size_t nelem = offset().multiplier(nhead);
@@ -548,7 +548,7 @@ namespace libgm {
     //==========================================================================
 
     //! The dimensions of this table.
-    finite_index shape_;
+    uint_vector shape_;
 
     //! Translates between finite and linear indices.
     table_offset offset_;
@@ -566,7 +566,7 @@ namespace libgm {
   std::ostream& operator<<(std::ostream& out, const table<T>& table) {
     std::ostream_iterator<std::size_t, char> out_it(out, " ");
     const T* elem = table.data();
-    for (const finite_index& index :  table.indices()) {
+    for (const uint_vector& index :  table.indices()) {
       std::copy(index.begin(), index.end(), out_it);
       out << *elem++ << std::endl;
     }
@@ -652,10 +652,10 @@ namespace libgm {
   /*
       // ConditionalParameter functions
       //====================================================================
-      param_type condition(const finite_index& index) const {
+      param_type condition(const uint_vector& index) const {
         assert(index.size() <= this->arity());
         std::size_t n = this->arity() - index.size();
-        finite_index shape(this->shape().begin(), this->shape().begin() + n);
+        uint_vector shape(this->shape().begin(), this->shape().begin() + n);
         param_type result(shape);
         result.restrict(*this, this->offset().linear(index, n));
         return result;
@@ -716,8 +716,8 @@ namespace libgm {
     table_join(table<T>& result,
                const table<T>& x,
                const table<U>& y,
-               const finite_index& x_map,
-               const finite_index& y_map,
+               const uint_vector& x_map,
+               const uint_vector& y_map,
                Op op)
       : shape_(result.shape()),
         r_(result.data()),
@@ -751,7 +751,7 @@ namespace libgm {
     void loop() {
       x_inc_.partial_sum();
       y_inc_.partial_sum();
-      finite_index_iterator it(&shape_), end(shape_.size());
+      uint_vector_iterator it(&shape_), end(shape_.size());
       while (it != end) {
         *r_++ = op_(*x_, *y_);
         ++it;
@@ -761,7 +761,7 @@ namespace libgm {
     }
 
   private:
-    const finite_index& shape_;
+    const uint_vector& shape_;
     T* r_;
     const T* x_;
     const U* y_;
@@ -793,7 +793,7 @@ namespace libgm {
     //! Sets up the internal members of the join operation
     table_join_inplace(table<T>& result,
                        const table<U>& x,
-                       const finite_index& x_map,
+                       const uint_vector& x_map,
                        Op op)
       : shape_(result.shape()),
         r_(result.data()),
@@ -824,7 +824,7 @@ namespace libgm {
     //! Performs the join operation for an arbitrary result (slow).
     void loop() {
       x_inc_.partial_sum();
-      finite_index_iterator it(&shape_), end(shape_.size());
+      uint_vector_iterator it(&shape_), end(shape_.size());
       while (it != end) {
         *r_ = op_(*r_, *x_);
         ++r_;
@@ -834,7 +834,7 @@ namespace libgm {
     }
 
   private:
-    const finite_index& shape_;
+    const uint_vector& shape_;
     T* r_;
     const T* x_;
     table_increment x_inc_;
@@ -866,7 +866,7 @@ namespace libgm {
     //! Sets up the internal members of the aggregate operation
     table_aggregate(table<T>& result,
                     const table<T>& input,
-                    const finite_index& result_map,
+                    const uint_vector& result_map,
                     Op op)
       : shape_(input.shape()),
         r_(result.data()),
@@ -896,7 +896,7 @@ namespace libgm {
     //! Performs the aggregate operation for an arbitrary input (slow).
     void loop() {
       r_inc_.partial_sum();
-      finite_index_iterator it(&shape_), end(shape_.size());
+      uint_vector_iterator it(&shape_), end(shape_.size());
       while (it != end) {
         *r_ = op_(*r_, *x_++);
         ++it;
@@ -905,7 +905,7 @@ namespace libgm {
     }
 
   private:
-    const finite_index& shape_;
+    const uint_vector& shape_;
     T* r_;
     const T* x_;
     table_increment r_inc_;
@@ -942,10 +942,10 @@ namespace libgm {
     table_join_aggregate(table<T>& result,
                          const table<T>& x,
                          const table<T>& y,
-                         const finite_index& result_map,
-                         const finite_index& x_map,
-                         const finite_index& y_map,
-                         const finite_index& z_shape,
+                         const uint_vector& result_map,
+                         const uint_vector& x_map,
+                         const uint_vector& y_map,
+                         const uint_vector& z_shape,
                          JoinOp join_op,
                          AggOp agg_op)
       : shape_(z_shape),
@@ -985,7 +985,7 @@ namespace libgm {
       r_inc_.partial_sum();
       x_inc_.partial_sum();
       y_inc_.partial_sum();
-      finite_index_iterator it(&shape_), end(shape_.size());
+      uint_vector_iterator it(&shape_), end(shape_.size());
       while (it != end) {
         *r_ = agg_op_(*r_, join_op_(*x_, *y_));
         ++it;
@@ -996,7 +996,7 @@ namespace libgm {
     }
 
   private:
-    const finite_index& shape_;
+    const uint_vector& shape_;
     T* r_;
     const T* x_;
     const T* y_;
@@ -1032,7 +1032,7 @@ namespace libgm {
     //! Sets up the internal members of the restrict operation
     table_restrict(table<T>& result,
                    const table<T>& x,
-                   const finite_index& x_map,
+                   const uint_vector& x_map,
                    std::size_t x_first)
       : shape_(result.shape()),
         r_(result.data()),
@@ -1061,7 +1061,7 @@ namespace libgm {
     //! Performs the restrict operation for an arbitrary result (slow).
     void loop() {
       x_inc_.partial_sum();
-      finite_index_iterator it(&shape_), end(shape_.size());
+      uint_vector_iterator it(&shape_), end(shape_.size());
       while (it != end) {
         *r_++ = *x_;
         ++it;
@@ -1070,7 +1070,7 @@ namespace libgm {
     }
 
   private:
-    const finite_index& shape_;
+    const uint_vector& shape_;
     T* r_;
     const T* x_;
     table_increment x_inc_;
@@ -1104,7 +1104,7 @@ namespace libgm {
     //! Sets up the internal members of the restrict-join operation
     table_restrict_join(table<T>& result,
                         const table<T>& x,
-                        const finite_index& x_map,
+                        const uint_vector& x_map,
                         std::size_t first,
                         JoinOp join_op)
       : shape_(result.shape()),
@@ -1137,7 +1137,7 @@ namespace libgm {
     //! Performs the restrict-join operation for an arbitrary result (slow).
     void loop() {
       x_inc_.partial_sum();
-      finite_index_iterator it(&shape_), end(shape_.size());
+      uint_vector_iterator it(&shape_), end(shape_.size());
       while (it != end) {
         *r_ = join_op_(*r_, *x_);
         ++r_;
@@ -1147,7 +1147,7 @@ namespace libgm {
     }
 
   private:
-    const finite_index& shape_;
+    const uint_vector& shape_;
     T* r_;
     const T* x_;
     table_increment x_inc_;

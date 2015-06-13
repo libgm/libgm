@@ -6,6 +6,8 @@
 #include <libgm/factor/base/factor.hpp>
 #include <libgm/math/eigen/matrix_index.hpp>
 
+#include <sstream>
+
 namespace libgm {
 
   /**
@@ -38,7 +40,9 @@ namespace libgm {
     std::size_t start(Var v) const {
       auto it = start_.find(v);
       if (it == start_.end()) {
-        throw std::invalid_argument("Could not find variable " + v.str());
+        std::ostringstream out;
+        out << "gaussian_factor: cannnot find variable " << v;
+        throw std::invalid_argument(out.str());
       }
       return it->second;
     }
@@ -47,14 +51,14 @@ namespace libgm {
     matrix_index index_map(const domain_type& dom) const {
       matrix_index result;
       for (Var v : dom) {
-        result.append(start(v), v.size());
+        result.append(start(v), num_dimensions(v));
       }
       return result;
     }
 
     //! Returns the dimensionality of a marginal Gaussian with given arguments.
     static std::size_t param_shape(const domain_type& args) {
-      return vector_size(args);
+      return num_dimensions(args);
     }
 
   protected:
@@ -100,7 +104,7 @@ namespace libgm {
       std::size_t n = 0;
       for (Var v : args) {
         start_.emplace(v, n);
-        n += v.size();
+        n += num_dimensions(v);
       }
       return n;
     }

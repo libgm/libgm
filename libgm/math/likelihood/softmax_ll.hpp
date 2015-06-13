@@ -1,9 +1,9 @@
 #ifndef LIBGM_SOFTMAX_LL_HPP
 #define LIBGM_SOFTMAX_LL_HPP
 
-#include <libgm/datastructure/hybrid_index.hpp>
+#include <libgm/datastructure/hybrid_vector.hpp>
 #include <libgm/datastructure/real_pair.hpp>
-#include <libgm/functional/operators.hpp>
+#include <libgm/functional/arithmetic.hpp>
 #include <libgm/math/param/softmax_param.hpp>
 #include <libgm/traits/is_sample_range.hpp>
 
@@ -63,8 +63,8 @@ namespace libgm {
     }
 
     //! Returns the log-likelihood of the specified data point.
-    T value(const hybrid_index<T>& index) const {
-      return std::log(f(index.vector())[index.finite()[0]]);
+    T value(const hybrid_vector<T>& index) const {
+      return std::log(f(index.real())[index.uint()[0]]);
     }
 
     /**
@@ -73,9 +73,9 @@ namespace libgm {
      * the slope of the log-likelihood along the given direction.
      */
     template <typename Label>
-    real_pair<T> value_slope(const Label& label, const dynamic_vector<T>& x,
+    real_pair<T> value_slope(const Label& label, const real_vector<T>& x,
                              const softmax_param<T>& dir) const {
-      std::pair<T, dynamic_vector<T> > d = slope_delta(label, x);
+      std::pair<T, real_vector<T> > d = slope_delta(label, x);
       T wslope = dir.weight().cwiseProduct(d.second * x.transpose()).sum();
       return {d.first, dir.bias().dot(d.second) + wslope};
     }
@@ -89,7 +89,7 @@ namespace libgm {
     real_pair<T> value_slope(const Label& label,
                              const Eigen::SparseVector<T>& x,
                              const softmax_param<T>& dir) const {
-      std::pair<T, dynamic_vector<T> > d = slope_delta(label, x);
+      std::pair<T, real_vector<T> > d = slope_delta(label, x);
       real_pair<T> result(d.first, dir.bias().dot(d.second));
       for (typename Eigen::SparseVector<T>::InnerIterator it(x); it; ++it) {
         result.second += dir.weight().col(it.index()).dot(d.second)*it.value();
@@ -106,7 +106,7 @@ namespace libgm {
     real_pair<T> value_slope(const Label& label,
                              const std::vector<std::size_t>& x,
                              const softmax_param<T>& dir) const {
-      std::pair<T, dynamic_vector<T> > d = slope_delta(label, x);
+      std::pair<T, real_vector<T> > d = slope_delta(label, x);
       real_pair<T> result(d.first, dir.bias().dot(d.second));
       for (std::size_t i : x) {
         result.second += dir.weight().col(i).dot(d.second);
@@ -116,12 +116,12 @@ namespace libgm {
 
     /**
      * Returns a pair consisting of the log-likelihood of a datapoint
-     * specified as a hybrid_index, as well as
+     * specified as a hybrid_vector, as well as
      * the slope of the log-likelihood along the given direction.
      */
-    real_pair<T> value_slope(const hybrid_index<T>& index,
+    real_pair<T> value_slope(const hybrid_vector<T>& index,
                              const softmax_param<T>& dir) const {
-      return value_slope(index.finite()[0], index.vector(), dir);
+      return value_slope(index.uint()[0], index.real(), dir);
     }
 
     /**
@@ -129,9 +129,9 @@ namespace libgm {
      * specified as a label and a dense Eigen feature vector.
      */
     template <typename Label>
-    void add_gradient(const Label& label, const dynamic_vector<T>& x, T w,
+    void add_gradient(const Label& label, const real_vector<T>& x, T w,
                       softmax_param<T>& g) const {
-      dynamic_vector<T> p = gradient_delta(label, x, w);
+      real_vector<T> p = gradient_delta(label, x, w);
       g.weight().noalias() += p * x.transpose();
       g.bias() += p;
     }
@@ -143,7 +143,7 @@ namespace libgm {
     template <typename Label>
     void add_gradient(const Label& label, const Eigen::SparseVector<T>& x, T w,
                       softmax_param<T>& g) const {
-      dynamic_vector<T> p = gradient_delta(label, x, w);
+      real_vector<T> p = gradient_delta(label, x, w);
       for (typename Eigen::SparseVector<T>::InnerIterator it(x); it; ++it) {
         g.weight().col(it.index()) += p * it.value();
       }
@@ -158,27 +158,27 @@ namespace libgm {
     void add_gradient(const Label& label,
                       const std::vector<std::size_t>& x, T w,
                       softmax_param<T>& g) const {
-      dynamic_vector<T> p = gradient_delta(label, x, w);
+      real_vector<T> p = gradient_delta(label, x, w);
       for (std::size_t i : x) { g.weight().col(i) += p; }
       g.bias() += p;
     }
 
     /**
      * Adds gradient of the log-likelihood to g for a datapoint
-     * specified as hybrid_index.
+     * specified as hybrid_vector.
      */
-    void add_gradient(const hybrid_index<T>& index, T w,
+    void add_gradient(const hybrid_vector<T>& index, T w,
                      softmax_param<T>& g) const {
-      add_gradient(index.finite()[0], index.vector(), w, g);
+      add_gradient(index.uint()[0], index.real(), w, g);
     }
 
     /**
      * Adds the Hessian diagonal of log-likelihood to h for a datapoint
      * specified as a dense Eigen feature vector.
      */
-    void add_hessian_diag(const dynamic_vector<T>& x, T w,
+    void add_hessian_diag(const real_vector<T>& x, T w,
                           softmax_param<T>& h) const {
-      dynamic_vector<T> v = hessian_delta(x, w);
+      real_vector<T> v = hessian_delta(x, w);
       h.weight().noalias() += v * x.cwiseProduct(x).transpose();
       h.bias() += v;
     }
@@ -189,7 +189,7 @@ namespace libgm {
      */
     void add_hessian_diag(const Eigen::SparseVector<T>& x, T w,
                           softmax_param<T>& h) const {
-      dynamic_vector<T> v = hessian_delta(x, w);
+      real_vector<T> v = hessian_delta(x, w);
       for (typename Eigen::SparseVector<T>::InnerIterator it(x); it; ++it) {
         h.weight().col(it.index()) += v * (it.value() * it.value());
       }
@@ -202,7 +202,7 @@ namespace libgm {
      */
     void add_hessian_diag(const std::vector<std::size_t>& x, T w,
                           softmax_param<T>& h) const {
-      dynamic_vector<T> v = hessian_delta(x, w);
+      real_vector<T> v = hessian_delta(x, w);
       for (std::size_t i : x) { h.weight().col(i) += v; }
       h.bias() += v;
     }
@@ -211,16 +211,16 @@ namespace libgm {
      * Adds the Hessian diagonal of log-likelihood to h for a datapoint
      * specified as a hybrid index.
      */
-    void add_hessian_diag(const hybrid_index<T>& x, T w,
+    void add_hessian_diag(const hybrid_vector<T>& x, T w,
                           softmax_param<T>& h) const {
-      add_hessian_diag(x.vector(), w, h);
+      add_hessian_diag(x.real(), w, h);
     }
 
   private:
     template <typename Features>
-    std::pair<T, dynamic_vector<T> >
+    std::pair<T, real_vector<T> >
     slope_delta(std::size_t label, const Features& x) const {
-      dynamic_vector<T> p = f(x);
+      real_vector<T> p = f(x);
       T value = std::log(p[label]);
       p[label] -= T(1);
       p = -p;
@@ -228,10 +228,10 @@ namespace libgm {
     }
 
     template <typename Features>
-    std::pair<T, dynamic_vector<T> >
-    slope_delta(const Eigen::Ref<const dynamic_vector<T> >& plabel,
+    std::pair<T, real_vector<T> >
+    slope_delta(const Eigen::Ref<const real_vector<T> >& plabel,
                 const Features& x) const {
-      dynamic_vector<T> p = f(x);
+      real_vector<T> p = f(x);
       T value = p.unaryExpr(logarithm<T>()).dot(plabel);
       p -= plabel;
       p = -p;
@@ -239,27 +239,27 @@ namespace libgm {
     }
 
     template <typename Features>
-    dynamic_vector<T>
+    real_vector<T>
     gradient_delta(std::size_t label, const Features& x, T w) const {
-      dynamic_vector<T> p = f(x);
+      real_vector<T> p = f(x);
       p[label] -= T(1);
       p *= -w;
       return p;
     }
 
     template <typename Features>
-    dynamic_vector<T>
-    gradient_delta(const Eigen::Ref<const dynamic_vector<T> >& plabel,
+    real_vector<T>
+    gradient_delta(const Eigen::Ref<const real_vector<T> >& plabel,
                    const Features& x, T w) const {
-      dynamic_vector<T> p = f(x);
+      real_vector<T> p = f(x);
       p -= plabel;
       p *= -w;
       return p;
     }
 
     template <typename Features>
-    dynamic_vector<T> hessian_delta(const Features& x, T w) const {
-      dynamic_vector<T> v = f(x);
+    real_vector<T> hessian_delta(const Features& x, T w) const {
+      real_vector<T> v = f(x);
       v -= v.cwiseProduct(v);
       v *= -w;
       return v;

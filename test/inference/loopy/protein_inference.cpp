@@ -141,7 +141,7 @@ int main(int argc, char* argv[]) {
 
   std::map<vertex_type, factor_type> blfs;
   engine.belief(blfs);
-  finite_assignment mapassg;
+  uint_assignment mapassg;
   engine.map_assignment(mapassg);
 
   std::cout.precision(10);

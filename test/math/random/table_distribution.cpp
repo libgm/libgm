@@ -2,7 +2,8 @@
 #include <boost/test/unit_test.hpp>
 
 #include <libgm/math/random/table_distribution.hpp>
-#include <libgm/functional/operators.hpp>
+#include <libgm/functional/algorithm.hpp>
+#include <libgm/functional/arithmetic.hpp>
 
 #include <algorithm>
 #include <numeric>
@@ -24,7 +25,7 @@ double marginal_diff(const dist_type& d, const table_type& t) {
   std::mt19937 rng;
   table_type estimate(t.shape(), 0.0);
   for (std::size_t i = 0; i < nsamples; ++i) {
-    finite_index sample = d(rng);
+    uint_vector sample = d(rng);
     BOOST_REQUIRE_EQUAL(sample.size(), t.arity());
     ++estimate(sample);
   }
@@ -37,9 +38,9 @@ double conditional_diff(const dist_type& d, const table_type& t) {
   std::mt19937 rng;
   table_type estimate(t.shape(), 0.0);
   for (std::size_t last = 0; last < t.shape().back(); ++last) {
-    finite_index tail(1, last);
+    uint_vector tail(1, last);
     for (std::size_t i = 0; i < nsamples; ++i) {
-      finite_index sample = d(rng, tail);
+      uint_vector sample = d(rng, tail);
       BOOST_REQUIRE_EQUAL(sample.size(), t.arity() - 1);
       sample.push_back(last);
       ++estimate(sample);

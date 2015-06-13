@@ -14,7 +14,7 @@ namespace libgm {
    * performed without additional data lookups/transforms or allocs.
    *
    * \ingroup dataset_concepts
-   * \see finite_dataset, vector_dataset, hybrid_dataset
+   * \see uint_dataset, real_dataset, hybrid_dataset
    */
   template <typename DS>
   struct Dataset {
@@ -28,7 +28,7 @@ namespace libgm {
     //! A sequence of variables/processes (e.g., finite_var_vector).
     typedef typename DS::var_vector_type var_vector_type;
 
-    //! A type that maps variable_type to values (e.g., finite_assignment).
+    //! A type that maps variable_type to values (e.g., uint_assignment).
     typedef typename DS::assignment_type assignment_type;
 
     //! The record that stores the extracted data (e.g., finite_record_old).

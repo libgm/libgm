@@ -1,11 +1,11 @@
-#ifndef LIBGM_VECTOR_SEQUENCE_DATASET_HPP
-#define LIBGM_VECTOR_SEQUENCE_DATASET_HPP
+#ifndef LIBGM_REAL_SEQUENCE_DATASET_HPP
+#define LIBGM_REAL_SEQUENCE_DATASET_HPP
 
 #include <libgm/argument/basic_domain.hpp>
-#include <libgm/argument/vector_assignment.hpp>
+#include <libgm/argument/real_assignment.hpp>
 #include <libgm/argument/process.hpp>
 #include <libgm/learning/dataset/basic_sequence_dataset.hpp>
-#include <libgm/math/eigen/dynamic.hpp>
+#include <libgm/math/eigen/real.hpp>
 #include <libgm/math/eigen/matrix_index.hpp>
 #include <libgm/math/eigen/submatrix.hpp>
 
@@ -14,24 +14,25 @@
 namespace libgm {
 
   /**
-   * The traits for a dataset that stores observations for vector
-   * discrete processes.
+   * The traits for a dataset that stores observations for continuous-valued
+   * discrete-time processes.
    *
    * \tparam T the type representing the values and weights
+   * \tparam Var a variable type that models the ContinuousArgument concept
    */
   template <typename T, typename Var>
-  struct vector_sequence_traits {
-    typedef process<std::size_t, Var>       process_type;
-    typedef Var                             variable_type;
-    typedef basic_domain<process_type>      proc_domain_type;
-    typedef basic_domain<variable_type>     var_domain_type;
-    typedef dynamic_matrix<T>               proc_data_type;
-    typedef dynamic_vector<T>               var_data_type;
-    typedef vector_assignment<T, Var>       assignment_type;
-    typedef T                               weight_type;
-    typedef matrix_index                    index_type;
-    typedef std::pair<dynamic_matrix<T>, T> proc_value_type;
-    typedef std::pair<dynamic_vector<T>, T> var_value_type;
+  struct real_sequence_traits {
+    typedef process<std::size_t, Var>    process_type;
+    typedef Var                          variable_type;
+    typedef basic_domain<process_type>   proc_domain_type;
+    typedef basic_domain<variable_type>  var_domain_type;
+    typedef real_matrix<T>               proc_data_type;
+    typedef real_vector<T>               var_data_type;
+    typedef real_assignment<T, Var>      assignment_type;
+    typedef T                            weight_type;
+    typedef matrix_index                 index_type;
+    typedef std::pair<real_matrix<T>, T> proc_value_type;
+    typedef std::pair<real_vector<T>, T> var_value_type;
     typedef std::unordered_map<process_type, std::size_t>  column_map_type;
     typedef std::unordered_map<variable_type, std::size_t> offset_map_type;
 
@@ -41,7 +42,7 @@ namespace libgm {
       std::size_t col = 0;
       for (process_type proc : procs) {
         cols.emplace(proc, col);
-        col += proc.size();
+        col += num_dimensions(proc);
       }
     }
 
@@ -50,14 +51,14 @@ namespace libgm {
                                    std::size_t first, std::size_t length,
                                    var_domain_type& variables,
                                    offset_map_type& offsets) {
-      std::size_t ndims = vector_size(procs);
+      std::size_t ndims = num_dimensions(procs);
       std::size_t offset = ndims * first;
       for (std::size_t t = 0; t < length; ++t) {
         for (process_type proc : procs) {
           variable_type v = proc(t);
           variables.push_back(v);
           offsets.emplace(v, offset);
-          offset += v.size();
+          offset += num_dimensions(v);
         }
       }
       return matrix_index(ndims * first, ndims * length);
@@ -68,7 +69,7 @@ namespace libgm {
     index(const proc_domain_type& procs, const column_map_type& columns) {
       index_type index;
       for (process_type proc : procs) {
-        index.append(columns.at(proc), proc.size());
+        index.append(columns.at(proc), num_dimensions(proc));
       }
       return index;
     }
@@ -78,7 +79,7 @@ namespace libgm {
     index(const var_domain_type& vars, const offset_map_type& offsets) {
       index_type index;
       for (variable_type var : vars) {
-        index.append(offsets.at(var), var.size());
+        index.append(offsets.at(var), num_dimensions(var));
       }
       return index;
     }
@@ -113,7 +114,7 @@ namespace libgm {
       for (process_type proc : procs) {
         std::size_t row = colmap.at(proc);
         for (std::size_t t = 0; t < nsteps; ++t) {
-          a[proc(t)] = from.first.block(row, t, proc.size(), 1);
+          a[proc(t)] = from.first.block(row, t, num_dimensions(proc), 1);
         }
       }
       to.second = from.second;
@@ -148,39 +149,40 @@ namespace libgm {
       a.clear();
       a.reserve(vars.size());
       for (variable_type var : vars) {
-        dynamic_vector<T>& vec = a[var];
-        vec.resize(var.size());
+        real_vector<T>& vec = a[var];
+        vec.resize(num_dimensions(var));
         const T* begin = from.first.data() + offsets.at(var) + offset;
-        std::copy(begin, begin + var.size(), vec.data());
+        std::copy(begin, begin + num_dimensions(var), vec.data());
       }
       to.second = from.second;
     }
 
     //! Returns an empty sequecnce for the given processes.
     static proc_data_type empty(const proc_domain_type& procs) {
-      return proc_data_type(vector_size(procs), 0);
+      return proc_data_type(num_dimensions(procs), 0);
     }
 
     //! Checks if the given value has size compatible with given processes.
     static bool compatible(const proc_data_type& data,
                            const proc_domain_type& procs) {
-      return data.rows() == vector_size(procs);
+      return data.rows() == num_dimensions(procs);
     }
 
-  }; // struct vector_sequence_traits
+  }; // struct real_sequence_traits
 
   /**
-   * A dense dataset that stores observations for vector discrete processes
-   * in memory. Each observation is a matrix with rows being the processes
-   * and columns being the time steps. The observations are stored in an
-   * std::vector.
+   * A dense dataset that stores observations for continuous-valued,
+   * discrete-time processes in memory. Each sample is a matrix with rows
+   * corresponding to processes and columns corresponding to the time steps.
+   * The samples are stored in an std::vector.
    *
    * \tparam T the type representing the weights
+   * \tparam Var a variable type that models the ContinuousArgument concept
    * \see Dataset
    */
   template <typename T = double, typename Var = variable>
-  using vector_sequence_dataset =
-    basic_sequence_dataset<vector_sequence_traits<T, Var> >;
+  using real_sequence_dataset =
+    basic_sequence_dataset<real_sequence_traits<T, Var> >;
 
 } // namespace libgm
 

@@ -57,7 +57,7 @@ BOOST_AUTO_TEST_CASE(test_mpa) {
   random_HMM(model3_bn, rng, u, 10, 4, 4, 0.5, 0.5);
   model3 *= model3_bn.factors();
 
-  finite_assignment mpa = model3.max_prob_assignment();
+  uint_assignment mpa = model3.max_prob_assignment();
   BOOST_CHECK_CLOSE(model3.log_likelihood(mpa), -9.74229, 1e-2);
 }
 
@@ -91,10 +91,10 @@ BOOST_AUTO_TEST_CASE(test_sampling) {
   double ll_half_vars1 = 0;
   double ll_half_vars2_given_1 = 0;
   for (std::size_t i = 0; i < nsamples; ++i) {
-    finite_assignment a(model.sample(rng));
+    uint_assignment a(model.sample(rng));
     cross_entropy -= model.log_likelihood(a);
     decomposable<ptable> conditioned_model(model);
-    finite_assignment a_half_vars1(map_intersect(a, half_vars1));
+    uint_assignment a_half_vars1(map_intersect(a, half_vars1));
     conditioned_model.condition(a_half_vars1);
     ll_half_vars1 += half_vars1_model.log_likelihood(a);
     ll_half_vars2_given_1 += conditioned_model.log_likelihood(a);

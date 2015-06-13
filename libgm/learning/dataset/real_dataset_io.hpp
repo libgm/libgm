@@ -1,8 +1,8 @@
-#ifndef LIBGM_VECTOR_DATASET_IO_HPP
-#define LIBGM_VECTOR_DATASET_IO_HPP
+#ifndef LIBGM_REAL_DATASET_IO_HPP
+#define LIBGM_REAL_DATASET_IO_HPP
 
-#include <libgm/learning/dataset/symbolic_format.hpp>
-#include <libgm/learning/dataset/vector_dataset.hpp>
+#include <libgm/learning/dataset/real_dataset.hpp>
+#include <libgm/learning/dataset/text_dataset_format.hpp>
 #include <libgm/parser/string_functions.hpp>
 
 #include <cmath>
@@ -13,23 +13,22 @@
 namespace libgm {
 
   /**
-   * Loads a vector memory dataset using the symbolic format.
-   * All the variables in the format must be vector.
-   * The dataset must not be initialized.
-   * \throw std::domain_error if the format contains variables that are
-   *        not vector
-   * \relates vector_memory_dataset
+   * Loads data into an uninitialized real_dataset from a text file using
+   * the specified format. All the variables in the format must be continuous.
+   *
+   * \throw std::domain_error if the format contains non-continuous variables
+   * \relates real_dataset
    */
   template <typename T>
   void load(const std::string& filename,
-            const symbolic_format& format,
-            vector_dataset<T>& ds) {
-    if (!format.is_vector()) {
+            const text_dataset_format& format,
+            real_dataset<T>& ds) {
+    if (!format.all_variables_continuous()) {
       throw std::domain_error(
-        "The dataset contains variable(s) that are not vector"
+        "The dataset contains variable(s) that are not continuous"
       );
     }
-    domain vars = format.vector_vars();
+    domain vars = format.variables;
     ds.initialize(vars);
 
     std::ifstream in(filename);
@@ -39,48 +38,49 @@ namespace libgm {
 
     std::string line;
     std::size_t line_number = 0;
-    dynamic_vector<T> index(vector_size(vars));
+    real_vector<T> values(num_dimensions(vars));
+    std::vector<const char*> tokens;
     while (std::getline(in, line)) {
-      std::vector<const char*> tokens;
-      if (format.parse(index.size(), line, line_number, tokens)) {
+      if (format.tokenize(values.size(), line, line_number, tokens)) {
         std::size_t col = format.skip_cols;
         std::size_t i = 0;
         for (variable v : vars) {
-          std::size_t size = v.size();
+          std::size_t size = num_dimensions(v);
           if (std::count(&tokens[col], &tokens[col] + size, format.missing)) {
             // TODO: warning if only a subset of columns missing
-            index.segment(i, size).fill(std::numeric_limits<T>::quiet_NaN());
+            values.segment(i, size).fill(std::numeric_limits<T>::quiet_NaN());
             col += size;
             i += size;
           } else {
             for (std::size_t j = 0; j < size; ++j) {
-              index[i++] = parse_string<T>(tokens[col++]);
+              values[i++] = parse_string<T>(tokens[col++]);
             }
           }
         }
         T weight = format.weighted ? parse_string<T>(tokens.back()) : T(1);
-        ds.insert(index, weight);
+        ds.insert(values, weight);
       }
     }
   }
 
   /**
-   * Saves a vector dataset using the symbolic format.
-   * All the variables in the format must be vector.
-   * \throw std::domain_error if the format contains variables that are
-   *        not vector
-   * \relates vector_dataset, vector_memory_dataset
+   * Saves the data from a real_dataset to a text file using the specified
+   * format. Only the data for the variables that are present in the format
+   * are saved. All the variables in the format must be continuous.
+   *
+   * \throw std::domain_error if the format contains non-continuous variables
+   * \relates real_dataset
    */
   template <typename T>
   void save(const std::string& filename,
-            const symbolic_format& format,
-            const vector_dataset<T>& ds) {
-    if (!format.is_vector()) {
+            const text_dataset_format& format,
+            const real_dataset<T>& ds) {
+    if (!format.all_variables_continuous()) {
       throw std::domain_error(
-        "The dataset contains variable(s) that are not vector"
+        "The dataset contains variable(s) that are not continuous"
       );
     }
-    domain vars = format.vector_vars();
+    domain vars = format.variables;
 
     std::ofstream out(filename);
     if (!out) {

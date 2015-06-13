@@ -23,12 +23,12 @@ BOOST_AUTO_TEST_CASE(test_accessors) {
   const std::size_t m = pow(d, n);
 
   // Constructor
-  int_table x(finite_index(n, d));
+  int_table x(uint_vector(n, d));
   BOOST_CHECK_EQUAL(x.size(), m);
 
   // Index iterator and indexing
   int value = 0;
-  for (const finite_index& index : x.indices()) {
+  for (const uint_vector& index : x.indices()) {
     x(index) = value++;
   }
   std::vector<int> seq(m);
@@ -170,9 +170,9 @@ BOOST_AUTO_TEST_CASE(test_join) {
     }
   }
 
-  finite_index x_map = {0, 1};
-  finite_index y_map = {1, 2};
-  finite_index z_map = {2, 0};
+  uint_vector x_map = {0, 1};
+  uint_vector y_map = {1, 2};
+  uint_vector z_map = {2, 0};
   std::plus<int> op;
 
   // Compute the sums with nested loops
@@ -221,7 +221,7 @@ BOOST_AUTO_TEST_CASE(test_aggregate) {
   }
 
   // Arguments of the operation
-  finite_index dim_map = {2, 0};
+  uint_vector dim_map = {2, 0};
   std::plus<int> op;
 
   // Performs the aggregate with nested loops
@@ -272,10 +272,10 @@ BOOST_AUTO_TEST_CASE(test_join_aggregate) {
     }
   }
 
-  finite_index x_map = {0, 1};
-  finite_index y_map = {1, 2};
-  finite_index r_map = {2, 0};
-  finite_index z_shape = {m, n, o};
+  uint_vector x_map = {0, 1};
+  uint_vector y_map = {1, 2};
+  uint_vector r_map = {2, 0};
+  uint_vector z_shape = {m, n, o};
   std::multiplies<int> join_op;
   std::plus<int> agg_op;
 
@@ -323,7 +323,7 @@ BOOST_AUTO_TEST_CASE(test_restrict) {
   }
 
   // Dimension mapping
-  finite_index x_map = {std::size_t(-1), 1, 0};
+  uint_vector x_map = {std::size_t(-1), 1, 0};
 
   // Performs the restrict operation using nested loops
   int_table nested({o, n});
@@ -372,7 +372,7 @@ BOOST_AUTO_TEST_CASE(test_restrict_join) {
   }
 
   // Dimension mapping
-  finite_index x_map = {std::size_t(-1), 0};
+  uint_vector x_map = {std::size_t(-1), 0};
   std::plus<int> op;
 
   // Performs the restrict-join operation using nested loops

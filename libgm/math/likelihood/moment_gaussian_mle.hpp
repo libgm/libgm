@@ -22,7 +22,7 @@ namespace libgm {
     typedef moment_gaussian_param<T> param_type;
 
     //! The type that represents an unweighted observations.
-    typedef dynamic_vector<T> data_type;
+    typedef real_vector<T> data_type;
 
     //! The type that represents the weight of an observation.
     typedef T weight_type;
@@ -51,12 +51,12 @@ namespace libgm {
     //! Initializes the estimator to the given dimensionality of data.
     void initialize(std::size_t n) {
       sumx_.setZero(n);
-      sumxxt_ = dynamic_matrix<T>::Identity(n, n) * regul_;
+      sumxxt_ = real_matrix<T>::Identity(n, n) * regul_;
       weight_ = T(0);
     }
 
     //! Processes a single weighted data point.
-    void process(const dynamic_vector<T>& x, T weight) {
+    void process(const real_vector<T>& x, T weight) {
       sumx_   += weight * x;
       sumxxt_ += weight * x * x.transpose();
       weight_ += weight;
@@ -78,8 +78,8 @@ namespace libgm {
 
   private:
     T regul_;                  //!< The regularization parameter.
-    dynamic_vector<T> sumx_;   //!< The accumulated first moment.
-    dynamic_matrix<T> sumxxt_; //!< The accumulated second moment.
+    real_vector<T> sumx_;   //!< The accumulated first moment.
+    real_matrix<T> sumxxt_; //!< The accumulated second moment.
     T weight_;                 //!< The accumulated weight.
 
   }; // class moment_gaussian_mle

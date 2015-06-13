@@ -26,7 +26,7 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   universe u;
   std::mt19937 rng;
   pairwise_markov_network<carray1, carray2> model;
-  domain vars = u.new_finite_variables(m * n, "v", 2);
+  domain vars = u.new_discrete_variables(m * n, "v", 2);
   make_grid_graph(vars, m, n, model);
   model.initialize(marginal_fn(uniform_table_generator<carray1>(), rng),
                    marginal_fn(uniform_table_generator<carray2>(), rng));

@@ -3,7 +3,7 @@
 
 #include <libgm/argument/hybrid_assignment.hpp>
 #include <libgm/argument/hybrid_domain.hpp>
-#include <libgm/datastructure/hybrid_index.hpp>
+#include <libgm/datastructure/hybrid_vector.hpp>
 #include <libgm/math/random/permutations.hpp>
 #include <libgm/range/iterator_range.hpp>
 
@@ -19,17 +19,18 @@ namespace libgm {
 
   /**
    * A dense dataset that stores observations in a column-major format,
-   * where the rows correspond to data points and columns to either finite
-   * or vector variables. This class can be thought of as the union of
-   * finite_dataset and vector_dataset, and it can be used in learning
-   * algorithms that normally accept finite or vector datasets, because
-   * each for each sample s, s.first is convertible to both finite_index
-   * and dynamic_vector<T> (and s.second is the weight).
+   * where the rows correspond to data points and columns to either
+   * discrete or continuous variables. This class can be thought of as
+   * the union of uint_dataset and real_dataset, and it can be used in
+   * learning algorithms that normally accept uint_dataset or real_dataset,
+   * because each for each sample s, s.first is convertible to both
+   * uint_vector and real_vector<T> (and s.second is the weight).
    *
    * The dataset can dynamicallly grow in the style of std::vector,
    * adding rows for newly inserted data points.
    *
-   * \tparam T the type representing the weights and vector values
+   * \tparam T the type representing the weights and real values
+   * \tparam Var a type that models the MixedArgument concept
    * \see Dataset
    */
   template <typename T = double, typename Var = variable>
@@ -40,13 +41,13 @@ namespace libgm {
     typedef Var                       argument_type;
     typedef hybrid_domain<Var>        domain_type;
     typedef hybrid_assignment<T, Var> assignment_type;
-    typedef hybrid_index<T>           data_type;
+    typedef hybrid_vector<T>          data_type;
     typedef T                         weight_type;
     class assignment_iterator;
     typedef const T* weight_iterator;
 
     // Range concept types
-    typedef std::pair<hybrid_index<T>, T> value_type;
+    typedef std::pair<hybrid_vector<T>, T> value_type;
     class iterator;
     class const_iterator;
 
@@ -66,26 +67,26 @@ namespace libgm {
      * It is an error to call initialize() more than once.
      */
     void initialize(const domain_type& args, std::size_t capacity = 1) {
-      if (fdata_ || vdata_) {
+      if (udata_ || rdata_) {
         throw std::logic_error("Attempt to call initialize() more than once.");
       }
       args_ = args;
       allocated_ = std::max(capacity, std::size_t(1));
       inserted_ = 0;
-      std::size_t fcol = 0;
-      for (Var v : args.finite()) {
-        col_.emplace(v, fcol++);
+      std::size_t ucol = 0;
+      for (Var v : args.discrete()) {
+        col_.emplace(v, ucol++);
       }
-      std::size_t vcol = 0;
-      for (Var v : args.vector()) {
-        col_.emplace(v, vcol);
-        vcol += v.size();
+      std::size_t rcol = 0;
+      for (Var v : args.continuous()) {
+        col_.emplace(v, rcol);
+        rcol += num_dimensions(v);
       }
-      fdata_.reset(new std::size_t[allocated_ * fcol]);
-      vdata_.reset(new T[allocated_ * vcol]);
+      udata_.reset(new std::size_t[allocated_ * ucol]);
+      rdata_.reset(new T[allocated_ * rcol]);
       weight_.reset(new T[allocated_]);
-      compute_colptr(fdata_.get(), allocated_, fcol, fcolptr_);
-      compute_colptr(vdata_.get(), allocated_, vcol, vcolptr_);
+      compute_colptr(udata_.get(), allocated_, ucol, ucolptr_);
+      compute_colptr(rdata_.get(), allocated_, rcol, rcolptr_);
     }
 
     // Accessors
@@ -101,14 +102,14 @@ namespace libgm {
       return args_.size();
     }
 
-    //! Returns the number of finite columns of this dataset.
-    std::size_t finite_cols() const {
-      return fcolptr_.size();
+    //! Returns the number of integral columns of this dataset.
+    std::size_t uint_cols() const {
+      return ucolptr_.size();
     }
 
-    //! Returns the number of vector columns of this dataset.
-    std::size_t vector_cols() const {
-      return vcolptr_.size();
+    //! Returns the number of real columns of this dataset.
+    std::size_t real_cols() const {
+      return rcolptr_.size();
     }
 
     //! Returns the number of datapoints in the dataset.
@@ -129,12 +130,12 @@ namespace libgm {
 
     //! Returns the iterator to the first datapoint.
     iterator begin() {
-      return iterator(fcolptr_, vcolptr_, weight_.get(), inserted_);
+      return iterator(ucolptr_, rcolptr_, weight_.get(), inserted_);
     }
 
     //! Returns the iterator to the first datapoint.
     const_iterator begin() const {
-      return const_iterator(fcolptr_, vcolptr_, weight_.get(), inserted_);
+      return const_iterator(ucolptr_, rcolptr_, weight_.get(), inserted_);
     }
 
     //! Returns the iterator to the datapoint past the last one.
@@ -150,12 +151,12 @@ namespace libgm {
     //! Returns a single datapoint in the dataset.
     value_type operator[](std::size_t row) const {
       value_type value;
-      value.first.resize(finite_cols(), vector_cols());
-      for (std::size_t i = 0; i < finite_cols(); ++i) {
-        value.first.finite()[i] = fcolptr_[i][row];
+      value.first.resize(uint_cols(), real_cols());
+      for (std::size_t i = 0; i < uint_cols(); ++i) {
+        value.first.uint()[i] = ucolptr_[i][row];
       }
-      for (std::size_t i = 0; i < vector_cols(); ++i) {
-        value.first.vector()[i] = vcolptr_[i][row];
+      for (std::size_t i = 0; i < real_cols(); ++i) {
+        value.first.real()[i] = rcolptr_[i][row];
       }
       value.second = weight_[row];
       return value;
@@ -164,7 +165,7 @@ namespace libgm {
     //! Returns a mutable range of datapoints over a subset of arguments.
     iterator_range<iterator> operator()(const domain_type& dom) {
       return iterator_range<iterator>(
-        iterator(fcolptrs(dom), vcolptrs(dom), weight_.get(), inserted_),
+        iterator(ucolptrs(dom), rcolptrs(dom), weight_.get(), inserted_),
         iterator()
       );
     }
@@ -172,7 +173,7 @@ namespace libgm {
     //! Returns an immutable range of datapoints over a subset of arguments.
     iterator_range<const_iterator> operator()(const domain_type& dom) const {
       return iterator_range<const_iterator>(
-        const_iterator(fcolptrs(dom), vcolptrs(dom), weight_.get(), inserted_),
+        const_iterator(ucolptrs(dom), rcolptrs(dom), weight_.get(), inserted_),
         const_iterator()
       );
     }
@@ -180,15 +181,16 @@ namespace libgm {
     //! Returns a single datapoint in the dataset over a subset of arguments.
     value_type operator()(std::size_t row, const domain_type& dom) const {
       value_type value;
-      value.first.resize(dom.finite_size(), dom.vector_size());
-      std::size_t* fdest = value.first.finite().data();
-      for (Var v : dom.finite()) {
-        *fdest++ = fcolptr_[col_.at(v)][row];
+      value.first.resize(dom.discrete_size(), num_dimensions(dom));
+      std::size_t* udest = value.first.uint().data();
+      for (Var v : dom.discrete()) {
+        *udest++ = ucolptr_[col_.at(v)][row];
       }
-      T* vdest = value.first.vector().data();
-      for (Var v : dom.vector()) {
-        for (std::size_t i = 0, col = col_.at(v); i < v.size(); ++i, ++col) {
-          *vdest++ = vcolptr_[col][row];
+      T* rdest = value.first.real().data();
+      for (Var v : dom.continuous()) {
+        std::size_t n = num_dimensions(v);
+        for (std::size_t i = 0, col = col_.at(v); i < n; ++i, ++col) {
+          *rdest++ = rcolptr_[col][row];
         }
       }
       value.second = weight_[row];
@@ -199,7 +201,7 @@ namespace libgm {
     iterator_range<assignment_iterator>
     assignments() const {
       return iterator_range<assignment_iterator>(
-        assignment_iterator(args_, fcolptr_, vcolptr_, weight_.get(), inserted_),
+        assignment_iterator(args_, ucolptr_, rcolptr_, weight_.get(), inserted_),
         assignment_iterator()
       );
     }
@@ -208,7 +210,7 @@ namespace libgm {
     iterator_range<assignment_iterator>
     assignments(const domain_type& d) const {
       return iterator_range<assignment_iterator>(
-        assignment_iterator(d, fcolptrs(d), vcolptrs(d), weight_.get(), inserted_),
+        assignment_iterator(d, ucolptrs(d), rcolptrs(d), weight_.get(), inserted_),
         assignment_iterator()
       );
     }
@@ -223,14 +225,14 @@ namespace libgm {
     std::pair<assignment_type, T>
     assignment(std::size_t row, const domain_type& dom) const {
       std::pair<assignment_type, T> a;
-      for (Var v : dom.finite()) {
-        a.first.finite()[v] = fcolptr_[col_.at(v)][row];
+      for (Var v : dom.discrete()) {
+        a.first.uint()[v] = ucolptr_[col_.at(v)][row];
       }
-      for (Var v : dom.vector()) {
-        dynamic_vector<T>& vec = a.first.vector()[v];
-        vec.resize(v.size());
-        for (std::size_t i = 0, col = col_.at(v); i < v.size(); ++i, ++col) {
-          vec[i] = vcolptr_[col][row];
+      for (Var v : dom.continuous()) {
+        real_vector<T>& vec = a.first.real()[v];
+        vec.resize(num_dimensions(v));
+        for (std::size_t i = 0, col = col_.at(v); i < vec.size(); ++i, ++col) {
+          vec[i] = rcolptr_[col][row];
         }
       }
       a.second = weight_[row];
@@ -265,20 +267,20 @@ namespace libgm {
     }
 
     //! Inserts a new datapoint to the dataset.
-    void insert(const hybrid_index<T>& values, T weight) {
+    void insert(const hybrid_vector<T>& values, T weight) {
       check_initialized();
       assert(inserted_ <= allocated_);
       if (inserted_ == allocated_) {
         reallocate(1.5 * allocated_ + 1);
       }
 
-      assert(values.finite().size() == finite_cols());
-      for (std::size_t i = 0; i < values.finite().size(); ++i) {
-        fcolptr_[i][inserted_] = values.finite()[i];
+      assert(values.uint().size() == uint_cols());
+      for (std::size_t i = 0; i < values.uint().size(); ++i) {
+        ucolptr_[i][inserted_] = values.uint()[i];
       }
-      assert(values.vector().size() == vector_cols());
-      for (std::size_t i = 0; i < values.vector().size(); ++i) {
-        vcolptr_[i][inserted_] = values.vector()[i];
+      assert(values.real().size() == real_cols());
+      for (std::size_t i = 0; i < values.real().size(); ++i) {
+        rcolptr_[i][inserted_] = values.real()[i];
       }
       weight_[inserted_] = weight;
       ++inserted_;
@@ -286,16 +288,16 @@ namespace libgm {
 
     //! Inserts a new datapoint from an assignment (all variables must exist).
     void insert(const assignment_type& a, weight_type weight) {
-      hybrid_index<T> values;
-      values.resize(finite_cols(), vector_cols());
-      std::size_t fcol = 0;
-      for (Var v : args_.finite()) {
-        values.finite()[fcol++] = a.finite().at(v);
+      hybrid_vector<T> values;
+      values.resize(uint_cols(), real_cols());
+      std::size_t ucol = 0;
+      for (Var v : args_.discrete()) {
+        values.uint()[ucol++] = a.uint().at(v);
       }
-      std::size_t vcol = 0;
-      for (Var v :  args_.vector()) {
-        values.vector().segment(vcol, v.size()) = a.vector().at(v);
-        vcol += v.size();
+      std::size_t rcol = 0;
+      for (Var v :  args_.continuous()) {
+        values.real().segment(rcol, num_dimensions(v)) = a.real().at(v);
+        rcol += num_dimensions(v);
       }
       insert(values, weight);
     }
@@ -309,11 +311,11 @@ namespace libgm {
     void insert(std::size_t nrows) {
       check_initialized();
       reserve(inserted_ + nrows);
-      for (std::size_t* ptr : fcolptr_) {
+      for (std::size_t* ptr : ucolptr_) {
         std::fill_n(ptr + inserted_, nrows,
                     std::numeric_limits<std::size_t>::max());
       }
-      for (T* ptr : vcolptr_) {
+      for (T* ptr : rcolptr_) {
         std::fill_n(ptr + inserted_, nrows,
                     std::numeric_limits<T>::quiet_NaN());
       }
@@ -326,14 +328,14 @@ namespace libgm {
       assert(permutation.size() == inserted_);
       hybrid_dataset ds;
       ds.initialize(args_, allocated_);
-      hybrid_index<T> values(finite_cols(), vector_cols());
+      hybrid_vector<T> values(uint_cols(), real_cols());
       for (std::size_t row = 0; row < inserted_; ++row) {
         std::size_t prow = permutation[row];
-        for (std::size_t i = 0; i < finite_cols(); ++i) {
-          values.finite()[i] = fcolptr_[i][prow];
+        for (std::size_t i = 0; i < uint_cols(); ++i) {
+          values.uint()[i] = ucolptr_[i][prow];
         }
-        for (std::size_t i = 0; i < vector_cols(); ++i) {
-          values.vector()[i] = vcolptr_[i][prow];
+        for (std::size_t i = 0; i < real_cols(); ++i) {
+          values.real()[i] = rcolptr_[i][prow];
         }
         ds.insert(values, weight_[prow]);
       }
@@ -351,11 +353,11 @@ namespace libgm {
       using std::swap;
       swap(a.args_, b.args_);
       swap(a.col_, b.col_);
-      swap(a.fdata_, b.fdata_);
-      swap(a.vdata_, b.vdata_);
+      swap(a.udata_, b.udata_);
+      swap(a.rdata_, b.rdata_);
       swap(a.weight_, b.weight_);
-      swap(a.fcolptr_, b.fcolptr_);
-      swap(a.vcolptr_, b.vcolptr_);
+      swap(a.ucolptr_, b.ucolptr_);
+      swap(a.rcolptr_, b.rcolptr_);
       swap(a.allocated_, b.allocated_);
       swap(a.inserted_, b.inserted_);
     }
@@ -375,28 +377,28 @@ namespace libgm {
         : nrows_(0) { }
 
       //! begin constructor
-      iterator(const std::vector<std::size_t*>& felems,
-               const std::vector<T*>& velems,
+      iterator(const std::vector<std::size_t*>& uelems,
+               const std::vector<T*>& relems,
                T* weight,
                std::size_t nrows)
-        : felems_(felems),
-          velems_(velems),
+        : uelems_(uelems),
+          relems_(relems),
           weight_(weight),
           nrows_(nrows) {
-        value_.first.resize(felems_.size(), velems_.size());
+        value_.first.resize(uelems_.size(), relems_.size());
         load_advance();
       }
 
       //! begin move constructor
-      iterator(std::vector<std::size_t*>&& felems,
-               std::vector<T*>&& velems,
+      iterator(std::vector<std::size_t*>&& uelems,
+               std::vector<T*>&& relems,
                T* weight,
                std::size_t nrows)
-        : felems_(std::move(felems)),
-          velems_(std::move(velems)),
+        : uelems_(std::move(uelems)),
+          relems_(std::move(relems)),
           weight_(weight),
           nrows_(nrows) {
-        value_.first.resize(felems_.size(), velems_.size());
+        value_.first.resize(uelems_.size(), relems_.size());
         load_advance();
       }
 
@@ -453,16 +455,16 @@ namespace libgm {
 
       friend void swap(iterator& a, iterator& b) {
         using std::swap;
-        swap(a.felems_, b.felems_);
-        swap(a.velems_, b.velems_);
+        swap(a.uelems_, b.uelems_);
+        swap(a.relems_, b.relems_);
         swap(a.weight_, b.weight_);
         swap(a.nrows_, b.nrows_);
         swap(a.value_, b.value_);
       }
 
     private:
-      std::vector<std::size_t*> felems_; // pointers to the next finite elements
-      std::vector<T*> velems_; // the pointers to the next vector elements
+      std::vector<std::size_t*> uelems_; // pointers to the next uint elements
+      std::vector<T*> relems_; // the pointers to the next real elements
       T* weight_;              // the pointer to the next weight
       std::size_t nrows_;      // the number of rows left
       value_type value_;       // user-facing data
@@ -470,11 +472,11 @@ namespace libgm {
       //! increments the storage pointers by n
       void advance(std::ptrdiff_t n) {
         if (n != 0) {
-          for (std::size_t i = 0; i < felems_.size(); ++i) {
-            felems_[i] += n;
+          for (std::size_t i = 0; i < uelems_.size(); ++i) {
+            uelems_[i] += n;
           }
-          for (std::size_t i = 0; i < velems_.size(); ++i) {
-            velems_[i] += n;
+          for (std::size_t i = 0; i < relems_.size(); ++i) {
+            relems_[i] += n;
           }
           weight_ += n;
         }
@@ -483,11 +485,11 @@ namespace libgm {
       //! loads the data into the value and increments the storage pointers
       void load_advance() {
         if (nrows_ > 0) {
-          for (std::size_t i = 0; i < felems_.size(); ++i) {
-            value_.first.finite()[i] = *felems_[i]++;
+          for (std::size_t i = 0; i < uelems_.size(); ++i) {
+            value_.first.uint()[i] = *uelems_[i]++;
           }
-          for (std::size_t i = 0; i < velems_.size(); ++i) {
-            value_.first.vector()[i] = *velems_[i]++;
+          for (std::size_t i = 0; i < relems_.size(); ++i) {
+            value_.first.real()[i] = *relems_[i]++;
           }
           value_.second = *weight_++;
         }
@@ -496,11 +498,11 @@ namespace libgm {
       //! saves the data form the value to the previous storage pointers
       void save() {
         if (nrows_ > 0) {
-          for (std::size_t i = 0; i < felems_.size(); ++i) {
-            *(felems_[i]-1) = value_.first.finite()[i];
+          for (std::size_t i = 0; i < uelems_.size(); ++i) {
+            *(uelems_[i]-1) = value_.first.uint()[i];
           }
-          for (std::size_t i = 0; i < velems_.size(); ++i) {
-            *(velems_[i]-1) = value_.first.vector()[i];
+          for (std::size_t i = 0; i < relems_.size(); ++i) {
+            *(relems_[i]-1) = value_.first.real()[i];
           }
           *(weight_-1) = value_.second;
         }
@@ -522,25 +524,25 @@ namespace libgm {
         : nrows_(0) { }
 
       //! begin constructor
-      const_iterator(const std::vector<std::size_t*>& felems,
-                     const std::vector<T*>& velems,
+      const_iterator(const std::vector<std::size_t*>& uelems,
+                     const std::vector<T*>& relems,
                      T* weight,
                      std::size_t nrows)
-        : felems_(felems), velems_(velems), weight_(weight), nrows_(nrows) {
-        value_.first.resize(felems_.size(), velems_.size());
+        : uelems_(uelems), relems_(relems), weight_(weight), nrows_(nrows) {
+        value_.first.resize(uelems_.size(), relems_.size());
         load_advance();
       }
 
       //! begin move constructor
-      const_iterator(std::vector<std::size_t*>&& felems,
-                     std::vector<T*>&& velems,
+      const_iterator(std::vector<std::size_t*>&& uelems,
+                     std::vector<T*>&& relems,
                      T* weight,
                      std::size_t nrows)
-        : felems_(std::move(felems)),
-          velems_(std::move(velems)),
+        : uelems_(std::move(uelems)),
+          relems_(std::move(relems)),
           weight_(weight),
           nrows_(nrows) {
-        value_.first.resize(felems_.size(), velems_.size());
+        value_.first.resize(uelems_.size(), relems_.size());
         load_advance();
       }
 
@@ -556,8 +558,8 @@ namespace libgm {
 
       //! assignment from a mutating iterator
       const_iterator& operator=(const iterator& it) {
-        felems_ = it.felems_;
-        velems_ = it.velems_;
+        uelems_ = it.uelems_;
+        relems_ = it.relems_;
         weight_ = it.weight_;
         nrows_ = it.nrows_;
         value_ = it.value_;
@@ -567,8 +569,8 @@ namespace libgm {
       //! move assignment from a mutating iterator
       const_iterator& operator=(iterator&& it) {
         using std::swap;
-        swap(felems_, it.felems_);
-        swap(velems_, it.velems_);
+        swap(uelems_, it.uelems_);
+        swap(relems_, it.relems_);
         swap(weight_, it.weight_);
         swap(nrows_, it.nrows_);
         swap(value_, it.value_);
@@ -626,16 +628,16 @@ namespace libgm {
 
       friend void swap(const_iterator& a, const_iterator& b) {
         using std::swap;
-        swap(a.felems_, b.felems_);
-        swap(a.velems_, b.velems_);
+        swap(a.uelems_, b.uelems_);
+        swap(a.relems_, b.relems_);
         swap(a.weight_, b.weight_);
         swap(a.nrows_, b.nrows_);
         swap(a.value_, b.value_);
       }
 
     private:
-      std::vector<std::size_t*> felems_; // pointers to the next finite elements
-      std::vector<T*> velems_; // the pointers to the next vector elements
+      std::vector<std::size_t*> uelems_; // pointers to the next uint elements
+      std::vector<T*> relems_; // the pointers to the next real elements
       T* weight_;              // the pointer to the next weight
       std::size_t nrows_;      // the number of rows left
       value_type value_;       // user-facing data
@@ -643,11 +645,11 @@ namespace libgm {
       //! increments the storage pointers by n
       void advance(std::ptrdiff_t n) {
         if (n != 0) {
-          for (std::size_t i = 0; i < felems_.size(); ++i) {
-            felems_[i] += n;
+          for (std::size_t i = 0; i < uelems_.size(); ++i) {
+            uelems_[i] += n;
           }
-          for (std::size_t i = 0; i < velems_.size(); ++i) {
-            velems_[i] += n;
+          for (std::size_t i = 0; i < relems_.size(); ++i) {
+            relems_[i] += n;
           }
           weight_ += n;
         }
@@ -656,11 +658,11 @@ namespace libgm {
       //! loads the data into the value and increments the storage pointers
       void load_advance() {
         if (nrows_ > 0) {
-          for (std::size_t i = 0; i < felems_.size(); ++i) {
-            value_.first.finite()[i] = *felems_[i]++;
+          for (std::size_t i = 0; i < uelems_.size(); ++i) {
+            value_.first.uint()[i] = *uelems_[i]++;
           }
-          for (std::size_t i = 0; i < velems_.size(); ++i) {
-            value_.first.vector()[i] = *velems_[i]++;
+          for (std::size_t i = 0; i < relems_.size(); ++i) {
+            value_.first.real()[i] = *relems_[i]++;
           }
           value_.second = *weight_++;
         }
@@ -684,33 +686,33 @@ namespace libgm {
 
       //! begin constructor
       assignment_iterator(const domain_type& args,
-                          const std::vector<std::size_t*>& felems,
-                          const std::vector<T*>& velems,
+                          const std::vector<std::size_t*>& uelems,
+                          const std::vector<T*>& relems,
                           T* weight,
                           std::size_t nrows)
         : args_(args),
-          felems_(felems),
-          velems_(velems),
+          uelems_(uelems),
+          relems_(relems),
           weight_(weight),
           nrows_(nrows) {
-        assert(args_.finite_size() == felems_.size());
-        assert(args_.vector_size() == velems_.size());
+        assert(args_.discrete_size() == uelems_.size());
+        assert(num_dimensions(args_) == relems_.size());
         load_advance();
       }
 
       //! begin move constructor
       assignment_iterator(const domain_type& args,
-                          std::vector<std::size_t*>&& felems,
-                          std::vector<T*>&& velems,
+                          std::vector<std::size_t*>&& uelems,
+                          std::vector<T*>&& relems,
                           T* weight,
                           std::size_t nrows)
         : args_(args),
-          felems_(std::move(felems)),
-          velems_(std::move(velems)),
+          uelems_(std::move(uelems)),
+          relems_(std::move(relems)),
           weight_(weight),
           nrows_(nrows) {
-        assert(args_.finite_size() == felems_.size());
-        assert(args_.vector_size() == velems_.size());
+        assert(args_.discrete_size() == uelems_.size());
+        assert(num_dimensions(args_) == relems_.size());
         load_advance();
       }
 
@@ -759,8 +761,8 @@ namespace libgm {
       friend void swap(assignment_iterator& a, assignment_iterator& b) {
         using std::swap;
         swap(a.args_, b.args_);
-        swap(a.felems_, b.felems_);
-        swap(a.velems_, b.velems_);
+        swap(a.uelems_, b.uelems_);
+        swap(a.relems_, b.relems_);
         swap(a.weight_, b.weight_);
         swap(a.nrows_, b.nrows_);
         swap(a.value_, b.value_);
@@ -768,8 +770,8 @@ namespace libgm {
 
     private:
       domain_type args_;            // the underlying domain
-      std::vector<std::size_t*> felems_; // pointers to the next finite elements
-      std::vector<T*> velems_;      // the pointers to the next vector elements
+      std::vector<std::size_t*> uelems_; // pointers to the next uint elements
+      std::vector<T*> relems_;      // the pointers to the next real elements
       T* weight_;                   // the pointer to the next weight
       std::size_t nrows_;           // the number of rows left
       std::pair<assignment_type, T> value_; // user-facing data
@@ -777,11 +779,11 @@ namespace libgm {
       //! increments the storage pointers by n
       void advance(std::ptrdiff_t n) {
         if (n != 0) {
-          for (std::size_t i = 0; i < felems_.size(); ++i) {
-            felems_[i] += n;
+          for (std::size_t i = 0; i < uelems_.size(); ++i) {
+            uelems_[i] += n;
           }
-          for (std::size_t i = 0; i < velems_.size(); ++i) {
-            velems_[i] += n;
+          for (std::size_t i = 0; i < relems_.size(); ++i) {
+            relems_[i] += n;
           }
           weight_ += n;
         }
@@ -790,18 +792,18 @@ namespace libgm {
       //! loads the data into the value and increments the storage pointers
       void load_advance() {
         if (nrows_ > 0) {
-          std::size_t fcol = 0;
-          for (Var v : args_.finite()) {
-            value_.first.finite()[v] = *felems_[fcol]++;
-            ++fcol;
+          std::size_t ucol = 0;
+          for (Var v : args_.discrete()) {
+            value_.first.uint()[v] = *uelems_[ucol]++;
+            ++ucol;
           }
-          std::size_t vcol = 0;
-          for (Var v : args_.vector()) {
-            dynamic_vector<T>& vec = value_.first.vector()[v];
-            vec.resize(v.size());
-            for (std::size_t i = 0; i < v.size(); ++i) {
-              vec[i] = *velems_[vcol]++;
-              ++vcol;
+          std::size_t rcol = 0;
+          for (Var v : args_.continuous()) {
+            real_vector<T>& vec = value_.first.real()[v];
+            vec.resize(num_dimensions(v));
+            for (std::size_t i = 0; i < vec.size(); ++i) {
+              vec[i] = *relems_[rcol]++;
+              ++rcol;
             }
           }
           value_.second = *weight_++;
@@ -836,49 +838,50 @@ namespace libgm {
     void reallocate(std::size_t n) {
       // allocate the new data
       assert(n >= inserted_);
-      std::size_t* new_fdata = new std::size_t[n * finite_cols()];
-      T* new_vdata = new T[n * vector_cols()];
+      std::size_t* new_udata = new std::size_t[n * uint_cols()];
+      T* new_rdata = new T[n * real_cols()];
       T* new_weight = new T[n];
-      std::vector<std::size_t*> new_fcolptr;
-      std::vector<T*> new_vcolptr;
-      compute_colptr(new_fdata, n, finite_cols(), new_fcolptr);
-      compute_colptr(new_vdata, n, vector_cols(), new_vcolptr);
+      std::vector<std::size_t*> new_ucolptr;
+      std::vector<T*> new_rcolptr;
+      compute_colptr(new_udata, n, uint_cols(), new_ucolptr);
+      compute_colptr(new_rdata, n, real_cols(), new_rcolptr);
 
       // copy the elements and the weights to the new locations
-      for (std::size_t col = 0; col < finite_cols(); ++col) {
-        std::copy(fcolptr_[col], fcolptr_[col] + inserted_, new_fcolptr[col]);
+      for (std::size_t col = 0; col < uint_cols(); ++col) {
+        std::copy(ucolptr_[col], ucolptr_[col] + inserted_, new_ucolptr[col]);
       }
-      for (std::size_t col = 0; col < vector_cols(); ++col) {
-        std::copy(vcolptr_[col], vcolptr_[col] + inserted_, new_vcolptr[col]);
+      for (std::size_t col = 0; col < real_cols(); ++col) {
+        std::copy(rcolptr_[col], rcolptr_[col] + inserted_, new_rcolptr[col]);
       }
       std::copy(weight_.get(), weight_.get() + inserted_, new_weight);
 
       // swap in the new data
-      fdata_.reset(new_fdata);
-      vdata_.reset(new_vdata);
+      udata_.reset(new_udata);
+      rdata_.reset(new_rdata);
       weight_.reset(new_weight);
-      fcolptr_.swap(new_fcolptr);
-      vcolptr_.swap(new_vcolptr);
+      ucolptr_.swap(new_ucolptr);
+      rcolptr_.swap(new_rcolptr);
       allocated_ = n;
     }
 
-    //! Returns the column pointers for variables in a finite domain
-    std::vector<std::size_t*> fcolptrs(const domain_type& dom) const {
+    //! Returns the column pointers for variables in a discrete domain
+    std::vector<std::size_t*> ucolptrs(const domain_type& dom) const {
       std::vector<std::size_t*> result;
-      result.reserve(dom.finite_size());
-      for (Var v : dom.finite()) {
-        result.push_back(fcolptr_[col_.at(v)]);
+      result.reserve(dom.discrete_size());
+      for (Var v : dom.discrete()) {
+        result.push_back(ucolptr_[col_.at(v)]);
       }
       return result;
     }
 
-    //! Returns the column pointers for variables in a vector domain
-    std::vector<T*> vcolptrs(const domain_type& dom) const {
+    //! Returns the column pointers for variables in a continuous domain
+    std::vector<T*> rcolptrs(const domain_type& dom) const {
       std::vector<T*> result;
-      result.reserve(dom.vector_size());
-      for (Var v : dom.vector()) {
-        for (std::size_t i = 0, col = col_.at(v); i < v.size(); ++i, ++col) {
-          result.push_back(vcolptr_[col]);
+      result.reserve(num_dimensions(dom));
+      for (Var v : dom.continuous()) {
+        std::size_t n = num_dimensions(v);
+        for (std::size_t i = 0, col = col_.at(v); i < n; ++i, ++col) {
+          result.push_back(rcolptr_[col]);
         }
       }
       return result;
@@ -886,11 +889,11 @@ namespace libgm {
 
     domain_type args_;                  //!< the dataset arguments
     std::unordered_map<Var, std::size_t> col_; //!< the column of each argument
-    std::unique_ptr<std::size_t[]> fdata_; //!< the finite data storage
-    std::unique_ptr<T[]> vdata_;        //!< the vector data storage
+    std::unique_ptr<std::size_t[]> udata_; //!< the uint data storage
+    std::unique_ptr<T[]> rdata_;        //!< the real data storage
     std::unique_ptr<T[]> weight_;       //!< the weight storage
-    std::vector<std::size_t*> fcolptr_; //!< finite column pointers
-    std::vector<T*> vcolptr_;           //!< vector column pointers
+    std::vector<std::size_t*> ucolptr_; //!< uint column pointers
+    std::vector<T*> rcolptr_;           //!< real column pointers
     std::size_t allocated_;             //!< the number of allocated rows
     std::size_t inserted_;              //!< the number of inserted rows
 

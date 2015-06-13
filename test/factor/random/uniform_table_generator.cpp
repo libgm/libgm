@@ -26,8 +26,8 @@ typedef boost::mpl::list<ctable,ptable> factor_types;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_all, F, factor_types) {
   universe u;
-  variable x = u.new_finite_variable("x", 4);
-  variable y = u.new_finite_variable("y", 3);
+  variable x = u.new_discrete_variable("x", 4);
+  variable y = u.new_discrete_variable("y", 3);
   domain xs = { x };
   domain ys = { y };
   domain xy = { x, y };
@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_all, F, factor_types) {
       sum += x;
     }
   }
-  sum /= nsamples * finite_size(xy);
+  sum /= nsamples * num_values(xy);
   BOOST_CHECK_CLOSE_FRACTION(sum, (lower + upper) / 2, 0.05);
 
   /*

@@ -1,11 +1,11 @@
-#ifndef LIBGM_FINITE_SEQUENCE_DATASET_HPP
-#define LIBGM_FINITE_SEQUENCE_DATASET_HPP
+#ifndef LIBGM_UINT_SEQUENCE_DATASET_HPP
+#define LIBGM_UINT_SEQUENCE_DATASET_HPP
 
 #include <libgm/argument/basic_domain.hpp>
-#include <libgm/argument/finite_assignment.hpp>
+#include <libgm/argument/uint_assignment.hpp>
 #include <libgm/argument/process.hpp>
 #include <libgm/learning/dataset/basic_sequence_dataset.hpp>
-#include <libgm/math/eigen/dynamic.hpp>
+#include <libgm/math/eigen/real.hpp>
 #include <libgm/math/eigen/matrix_index.hpp>
 #include <libgm/math/eigen/submatrix.hpp>
 
@@ -14,20 +14,21 @@
 namespace libgm {
 
   /**
-   * The traits for a dataset that stores observations for finite
-   * discrete processes.
+   * The traits for a dataset that stores observations for
+   * discrete-value, discrete-time processes.
    *
    * \tparam T the type representing the weights
+   * \tparam Var a variable type that models the DiscreteArgument concept
    */
   template <typename T, typename Var>
-  struct finite_sequence_traits {
+  struct uint_sequence_traits {
     typedef process<std::size_t, Var>    process_type;
     typedef Var                          variable_type;
     typedef basic_domain<process_type>   proc_domain_type;
     typedef basic_domain<variable_type>  var_domain_type;
-    typedef dynamic_matrix<std::size_t>  proc_data_type;
-    typedef finite_index                 var_data_type;
-    typedef finite_assignment<Var>       assignment_type;
+    typedef real_matrix<std::size_t>     proc_data_type;
+    typedef uint_vector                  var_data_type;
+    typedef uint_assignment<Var>         assignment_type;
     typedef T                            weight_type;
     typedef matrix_index                 index_type;
     typedef std::pair<proc_data_type, T> proc_value_type;
@@ -162,20 +163,21 @@ namespace libgm {
       return data.rows() == procs.size();
     }
 
-  }; // struct finite_sequence_traits
+  }; // struct uint_sequence_traits
 
   /**
-   * A dense dataset that stores observations for finite discrete processes
-   * in memory. Each observation is a matrix with rows being the processes
-   * and columns being the time steps. The observations are stored in an
-   * std::vector.
+   * A dense dataset that stores observations for discrete-value, discrete-time
+   * processes in memory. Each samples is a matrix with rows corresponding
+   * to the processes and columns corresponding to the time steps.
+   * The samples are stored in an std::vector.
    *
    * \tparam T the type representing the weights
+   * \tparam Var a variable type that models the DiscreteArgument concept
    * \see Dataset
    */
   template <typename T = double, typename Var = variable>
-  using finite_sequence_dataset =
-    basic_sequence_dataset<finite_sequence_traits<T, Var> >;
+  using uint_sequence_dataset =
+    basic_sequence_dataset<uint_sequence_traits<T, Var> >;
 
 } // namespace libgm
 

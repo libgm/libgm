@@ -11,16 +11,16 @@ namespace libgm {
 
 using namespace libgm;
 
-typedef dynamic_vector<double> vec_type;
-typedef dynamic_matrix<double> mat_type;
+typedef real_vector<double> vec_type;
+typedef real_matrix<double> mat_type;
 
 std::size_t nsamples = 100;
 
 BOOST_AUTO_TEST_CASE(test_all) {
   universe u;
-  variable x1 = u.new_vector_variable("x1", 1);
-  variable x2 = u.new_vector_variable("x2", 2);
-  variable y = u.new_vector_variable("y", 1);
+  variable x1 = u.new_continuous_variable("x1", 1);
+  variable x2 = u.new_continuous_variable("x2", 2);
+  variable y = u.new_continuous_variable("y", 1);
   domain xs = {x1, x2};
   domain ys = {y};
   domain xy = {x1, x2, y};

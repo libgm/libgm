@@ -6,45 +6,45 @@
 #include <libgm/argument/universe.hpp>
 #include <libgm/factor/probability_table.hpp>
 #include <libgm/factor/random/uniform_table_generator.hpp>
-#include <libgm/learning/dataset/finite_dataset.hpp>
-#include <libgm/learning/dataset/vector_dataset.hpp>
+#include <libgm/learning/dataset/uint_dataset.hpp>
+#include <libgm/learning/dataset/real_dataset.hpp>
 #include <libgm/learning/dataset/hybrid_dataset.hpp>
-#include <libgm/learning/dataset/finite_sequence_dataset.hpp>
+#include <libgm/learning/dataset/uint_sequence_dataset.hpp>
 #include <libgm/learning/parameter/factor_mle.hpp>
 
 
-typedef libgm::slice_view<libgm::finite_dataset<>> view_type;
+typedef libgm::slice_view<libgm::uint_dataset<>> view_type;
 
 namespace libgm {
-  template class slice_view<finite_dataset<> >;
-  template class slice_view<vector_dataset<> >;
+  template class slice_view<uint_dataset<> >;
+  template class slice_view<real_dataset<> >;
   template class slice_view<hybrid_dataset<> >;
-  template class slice_view<finite_sequence_dataset<> >;
+  template class slice_view<uint_sequence_dataset<> >;
   template class view_type::
-    template slice_iterator<finite_dataset<>::iterator>;
+    template slice_iterator<uint_dataset<>::iterator>;
   template class view_type::
-    template slice_iterator<finite_dataset<>::const_iterator>;
+    template slice_iterator<uint_dataset<>::const_iterator>;
   template class view_type::
-    template slice_iterator<finite_dataset<>::assignment_iterator>;
+    template slice_iterator<uint_dataset<>::assignment_iterator>;
 }
 
 using namespace libgm;
 
-typedef std::pair<finite_index, double> sample_type;
-BOOST_TEST_DONT_PRINT_LOG_VALUE(finite_index);
+typedef std::pair<uint_vector, double> sample_type;
+BOOST_TEST_DONT_PRINT_LOG_VALUE(uint_vector);
 BOOST_TEST_DONT_PRINT_LOG_VALUE(sample_type);
 
 
 BOOST_AUTO_TEST_CASE(test_accessors) {
   universe u;
-  variable x = u.new_finite_variable("x", 3);
-  variable y = u.new_finite_variable("y", 3);
+  variable x = u.new_discrete_variable("x", 3);
+  variable y = u.new_discrete_variable("y", 3);
 
-  finite_dataset<> ds({x, y});
-  ds.insert(finite_index({1, 2}), 0.5);
-  ds.insert(finite_index({0, 1}), 0.3);
-  ds.insert(finite_index({2, 0}), 1.0);
-  ds.insert(finite_index({1, 0}), 2.0);
+  uint_dataset<> ds({x, y});
+  ds.insert(uint_vector({1, 2}), 0.5);
+  ds.insert(uint_vector({0, 1}), 0.3);
+  ds.insert(uint_vector({2, 0}), 1.0);
+  ds.insert(uint_vector({1, 0}), 2.0);
 
   auto view = subset(ds, slice(1, 3));
 
@@ -58,19 +58,19 @@ BOOST_AUTO_TEST_CASE(test_accessors) {
   BOOST_CHECK_CLOSE(view.weight(), 3.3, 1e-6);
 
   // operator[]
-  BOOST_CHECK_EQUAL(view[0].first, finite_index({0, 1}));
-  BOOST_CHECK_EQUAL(view[2].first, finite_index({1, 0}));
+  BOOST_CHECK_EQUAL(view[0].first, uint_vector({0, 1}));
+  BOOST_CHECK_EQUAL(view[2].first, uint_vector({1, 0}));
   BOOST_CHECK_EQUAL(view[0].second, 0.3);
   BOOST_CHECK_EQUAL(view[2].second, 2.0);
 
   // operator()
-  BOOST_CHECK_EQUAL(view(0, {y}).first, finite_index({1}));
-  BOOST_CHECK_EQUAL(view(2, {y}).first, finite_index({0}));
+  BOOST_CHECK_EQUAL(view(0, {y}).first, uint_vector({1}));
+  BOOST_CHECK_EQUAL(view(2, {y}).first, uint_vector({0}));
   BOOST_CHECK_EQUAL(view(0, {y}).second, 0.3);
   BOOST_CHECK_EQUAL(view(2, {y}).second, 2.0);
 
   // assignment
-  std::pair<finite_assignment<>, double> a;
+  std::pair<uint_assignment<>, double> a;
   a = view.assignment(1);
   BOOST_CHECK_EQUAL(a.first.size(), 2);
   BOOST_CHECK_EQUAL(a.first.at(x), 2);
@@ -86,14 +86,14 @@ BOOST_AUTO_TEST_CASE(test_accessors) {
 
 BOOST_AUTO_TEST_CASE(test_value_iterators) {
   universe u;
-  variable x = u.new_finite_variable("x", 3);
-  variable y = u.new_finite_variable("y", 3);
+  variable x = u.new_discrete_variable("x", 3);
+  variable y = u.new_discrete_variable("y", 3);
 
-  finite_dataset<> ds({x, y});
-  ds.insert(finite_index({1, 2}), 0.5);
-  ds.insert(finite_index({0, 1}), 0.3);
-  ds.insert(finite_index({2, 0}), 1.0);
-  ds.insert(finite_index({1, 0}), 2.0);
+  uint_dataset<> ds({x, y});
+  ds.insert(uint_vector({1, 2}), 0.5);
+  ds.insert(uint_vector({0, 1}), 0.3);
+  ds.insert(uint_vector({2, 0}), 1.0);
+  ds.insert(uint_vector({1, 0}), 2.0);
 
   view_type view = subset(ds, {slice(2, 2), slice(0, 1)});
   view_type::const_iterator it = view.begin(), end = view.end();
@@ -107,7 +107,7 @@ BOOST_AUTO_TEST_CASE(test_value_iterators) {
 
   // absolute index 2
   BOOST_CHECK(it != end);
-  BOOST_CHECK_EQUAL(it->first, finite_index({2, 0}));
+  BOOST_CHECK_EQUAL(it->first, uint_vector({2, 0}));
   BOOST_CHECK_EQUAL(it->second, 1.0);
   BOOST_CHECK(it);
   ++it;
@@ -115,14 +115,14 @@ BOOST_AUTO_TEST_CASE(test_value_iterators) {
   // absolute index 3
   BOOST_CHECK(it != end);
   BOOST_CHECK(it == it2);
-  BOOST_CHECK_EQUAL(it->first, finite_index({1, 0}));
+  BOOST_CHECK_EQUAL(it->first, uint_vector({1, 0}));
   BOOST_CHECK_EQUAL(it->second, 2.0);
   BOOST_CHECK(it);
   ++it;
 
   // absolute index 0
   BOOST_CHECK(it != end);
-  BOOST_CHECK_EQUAL(it->first, finite_index({1, 2}));
+  BOOST_CHECK_EQUAL(it->first, uint_vector({1, 2}));
   BOOST_CHECK_EQUAL(it->second, 0.5);
   BOOST_CHECK(it);
   ++it;
@@ -135,14 +135,14 @@ BOOST_AUTO_TEST_CASE(test_value_iterators) {
 
 BOOST_AUTO_TEST_CASE(test_assignment_iterator) {
   universe u;
-  variable x = u.new_finite_variable("x", 3);
-  variable y = u.new_finite_variable("y", 3);
+  variable x = u.new_discrete_variable("x", 3);
+  variable y = u.new_discrete_variable("y", 3);
 
-  finite_dataset<> ds({x, y});
-  ds.insert(finite_index({1, 2}), 0.5);
-  ds.insert(finite_index({0, 1}), 0.3);
-  ds.insert(finite_index({2, 0}), 1.0);
-  ds.insert(finite_index({1, 0}), 2.0);
+  uint_dataset<> ds({x, y});
+  ds.insert(uint_vector({1, 2}), 0.5);
+  ds.insert(uint_vector({0, 1}), 0.3);
+  ds.insert(uint_vector({2, 0}), 1.0);
+  ds.insert(uint_vector({1, 0}), 2.0);
 
   view_type view = subset(ds, {slice(2, 2), slice(1, 1)});
   view_type::assignment_iterator it, end;
@@ -181,11 +181,11 @@ BOOST_AUTO_TEST_CASE(test_assignment_iterator) {
 BOOST_AUTO_TEST_CASE(test_weight_iterator) {
   domain v;
 
-  finite_dataset<> ds(v);
-  ds.insert(finite_index(), 0.5);
-  ds.insert(finite_index(), 0.3);
-  ds.insert(finite_index(), 1.0);
-  ds.insert(finite_index(), 2.0);
+  uint_dataset<> ds(v);
+  ds.insert(uint_vector(), 0.5);
+  ds.insert(uint_vector(), 0.3);
+  ds.insert(uint_vector(), 1.0);
+  ds.insert(uint_vector(), 2.0);
 
   view_type view = subset(ds, {slice(2, 2), slice(1, 1)});
   view_type::weight_iterator it, end;
@@ -215,10 +215,10 @@ BOOST_AUTO_TEST_CASE(test_reconstruction) {
   // generate some random samples
   universe u;
   std::mt19937 rng;
-  domain v = u.new_finite_variables(3, "v", 2);
+  domain v = u.new_discrete_variables(3, "v", 2);
   ptable f = uniform_table_generator<ptable>()(v, rng).normalize();
   auto d = f.distribution();
-  finite_dataset<> ds(v, 1000);
+  uint_dataset<> ds(v, 1000);
   for (std::size_t i = 0; i < 1000; ++i) {
     ds.insert(d(rng), 1.0);
   }

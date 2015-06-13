@@ -36,8 +36,8 @@ BOOST_AUTO_TEST_CASE(test_constructors) {
 
 BOOST_AUTO_TEST_CASE(test_operators) {
   universe u;
-  variable x = u.new_finite_variable("x", 2);
-  variable y = u.new_finite_variable("y", 1);
+  variable x = u.new_discrete_variable("x", 2);
+  variable y = u.new_discrete_variable("y", 1);
   domain xs = { x };
   domain ys = { y };
   domain xy = { x, y };

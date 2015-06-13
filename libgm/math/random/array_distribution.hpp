@@ -1,7 +1,7 @@
 #ifndef LIBGM_ARRAY_DISTRIBUTION_HPP
 #define LIBGM_ARRAY_DISTRIBUTION_HPP
 
-#include <libgm/datastructure/finite_index.hpp>
+#include <libgm/datastructure/uint_vector.hpp>
 #include <libgm/math/log_tag.hpp>
 
 #include <random>
@@ -72,7 +72,7 @@ namespace libgm {
     typedef Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic> param_type;
 
     //! The type representing the sample.
-    typedef finite_index result_type;
+    typedef uint_vector result_type;
 
     //! The type representing the assignment to the tail.
     typedef std::size_t tail_type;
@@ -91,7 +91,7 @@ namespace libgm {
 
     //! Draws a random sample from a marginal distribution.
     template <typename Generator>
-    finite_index operator()(Generator& rng) const {
+    uint_vector operator()(Generator& rng) const {
       const T* begin = psum_.data();
       T p = std::uniform_real_distribution<T>()(rng);
       std::size_t i  = std::upper_bound(begin, begin + psum_.size(), p) - begin;

@@ -2,10 +2,10 @@
 #define LIBGM_CANONICAL_GAUSSIAN_HPP
 
 #include <libgm/argument/basic_domain.hpp>
-#include <libgm/argument/vector_assignment.hpp>
+#include <libgm/argument/real_assignment.hpp>
 #include <libgm/factor/base/gaussian_factor.hpp>
 #include <libgm/factor/traits.hpp>
-#include <libgm/math/eigen/dynamic.hpp>
+#include <libgm/math/eigen/real.hpp>
 #include <libgm/math/logarithmic.hpp>
 #include <libgm/math/param/canonical_gaussian_param.hpp>
 
@@ -29,19 +29,19 @@ namespace libgm {
     typedef gaussian_factor<Var> base;
 
     // Underlying storage
-    typedef dynamic_matrix<T> mat_type;
-    typedef dynamic_vector<T> vec_type;
+    typedef real_matrix<T> mat_type;
+    typedef real_vector<T> vec_type;
 
     // Factor member types
-    typedef T                         real_type;
-    typedef logarithmic<T>            result_type;
-    typedef Var                       variable_type;
-    typedef basic_domain<Var>         domain_type;
-    typedef vector_assignment<T, Var> assignment_type;
+    typedef T                       real_type;
+    typedef logarithmic<T>          result_type;
+    typedef Var                     variable_type;
+    typedef basic_domain<Var>       domain_type;
+    typedef real_assignment<T, Var> assignment_type;
 
     // ParametricFactor member types
     typedef canonical_gaussian_param<T> param_type;
-    typedef dynamic_vector<T>           index_type;
+    typedef real_vector<T>              index_type;
 
     // ExponentialFamilyFactor member types
     typedef moment_gaussian<T, Var> probability_type;
@@ -63,7 +63,7 @@ namespace libgm {
 
     //! Constructs a factor with given arguments and constant value.
     canonical_gaussian(const domain_type& args, logarithmic<T> value)
-      : base(args), args_(args), param_(vector_size(args), value.lv) { }
+      : base(args), args_(args), param_(num_dimensions(args), value.lv) { }
 
     //! Constructs a factor with the given arguments and parameters.
     canonical_gaussian(const domain_type& args, const param_type& param)
@@ -149,7 +149,7 @@ namespace libgm {
         std::size_t n = this->compute_start(args);
         param_.resize(0);
         return n;
-      } else return vector_size(args);
+      } else return num_dimensions(args);
     }
 
     // Accessors and comparison operators
@@ -202,13 +202,15 @@ namespace libgm {
 
     //! Returns the information vector for a single variable.
     Eigen::VectorBlock<const vec_type> inf_vector(Var v) const {
-      return param_.eta.segment(this->start(v), v.size());
+      std::size_t n = num_dimensions(v);
+      return param_.eta.segment(this->start(v), n);
     }
 
     //! Returns the information matrix for a single variable.
     Eigen::Block<const mat_type> inf_matrix(Var v) const {
       std::size_t i = this->start(v);
-      return param_.lambda.block(i, i, v.size(), v.size());
+      std::size_t n = num_dimensions(v);
+      return param_.lambda.block(i, i, n, n);
     }
 
     //! Returns the information vector for a subset of the arguments
@@ -243,8 +245,8 @@ namespace libgm {
       assert(vec.size() == size());
       std::size_t i = 0;
       for (Var v : args_) {
-        a[v] = vec.segment(i, v.size());
-        i += v.size();
+        a[v] = vec.segment(i, num_dimensions(v));
+        i += num_dimensions(v);
       }
     }
 
@@ -275,7 +277,7 @@ namespace libgm {
      */
     void check_param() const {
       param_.check();
-      if (param_.size() != vector_size(args_)) {
+      if (param_.size() != num_dimensions(args_)) {
         throw std::runtime_error("canonical_gaussian: Invalid parameter size");
       }
     }
@@ -674,7 +676,7 @@ namespace libgm {
   template <typename T, typename Var>
   canonical_gaussian_restrict<T>
   restrict_op(const canonical_gaussian<T, Var>& f,
-              const vector_assignment<T, Var>& a,
+              const real_assignment<T, Var>& a,
               canonical_gaussian<T, Var>& h) {
     basic_domain<Var> y, x; // restricted, retained
     f.arguments().partition(a, y, x);
@@ -689,7 +691,7 @@ namespace libgm {
   template <typename T, typename Var>
   canonical_gaussian_restrict_join<T, libgm::plus_assign<> >
   restrict_multiply_op(const canonical_gaussian<T, Var>& f,
-                       const vector_assignment<T, Var>& a,
+                       const real_assignment<T, Var>& a,
                        canonical_gaussian<T, Var>& h) {
     basic_domain<Var> y, x; // restricted, retained
     f.arguments().partition(a, y, x);

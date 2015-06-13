@@ -2,12 +2,13 @@
 #define LIBGM_TABLE_FACTOR_HPP
 
 #include <libgm/argument/basic_domain.hpp>
-#include <libgm/argument/finite_assignment.hpp>
+#include <libgm/argument/uint_assignment.hpp>
 #include <libgm/datastructure/table.hpp>
 #include <libgm/factor/base/factor.hpp>
 #include <libgm/serialization/serialize.hpp>
 
 #include <algorithm>
+#include <sstream>
 
 namespace libgm {
 
@@ -31,7 +32,7 @@ namespace libgm {
 
     // Finite domain
     typedef basic_domain<Var> domain_type;
-    typedef finite_assignment<Var> assignment_type;
+    typedef uint_assignment<Var> assignment_type;
 
     // Constructors
     //==========================================================================
@@ -101,22 +102,22 @@ namespace libgm {
       return param_.empty();
     }
 
-    //! Returns the pointer to the first element or NULL if the factor is empty.
+    //! Returns the pointer to the first element or nullptr if the factor is empty.
     T* begin() {
       return param_.begin();
     }
 
-    //! Returns the pointer to the first element or NULL if the factor is empty.
+    //! Returns the pointer to the first element or nullptr if the factor is empty.
     const T* begin() const {
       return param_.begin();
     }
 
-    //! Returns the pointer past the last element or NULL if the factor is empty
+    //! Returns the pointer past the last element or nullptr if the factor is empty
     T* end() {
       return param_.end();
     }
 
-    //! Returns the pointer past the last element or NULL if the factor is empty
+    //! Returns the pointer past the last element or nullptr if the factor is empty
     const T* end() const {
       return param_.end();
     }
@@ -152,12 +153,12 @@ namespace libgm {
     }
 
     //! Provides mutable access to the parameter for the given index.
-    T& param(const finite_index& index) {
+    T& param(const uint_vector& index) {
       return param_(index);
     }
 
     //! Returns the parameter for the given index.
-    const T& param(const finite_index& index) const {
+    const T& param(const uint_vector& index) const {
       return param_(index);
     }
 
@@ -167,10 +168,10 @@ namespace libgm {
     /**
      * Returns the shape of the table for a given arguments.
      */
-    static finite_index param_shape(const domain_type& args) {
-      finite_index shape(args.size());
+    static uint_vector param_shape(const domain_type& args) {
+      uint_vector shape(args.size());
       for (std::size_t i = 0; i < args.size(); ++i) {
-        shape[i] = args[i].size();
+        shape[i] = num_values(args[i]);
       }
       return shape;
     }
@@ -180,7 +181,7 @@ namespace libgm {
      * The index may be merely a prefix, and the output assignment is
      * not cleared.
      */
-    void assignment(const finite_index& index, assignment_type& a) const {
+    void assignment(const uint_vector& index, assignment_type& a) const {
       assert(index.size() <= finite_args_.size());
       for(std::size_t i = 0; i < index.size(); i++) {
         a[finite_args_[i]] = index[i];
@@ -201,9 +202,9 @@ namespace libgm {
         if (it != a.end()) {
           result += param_.offset().multiplier(i) * it->second;
         } else if (strict) {
-          throw std::invalid_argument(
-            "The assignment does not contain the variable " + v.str()
-          );
+          std::ostringstream out;
+          out << "The assignment does not contain the variable " << v;
+          throw std::invalid_argument(out.str());
         }
       }
       return result;
@@ -220,16 +221,16 @@ namespace libgm {
      * over in a non-linear fashion. The vector vars are the arguments
      * of the table that is iterated over in a linear fashion.
      */
-    finite_index dim_map(const domain_type& vars, bool strict = true) const {
-      finite_index map(arity(), std::numeric_limits<std::size_t>::max());
+    uint_vector dim_map(const domain_type& vars, bool strict = true) const {
+      uint_vector map(arity(), std::numeric_limits<std::size_t>::max());
       for(std::size_t i = 0; i < map.size(); i++) {
         auto it = std::find(vars.begin(), vars.end(), finite_args_[i]);
         if (it != vars.end()) {
           map[i] = it - vars.begin();
         } else if (strict) {
-          throw std::invalid_argument(
-            "table factor: missing variable " + finite_args_[i].str()
-          );
+          std::ostringstream out;
+          out << "table factor: missing variable " << finite_args_[i];
+          throw std::invalid_argument(out.str());
         }
       }
       return map;
@@ -243,10 +244,10 @@ namespace libgm {
       for (Var& var : finite_args_) {
         Var new_var = var_map.at(var);
         if (!compatible(var, new_var)) {
-          throw std::invalid_argument(
-            "subst_args: " + var.str() + " and " + new_var.str() +
-            " are not compatible"
-          );
+          std::ostringstream out;
+          out << "subst_args: " << var << " and " << new_var
+              << " are not compatible";
+          throw std::invalid_argument(out.str());
         }
         var = new_var;
       }
@@ -261,7 +262,7 @@ namespace libgm {
         throw std::runtime_error("Invalid table arity");
       }
       for (std::size_t i = 0; i < finite_args_.size(); ++i) {
-        if (param_.size(i) != finite_args_[i].size()) {
+        if (param_.size(i) != num_values(finite_args_[i])) {
           throw std::runtime_error("Invalid table shape");
         }
       }
@@ -279,7 +280,7 @@ namespace libgm {
       if (finite_args_ == f.finite_args_) {
         param_.transform(f.param_, op);
       } else {
-        finite_index f_map = f.dim_map(finite_args_);
+        uint_vector f_map = f.dim_map(finite_args_);
         table_join_inplace<T, T, Op>(param_, f.param_, f_map, op)();
       }
     }
@@ -305,7 +306,7 @@ namespace libgm {
                    table_factor& result) const {
       result.reset(retain);
       result.param_.fill(init);
-      finite_index result_map = result.dim_map(finite_args_);
+      uint_vector result_map = result.dim_map(finite_args_);
       table_aggregate<T, T, Op>(result.param_, param_, result_map, op)();
     }
 
@@ -324,7 +325,7 @@ namespace libgm {
       if (prefix(result.finite_args_, finite_args_)) {
         result.param_.restrict(param_, index(a, false));
       } else {
-        finite_index map = dim_map(result.finite_args_, false);
+        uint_vector map = dim_map(result.finite_args_, false);
         table_restrict<T>(result.param_, param_, map, index(a, false))();
       }
     }
@@ -369,8 +370,8 @@ namespace libgm {
       return result;
     } else {
       Result result(f.finite_args() | g.finite_args());
-      finite_index f_map = f.dim_map(result.finite_args());
-      finite_index g_map = g.dim_map(result.finite_args());
+      uint_vector f_map = f.dim_map(result.finite_args());
+      uint_vector g_map = g.dim_map(result.finite_args());
       table_join<T, T, Op>(result.param(), f.param(), g.param(),
                            f_map, g_map, op)();
       return result;

@@ -80,8 +80,8 @@ namespace libgm {
       // things go horribly wrong if this is not true
       assert(disjoint(head, tail));
       F f(head + tail);
-      std::size_t m = finite_size(head);
-      std::size_t n = finite_size(tail);
+      std::size_t m = num_values(head);
+      std::size_t n = num_values(tail);
       assert(f.size() == m * n);
       std::gamma_distribution<real_type> gamma(param_.alpha);
       real_type* dest = f.begin();

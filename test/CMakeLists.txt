@@ -23,4 +23,5 @@ subdirs(
   parser
   range
   serialization
+  traits
   )

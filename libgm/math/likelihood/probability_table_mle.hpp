@@ -2,7 +2,6 @@
 #define LIBGM_PROBABILITY_TABLE_MLE_HPP
 
 #include <libgm/datastructure/table.hpp>
-#include <libgm/functional/operators.hpp>
 #include <libgm/math/likelihood/mle_eval.hpp>
 
 #include <functional>
@@ -24,7 +23,7 @@ namespace libgm {
     typedef table<T> param_type;
 
     //! A type that represents an unweighted observation.
-    typedef finite_index data_type;
+    typedef uint_vector data_type;
 
     //! The type that represents the weight of an observation.
     typedef T weight_type;
@@ -44,18 +43,18 @@ namespace libgm {
      * \tparam Range a range with values convertible to std::pair<data_type, T>
      */
     template <typename Range>
-    table<T> operator()(const Range& samples, const finite_index& shape) {
+    table<T> operator()(const Range& samples, const uint_vector& shape) {
       return incremental_mle_eval(*this, samples, shape);
     }
 
     //! Initializes the estimator to the given table shape.
-    void initialize(const finite_index& shape) {
+    void initialize(const uint_vector& shape) {
       counts_.reset(shape);
       counts_.fill(regul_);
     }
 
     //! Processes a single weighted data point.
-    void process(const finite_index& values, T weight) {
+    void process(const uint_vector& values, T weight) {
       counts_(values) += weight;
     }
 
@@ -67,7 +66,7 @@ namespace libgm {
      * \param head the fixed values of a prefix of arguments
      * \param tail the distribution over the tail arguments
      */
-    void process(const finite_index& head, const table<T>& ptail) {
+    void process(const uint_vector& head, const table<T>& ptail) {
       std::size_t nhead = head.size();
       std::size_t ntail = ptail.arity();
       assert(nhead + ntail == counts_.arity());
