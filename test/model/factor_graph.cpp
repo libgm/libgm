@@ -74,7 +74,7 @@ BOOST_FIXTURE_TEST_CASE(test_structure, fixture) {
     }
 
     std::vector<domain> args2;
-    for (std::size_t id : fg.neighbors(x[i])) {
+    for (libgm::id_t id : fg.neighbors(x[i])) {
       args2.push_back(fg.arguments(id));
     }
 
@@ -99,7 +99,7 @@ BOOST_FIXTURE_TEST_CASE(test_simplify, fixture) {
     }
 
     std::vector<domain> args2;
-    for (std::size_t id : fg.neighbors(x[i])) {
+    for (libgm::id_t id : fg.neighbors(x[i])) {
       args2.push_back(fg.arguments(id));
     }
 

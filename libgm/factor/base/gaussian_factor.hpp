@@ -1,6 +1,7 @@
 #ifndef LIBGM_GAUSSIAN_FACTOR_HPP
 #define LIBGM_GAUSSIAN_FACTOR_HPP
 
+#include <libgm/argument/argument_traits.hpp>
 #include <libgm/argument/basic_domain.hpp>
 #include <libgm/datastructure/vector_map.hpp>
 #include <libgm/factor/base/factor.hpp>
@@ -17,6 +18,8 @@ namespace libgm {
    */
   template <typename Var>
   class gaussian_factor : public factor {
+    typedef argument_traits<Var> arg_traits;
+
   public:
     typedef basic_domain<Var> domain_type;
 
@@ -41,7 +44,8 @@ namespace libgm {
       auto it = start_.find(v);
       if (it == start_.end()) {
         std::ostringstream out;
-        out << "gaussian_factor: cannnot find variable " << v;
+        out << "gaussian_factor: cannnot find variable ";
+        arg_traits::print(out, v);
         throw std::invalid_argument(out.str());
       }
       return it->second;
@@ -51,7 +55,7 @@ namespace libgm {
     matrix_index index_map(const domain_type& dom) const {
       matrix_index result;
       for (Var v : dom) {
-        result.append(start(v), num_dimensions(v));
+        result.append(start(v), arg_traits::num_dimensions(v));
       }
       return result;
     }
@@ -104,7 +108,7 @@ namespace libgm {
       std::size_t n = 0;
       for (Var v : args) {
         start_.emplace(v, n);
-        n += num_dimensions(v);
+        n += arg_traits::num_dimensions(v);
       }
       return n;
     }

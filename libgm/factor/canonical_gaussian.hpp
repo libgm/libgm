@@ -22,6 +22,8 @@ namespace libgm {
    */
   template <typename T, typename Var>
   class canonical_gaussian : public gaussian_factor<Var> {
+    typedef argument_traits<Var> arg_traits;
+
   public:
     // Public types
     //==========================================================================
@@ -202,14 +204,14 @@ namespace libgm {
 
     //! Returns the information vector for a single variable.
     Eigen::VectorBlock<const vec_type> inf_vector(Var v) const {
-      std::size_t n = num_dimensions(v);
+      std::size_t n = arg_traits::num_dimensions(v);
       return param_.eta.segment(this->start(v), n);
     }
 
     //! Returns the information matrix for a single variable.
     Eigen::Block<const mat_type> inf_matrix(Var v) const {
       std::size_t i = this->start(v);
-      std::size_t n = num_dimensions(v);
+      std::size_t n = arg_traits::num_dimensions(v);
       return param_.lambda.block(i, i, n, n);
     }
 
@@ -245,8 +247,8 @@ namespace libgm {
       assert(vec.size() == size());
       std::size_t i = 0;
       for (Var v : args_) {
-        a[v] = vec.segment(i, num_dimensions(v));
-        i += num_dimensions(v);
+        a[v] = vec.segment(i, arg_traits::num_dimensions(v));
+        i += arg_traits::num_dimensions(v);
       }
     }
 

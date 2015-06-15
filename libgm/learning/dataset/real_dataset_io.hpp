@@ -45,7 +45,7 @@ namespace libgm {
         std::size_t col = format.skip_cols;
         std::size_t i = 0;
         for (variable v : vars) {
-          std::size_t size = num_dimensions(v);
+          std::size_t size = v.num_dimensions();
           if (std::count(&tokens[col], &tokens[col] + size, format.missing)) {
             // TODO: warning if only a subset of columns missing
             values.segment(i, size).fill(std::numeric_limits<T>::quiet_NaN());

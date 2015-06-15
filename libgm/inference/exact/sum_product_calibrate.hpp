@@ -62,7 +62,7 @@ namespace libgm {
      * a probability distribution.
      */
     explicit sum_product_calibrate(const cluster_graph<domain_type, F>& jt) {
-      reset(jt);
+      reset_graph(jt);
     }
 
     /**
@@ -70,8 +70,7 @@ namespace libgm {
      * \tparm Range A forward range with elements convertible to F
      */
     template <typename Range>
-    typename std::enable_if<is_range<Range, F>::value>::type
-    reset(const Range& factors) {
+    void reset(const Range& factors) {
       calibrated_ = false;
 
       // initialize the junction tree
@@ -86,7 +85,7 @@ namespace libgm {
         jt_[v] = F(jt_.cluster(v), result_type(1));
       }
       for (const F& factor : factors) {
-        std::size_t v = jt_.find_cluster_cover(factor.arguments());
+        vertex_type v = jt_.find_cluster_cover(factor.arguments());
         assert(v);
         jt_[v] *= factor;
       }
@@ -96,7 +95,7 @@ namespace libgm {
      * Initializes the algorithm to the iven junction tree that defines a
      * distribution via the product of the vertex properties.
      */
-    void reset(const cluster_graph<domain_type, F>& jt) {
+    void reset_graph(const cluster_graph<domain_type, F>& jt) {
       calibrated_ = false;
       assert(jt_.tree());
       jt_.clear();
@@ -118,7 +117,7 @@ namespace libgm {
      * Performs inference by calibrating the junction tree.
      */
     void calibrate() {
-      mpp_traversal(jt_, 0, [&](const edge_type& e) {
+      mpp_traversal(jt_, id_t(), [&](const edge_type& e) {
           F product = jt_[e.source()];
           for (edge_type in : jt_.in_edges(e.source())) {
             if (in.source() != e.target()) {

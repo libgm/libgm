@@ -39,15 +39,15 @@ namespace libgm {
         std::size_t ui = 0;
         std::size_t ri = 0;
         for (variable v : format.variables) {
-          if (is_discrete(v)) {
+          if (v.is_discrete()) {
             const char* token = tokens[col++];
             if (token == format.missing) {
               values.uint()[ui++] = std::size_t(-1);
             } else {
               values.uint()[ui++] = v.parse_discrete(token);
             }
-          } else if (is_continuous(v)) {
-            std::size_t size = num_dimensions(v);
+          } else if (v.is_continuous()) {
+            std::size_t size = v.num_dimensions();
             if (std::count(&tokens[col], &tokens[col] + size, format.missing)) {
               // TODO: warning if only a subset of columns missing
               std::fill(values.real().data() + ri,
@@ -103,7 +103,7 @@ namespace libgm {
       std::size_t ri = 0;
       bool first = true;
       for (variable v : format.variables) {
-        if (is_discrete(v)) {
+        if (v.is_discrete()) {
           if (first) { first = false; } else { out << separator; }
           std::size_t value = s.first.uint()[ui++];
           if (value == std::size_t(-1)) {
@@ -112,7 +112,7 @@ namespace libgm {
             v.print_discrete(out, value);
           }
         } else {
-          for (std::size_t j = 0; j < num_dimensions(v); ++j) {
+          for (std::size_t j = 0; j < v.num_dimensions(); ++j) {
             if (first) { first = false; } else { out << separator; }
             T value = s.first.real()[ri++];
             if (std::isnan(value)) {

@@ -59,25 +59,25 @@ namespace libgm {
     //! Returns true if all the variables in the format are discrete.
     bool all_variables_discrete() const {
       return std::all_of(variables.begin(), variables.end(),
-                         [](variable v) { return is_discrete(v); });
+                         [](variable v) { return v.is_discrete(); });
     }
 
     //! Returns true if all the variables in teh format are continuous.
     bool all_variables_continuous() const {
       return std::all_of(variables.begin(), variables.end(),
-                         [](variable v) { return is_continuous(v); });
+                         [](variable v) { return v.is_continuous(); });
     }
 
     //! Returns true if all the discrete-time processes are discrete-valued.
     bool all_dprocesses_discrete() const {
       return std::all_of(dprocesses.begin(), dprocesses.end(),
-                         [](dprocess p) { return is_discrete(p); });
+                         [](dprocess p) { return p.is_discrete(); });
     }
 
     //! Returns true if all the discrete-time processes are continuous-valued.
     bool all_dprocesses_continuous() const {
       return std::all_of(dprocesses.begin(), dprocesses.end(),
-                         [](dprocess p) { return is_continuous(p); });
+                         [](dprocess p) { return p.is_continuous(); });
     }
 
     /**
@@ -318,13 +318,13 @@ namespace libgm {
     //! store the variables
     void save_variables(simple_config& config) const {
       for (variable v : variables) {
-        if (is_continuous(v)) {
-          std::string dim = to_string(num_dimensions(v));
+        if (v.is_continuous()) {
+          std::string dim = to_string(v.num_dimensions());
           config.add("variables", v.name(), "continuous(" + dim + ")");
-        } else if (is_discrete(v) && v.levels().empty()) {
-          std::string values = to_string(num_values(v));
+        } else if (v.is_discrete() && v.levels().empty()) {
+          std::string values = to_string(v.num_values());
           config.add("variables", v.name(), "discrete(" + values + ")");
-        } else if (is_discrete(v)) {
+        } else if (v.is_discrete()) {
           std::string levels = string_join(",", v.levels());
           config.add("variables", v.name(), levels);
         } else {
@@ -336,13 +336,13 @@ namespace libgm {
     //! store the discrete processes
     void save_dprocesses(simple_config& config) const {
       for (dprocess p : dprocesses) {
-        if (is_continuous(p)) {
-          std::string dim = to_string(num_dimensions(p));
+        if (p.is_continuous()) {
+          std::string dim = to_string(p.num_dimensions());
           config.add("discrete_processes", p.name(), "continuous(" + dim + ")");
-        } else if (is_discrete(p) && p.levels().empty()) {
-          std::string vals = to_string(num_values(p));
+        } else if (p.is_discrete() && p.levels().empty()) {
+          std::string vals = to_string(p.num_values());
           config.add("discrete_processes", p.name(), "discrete(" + vals + ")");
-        } else if (is_discrete(p)) {
+        } else if (p.is_discrete()) {
           std::string levels = string_join(",", p.levels());
           config.add("discrete_processes", p.name(), levels);
         } else {

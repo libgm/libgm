@@ -1,6 +1,7 @@
 #ifndef LIBGM_TABLE_FACTOR_HPP
 #define LIBGM_TABLE_FACTOR_HPP
 
+#include <libgm/argument/argument_traits.hpp>
 #include <libgm/argument/basic_domain.hpp>
 #include <libgm/argument/uint_assignment.hpp>
 #include <libgm/datastructure/table.hpp>
@@ -9,6 +10,7 @@
 
 #include <algorithm>
 #include <sstream>
+#include <type_traits>
 
 namespace libgm {
 
@@ -24,14 +26,20 @@ namespace libgm {
    */
   template <typename T, typename Var>
   class table_factor : public factor {
+    static_assert(std::is_convertible<
+                    typename argument_traits<Var>::argument_category,
+                    discrete_argument_tag
+                  >::value, "Var must be a discrete argument");
+
   public:
     // Range types
     typedef T*       iterator;
     typedef const T* const_iterator;
     typedef T        value_type;
 
-    // Finite domain
-    typedef basic_domain<Var> domain_type;
+    // Arguments
+    typedef argument_traits<Var> arg_traits;
+    typedef basic_domain<Var>    domain_type;
     typedef uint_assignment<Var> assignment_type;
 
     // Constructors
@@ -171,7 +179,7 @@ namespace libgm {
     static uint_vector param_shape(const domain_type& args) {
       uint_vector shape(args.size());
       for (std::size_t i = 0; i < args.size(); ++i) {
-        shape[i] = num_values(args[i]);
+        shape[i] = arg_traits::num_values(args[i]);
       }
       return shape;
     }
@@ -203,7 +211,8 @@ namespace libgm {
           result += param_.offset().multiplier(i) * it->second;
         } else if (strict) {
           std::ostringstream out;
-          out << "The assignment does not contain the variable " << v;
+          out << "The assignment does not contain the variable ";
+          arg_traits::print(out, v);
           throw std::invalid_argument(out.str());
         }
       }
@@ -229,7 +238,8 @@ namespace libgm {
           map[i] = it - vars.begin();
         } else if (strict) {
           std::ostringstream out;
-          out << "table factor: missing variable " << finite_args_[i];
+          out << "table factor: missing variable ";
+          arg_traits::print(out, finite_args_[i]);
           throw std::invalid_argument(out.str());
         }
       }
@@ -243,10 +253,11 @@ namespace libgm {
     void subst_args(const std::unordered_map<Var, Var>& var_map) {
       for (Var& var : finite_args_) {
         Var new_var = var_map.at(var);
-        if (!compatible(var, new_var)) {
+        if (!arg_traits::compatible(var, new_var)) {
           std::ostringstream out;
-          out << "subst_args: " << var << " and " << new_var
-              << " are not compatible";
+          out << "subst_args: "; arg_traits::print(out, var);
+          out << " and "; arg_traits::print(out, new_var);
+          out << " are not compatible";
           throw std::invalid_argument(out.str());
         }
         var = new_var;
@@ -262,7 +273,7 @@ namespace libgm {
         throw std::runtime_error("Invalid table arity");
       }
       for (std::size_t i = 0; i < finite_args_.size(); ++i) {
-        if (param_.size(i) != num_values(finite_args_[i])) {
+        if (param_.size(i) != arg_traits::num_values(finite_args_[i])) {
           throw std::runtime_error("Invalid table shape");
         }
       }

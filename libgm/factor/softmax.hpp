@@ -1,6 +1,7 @@
 #ifndef LIBGM_SOFTMAX_HPP
 #define LIBGM_SOFTMAX_HPP
 
+#include <libgm/argument/argument_traits.hpp>
 #include <libgm/argument/hybrid_assignment.hpp>
 #include <libgm/argument/hybrid_domain.hpp>
 #include <libgm/datastructure/hybrid_vector.hpp>
@@ -32,9 +33,16 @@ namespace libgm {
    */
   template <typename T, typename Var>
   class softmax : public factor {
-  public:
+    static_assert(std::is_convertible<
+                    typename argument_traits<Var>::argument_category,
+                    mixed_argument_tag
+                  >::value, "Var must be a mixed argument");
+
+    typedef argument_traits<Var> arg_traits;
+
     // Public types
     //==========================================================================
+  public:
     // Factor member types
     typedef T                         real_type;
     typedef T                         result_type;
@@ -116,7 +124,7 @@ namespace libgm {
       if (args_ != args) {
         assert(args.discrete().size() == 1);
         args_ = args;
-        param_.resize(num_values(args.discrete()[0]),
+        param_.resize(arg_traits::num_values(args.discrete()[0]),
                       num_dimensions(args.continuous()));
       }
     }
@@ -128,7 +136,7 @@ namespace libgm {
     void reset(Var head, const basic_domain<Var>& tail) {
       args_.discrete().assign(1, head);
       args_.continuous() = tail;
-      param_.resize(num_values(head), num_dimensions(tail));
+      param_.resize(arg_traits::num_values(head), num_dimensions(tail));
     }
 
     // Accessors and comparison operators
@@ -265,8 +273,8 @@ namespace libgm {
       for (Var v : tail()) {
         auto it = a.find(v);
         if (it != a.end()) {
-          result.segment(row, num_dimensions(v)) = it->second;
-          row += num_dimensions(v);
+          result.segment(row, arg_traits::num_dimensions(v)) = it->second;
+          row += arg_traits::num_dimensions(v);
         } else {
           std::ostringstream out;
           out << "The assignment does not contain the tail variable " << v;
@@ -309,7 +317,7 @@ namespace libgm {
           );
         }
       } else {
-        if (param_.labels() != num_values(head())) {
+        if (param_.labels() != arg_traits::num_values(head())) {
           throw std::runtime_error("Invalid number of labels");
         }
         if (param_.features() != num_dimensions(tail())) {

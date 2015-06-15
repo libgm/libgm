@@ -2,6 +2,7 @@
 #define LIBGM_UNDIRECTED_EDGE_HPP
 
 #include <libgm/functional/hash.hpp>
+#include <libgm/graph/vertex_traits.hpp>
 
 #include <algorithm>
 #include <iosfwd>
@@ -36,15 +37,35 @@ namespace libgm {
   public:
     //! Constructs an empty edge with null source and target.
     undirected_edge()
-      : source_(), target_(), property_() { }
+      : source_(vertex_traits<Vertex>::null()),
+        target_(vertex_traits<Vertex>::null()),
+        property_() { }
 
     //! Construct for a special "root" edge with empty source and given target.
     explicit undirected_edge(Vertex target)
-      : source_(), target_(target), property_() { }
+      : source_(vertex_traits<Vertex>::null()),
+        target_(target),
+        property_() { }
 
     //! Conversion to bool indicating if this edge is empty.
     explicit operator bool() const {
-      return source_ != Vertex() || target_ != Vertex();
+      return source_ != vertex_traits<Vertex>::null() ||
+             target_ != vertex_traits<Vertex>::null();
+    }
+
+    //! Returns the source vertex.
+    const Vertex& source() const {
+      return source_;
+    }
+
+    //! Returns the target vertex.
+    const Vertex& target() const {
+      return target_;
+    }
+
+    //! Returns the edge with the endpoints reversed.
+    undirected_edge reverse() const {
+      return undirected_edge(target_, source_, property_);
     }
 
     //! Returns the pair consisting of source and target vertex.
@@ -73,25 +94,21 @@ namespace libgm {
       return a.unordered_pair() != b.unordered_pair();
     }
 
-    //! Returns the source vertex.
-    const Vertex& source() const {
-      return source_;
-    }
-
-    //! Returns the target vertex.
-    const Vertex& target() const {
-      return target_;
-    }
-
-    //! Returns the edge with the endpoints reversed.
-    undirected_edge reverse() const {
-      return undirected_edge(target_, source_, property_);
+    //! Returns the hash value of an undirected edge.
+    friend std::size_t hash_value(const undirected_edge& e) {
+      std::size_t seed = 0;
+      std::pair<Vertex, Vertex> p = std::minmax(e.source(), e.target());
+      libgm::hash_combine(seed, p.first);
+      libgm::hash_combine(seed, p.second);
+      return seed;
     }
 
     //! Prints the edge to an output stream.
     friend std::ostream&
     operator<<(std::ostream& out, const undirected_edge& e) {
-      out << e.source() << " -- " << e.target();
+      vertex_traits<Vertex>::print(out, e.source());
+      out << " -- ";
+      vertex_traits<Vertex>::print(out, e.target());
       return out;
     }
 
@@ -131,17 +148,8 @@ namespace std {
 
   //! \relates undirected_edge
   template <typename Vertex>
-  struct hash<libgm::undirected_edge<Vertex>> {
-    typedef libgm::undirected_edge<Vertex> argument_type;
-    typedef std::size_t result_type;
-    std::size_t operator()(const libgm::undirected_edge<Vertex>& e) const {
-      std::size_t seed = 0;
-      std::pair<Vertex, Vertex> p = std::minmax(e.source(), e.target());
-      libgm::hash_combine(seed, p.first);
-      libgm::hash_combine(seed, p.second);
-      return seed;
-    }
-  };
+  struct hash<libgm::undirected_edge<Vertex>>
+    : libgm::default_hash<libgm::undirected_edge<Vertex>> { };
 
 } // namespace std
 

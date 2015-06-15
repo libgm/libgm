@@ -1,6 +1,7 @@
 #ifndef LIBGM_DIAGONAL_TABLE_GENERATOR_HPP
 #define LIBGM_DIAGONAL_TABLE_GENERATOR_HPP
 
+#include <libgm/argument/argument_traits.hpp>
 #include <libgm/datastructure/uint_vector.hpp>
 
 #include <iostream>
@@ -26,9 +27,9 @@ namespace libgm {
   template <typename F>
   class diagonal_table_generator {
   public:
-    // The real type of the factor
     typedef typename F::real_type real_type;
     typedef typename F::variable_type variable_type;
+    typedef argument_traits<variable_type> arg_traits;
 
     // RandomMarginalFactorGenerator typedefs
     typedef typename F::domain_type domain_type;
@@ -70,9 +71,9 @@ namespace libgm {
       if (!args.empty()) {
         real_type x = std::uniform_real_distribution<real_type>(
           param_.lower, param_.upper)(rng);
-        std::size_t size = num_values(args[0]);
+        std::size_t size = arg_traits::num_values(args[0]);
         for (variable_type v : args) {
-          if (num_values(v) != size) {
+          if (arg_traits::num_values(v) != size) {
             throw std::invalid_argument(
               "diagonal_table_generator: all arguments must have the same size"
             );

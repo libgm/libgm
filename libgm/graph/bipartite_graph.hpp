@@ -1,6 +1,7 @@
 #ifndef LIBGM_BIPARTITE_GRAPH_HPP
 #define LIBGM_BIPARTITE_GRAPH_HPP
 
+#include <libgm/graph/vertex_traits.hpp>
 #include <libgm/graph/void.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
 #include <libgm/range/iterator_range.hpp>
@@ -38,8 +39,13 @@ namespace libgm {
     // Private types
     //==========================================================================
   private:
-    typedef std::unordered_map<Vertex1, EdgeProperty*> neighbor1_map;
-    typedef std::unordered_map<Vertex2, EdgeProperty*> neighbor2_map;
+    typedef typename vertex_traits<Vertex1>::hasher vertex1_hasher;
+    typedef typename vertex_traits<Vertex2>::hasher vertex2_hasher;
+
+    typedef std::unordered_map<Vertex1, EdgeProperty*, vertex1_hasher>
+      neighbor1_map;
+    typedef std::unordered_map<Vertex2, EdgeProperty*, vertex2_hasher>
+      neighbor2_map;
 
     struct vertex1_data {
       Vertex1Property property;
@@ -53,8 +59,10 @@ namespace libgm {
       vertex2_data() : property() { }
     };
 
-    typedef std::unordered_map<Vertex1, vertex1_data> vertex1_data_map;
-    typedef std::unordered_map<Vertex2, vertex2_data> vertex2_data_map;
+    typedef std::unordered_map<Vertex1, vertex1_data, vertex1_hasher>
+      vertex1_data_map;
+    typedef std::unordered_map<Vertex2, vertex2_data, vertex2_hasher>
+      vertex2_data_map;
 
     // Public types
     //==========================================================================
@@ -135,6 +143,16 @@ namespace libgm {
     // Accessors
     //==========================================================================
   public:
+    //! Returns the null type-1 vertex.
+    static Vertex1 null_vertex1() {
+      return vertex_traits<Vertex1>::null();
+    }
+
+    //! Returns the null type-2 vertex.
+    static Vertex2 null_vertex2() {
+      return vertex_traits<Vertex2>::null();
+    }
+
     //! Returns the range of all type-1 vertices
     iterator_range<vertex1_iterator>
     vertices1() const {
@@ -390,11 +408,13 @@ namespace libgm {
     operator<<(std::ostream& out, const bipartite_graph& g) {
       out << "Type-1 vertices" << std::endl;
       for (Vertex1 u : g.vertices1()) {
-        out << u << ": " << g[u] << std::endl;
+        vertex_traits<Vertex1>::print(out, u);
+        out << ": " << g[u] << std::endl;
       }
       out << "Type-2 vertices" << std::endl;
       for (Vertex2 u : g.vertices2()) {
-        out << u << ": " << g[u] << std::endl;
+        vertex_traits<Vertex2>::print(out, u);
+        out << ": " << g[u] << std::endl;
       }
       out << "Edges" << std::endl;
       for (edge_type e : g.edges()) {
@@ -425,7 +445,7 @@ namespace libgm {
      * \return true if the insertion took place (i.e., vertex was not present).
      */
     bool add_vertex(Vertex1 u, const Vertex1Property& p = Vertex1Property()) {
-      assert(u != Vertex1());
+      assert(u != null_vertex1());
       if (contains(u)) {
         return false;
       } else {
@@ -441,7 +461,7 @@ namespace libgm {
      * \return true if the insertion took place (i.e., vertex was not present).
      */
     bool add_vertex(Vertex2 u, const Vertex2Property& p = Vertex2Property()) {
-      assert(u != Vertex2());
+      assert(u != null_vertex2());
       if (contains(u)) {
         return false;
       } else {
@@ -457,8 +477,8 @@ namespace libgm {
      */
     std::pair<edge_type, bool>
     add_edge(Vertex1 u, Vertex2 v, const EdgeProperty& p = EdgeProperty()) {
-      assert(u != Vertex1());
-      assert(v != Vertex2());
+      assert(u != null_vertex1());
+      assert(v != null_vertex2());
       auto uit = data1_.find(u);
       if (uit != data1_.end()) {
         auto vit = uit->second.neighbors.find(v);
@@ -643,7 +663,7 @@ namespace libgm {
       edge_type(Vertex2 v2, Vertex1 v1, EdgeProperty* property)
         : v1_(v1), v2_(v2), forward_(false), property_(property) { }
       explicit operator bool() const {
-        return v1_ != Vertex1() || v2_ != Vertex2();
+        return v1_ != null_vertex1() || v2_ != null_vertex2();
       }
       Vertex1 v1() const {
         return v1_;
@@ -670,9 +690,13 @@ namespace libgm {
       }
       friend std::ostream& operator<<(std::ostream& out, const edge_type& e) {
         if (e.forward()) {
-          out << e.v1() << " -- " << e.v2();
+          vertex_traits<Vertex1>::print(out, e.v1());
+          out << " -- ";
+          vertex_traits<Vertex2>::print(out, e.v2());
         } else {
-          out << e.v2() << " -- " << e.v1();
+          vertex_traits<Vertex2>::print(out, e.v2());
+          out << " -- ";
+          vertex_traits<Vertex1>::print(out, e.v1());
         }
         return out;
       }

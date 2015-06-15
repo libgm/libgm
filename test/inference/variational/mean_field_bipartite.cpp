@@ -104,30 +104,3 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   BOOST_CHECK_LT(kl1, 0.02);
   BOOST_CHECK_LT(kl2, 0.02);
 }
-
-
-#if 0
-// consider boost strong typedef
-template <int index>
-struct vertex {
-  variable v;
-  vertex() : v(nullptr) { }
-  vertex(variable v) : v(v) { }
-  std::size_t id() const { return v ? v->id() : -1; }
-  bool operator<(vertex u) const { return id() < u.id(); }
-  bool operator==(vertex u) const { return id() == u.id(); }
-  bool operator!=(vertex u) const { return id() != u.id(); }
-};
-
-namespace
-template <int index>
-std::size_t hash_value(vertex<index> v) {
-  return v.id();
-}
-
-
-typedef vertex<1> vertex1;
-typedef vertex<2> vertex2;
-
-
-#endif

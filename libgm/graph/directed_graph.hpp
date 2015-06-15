@@ -2,6 +2,7 @@
 #define LIBGM_DIRECTED_GRAPH_HPP
 
 #include <libgm/graph/directed_edge.hpp>
+#include <libgm/graph/vertex_traits.hpp>
 #include <libgm/graph/void.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
 #include <libgm/range/iterator_range.hpp>
@@ -35,8 +36,12 @@ namespace libgm {
     // Private types
     //==========================================================================
   private:
+    //! The hash function for vertices.
+    typedef typename vertex_traits<Vertex>::hasher vertex_hasher;
+
     //! The map type used to associate neighbors and edge data with each vertex.
-    typedef std::unordered_map<Vertex, EdgeProperty*> neighbor_map;
+    typedef std::unordered_map<Vertex, EdgeProperty*, vertex_hasher>
+      neighbor_map;
 
     /**
      * A struct with the data associated with each vertex. This structure
@@ -51,7 +56,8 @@ namespace libgm {
     };
 
     //! The map types that associates all the vertices with their vertex_data.
-    typedef std::unordered_map<Vertex, vertex_data> vertex_data_map;
+    typedef std::unordered_map<Vertex, vertex_data, vertex_hasher>
+      vertex_data_map;
 
     // Public type declerations
     //==========================================================================
@@ -123,6 +129,11 @@ namespace libgm {
 
     // Accessors
     //==========================================================================
+
+    //! Returns the null vertex.
+    static Vertex null_vertex() {
+      return vertex_traits<Vertex>::null();
+    }
 
     //! Returns the range of all vertices.
     iterator_range<vertex_iterator>
@@ -316,7 +327,7 @@ namespace libgm {
      * \returns true if the insertion took place (i.e., vertex was not present).
      */
     bool add_vertex(Vertex u, const VertexProperty& p = VertexProperty()) {
-      assert(u != Vertex());
+      assert(u != null_vertex());
       if (contains(u)) {
         return false;
       } else {
@@ -332,8 +343,8 @@ namespace libgm {
      */
     std::pair<edge_type, bool>
     add_edge(Vertex u, Vertex v, const EdgeProperty& p = EdgeProperty()) {
-      assert(u != Vertex());
-      assert(v != Vertex());
+      assert(u != null_vertex());
+      assert(v != null_vertex());
       auto uit = data_.find(u);
       if (uit != data_.end()) {
         auto vit = uit->second.children.find(v);
@@ -629,7 +640,8 @@ namespace libgm {
                            const directed_graph<Vertex, VP, EP>& g) {
     out << "Vertices" << std::endl;
     for (Vertex v : g.vertices()) {
-      out << v << ": " << g[v] << std::endl;
+      vertex_traits<Vertex>::print(out, v);
+      out << ": " << g[v] << std::endl;
     }
     out << "Edges" << std::endl;
     for (directed_edge<Vertex> e : g.edges()) {
@@ -670,7 +682,9 @@ namespace boost {
     typedef std::size_t edges_size_type;
     typedef std::size_t degree_size_type;
 
-    static vertex_descriptor null_vertex() { return vertex_descriptor(); }
+    static vertex_descriptor null_vertex() {
+      return libgm::vertex_traits<Vertex>::null();
+    }
   };
 
 } // namespace boost

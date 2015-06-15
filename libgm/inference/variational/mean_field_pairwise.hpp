@@ -1,6 +1,7 @@
 #ifndef LIBGM_MEAN_FIELD_PAIRWISE_HPP
 #define LIBGM_MEAN_FIELD_PAIRWISE_HPP
 
+#include <libgm/argument/argument_traits.hpp>
 #include <libgm/model/pairwise_markov_network.hpp>
 #include <libgm/traits/pairwise_compatible.hpp>
 
@@ -41,6 +42,8 @@ namespace libgm {
     typedef pairwise_markov_network<NodeF, EdgeF> model_type;
     typedef typename model_type::vertex_type vertex_type;
     typedef typename model_type::edge_type edge_type;
+
+    typedef typename argument_traits<variable_type>::hasher argument_hasher;
 
     // Public functions
     //==========================================================================
@@ -94,7 +97,7 @@ namespace libgm {
     const model_type& model_;
 
     //! A map of current beliefs, one for each variable
-    std::unordered_map<variable_type, belief_type> beliefs_;
+    std::unordered_map<variable_type, belief_type, argument_hasher> beliefs_;
 
   }; // class mean_field_pairwise
 

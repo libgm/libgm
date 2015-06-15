@@ -1,6 +1,7 @@
 #ifndef LIBGM_HYBRID_ASSIGNMENT_HPP
 #define LIBGM_HYBRID_ASSIGNMENT_HPP
 
+#include <libgm/argument/argument_traits.hpp>
 #include <libgm/argument/uint_assignment.hpp>
 #include <libgm/argument/real_assignment.hpp>
 
@@ -16,6 +17,9 @@ namespace libgm {
     : public uint_assignment<Var>,
       public real_assignment<T, Var> {
   public:
+
+    //! The traits associated with the variable.
+    typedef argument_traits<Var> arg_traits;
 
     //! The value_type of the underlying finite assignment.
     typedef typename uint_assignment<Var>::value_type uint_value_type;
@@ -112,9 +116,9 @@ namespace libgm {
 
     //! Returns 1 if the assignment contains the given variable.
     std::size_t count(Var v) const {
-      if (is_discrete(v)) {
+      if (arg_traits::is_discrete(v)) {
         return uint().count(v);
-      } else if (is_continuous(v)) {
+      } else if (arg_traits::is_continuous(v)) {
         return real().count(v);
       } else {
         return 0;
@@ -144,9 +148,9 @@ namespace libgm {
 
     //! Removes a variable from the assignment.
     std::size_t erase(Var v) {
-      if (is_discrete(v)) {
+      if (arg_traits::is_discrete(v)) {
         return uint().erase(v);
-      } else if (is_continuous(v)) {
+      } else if (arg_traits::is_continuous(v)) {
         return real().erase(v);
       } else {
         return 0;

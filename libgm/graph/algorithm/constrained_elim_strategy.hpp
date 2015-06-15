@@ -14,22 +14,19 @@ namespace libgm {
    * priority 1 will be eliminated before those with intrinsic
    * priority 0. This type models the EliminationStrategy concept.
    *
+   * \tparam IntrinsicPriority
+   *         A type that represents the intrinsic priority.
    * \tparam Function
-   *         The type of a functor which computes a vertex's intrinsic
-   *         priority given a vertex descriptor and a graph. This type
-   *         must define a type Function::result_type which is the type
-   *         of the intrinsic priorities, and it must also
-   *         define a binary operator() which accepts a vertex descriptor
-   *         and a graph, and returns a priority of type
-   *         IntrinsicPriority::result_type.
+   *         A unary function that accepts a vertex and returns
+   *         the intrinsic priority for that vertex.
    * \tparam Strategy
    *         A type that models the EliminationStrategy concept.
    *         It is used to choose the relative elimination order
-   *         of vertices with the same intrinsic primary priority.
+   *         of vertices with the same intrinsic priority.
    *
    * \ingroup graph_types
    */
-  template <typename Function, typename Strategy>
+  template <typename IntrinsicPriority, typename Function, typename Strategy>
   struct constrained_elim_strategy {
 
     /**
@@ -38,7 +35,7 @@ namespace libgm {
      * implements the correct semantics for ordering vertices given
      * the primary and secondary priorities.
      */
-    typedef std::pair<typename Function::result_type,
+    typedef std::pair<IntrinsicPriority,
                       typename Strategy::priority_type> priority_type;
 
     /**
@@ -61,7 +58,7 @@ namespace libgm {
      */
     template <typename Graph>
     priority_type priority(typename Graph::vertex_type v, const Graph& g) {
-      return std::make_pair(intrinsic_priority_(v, g),
+      return std::make_pair(intrinsic_priority_(v),
                             secondary_strategy_.priority(v, g));
     }
 
@@ -84,6 +81,17 @@ namespace libgm {
     Strategy secondary_strategy_;
 
   }; // struct constrained_elim_strategy
+
+  /**
+   * Utility function that constructs a constrained elimination strategy
+   * from its arguments, inferring the contrained_elim_strategy template
+   * arguments.
+   */
+  template <typename Result, typename Function, typename Strategy>
+  constrained_elim_strategy<Result, Function, Strategy>
+  constrained_strategy(Function fn, Strategy s) {
+    return { fn, s };
+  }
 
 } // namespace libgm
 

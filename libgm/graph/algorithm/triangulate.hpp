@@ -4,6 +4,7 @@
 #include <libgm/datastructure/set_index.hpp>
 #include <libgm/graph/algorithm/eliminate.hpp>
 #include <libgm/graph/algorithm/min_degree_strategy.hpp>
+#include <libgm/graph/vertex_traits.hpp>
 
 #include <functional>
 
@@ -80,7 +81,9 @@ namespace libgm {
   void triangulate_maximal(Graph& g,
                            std::function<void(Container&&)> visitor,
                            Strategy elim_strategy = Strategy()) {
-    set_index<std::size_t, Container> clique_index;
+    typedef typename Graph::vertex_type vertex_type;
+    typedef typename vertex_traits<vertex_type>::hasher vertex_hasher;
+    set_index<std::size_t, Container, vertex_hasher> clique_index;
     std::size_t id = 0;
     eliminate(g, [&](typename Graph::vertex_type v) {
         Container clique({v});

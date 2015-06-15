@@ -27,17 +27,17 @@ BOOST_AUTO_TEST_CASE(test_load_save) {
 
   BOOST_CHECK_EQUAL(format.variables[0].name(), "plain_finite");
   BOOST_CHECK_EQUAL(format.variables[0].levels().size(), 0);
-  BOOST_CHECK_EQUAL(num_values(format.variables[0]), 4);
-  BOOST_CHECK_EQUAL(is_discrete(format.variables[0]), true);
+  BOOST_CHECK_EQUAL(format.variables[0].num_values(), 4);
+  BOOST_CHECK_EQUAL(format.variables[0].is_discrete(), true);
 
   BOOST_CHECK_EQUAL(format.variables[1].name(), "named_finite");
   BOOST_CHECK_EQUAL(format.variables[1].levels().size(), 3);
-  BOOST_CHECK_EQUAL(num_values(format.variables[1]), 3);
-  BOOST_CHECK_EQUAL(is_discrete(format.variables[1]), true);
+  BOOST_CHECK_EQUAL(format.variables[1].num_values(), 3);
+  BOOST_CHECK_EQUAL(format.variables[1].is_discrete(), true);
 
   BOOST_CHECK_EQUAL(format.variables[2].name(), "vector");
-  BOOST_CHECK_EQUAL(num_dimensions(format.variables[2]), 2);
-  BOOST_CHECK_EQUAL(is_continuous(format.variables[2]), true);
+  BOOST_CHECK_EQUAL(format.variables[2].num_dimensions(), 2);
+  BOOST_CHECK_EQUAL(format.variables[2].is_continuous(), true);
 
   const char* filename2 = "text_dataset_format_tmp.cfg";
   format.save_config(filename2);

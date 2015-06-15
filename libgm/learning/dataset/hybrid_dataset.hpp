@@ -1,6 +1,7 @@
 #ifndef LIBGM_HYBRID_DATASET_HPP
 #define LIBGM_HYBRID_DATASET_HPP
 
+#include <libgm/argument/argument_traits.hpp>
 #include <libgm/argument/hybrid_assignment.hpp>
 #include <libgm/argument/hybrid_domain.hpp>
 #include <libgm/datastructure/hybrid_vector.hpp>
@@ -35,6 +36,8 @@ namespace libgm {
    */
   template <typename T = double, typename Var = variable>
   class hybrid_dataset {
+    typedef argument_traits<Var> arg_traits;
+
   public:
     // Dataset concept types
     typedef void                      traits_type;
@@ -80,7 +83,7 @@ namespace libgm {
       std::size_t rcol = 0;
       for (Var v : args.continuous()) {
         col_.emplace(v, rcol);
-        rcol += num_dimensions(v);
+        rcol += arg_traits::num_dimensions(v);
       }
       udata_.reset(new std::size_t[allocated_ * ucol]);
       rdata_.reset(new T[allocated_ * rcol]);
@@ -188,7 +191,7 @@ namespace libgm {
       }
       T* rdest = value.first.real().data();
       for (Var v : dom.continuous()) {
-        std::size_t n = num_dimensions(v);
+        std::size_t n = arg_traits::num_dimensions(v);
         for (std::size_t i = 0, col = col_.at(v); i < n; ++i, ++col) {
           *rdest++ = rcolptr_[col][row];
         }
@@ -230,7 +233,7 @@ namespace libgm {
       }
       for (Var v : dom.continuous()) {
         real_vector<T>& vec = a.first.real()[v];
-        vec.resize(num_dimensions(v));
+        vec.resize(arg_traits::num_dimensions(v));
         for (std::size_t i = 0, col = col_.at(v); i < vec.size(); ++i, ++col) {
           vec[i] = rcolptr_[col][row];
         }
@@ -296,8 +299,9 @@ namespace libgm {
       }
       std::size_t rcol = 0;
       for (Var v :  args_.continuous()) {
-        values.real().segment(rcol, num_dimensions(v)) = a.real().at(v);
-        rcol += num_dimensions(v);
+        std::size_t n = arg_traits::num_dimensions(v);
+        values.real().segment(rcol, n) = a.real().at(v);
+        rcol += n;
       }
       insert(values, weight);
     }
@@ -800,7 +804,7 @@ namespace libgm {
           std::size_t rcol = 0;
           for (Var v : args_.continuous()) {
             real_vector<T>& vec = value_.first.real()[v];
-            vec.resize(num_dimensions(v));
+            vec.resize(arg_traits::num_dimensions(v));
             for (std::size_t i = 0; i < vec.size(); ++i) {
               vec[i] = *relems_[rcol]++;
               ++rcol;
@@ -879,7 +883,7 @@ namespace libgm {
       std::vector<T*> result;
       result.reserve(num_dimensions(dom));
       for (Var v : dom.continuous()) {
-        std::size_t n = num_dimensions(v);
+        std::size_t n = arg_traits::num_dimensions(v);
         for (std::size_t i = 0, col = col_.at(v); i < n; ++i, ++col) {
           result.push_back(rcolptr_[col]);
         }

@@ -1,6 +1,7 @@
 #ifndef LIBGM_BASIC_DOMAIN_HPP
 #define LIBGM_BASIC_DOMAIN_HPP
 
+#include <libgm/argument/argument_traits.hpp>
 #include <libgm/functional/hash.hpp>
 #include <libgm/range/iterator_range.hpp>
 #include <libgm/serialization/vector.hpp>
@@ -125,7 +126,7 @@ namespace libgm {
     out << '[';
     for (std::size_t i = 0; i < dom.size(); ++i) {
       if (i > 0) { out << ','; }
-      out << dom[i];
+      argument_traits<Arg>::print(out, dom[i]);
     }
     out << ']';
     return out;
@@ -282,7 +283,7 @@ namespace libgm {
       return false;
     }
     for (std::size_t i = 0; i < a.size(); ++i) {
-      if (!compatible(a[i], b[i])) {
+      if (!argument_traits<Arg>::compatible(a[i], b[i])) {
         return false;
       }
     }
@@ -301,10 +302,11 @@ namespace libgm {
   std::size_t num_values(const basic_domain<Arg>& dom) {
     std::size_t size = 1;
     for (Arg arg : dom) {
-      if (std::numeric_limits<std::size_t>::max() / num_values(arg) <= size) {
+      std::size_t values = argument_traits<Arg>::num_values(arg);
+      if (std::numeric_limits<std::size_t>::max() / values <= size) {
         throw std::out_of_range("num_values: possibly overflows std::size_t");
       }
-      size *= num_values(arg);
+      size *= values;
     }
     return size;
   }
@@ -321,7 +323,7 @@ namespace libgm {
   std::size_t num_dimensions(const basic_domain<Arg>& dom) {
     std::size_t size = 0;
     for (Arg arg : dom) {
-      size += num_dimensions(arg);
+      size += argument_traits<Arg>::num_dimensions(arg);
     }
     return size;
   }

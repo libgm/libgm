@@ -17,17 +17,17 @@ struct fixture {
 BOOST_FIXTURE_TEST_CASE(test_construct, fixture) {
   BOOST_CHECK_EQUAL(p.name(), "p");
   BOOST_CHECK_EQUAL(q.name(), "q");
-  BOOST_CHECK_EQUAL(num_values(p), 4);
-  BOOST_CHECK_EQUAL(num_values(q), 2);
+  BOOST_CHECK_EQUAL(p.num_values(), 4);
+  BOOST_CHECK_EQUAL(q.num_values(), 2);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_variables, fixture) {
   universe u;
 
-  BOOST_CHECK_EQUAL(num_values(p(5)), 4);
-  BOOST_CHECK_EQUAL(index(p(5)), 5);
+  BOOST_CHECK_EQUAL(p(5).num_values(), 4);
+  BOOST_CHECK_EQUAL(p(5).index(), 5);
   BOOST_CHECK_EQUAL(p(5).name(), "p");
-  BOOST_CHECK_EQUAL(num_values(q(8)), 2);
-  BOOST_CHECK_EQUAL(index(q(8)), 8);
+  BOOST_CHECK_EQUAL(q(8).num_values(), 2);
+  BOOST_CHECK_EQUAL(q(8).index(), 8);
   BOOST_CHECK_EQUAL(q(8).name(), "q");
 }

@@ -1,6 +1,7 @@
 #ifndef LIBGM_FINITE_ASSIGNMENT_ITERATOR_HPP
 #define LIBGM_FINITE_ASSIGNMENT_ITERATOR_HPP
 
+#include <libgm/argument/argument_traits.hpp>
 #include <libgm/argument/basic_domain.hpp>
 #include <libgm/argument/uint_assignment.hpp>
 #include <libgm/range/iterator_range.hpp>
@@ -47,7 +48,7 @@ namespace libgm {
     uint_assignment_iterator& operator++() {
       for (Var v : vars_) {
         std::size_t value = a_[v] + 1;
-        if (value >= num_values(v)) {
+        if (value >= argument_traits<Var>::num_values(v)) {
           a_[v] = 0;
         } else {
           a_[v] = value;

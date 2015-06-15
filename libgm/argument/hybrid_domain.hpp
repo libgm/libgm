@@ -1,6 +1,7 @@
 #ifndef LIBGM_HYBRID_DOMAIN_HPP
 #define LIBGM_HYBRID_DOMAIN_HPP
 
+#include <libgm/argument/argument_traits.hpp>
 #include <libgm/argument/basic_domain.hpp>
 #include <libgm/argument/variable.hpp>
 
@@ -16,6 +17,8 @@ namespace libgm {
   template <typename Arg = variable>
   class hybrid_domain {
   public:
+    typedef argument_traits<Arg> arg_traits;
+
     //! Default construct. Creates an empty domain.
     hybrid_domain() { }
 
@@ -90,9 +93,9 @@ namespace libgm {
 
     //! Returns the number of times a variable is present in the domain.
     std::size_t count(Arg arg) const {
-      if (is_discrete(arg)) {
+      if (arg_traits::is_discrete(arg)) {
         return discrete_.count(arg);
-      } else if (is_continuous(arg)) {
+      } else if (arg_traits::is_continuous(arg)) {
         return continuous_.count(arg);
       } else {
         return 0;
@@ -125,13 +128,14 @@ namespace libgm {
 
     //! Adds a variable at the end.
     void push_back(Arg arg) {
-      if (is_discrete(arg)) {
+      if (arg_traits::is_discrete(arg)) {
         discrete().push_back(arg);
-      } else if (is_continuous(arg)) {
+      } else if (arg_traits::is_continuous(arg)) {
         continuous().push_back(arg);
       } else {
         std::ostringstream out;
-        out << "hybrid_domain::push_back: unknown type of " << arg;
+        out << "hybrid_domain::push_back: unknown type of argument ";
+        arg_traits::print(out, arg);
         throw std::invalid_argument(out.str());
       }
     }

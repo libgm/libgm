@@ -2,6 +2,7 @@
 #define LIBGM_TREE_TRAVERSAL_HPP
 
 #include <libgm/functional/output_iterator_assign.hpp>
+#include <libgm/graph/vertex_traits.hpp>
 
 #include <functional>
 #include <iterator>
@@ -129,7 +130,7 @@ namespace libgm {
     typedef typename Graph::edge_type edge_type;
 
     // if the root was not specified, choose one arbitrarily
-    if (root == vertex_type()) {
+    if (root == vertex_traits<vertex_type>::null()) {
       if (graph.empty()) return;
       root = *graph.vertices().begin();
     }

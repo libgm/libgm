@@ -1,6 +1,7 @@
 #ifndef LIBGM_REAL_DATASET_HPP
 #define LIBGM_REAL_DATASET_HPP
 
+#include <libgm/argument/argument_traits.hpp>
 #include <libgm/argument/basic_domain.hpp>
 #include <libgm/argument/real_assignment.hpp>
 #include <libgm/math/eigen/real.hpp>
@@ -28,7 +29,7 @@ namespace libgm {
 
     //! Returns the number of columns occupied by a variable.
     static std::size_t ncols(Var v) {
-      return num_dimensions(v);
+      return argument_traits<Var>::num_dimensions(v);
     }
 
     //! Returns the number of columns occupied by a domain.

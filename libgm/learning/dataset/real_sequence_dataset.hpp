@@ -36,13 +36,16 @@ namespace libgm {
     typedef std::unordered_map<process_type, std::size_t>  column_map_type;
     typedef std::unordered_map<variable_type, std::size_t> offset_map_type;
 
+    typedef argument_traits<process_type> process_traits;
+    typedef argument_traits<variable_type> variable_traits;
+
     //! Computes the column indices for the given process domain.
     static void initialize(const proc_domain_type& procs,
                            column_map_type& cols) {
       std::size_t col = 0;
       for (process_type proc : procs) {
         cols.emplace(proc, col);
-        col += num_dimensions(proc);
+        col += process_traits::num_dimensions(proc);
       }
     }
 
@@ -58,7 +61,7 @@ namespace libgm {
           variable_type v = proc(t);
           variables.push_back(v);
           offsets.emplace(v, offset);
-          offset += num_dimensions(v);
+          offset += variable_traits::num_dimensions(v);
         }
       }
       return matrix_index(ndims * first, ndims * length);
@@ -69,7 +72,7 @@ namespace libgm {
     index(const proc_domain_type& procs, const column_map_type& columns) {
       index_type index;
       for (process_type proc : procs) {
-        index.append(columns.at(proc), num_dimensions(proc));
+        index.append(columns.at(proc), process_traits::num_dimensions(proc));
       }
       return index;
     }
@@ -79,7 +82,7 @@ namespace libgm {
     index(const var_domain_type& vars, const offset_map_type& offsets) {
       index_type index;
       for (variable_type var : vars) {
-        index.append(offsets.at(var), num_dimensions(var));
+        index.append(offsets.at(var), variable_traits::num_dimensions(var));
       }
       return index;
     }
@@ -114,7 +117,8 @@ namespace libgm {
       for (process_type proc : procs) {
         std::size_t row = colmap.at(proc);
         for (std::size_t t = 0; t < nsteps; ++t) {
-          a[proc(t)] = from.first.block(row, t, num_dimensions(proc), 1);
+          std::size_t n = process_traits::num_dimensions(proc);
+          a[proc(t)] = from.first.block(row, t, n, 1);
         }
       }
       to.second = from.second;
@@ -150,9 +154,9 @@ namespace libgm {
       a.reserve(vars.size());
       for (variable_type var : vars) {
         real_vector<T>& vec = a[var];
-        vec.resize(num_dimensions(var));
+        vec.resize(variable_traits::num_dimensions(var));
         const T* begin = from.first.data() + offsets.at(var) + offset;
-        std::copy(begin, begin + num_dimensions(var), vec.data());
+        std::copy(begin, begin + vec.size(), vec.data());
       }
       to.second = from.second;
     }

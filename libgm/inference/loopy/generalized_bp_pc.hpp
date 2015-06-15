@@ -71,7 +71,7 @@ namespace libgm {
 
     //! Initializes the factors to unity.
     void initialize_factors() {
-      for (std::size_t v : graph_.vertices()) {
+      for (id_t v : graph_.vertices()) {
         graph_[v] = F(graph_.cluster(v), result_type(1));
       }
     }
@@ -81,7 +81,7 @@ namespace libgm {
     void initialize_factors(const Range& factors) {
       initialize_factors();
       for (const F& factor : factors) {
-        std::size_t v = graph_.find_root_cover(factor.arguments());
+        id_t v = graph_.find_root_cover(factor.arguments());
         assert(v);
         graph_[v] *= factor;
       }
@@ -96,7 +96,7 @@ namespace libgm {
     }
 
     //! Returns a belief for a region
-    F belief(std::size_t v) const {
+    F belief(id_t v) const {
       F result = graph_[v];
       for (edge_type e : belief_edges_.at(v)) {
         result *= message_.at(e);
@@ -106,7 +106,7 @@ namespace libgm {
 
     //! Returns the marginal over a set of variables
     F belief(const domain_type& vars) const {
-      std::size_t v = graph_.find_cover(vars);
+      id_t v = graph_.find_cover(vars);
       assert(v);
       return belief(v).marginal(vars);
     }
@@ -116,12 +116,12 @@ namespace libgm {
   protected:
     //! Precomputes which messages contribute to the belief.
     void compute_belief_edges() {
-      for (std::size_t u : graph_.vertices()) {
+      for (id_t u : graph_.vertices()) {
         edge_vector& edges = belief_edges_[u];
-        std::unordered_set<std::size_t> descendants = graph_.descendants(u);
+        std::unordered_set<id_t> descendants = graph_.descendants(u);
         descendants.insert(u);
         // messages from external sources to regions in down+(u)
-        for (std::size_t v : descendants) {
+        for (id_t v : descendants) {
           for (edge_type in : graph_.in_edges(v)) {
             if (!descendants.count(in.source())) {
               edges.push_back(in);
@@ -134,17 +134,17 @@ namespace libgm {
     //! Precomputes which messages contribute to a message.
     void compute_message_edges() {
       for (edge_type e : graph_.edges()) {
-        std::size_t u = e.source();
-        std::size_t v = e.target();
-        std::unordered_set<std::size_t> descendants_u = graph_.descendants(u);
-        std::unordered_set<std::size_t> descendants_v = graph_.descendants(v);
+        id_t u = e.source();
+        id_t v = e.target();
+        std::unordered_set<id_t> descendants_u = graph_.descendants(u);
+        std::unordered_set<id_t> descendants_v = graph_.descendants(v);
         descendants_u.insert(u);
         descendants_v.insert(v);
 
         // numerator: edges from sources external to u that are outside
         // the scope of influence of v. \todo verify this
         edge_vector& numerator_edges = numerator_edges_[e];
-        for (std::size_t w : descendants_u) {
+        for (id_t w : descendants_u) {
           if (!descendants_v.count(w)) {
             for (edge_type in : graph_.in_edges(w)) {
               if (!descendants_u.count(in.source())) {
@@ -157,7 +157,7 @@ namespace libgm {
         // denominator: information passed from u to regions below v indirectly
         // \todo verify this
         edge_vector& denominator_edges = denominator_edges_[e];
-        for (std::size_t w : descendants_v) {
+        for (id_t w : descendants_v) {
           for (edge_type in : graph_.in_edges(w)) {
             if (in != e &&
                 descendants_u.count(in.source()) &&
@@ -208,7 +208,7 @@ namespace libgm {
     std::unordered_map<edge_type, F> message_;
 
     //! The edges that are used to compute the belief over a region.
-    std::unordered_map<std::size_t, edge_vector> belief_edges_;
+    std::unordered_map<id_t, edge_vector> belief_edges_;
 
     //! The edges in the numerator of the message.
     std::unordered_map<edge_type, edge_vector> numerator_edges_;

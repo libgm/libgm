@@ -1,6 +1,7 @@
 #ifndef LIBGM_ARRAY_FACTOR_HPP
 #define LIBGM_ARRAY_FACTOR_HPP
 
+#include <libgm/argument/argument_traits.hpp>
 #include <libgm/argument/array_domain.hpp>
 #include <libgm/argument/uint_assignment.hpp>
 #include <libgm/datastructure/uint_vector.hpp>
@@ -14,6 +15,7 @@
 #include <stdexcept>
 #include <initializer_list>
 #include <numeric>
+#include <type_traits>
 #include <utility>
 
 namespace libgm {
@@ -31,9 +33,13 @@ namespace libgm {
    */
   template <typename T, std::size_t N, typename Var>
   class array_factor : public factor {
-  public:
     static_assert(N == 1 || N == 2, "The arity of factor must be 1 or 2");
+    static_assert(std::is_convertible<
+                    typename argument_traits<Var>::argument_category,
+                    discrete_argument_tag
+                  >::value, "Var must be a discrete argument");
 
+  public:
     // Underlying representation
     typedef Eigen::Array<T, Eigen::Dynamic, N == 1 ? 1 : Eigen::Dynamic>
       array_type;
@@ -43,7 +49,8 @@ namespace libgm {
     typedef const T* const_iterator;
     typedef T        value_type;
 
-    // Domain
+    // Arguments
+    typedef argument_traits<Var> arg_traits;
     typedef array_domain<Var, N> domain_type;
     typedef uint_assignment<Var> assignment_type;
 
@@ -122,9 +129,10 @@ namespace libgm {
       if (args_ != args || empty()) {
         args_ = args;
         if (N == 1) {
-          param_.resize(num_values(x()), 1);
+          param_.resize(arg_traits::num_values(x()), 1);
         } else {
-          param_.resize(num_values(x()), num_values(y()));
+          param_.resize(arg_traits::num_values(x()),
+                        arg_traits::num_values(y()));
         }
       }
     }
@@ -229,7 +237,7 @@ namespace libgm {
      * Returns the size of the parameter array for a single argument.
      */
     static std::size_t param_shape(const array_domain<Var, 1>& args) {
-      return num_values(args[0]);
+      return arg_traits::num_values(args[0]);
     }
 
     /**
@@ -237,7 +245,9 @@ namespace libgm {
      */
     static std::pair<std::size_t, std::size_t>
     param_shape(const array_domain<Var, 2>& args) {
-      return { num_values(args[0]), num_values(args[1]) };
+      return {
+        arg_traits::num_values(args[0]), arg_traits::num_values(args[1])
+      };
     }
 
     /**
@@ -285,9 +295,11 @@ namespace libgm {
     void subst_args(const std::unordered_map<Var, Var>& var_map) {
       for (Var& x : args_) {
         Var xn = var_map.at(x);
-        if (!compatible(x, xn)) {
+        if (!arg_traits::compatible(x, xn)) {
           std::ostringstream out;
-          out << "subst_args: " << x << " and " << xn << " are not compatible";
+          out << "subst_args: "; arg_traits::print(out, x);
+          out << " and "; arg_traits::print(out, xn);
+          out << " are not compatible";
           throw std::invalid_argument(out.str());
         }
         x = xn;
@@ -300,10 +312,10 @@ namespace libgm {
      * \throw std::runtime_error if some of the dimensions do not match
      */
     void check_param() const {
-      if (param_.rows() != num_values(x())) {
+      if (param_.rows() != arg_traits::num_values(x())) {
         throw std::runtime_error("Invalid number of rows");
       }
-      if (param_.cols() != (N == 2 ? num_values(y()) : 1)) {
+      if (param_.cols() != (N == 2 ? arg_traits::num_values(y()) : 1)) {
         throw std::runtime_error("Invalid number of columns");
       }
     }

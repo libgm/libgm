@@ -2,6 +2,7 @@
 #define LIBGM_TEST_CYCLIC_HPP
 
 #include <libgm/datastructure/mutable_queue.hpp>
+#include <libgm/graph/vertex_traits.hpp>
 
 namespace libgm {
 
@@ -39,7 +40,7 @@ namespace libgm {
       }
     }
 
-    return vertex_type();
+    return vertex_traits<vertex_type>::null();
   }
 
 } // namespace libgm

@@ -85,7 +85,7 @@ namespace libgm {
 
       // multiply in the factors to cliques that cover them
       for (const F& factor : factors) {
-        std::size_t v = jt_.find_cluster_cover(factor.arguments());
+        vertex_type v = jt_.find_cluster_cover(factor.arguments());
         assert(v);
         jt_[v] *= factor;
       }
@@ -108,7 +108,7 @@ namespace libgm {
      * passing protocol.
      */
     void calibrate() {
-      mpp_traversal(jt_, 0, [&](const edge_type& e) {
+      mpp_traversal(jt_, id_t(), [&](const edge_type& e) {
           jt_[e.target()] /= jt_[e];
           jt_[e.source()].marginal(jt_.separator(e), jt_[e]);
           jt_[e.target()] *= jt_[e];

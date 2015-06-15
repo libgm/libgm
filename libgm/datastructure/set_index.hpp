@@ -26,10 +26,14 @@ namespace libgm {
    *         Must be DefaultConstructible, CopyConstructible, and Assignable.
    * \tparam Range
    *         A container accepted by the lookup methods.
+   * \tparam Hash
+   *         A hash function for the values stored in the Range
    *
    * \ingroup datastructure
    */
-  template <typename Handle, typename Range>
+  template <typename Handle,
+            typename Range,
+            typename Hash = std::hash<typename Range::value_type> >
   class set_index {
 
     //! The vector type that stores elements in a sorted order.
@@ -37,7 +41,7 @@ namespace libgm {
 
     //! Maps each element to the vectors containing the element.
     typedef std::unordered_map<
-      typename Range::value_type, std::unordered_map<Handle, vector_type*>
+      typename Range::value_type, std::unordered_map<Handle, vector_type*>, Hash
     > adjacency_map;
 
     // Constructors and destructors

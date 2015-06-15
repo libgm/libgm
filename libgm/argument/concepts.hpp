@@ -8,16 +8,17 @@ namespace libgm {
   /**
    * The concept that represents an argument.
    *
-   * An argument is DefaultConstructible, CopyAssignable, CopyConstructible,
-   * and Destructible, EqualityComparable, LessThanComparable, and Swappable.
-   * Many models also need to the argument to specialize std::hash<> and
-   * operator<<(std::ostream&, Arg), so that the argument can be used as key
-   * in unordered containers and printed to an output stream.
+   * An argument must be CopyAssignable, CopyConstructible, Destructible,
+   * EqualityComparable, LessThanComparable, and Swappable.
+   * Most factors and models also require the argument to specialize
+   * operator<<(std::ostream&, Arg), so that the arguments (and collections
+   * thereof) can be printed to an output stream.
    *
    * \ingroup argument_concepts
    */
   template <typename Arg>
   struct Argument {
+
     /**
      * Returns true if two arguments are compatible. Two arguments are
      * compatible if one can be substituted for another in the model,

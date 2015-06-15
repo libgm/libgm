@@ -16,7 +16,7 @@ namespace libgm {
   struct argument_object {
   public:
     //! An enum representing the category of the variable.
-    enum category_enum { DISCRETE = 1, CONTINUOUS = 2 };
+    enum category_enum { NONE = 0, DISCRETE = 1, CONTINUOUS = 2 };
 
     //! The name of the argument.
     std::string name;
@@ -43,6 +43,12 @@ namespace libgm {
     argument_object(const std::string& name,
                     const std::vector<std::string>& levels)
       : name(name), size(levels.size()), category(DISCRETE), levels(levels) { }
+
+    //! Returns a singleton representing a deleted argument_object.
+    static argument_object* deleted() {
+      static argument_object obj("deleted", 0, NONE);
+      return &obj;
+    }
 
     //! Dynamically allocates a new finite argument_object.
     static argument_object*
@@ -106,6 +112,8 @@ namespace libgm {
     friend std::ostream&
     operator<<(std::ostream& out, const argument_object& a) {
       switch (a.category) {
+      case argument_object::NONE:
+        out << 'N'; break;
       case argument_object::DISCRETE:
         out << 'D'; break;
       case argument_object::CONTINUOUS:

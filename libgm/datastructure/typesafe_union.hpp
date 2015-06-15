@@ -5,6 +5,7 @@
 #include <libgm/functional/hash.hpp>
 #include <libgm/functional/stream.hpp>
 #include <libgm/functional/utility.hpp>
+#include <libgm/graph/vertex_traits.hpp>
 #include <libgm/serialization/iarchive.hpp>
 #include <libgm/serialization/oarchive.hpp>
 #include <libgm/traits/algorithm.hpp>
@@ -38,7 +39,8 @@ namespace libgm {
     //==========================================================================
   public:
     //! Default constructor. Creates an empty union.
-    typesafe_union() : which_(-1) { }
+    typesafe_union()
+      : which_(-1) { }
 
     //! Constructs union from a member that is convertible to one of Types.
     template <typename T>
@@ -46,6 +48,13 @@ namespace libgm {
                    typename std::enable_if<
                      count_convertible<T, Types...>::value == 1>::type* = 0) {
       *this = std::forward<T>(field);
+    }
+
+    //! Returns a special "deleted" union, used in some datastructures.
+    static typesafe_union deleted() {
+      typesafe_union result;
+      result.which_ = -2;
+      return result;
     }
 
     //! Assigns union to a member that is convertible to one of Types.
@@ -82,7 +91,7 @@ namespace libgm {
     // Queries
     //==========================================================================
 
-    //! Returns the index of the assigned field or -1 if empty.
+    //! Returns the index of the assigned field (-1 if empty, -2 if deleted).
     int which() const {
       return which_;
     }
@@ -208,7 +217,11 @@ namespace libgm {
   template <typename... Types>
   std::ostream&
   operator<<(std::ostream& out, const typesafe_union<Types...>& u) {
-    apply_unary(stream_out<std::ostream>(out), u);
+    switch (u.which()) {
+    case -1: out << "null"; break;
+    case -2: out << "deleted"; break;
+    default: apply_unary(stream_out<std::ostream>(out), u); break;
+    }
     return out;
   }
 
@@ -362,6 +375,29 @@ namespace libgm {
       throw std::invalid_argument("Unions have incompatible types");
     }
   }
+
+  // Traits
+  //============================================================================
+
+  /**
+   * A specialization of vertex_traits for typesafe_union.
+   */
+  template <typename... Types>
+  struct vertex_traits<typesafe_union<Types...> > {
+    typedef typesafe_union<Types...> union_type;
+
+    //! Returns an empty union.
+    static union_type null() { return union_type(); }
+
+    //! Returns a special "deleted" union.
+    static union_type deleted() { return union_type::deleted(); }
+
+    //! Prints the union to a stream.
+    static void print(std::ostream& out, union_type u) { out << u; }
+
+    //! Unions use the default hasher.
+    typedef std::hash<union_type> hasher;
+  };
 
 } // namespace libgm
 

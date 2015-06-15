@@ -1,9 +1,12 @@
 #ifndef LIBGM_PROCESS_HPP
 #define LIBGM_PROCESS_HPP
 
+#include <libgm/argument/argument_object.hpp>
+#include <libgm/argument/argument_traits.hpp>
 #include <libgm/argument/basic_domain.hpp>
 #include <libgm/argument/variable.hpp>
 #include <libgm/functional/hash.hpp>
+#include <libgm/graph/vertex_traits.hpp>
 
 #include <unordered_map>
 
@@ -35,6 +38,11 @@ namespace libgm {
     process()
       : rep_(nullptr) { }
 
+    //! Returns a special "deleted" process used in certain datastructures.
+    static process deleted() {
+      return process(argument_object::deleted());
+    }
+
     //! Returns the category of the process (discrete / continuous).
     category_enum category() const {
       return rep().category;
@@ -45,7 +53,7 @@ namespace libgm {
       return rep().name;
     }
 
-   //! Returns the levels of the process.
+    //! Returns the levels of the process.
     const std::vector<std::string>& levels() const {
       return rep().levels;
     }
@@ -63,8 +71,14 @@ namespace libgm {
     // Argument concept
     //==========================================================================
 
+    //! The category of the argument.
+    typedef mixed_argument_tag argument_category;
+
+    //! The type of index associated with the process.
+    typedef Index argument_index;
+
     //! Returns true if two processes are compatible.
-    friend bool compatible(process x, process y) {
+    static bool compatible(process x, process y) {
       return x.rep().category == y.rep().category
         && x.rep().size == y.rep().size;
     }
@@ -96,7 +110,11 @@ namespace libgm {
 
     //! Prints a process to an output stream.
     friend std::ostream& operator<<(std::ostream& out, process x) {
-      out << x.rep();
+      if (x.rep_) {
+        out << x.rep();
+      } else {
+        out << "null";
+      }
       return out;
     }
 
@@ -114,9 +132,9 @@ namespace libgm {
     //==========================================================================
 
     //! Returns the number of values for a discrete process.
-    friend std::size_t num_values(process p) {
-      if (p.rep().category == argument_object::DISCRETE) {
-        return p.rep().size;
+    std::size_t num_values() {
+      if (rep().category == argument_object::DISCRETE) {
+        return rep().size;
       } else {
         throw std::invalid_argument(
           "Attempt to call num_values() on a process that is not discrete"
@@ -128,9 +146,9 @@ namespace libgm {
     //==========================================================================
 
     //! Returns the number of dimensions for a continuous process.
-    friend std::size_t num_dimensions(process p) {
-      if (p.rep().category == argument_object::CONTINUOUS) {
-        return p.rep().size;
+    std::size_t num_dimensions() {
+      if (rep().category == argument_object::CONTINUOUS) {
+        return rep().size;
       } else {
         throw std::invalid_argument(
          "Attempt to call num_dimensions() on a process that is not continouous"
@@ -142,20 +160,17 @@ namespace libgm {
     //==========================================================================
 
     //! Returns true if the process is discrete.
-    friend bool is_discrete(process p) {
-      return p.rep().category == argument_object::DISCRETE;
+    bool is_discrete() {
+      return rep().category == argument_object::DISCRETE;
     }
 
     //! Returns true if the process is continuous.
-    friend bool is_continuous(process p) {
-      return p.rep().category == argument_object::CONTINUOUS;
+    bool is_continuous() {
+      return rep().category == argument_object::CONTINUOUS;
     }
 
     // ProcessVariable concept
     //==========================================================================
-
-    //! The index type of the variables represented by this process.
-    typedef Index index_type;
 
     //! The type of variables represented by this process.
     typedef variable variable_type;
@@ -183,7 +198,6 @@ namespace libgm {
 
     // Friends
     friend class universe;
-    friend class std::hash<process>;
 
   }; // class process
 
@@ -204,6 +218,26 @@ namespace libgm {
 
   //! A type that maps one continuous process to another.
   typedef std::unordered_map<cprocess, cprocess> cproces_map;
+
+  // Traits
+  //============================================================================
+
+  /**
+   * A specialization of vertex_traits for process.
+   */
+  template <typename Index>
+  struct vertex_traits<process<Index, variable> > {
+    typedef process<Index, variable> process_type;
+
+    //! Returns the default-constructed process.
+    static process_type null() { return process_type(); }
+
+    //! Returns a special "deleted" process.
+    static process_type deleted() { return process_type::deleted(); }
+
+    //! Processes use the default hasher.
+    typedef std::hash<process_type> hasher;
+  };
 
 } // namespace libgm
 

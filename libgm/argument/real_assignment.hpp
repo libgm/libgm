@@ -1,6 +1,7 @@
 #ifndef LIBGM_VECTOR_ASSIGNMENT_HPP
 #define LIBGM_VECTOR_ASSIGNMENT_HPP
 
+#include <libgm/argument/argument_traits.hpp>
 #include <libgm/argument/basic_domain.hpp>
 #include <libgm/argument/variable.hpp>
 #include <libgm/math/eigen/real.hpp>
@@ -21,7 +22,8 @@ namespace libgm {
    * \tparam Var a type that satisfies the ContinuousArgument concept
    */
   template <typename T = double, typename Var = variable>
-  using real_assignment = std::unordered_map<Var, real_vector<T> >;
+  using real_assignment =
+    std::unordered_map<Var, real_vector<T>, typename argument_traits<Var>::hasher>;
 
   /**
    * Prints the assignment to an output stream.
@@ -33,8 +35,9 @@ namespace libgm {
     bool first = true;
     for (const auto& p : a) {
       if (first) { first = false; } else { out << ','; }
-      out << p.first << ':';
-      print_range(p.second.data(), p.second.data() + p.second.size(),
+      argument_traits<Var>::print(out, p.first);
+      out << ':';
+      print_range(out, p.second.data(), p.second.data() + p.second.size(),
                   '[', ' ', ']');
     }
     out << '}';
@@ -49,7 +52,7 @@ namespace libgm {
   std::size_t num_dimensions(const real_assignment<T, Var>& a) {
     std::size_t size = 0;
     for (const auto& p : a) {
-      size += num_dimensions(p.first);
+      size += argument_traits<Var>::num_dimensions(p.first);
     }
     return size;
   }
@@ -66,8 +69,9 @@ namespace libgm {
     real_vector<T> result(num_dimensions(dom));
     std::size_t i = 0;
     for (Var v : dom) {
-      result.segment(i, num_dimensions(v)) = a.at(v);
-      i += num_dimensions(v);
+      std::size_t n = argument_traits<Var>::num_dimensions(v);
+      result.segment(i, n) = a.at(v);
+      i += n;
     }
     return result;
   }

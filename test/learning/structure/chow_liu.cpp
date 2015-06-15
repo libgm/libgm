@@ -74,7 +74,7 @@ BOOST_AUTO_TEST_CASE(test_simple) {
 
   // verify the cliques
   std::unordered_set<domain> cliques;
-  for (std::size_t v : dm.vertices()) {
+  for (libgm::id_t v : dm.vertices()) {
     const domain& clique = dm.clique(v);
     cliques.emplace(clique);
     std::cout << clique << std::endl;

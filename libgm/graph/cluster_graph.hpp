@@ -1,6 +1,7 @@
 #ifndef LIBGM_CLUSTER_GRAPH_HPP
 #define LIBGM_CLUSTER_GRAPH_HPP
 
+#include <libgm/argument/argument_traits.hpp>
 #include <libgm/datastructure/set_index.hpp>
 #include <libgm/graph/algorithm/mst.hpp>
 #include <libgm/graph/algorithm/test_connected.hpp>
@@ -8,8 +9,10 @@
 #include <libgm/graph/algorithm/tree_traversal.hpp>
 #include <libgm/graph/algorithm/triangulate.hpp>
 #include <libgm/graph/bidirectional.hpp>
+#include <libgm/graph/id.hpp>
 #include <libgm/graph/property_fn.hpp>
 #include <libgm/graph/undirected_graph.hpp>
+#include <libgm/graph/vertex_traits.hpp>
 #include <libgm/graph/void.hpp>
 
 #include <algorithm>
@@ -49,16 +52,16 @@ namespace libgm {
     struct edge_info;
 
     //! The underlying graph type.
-    typedef undirected_graph<std::size_t, vertex_info, edge_info> graph_type;
+    typedef undirected_graph<id_t, vertex_info, edge_info> graph_type;
 
     // Public type declarations
     //==========================================================================
   public:
     // Vertex, edge, and properties
-    typedef std::size_t                  vertex_type;
-    typedef undirected_edge<std::size_t> edge_type;
-    typedef VertexProperty               vertex_property;
-    typedef EdgeProperty                 edge_property;
+    typedef id_t                  vertex_type;
+    typedef undirected_edge<id_t> edge_type;
+    typedef VertexProperty        vertex_property;
+    typedef EdgeProperty          edge_property;
 
     // Iterators
     typedef typename graph_type::vertex_iterator   vertex_iterator;
@@ -68,33 +71,35 @@ namespace libgm {
     typedef typename graph_type::out_edge_iterator out_edge_iterator;
 
     // The domain
-    typedef typename Domain::value_type value_type;
-    typedef typename set_index<std::size_t, Domain>::value_iterator
-      value_iterator;
+    typedef typename Domain::value_type argument_type;
+    typedef typename argument_traits<argument_type>::hasher argument_hasher;
+    typedef typename set_index<id_t, Domain, argument_hasher>::value_iterator
+      argument_iterator;
+    typedef std::unordered_set<argument_type, argument_hasher> argument_set;
 
     // Constructors and destructors
     //==========================================================================
   public:
     //! Constructs an empty cluster graph with no clusters.
     cluster_graph()
-      : next_vertex_(1) { }
+      : max_id_(0) { }
 
     //! Swaps two cluster graphs in constant time.
     friend void swap(cluster_graph& a, cluster_graph& b) {
       swap(a.cluster_index_, b.cluster_index_);
       swap(a.separator_index_, b.separator_index_);
       swap(a.graph_, b.graph_);
-      std::swap(a.next_vertex_, b.next_vertex_);
+      std::swap(a.max_id_, b.max_id_);
     }
 
     //! Serializes the cluster graph to an archive.
     void save(oarchive& ar) const {
-      ar << graph_ << next_vertex_;
+      ar << graph_ << max_id_;
     }
 
-    //! Deserialize the clsuter graph from an archive.
+    //! Deserialize the cluster graph from an archive.
     void load(iarchive& ar) {
-      ar >> graph_ >> next_vertex_;
+      ar >> graph_ >> max_id_;
       cluster_index_.clear();
       separator_index_.clear();
       for (vertex_type v : graph_.vertices()) {
@@ -115,6 +120,11 @@ namespace libgm {
     // Graph accessors
     //==========================================================================
 
+    //! Returns the null vertex, guaranteed to be id_t().
+    static id_t null_vertex() {
+      return id_t();
+    }
+
     //! Returns the range of all vertices.
     iterator_range<vertex_iterator>
     vertices() const {
@@ -123,7 +133,7 @@ namespace libgm {
 
     //! Returns the vertices adjacent to u.
     iterator_range<neighbor_iterator>
-    neighbors(std::size_t u) const {
+    neighbors(id_t u) const {
       return graph_.neighbors(u);
     }
 
@@ -135,23 +145,23 @@ namespace libgm {
 
     //! Returns the edges incoming to a vertex.
     iterator_range<in_edge_iterator>
-    in_edges(std::size_t u) const {
+    in_edges(id_t u) const {
       return graph_.in_edges(u);
     }
 
     //! Returns the outgoing edges from a vertex.
     iterator_range<out_edge_iterator>
-    out_edges(std::size_t u) const {
+    out_edges(id_t u) const {
       return graph_.out_edges(u);
     }
 
     //! Returns true if the graph contains the given vertex.
-    bool contains(std::size_t u) const {
+    bool contains(id_t u) const {
       return graph_.contains(u);
     }
 
     //! Returns true if the graph contains an undirected edge {u, v}.
-    bool contains(std::size_t u, std::size_t v) const {
+    bool contains(id_t u, id_t v) const {
       return graph_.contains(u, v);
     }
 
@@ -161,22 +171,22 @@ namespace libgm {
     }
 
     //! Returns an undirected edge (u, v). The edge must exist.
-    edge_type edge(std::size_t u, std::size_t v) const {
+    edge_type edge(id_t u, id_t v) const {
       return graph_.edge(u, v);
     }
 
     //! Returns the number of edges adjacent to a vertex.
-    std::size_t in_degree(std::size_t u) const {
+    std::size_t in_degree(id_t u) const {
       return graph_.in_degree(u);
     }
 
     //! Returns the number of edges adjacent to a vertex.
-    std::size_t out_degree(std::size_t u) const {
+    std::size_t out_degree(id_t u) const {
       return graph_.out_degree(u);
     }
 
     //! Returns the number of edges adjacent to a vertex.
-    std::size_t degree(std::size_t u) const {
+    std::size_t degree(id_t u) const {
       return graph_.degree(u);
     }
 
@@ -201,7 +211,7 @@ namespace libgm {
     }
 
     //! Returns the union of all the clusters in this graph.
-    iterator_range<value_iterator> arguments() const {
+    iterator_range<argument_iterator> arguments() const {
       return cluster_index_.values();
     }
 
@@ -210,13 +220,13 @@ namespace libgm {
       return cluster_index_.num_values();
     }
 
-    //! Returns true if the number of clusters in which the argument.
-    std::size_t count(value_type x) const {
+    //! Returns true if the number of clusters in which the argument occurs.
+    std::size_t count(argument_type x) const {
       return cluster_index_.count(x);
     }
 
     //! Returns the cluster associated with a vertex.
-    const Domain& cluster(std::size_t v) const {
+    const Domain& cluster(id_t v) const {
       return graph_[v].cluster;
     }
 
@@ -226,17 +236,17 @@ namespace libgm {
     }
 
     //! Returns the separator associated with an edge.
-    const Domain& separator(std::size_t u, std::size_t v) const {
+    const Domain& separator(id_t u, id_t v) const {
       return graph_(u, v).separator;
     }
 
     //! Returns a pre-computed reachable set associated with a directed edge.
-    const std::vector<value_type>& reachable(const edge_type& e) const {
+    const std::vector<argument_type>& reachable(const edge_type& e) const {
       return graph_[e].reachable(e);
     }
 
     //! Returns true if the vertex has been marked.
-    bool marked(std::size_t v) const {
+    bool marked(id_t v) const {
       return graph_[v].marked;
     }
 
@@ -246,12 +256,12 @@ namespace libgm {
     }
 
     //! Returns the property associated with a vertex.
-    VertexProperty& operator[](std::size_t u) {
+    VertexProperty& operator[](id_t u) {
       return graph_[u].property;
     }
 
     //! Returns the property associated with a vertex.
-    const VertexProperty& operator[](std::size_t u) const {
+    const VertexProperty& operator[](id_t u) const {
       return graph_[u].property;
     }
 
@@ -269,7 +279,7 @@ namespace libgm {
      * Returns the property associated with edge {u, v}.
      * The edge must exist.
      */
-    const EdgeProperty& operator()(std::size_t u, std::size_t v) const {
+    const EdgeProperty& operator()(id_t u, id_t v) const {
       return graph_(u, v).property;
     }
 
@@ -313,9 +323,9 @@ namespace libgm {
      * form a subtree.
      */
     bool running_intersection() const {
-      for (value_type x : cluster_index_.values()) {
+      for (argument_type x : cluster_index_.values()) {
         std::size_t n = cluster_index_.count(x);
-        std::size_t v = cluster_index_[x];
+        id_t v = cluster_index_[x];
         std::size_t nreachable = test_tree(graph_, v, [&](const edge_type& e) {
             return separator(e).count(x) > 0 &&
               cluster(e.target()).count(x) > 0;
@@ -339,7 +349,7 @@ namespace libgm {
      */
     std::ptrdiff_t tree_width() const {
       std::size_t max_size = 0;
-      for (std::size_t v : vertices()) {
+      for (id_t v : vertices()) {
         max_size = std::max(max_size, cluster(v).size());
       }
       return std::ptrdiff_t(max_size) - 1;
@@ -351,7 +361,7 @@ namespace libgm {
      * smallest cluster size (cardinality). If there is no such vertex,
      * then returns the null vertex.
      */
-    std::size_t find_cluster_cover(const Domain& domain) const {
+    id_t find_cluster_cover(const Domain& domain) const {
       return cluster_index_.find_min_cover(domain);
     }
 
@@ -369,7 +379,7 @@ namespace libgm {
      * domain. The returned vertex is the one that has the smallest cluster
      * that has maximal intersection with the supplied domain.
      */
-    std::size_t find_cluster_meets(const Domain& domain) const {
+    id_t find_cluster_meets(const Domain& domain) const {
       return cluster_index_.find_max_intersection(domain);
     }
 
@@ -386,7 +396,7 @@ namespace libgm {
      * Visits the vertices whose clusters overlap the supplied domain.
      */
     void intersecting_clusters(const Domain& domain,
-                               std::function<void(std::size_t)> visitor) const {
+                               std::function<void(id_t)> visitor) const {
       cluster_index_.intersecting_sets(domain, std::move(visitor));
     }
 
@@ -407,7 +417,7 @@ namespace libgm {
      *        are ignored. Their reachable sets are assigned empty sets.
      */
     void compute_reachable(bool past_empty) {
-      mpp_traversal(graph_, 0, reachable_visitor(graph_, past_empty));
+      mpp_traversal(graph_, id_t(), reachable_visitor(graph_, past_empty));
     }
 
     /**
@@ -421,8 +431,8 @@ namespace libgm {
      *        The reachable node sets are intersected with this set.
      */
     void compute_reachable(bool past_empty, const Domain& filter) {
-      std::unordered_set<value_type> set(filter.begin(), filter.end());
-      mpp_traversal(graph_, 0, reachable_visitor(graph_, past_empty, &set));
+      argument_set set(filter.begin(), filter.end());
+      mpp_traversal(graph_, id_t(), reachable_visitor(graph_, past_empty, &set));
     }
 
     /**
@@ -445,7 +455,7 @@ namespace libgm {
       if (empty()) { return; }
 
       // Initialize the vertices to be white.
-      for (std::size_t v : vertices()) {
+      for (id_t v : vertices()) {
         graph_[v].marked = false;
       }
 
@@ -455,12 +465,12 @@ namespace libgm {
       // The edges that must be in the subtree are those such that the
       // reachable variables in both directions have a non-empty
       // symmetric difference.
-      std::unordered_set<value_type> cover;
+      argument_set cover;
       for (edge_type e : edges()) {
-        std::size_t u = e.source();
-        std::size_t v = e.target();
-        const std::vector<value_type>& r1 = graph_[e].reachable.forward;
-        const std::vector<value_type>& r2 = graph_[e].reachable.reverse;
+        id_t u = e.source();
+        id_t v = e.target();
+        const std::vector<argument_type>& r1 = graph_[e].reachable.forward;
+        const std::vector<argument_type>& r2 = graph_[e].reachable.reverse;
         if (!std::includes(r1.begin(), r1.end(), r2.begin(), r2.end()) &&
             !std::includes(r2.begin(), r2.end(), r1.begin(), r1.end())) {
           graph_[e].marked = true;
@@ -478,13 +488,13 @@ namespace libgm {
       // If force_continuous = true, then either all nodes were covered
       // in the previous stage, or the nodes are contained in a single clique
       Domain uncovered;
-      for (value_type x : domain) {
+      for (argument_type x : domain) {
         if (!cover.count(x)) {
           uncovered.insert(uncovered.end(), x);
         }
       }
       while (!uncovered.empty()) {
-        std::size_t v = find_cluster_meets(uncovered);
+        id_t v = find_cluster_meets(uncovered);
         assert(v);
         uncovered = uncovered - cluster(v);
         graph_[v].marked = true;
@@ -499,10 +509,10 @@ namespace libgm {
      * If the vertex already exists, does not perform anything.
      * \return bool indicating whether insertion took place
      */
-    bool add_cluster(std::size_t v,
+    bool add_cluster(id_t v,
                      const Domain& cluster,
                      const VertexProperty& vp = VertexProperty()) {
-      next_vertex_ = std::max(next_vertex_, v + 1);
+      max_id_ = std::max(max_id_, v);
       if (graph_.add_vertex(v, vertex_info(cluster, vp))) {
         cluster_index_.insert(v, cluster);
         return true;
@@ -515,12 +525,13 @@ namespace libgm {
      * Adds a new cluster with the given propperty and returns its vertex.
      * This function always introduces a new cluster to the graph.
      */
-    std::size_t add_cluster(const Domain& cluster,
-                       const VertexProperty& vp = VertexProperty()) {
-      bool inserted = graph_.add_vertex(next_vertex_, vertex_info(cluster, vp));
+    id_t add_cluster(const Domain& cluster,
+                            const VertexProperty& vp = VertexProperty()) {
+      ++max_id_;
+      bool inserted = graph_.add_vertex(max_id_, vertex_info(cluster, vp));
       assert(inserted);
-      cluster_index_.insert(next_vertex_, cluster);
-      return next_vertex_++;
+      cluster_index_.insert(max_id_, cluster);
+      return max_id_;
     }
 
     /**
@@ -530,7 +541,7 @@ namespace libgm {
      * \return the edge and bool indicating whether the insertion took place
      */
     std::pair<edge_type, bool>
-    add_separator(std::size_t u, std::size_t v,
+    add_separator(id_t u, id_t v,
                   const Domain& separator,
                   const EdgeProperty& ep = EdgeProperty()) {
       assert(subset(separator, cluster(u)));
@@ -549,7 +560,7 @@ namespace libgm {
      * \return the edge and bool indicatign whether the insertion took place
      */
     std::pair<edge_type, bool>
-    add_edge(std::size_t u, std::size_t v) {
+    add_edge(id_t u, id_t v) {
       auto result = graph_.add_edge(u, v, edge_info(cluster(u) & cluster(v)));
       if (result.second) {
         separator_index_.insert(result.first, separator(result.first));
@@ -560,7 +571,7 @@ namespace libgm {
     /**
      * Updates the cluster associated with an existing vertex.
      */
-    void update_cluster(std::size_t u, const Domain& cluster) {
+    void update_cluster(id_t u, const Domain& cluster) {
       if (graph_[u].cluster != cluster) {
         cluster_index_.erase(u);
         cluster_index_.insert(u, cluster);
@@ -590,9 +601,9 @@ namespace libgm {
      *
      * \return the retained vertex
      */
-    std::size_t merge(const edge_type& e) {
-      std::size_t u = e.source();
-      std::size_t v = e.target();
+    id_t merge(const edge_type& e) {
+      id_t u = e.source();
+      id_t v = e.target();
       for (edge_type in : in_edges(u)) {
         if (in.source() != v) {
           graph_.add_edge(in.source(), v, graph_[in]);
@@ -604,19 +615,19 @@ namespace libgm {
     }
 
     //! Removes a vertex and the associated cluster and property.
-    void remove_vertex(std::size_t v) {
+    void remove_vertex(id_t v) {
       cluster_index_.erase(v);
       graph_.remove_vertex(v);
     }
 
     //! Removes an undirected edge {u, v} and the associated separator and data.
-    void remove_edge(std::size_t u, std::size_t v) {
+    void remove_edge(id_t u, id_t v) {
       separator_index_.erase(graph_.edge(u, v));
       graph_.remove_edge(u, v);
     }
 
     //! Removes all edges incindent to a vertex
-    void remove_edges(std::size_t u) {
+    void remove_edges(id_t u) {
       for (edge_type e : graph_.out_edges(u)) {
         separator_index_.erase(e);
       }
@@ -634,7 +645,7 @@ namespace libgm {
       graph_.clear();
       cluster_index_.clear();
       separator_index_.clear();
-      next_vertex_ = 1;
+      max_id_ = id_t(0);
     }
 
     // Triangulation
@@ -646,7 +657,7 @@ namespace libgm {
      */
     void triangulate() {
       compute_reachable(true);
-      for (std::size_t v : vertices()) {
+      for (id_t v : vertices()) {
         Domain c = cluster(v);
         in_edge_iterator it1, end;
         for (std::tie(it1, end) = in_edges(v); it1 != end; ++it1) {
@@ -705,13 +716,13 @@ namespace libgm {
       if (empty()) { return; }
 
       // Select a distinguished vertex of the tree.
-      std::size_t root = *vertices().begin();
+      id_t root = *vertices().begin();
 
       // For each pair of overlapping cliques, add a candidate edge to the graph
       // Also, add edges between a distinguished vertex and all other vertices,
       // to ensure that the resulting junction tree is connected
-      for (std::size_t u : vertices()) {
-        intersecting_clusters(cluster(u), [&](std::size_t v) {
+      for (id_t u : vertices()) {
+        intersecting_clusters(cluster(u), [&](id_t v) {
             if (u < v) { graph_.add_edge(u, v); }
           });
         if (root != u) { graph_.add_edge(root, u); }
@@ -809,7 +820,7 @@ namespace libgm {
        * in the subtree rooted at u, away from v, in the sorted order.
        * This field is not serialized.
        */
-      bidirectional<std::vector<value_type> > reachable;
+      bidirectional<std::vector<argument_type> > reachable;
 
       //! Default constructor. Default-initalizes the property.
       edge_info()
@@ -862,22 +873,22 @@ namespace libgm {
     public:
       reachable_visitor(graph_type& graph,
                         bool propagate_past_empty,
-                        const std::unordered_set<value_type>* filter = nullptr)
+                        const argument_set* filter = nullptr)
         : graph_(graph),
           propagate_past_empty_(propagate_past_empty),
           filter_(filter) { }
 
       void operator()(edge_type e) const {
-        std::vector<value_type> r;
+        std::vector<argument_type> r;
         if (!graph_[e].separator.empty() || propagate_past_empty_) {
           // extract the (possibly filtered) variables from the cluster
-          for (value_type x : graph_[e.source()].cluster) {
+          for (argument_type x : graph_[e.source()].cluster) {
             if (!filter_ || filter_->count(x)) { r.push_back(x); }
           }
           // compute the union of the incoming reachable variables
           for (edge_type in : graph_.in_edges(e.source())) {
             if (in.source() != e.target()) {
-              const std::vector<value_type>& rin = graph_[in].reachable(in);
+              const std::vector<argument_type>& rin = graph_[in].reachable(in);
               r.insert(r.end(), rin.begin(), rin.end());
             }
           }
@@ -893,7 +904,7 @@ namespace libgm {
     private:
       graph_type& graph_;
       bool propagate_past_empty_;
-      const std::unordered_set<value_type>* filter_;
+      const argument_set* filter_;
 
     }; // class reachable_visitor
 
@@ -901,16 +912,16 @@ namespace libgm {
     //==========================================================================
 
     //! An index of clusters that permits fast superset/intersection queries.
-    set_index<std::size_t, Domain> cluster_index_;
+    set_index<id_t, Domain, argument_hasher> cluster_index_;
 
     //! An index of separators that permits fast superset/intersection queries.
-    set_index<edge_type, Domain> separator_index_;
+    set_index<edge_type, Domain, argument_hasher> separator_index_;
 
     //! The underlying undirected graph.
-    undirected_graph<std::size_t, vertex_info, edge_info> graph_;
+    undirected_graph<id_t, vertex_info, edge_info> graph_;
 
-    //! The next vertex id.
-    std::size_t next_vertex_;
+    //! The largest ID value seen so far.
+    id_t max_id_;
 
   }; // class cluster_graph
 

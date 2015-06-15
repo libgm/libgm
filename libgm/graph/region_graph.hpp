@@ -1,13 +1,16 @@
 #ifndef LIBGM_REGION_GRAPH_HPP
 #define LIBGM_REGION_GRAPH_HPP
 
+#include <libgm/argument/argument_traits.hpp>
 #include <libgm/datastructure/set_index.hpp>
 #include <libgm/functional/output_iterator_assign.hpp>
 #include <libgm/graph/algorithm/ancestors.hpp>
 #include <libgm/graph/algorithm/descendants.hpp>
 #include <libgm/graph/algorithm/graph_traversal.hpp>
 #include <libgm/graph/directed_graph.hpp>
+#include <libgm/graph/id.hpp>
 #include <libgm/graph/property_fn.hpp>
+#include <libgm/graph/vertex_traits.hpp>
 #include <libgm/graph/void.hpp>
 
 #include <algorithm>
@@ -37,39 +40,42 @@ namespace libgm {
     struct edge_info;
 
     //! The underlying graph type.
-    typedef directed_graph<std::size_t, vertex_info, edge_info> graph_type;
+    typedef directed_graph<id_t, vertex_info, edge_info> graph_type;
 
     // Public type declarations
     // =========================================================================
   public:
-    // vertex, edge, and propertiies
-    typedef std::size_t                vertex_type;
-    typedef directed_edge<std::size_t> edge_type;
-    typedef VertexProperty        vertex_property;
-    typedef EdgeProperty          edge_property;
+    // vertex, edge, and properties
+    typedef id_t                vertex_type;
+    typedef directed_edge<id_t> edge_type;
+    typedef VertexProperty      vertex_property;
+    typedef EdgeProperty        edge_property;
 
     // iterators
-    typedef typename graph_type::vertex_iterator    vertex_iterator;
-    typedef typename graph_type::neighbor_iterator  neighbor_iterator;
-    typedef typename graph_type::edge_iterator      edge_iterator;
-    typedef typename graph_type::in_edge_iterator   in_edge_iterator;
-    typedef typename graph_type::out_edge_iterator  out_edge_iterator;
+    typedef typename graph_type::vertex_iterator   vertex_iterator;
+    typedef typename graph_type::neighbor_iterator neighbor_iterator;
+    typedef typename graph_type::edge_iterator     edge_iterator;
+    typedef typename graph_type::in_edge_iterator  in_edge_iterator;
+    typedef typename graph_type::out_edge_iterator out_edge_iterator;
 
-    // The domain
-    typedef typename Domain::value_type value_type;
+    // arguments
+    typedef typename Domain::value_type argument_type;
+    typedef typename argument_traits<argument_type>::hasher argument_hasher;
+    typedef typename set_index<id_t, Domain, argument_hasher>::value_iterator
+      argument_iterator;
 
     // Constructors and basic member functions
     // =========================================================================
   public:
     //! Constructs an empty region graph with no clusters.
     region_graph()
-      : next_vertex_(1) { }
+      : max_id_(0) { }
 
     //! Swaps two region graphs in-place.
     friend void swap(region_graph& a, region_graph& b) {
       swap(a.graph_, b.graph_);
       swap(a.cluster_index_, b.cluster_index_);
-      std::swap(a.next_vertex_, b.next_vertex_);
+      std::swap(a.max_id_, b.max_id_);
     }
 
     //! Prints a human-readable representation of the region graph to stream.
@@ -82,6 +88,11 @@ namespace libgm {
     // Graph accessors
     // =========================================================================
 
+    //! Returns the null vertex, guaranteed to be id_t().
+    static id_t null_vertex() {
+      return id_t();
+    }
+
     //! Returns the range of all vertices.
     iterator_range<vertex_iterator>
     vertices() const {
@@ -90,13 +101,13 @@ namespace libgm {
 
     //! Returns the parents of u.
     iterator_range<neighbor_iterator>
-    parents(std::size_t u) const {
+    parents(id_t u) const {
       return graph_.parents(u);
     }
 
     //! Returns the children of u.
     iterator_range<neighbor_iterator>
-    children(std::size_t u) const {
+    children(id_t u) const {
       return graph_.children(u);
     }
 
@@ -108,23 +119,23 @@ namespace libgm {
 
     //! Returns the edges incoming to a vertex.
     iterator_range<in_edge_iterator>
-    in_edges(std::size_t u) const {
+    in_edges(id_t u) const {
       return graph_.in_edges(u);
     }
 
     //! Returns the outgoing edges from a vertex.
     iterator_range<out_edge_iterator>
-    out_edges(std::size_t u) const {
+    out_edges(id_t u) const {
       return graph_.out_edges(u);
     }
 
     //! Returns true if the graph contains the given vertex.
-    bool contains(std::size_t u) const {
+    bool contains(id_t u) const {
       return graph_.contains(u);
     }
 
     //! Returns true if the graph contains an undirected edge {u, v}.
-    bool contains(std::size_t u, std::size_t v) const {
+    bool contains(id_t u, id_t v) const {
       return graph_.contains(u, v);
     }
 
@@ -134,22 +145,22 @@ namespace libgm {
     }
 
     //! Returns an undirected edge (u, v). The edge must exist.
-    edge_type edge(std::size_t u, std::size_t v) const {
+    edge_type edge(id_t u, id_t v) const {
       return graph_.edge(u, v);
     }
 
     //! Returns the number of edges adjacent to a vertex.
-    std::size_t in_degree(std::size_t u) const {
+    std::size_t in_degree(id_t u) const {
       return graph_.in_degree(u);
     }
 
     //! Returns the number of edges adjacent to a vertex.
-    std::size_t out_degree(std::size_t u) const {
+    std::size_t out_degree(id_t u) const {
       return graph_.out_degree(u);
     }
 
     //! Returns the number of edges adjacent to a vertex.
-    std::size_t degree(std::size_t u) const {
+    std::size_t degree(id_t u) const {
       return graph_.degree(u);
     }
 
@@ -174,8 +185,18 @@ namespace libgm {
       return graph_.reverse(e);
     }
 
+    //! Returns the union of all the clusters in this graph.
+    iterator_range<argument_iterator> arguments() const {
+      return cluster_index_.values();
+    }
+
+    //! Returns the cardinality of the union of all the clusters.
+    std::size_t num_arguments() const {
+      return cluster_index_.num_values();
+    }
+
     //! Returns the cluster associated with a vertex.
-    const Domain& cluster(std::size_t v) const {
+    const Domain& cluster(id_t v) const {
       return graph_[v].cluster;
     }
 
@@ -185,22 +206,22 @@ namespace libgm {
     }
 
     //! Returns the separator associated with an edge.
-    const Domain& separator(std::size_t u, std::size_t v) const {
+    const Domain& separator(id_t u, id_t v) const {
       return graph_(u, v).separator;
     }
 
     //! Returns the counting number of a region.
-    int counting(std::size_t v) const {
+    int counting(id_t v) const {
       return graph_[v].counting;
     }
 
     //! Returns the property associated with a vertex
-    VertexProperty& operator[](std::size_t u) {
+    VertexProperty& operator[](id_t u) {
       return graph_[u].property;
     }
 
     //! Returns the property associated with a vertex
-    const VertexProperty& operator[](std::size_t u) const {
+    const VertexProperty& operator[](id_t u) const {
       return graph_[u].property;
     }
 
@@ -218,44 +239,44 @@ namespace libgm {
     //==========================================================================
 
     //! Returns the ancestors of one or more vertices.
-    std::unordered_set<std::size_t>
-    ancestors(const std::unordered_set<std::size_t>& vertices) const {
-      std::unordered_set<std::size_t> result;
+    std::unordered_set<id_t>
+    ancestors(const std::unordered_set<id_t>& vertices) const {
+      std::unordered_set<id_t> result;
       libgm::ancestors(graph_, vertices, result);
       return result;
     }
 
     //! Returns the ancestors of one vertices.
-    std::unordered_set<std::size_t> ancestors(std::size_t v) const {
-      std::unordered_set<std::size_t> result;
+    std::unordered_set<id_t> ancestors(id_t v) const {
+      std::unordered_set<id_t> result;
       libgm::ancestors(graph_, v, result);
       return result;
     }
 
     //! Returns the descendants of one or more vertices.
-    std::unordered_set<std::size_t>
-    descendants(const std::unordered_set<std::size_t>& vertices) const {
-      std::unordered_set<std::size_t> result;
+    std::unordered_set<id_t>
+    descendants(const std::unordered_set<id_t>& vertices) const {
+      std::unordered_set<id_t> result;
       libgm::descendants(graph_, vertices, result);
       return result;
     }
 
     //! Returns the ancestors of one vertices.
-    std::unordered_set<std::size_t> descendants(std::size_t v) const {
-      std::unordered_set<std::size_t> result;
+    std::unordered_set<id_t> descendants(id_t v) const {
+      std::unordered_set<id_t> result;
       libgm::descendants(graph_, v, result);
       return result;
     }
 
     //! Returns the vertex that covers the given domain or 0 if none.
-    std::size_t find_cover(const Domain& domain) const {
+    id_t find_cover(const Domain& domain) const {
       return cluster_index_.find_min_cover(domain);
     }
 
     //! Returns a root vertex that covers the given domain or 0 if none.
     //! The region graph must be valid.
-    std::size_t find_root_cover(const Domain& domain) const {
-      std::size_t v = cluster_index_.find_min_cover(domain);
+    id_t find_root_cover(const Domain& domain) const {
+      id_t v = cluster_index_.find_min_cover(domain);
       if (v) {
         while (in_degree(v) > 0) {
           v = *parents(v).begin(); // choose arbitrary parent
@@ -272,10 +293,10 @@ namespace libgm {
      * If the vertex already exists, does not perform anything.
      * \return bool indicating whether insertion took place
      */
-    bool add_region(std::size_t v,
+    bool add_region(id_t v,
                     const Domain& cluster,
                     const VertexProperty& vp = VertexProperty()) {
-      next_vertex_ = std::max(next_vertex_, v + 1);
+      max_id_ = std::max(max_id_, v);
       if (graph_.add_vertex(v, vertex_info(cluster, vp))) {
         cluster_index_.insert(v, cluster);
         return true;
@@ -289,12 +310,13 @@ namespace libgm {
      * This function always introduces a new cluster to the graph.
      * \return the newly added vertex
      */
-    std::size_t add_region(const Domain& cluster,
-                      const VertexProperty& vp = VertexProperty()) {
-      bool inserted = graph_.add_vertex(next_vertex_, vertex_info(cluster, vp));
+    id_t add_region(const Domain& cluster,
+                    const VertexProperty& vp = VertexProperty()) {
+      ++max_id_;
+      bool inserted = graph_.add_vertex(max_id_, vertex_info(cluster, vp));
       assert(inserted);
-      cluster_index_.insert(next_vertex_, cluster);
-      return next_vertex_++;
+      cluster_index_.insert(max_id_, cluster);
+      return max_id_;
     }
 
     /**
@@ -302,34 +324,34 @@ namespace libgm {
      * intersection of the two clusters at the endpoints.
      */
     std::pair<edge_type, bool>
-    add_edge(std::size_t u, std::size_t v,
+    add_edge(id_t u, id_t v,
              const EdgeProperty& ep = EdgeProperty()) {
       return graph_.add_edge(u, v, edge_info(cluster(u) & cluster(v), ep));
     }
 
     //! Removes a vertex and the associated cluster and user information.
-    void remove_vertex(std::size_t v) {
+    void remove_vertex(id_t v) {
       cluster_index_.erase(v);
       graph_.remove_vertex(v);
     }
 
     //! Removes an undirected edge {u, v} and the associated separator and data.
-    void remove_edge(std::size_t u, std::size_t v) {
+    void remove_edge(id_t u, id_t v) {
       graph_.remove_edge(u, v);
     }
 
     //! Removes all edges incident to a vertex.
-    void remove_edges(std::size_t u) {
+    void remove_edges(id_t u) {
       graph_.remove_edges(u);
     }
 
     //! Removes all edges incoming to a vertex.
-    void remove_in_edges(std::size_t u) {
+    void remove_in_edges(id_t u) {
       graph_.remove_in_edges(u);
     }
 
     //! Removes all edges outgoing from a vertex.
-    void remove_out_edges(std::size_t u) {
+    void remove_out_edges(id_t u) {
       graph_.remove_out_edges(u);
     }
 
@@ -342,7 +364,7 @@ namespace libgm {
     void clear() {
       graph_.clear();
       cluster_index_.clear();
-      next_vertex_ = 1;
+      max_id_ = id_t(0);
     }
 
     /**
@@ -351,12 +373,12 @@ namespace libgm {
      * clusters to satisfy the running intersection property.
      */
     void update_counting() {
-      partial_order_traversal(graph_, [&](std::size_t v) {
+      partial_order_traversal(graph_, [&](id_t v) {
           if(in_degree(v) == 0) {
             graph_[v].counting = 1;
           } else {
             int sum = 0;
-            for (std::size_t u : ancestors(v)) {
+            for (id_t u : ancestors(v)) {
               sum += graph_[u].counting;
             }
             graph_[v].counting = 1 - sum;
@@ -373,7 +395,7 @@ namespace libgm {
     template <typename VP, typename EP>
     void structure_from(const region_graph<Domain, VP, EP>& other) {
       clear();
-      for (std::size_t v : other.vertices()) {
+      for (id_t v : other.vertices()) {
         bool added = add_region(v, other.cluster(v));
         assert(added);
         graph_[v].counting = other.counting(v);
@@ -392,13 +414,13 @@ namespace libgm {
      */
     template <typename Range>
     void bethe(const Range& root_clusters) {
-      std::unordered_map<value_type, std::size_t> var_region; // singletons
+      std::unordered_map<argument_type, id_t, argument_hasher> var_region;
       clear();
 
       for (const Domain& cluster : root_clusters) {
-        std::size_t r = add_region(cluster);
-        for (value_type var : cluster) {
-          std::size_t& s = var_region[var];
+        id_t r = add_region(cluster);
+        for (argument_type var : cluster) {
+          id_t& s = var_region[var];
           if (!s) { s = var_region[var] = add_region({var}); }
           add_edge(r, s);
         }
@@ -419,13 +441,13 @@ namespace libgm {
     template <typename Range>
     void saturated(const Range& root_clusters) {
       std::unordered_set<Domain> clusters;
-      set_index<std::size_t, Domain> index;
+      set_index<id_t, Domain, argument_hasher> index;
       clear();
 
       // add the root clusters
       for (const Domain& cluster : root_clusters) {
         if (!cluster.empty() && !clusters.count(cluster)) {
-          std::size_t r = add_region(cluster);
+          id_t r = add_region(cluster);
           index.insert(r, cluster);
           clusters.insert(cluster);
         }
@@ -433,8 +455,8 @@ namespace libgm {
 
       // compute closure under intersections
       while (!index.empty()) {
-        std::size_t r = index.front();
-        index.intersecting_sets(cluster(r), [&](std::size_t s) {
+        id_t r = index.front();
+        index.intersecting_sets(cluster(r), [&](id_t s) {
             if (r != s) {
               Domain cluster = index.intersection(r, s);
               if (!clusters.count(cluster)) {
@@ -447,20 +469,20 @@ namespace libgm {
       }
 
       // add the edges in the decreasing size of the cluster
-      std::vector<std::size_t> regions(vertices().begin(), vertices().end());
+      std::vector<id_t> regions(vertices().begin(), vertices().end());
       std::sort(regions.begin(), regions.end(),
-                [&](std::size_t r, std::size_t s) {
+                [&](id_t r, id_t s) {
                   return cluster(r).size() > cluster(s).size();
                 });
-      std::unordered_set<std::size_t> supersets;
-      for (std::size_t r : regions) {
+      std::unordered_set<id_t> supersets;
+      for (id_t r : regions) {
         supersets.clear();
         auto out = std::inserter(supersets, supersets.end());
         cluster_index_.supersets(cluster(r), make_output_iterator_assign(out));
         supersets.erase(r);
-        for (std::size_t s : supersets) {
+        for (id_t s : supersets) {
           bool valid = true;
-          for (std::size_t t : children(s)) {
+          for (id_t t : children(s)) {
             if (supersets.count(t)) { valid = false; break; }
           }
           if (valid) { add_edge(s, r); }
@@ -538,13 +560,13 @@ namespace libgm {
     //==========================================================================
 
     //! An index that maps variables (nodes) to vertices this region graph.
-    set_index<std::size_t, Domain> cluster_index_;
+    set_index<id_t, Domain, argument_hasher> cluster_index_;
 
     //! The underlying graph
-    directed_graph<std::size_t, vertex_info, edge_info> graph_;
+    directed_graph<id_t, vertex_info, edge_info> graph_;
 
-    //! The next vertex id
-    std::size_t next_vertex_;
+    //! The largest ID value seen so far.
+    id_t max_id_;
 
   }; // class region_graph
 

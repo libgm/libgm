@@ -67,8 +67,8 @@ namespace libgm {
     //! Initializes the messages to unity.
     void initialize_messages() {
       for (edge_type e : graph_.edges()) {
-        std::size_t u = e.source();
-        std::size_t v = e.target();
+        id_t u = e.source();
+        id_t v = e.target();
         const domain_type& args = graph_.separator(e);
         pseudo_message(u, v) = F(args, result_type(1));
         pseudo_message(v, u) = F(args, result_type(1));
@@ -79,7 +79,7 @@ namespace libgm {
 
     //! Initializes the factors to unity.
     void initialize_factors() {
-      for (std::size_t v : graph_.vertices()) {
+      for (id_t v : graph_.vertices()) {
         graph_[v] = F(graph_.cluster(v), result_type(1));
       }
     }
@@ -89,7 +89,7 @@ namespace libgm {
     void initialize_factors(const Range& factors) {
       initialize_factors();
       for (const F& factor : factors) {
-        std::size_t v = graph_.find_root_cover(factor.arguments());
+        id_t v = graph_.find_root_cover(factor.arguments());
         assert(v);
         graph_[v] *= factor;
       }
@@ -107,12 +107,12 @@ namespace libgm {
     }
 
     //! Returns the belief for a region.
-    F belief(std::size_t v) const {
+    F belief(id_t v) const {
       F result = pow(graph_[v], graph_.counting(v));
-      for (std::size_t u : graph_.parents(v)) {
+      for (id_t u : graph_.parents(v)) {
         result *= message(u, v);
       }
-      for (std::size_t u : graph_.children(v)) {
+      for (id_t u : graph_.children(v)) {
         result *= message(u, v);
       }
       return result.normalize();
@@ -120,7 +120,7 @@ namespace libgm {
 
     //! Returns the marginal over a set of variables
     F belief(const domain_type& vars) const {
-      std::size_t v = graph_.find_cover(vars);
+      id_t v = graph_.find_cover(vars);
       assert(v);
       return belief(v).marginal(vars);
     }
@@ -129,17 +129,17 @@ namespace libgm {
     //==========================================================================
   protected:
     //! Returns a pseudo-message from region u to region v
-    F& pseudo_message(std::size_t u, std::size_t v) {
+    F& pseudo_message(id_t u, id_t v) {
       return pseudo_message_[std::make_pair(u, v)];
     }
 
     //! Returns the message from region u to region v
-    F& message(std::size_t u, std::size_t v) {
+    F& message(id_t u, id_t v) {
       return message_[std::make_pair(u, v)];
     }
 
     //! Returns the message from region u to region v
-    const F& message(std::size_t u, std::size_t v) const {
+    const F& message(id_t u, id_t v) const {
       return message_.at(std::make_pair(u, v));
     }
 
@@ -147,7 +147,7 @@ namespace libgm {
      * Passes a message from region u to region v.
      * u and v must be adjacent.
      */
-    real_type pass_message(std::size_t u, std::size_t v, real_type eta) {
+    real_type pass_message(id_t u, id_t v, real_type eta) {
       bool down = graph_.contains(u, v); /* true means the edge is u->v */
       real_type br = down ? beta(v) : beta(u);
       const domain_type& sep =
@@ -155,10 +155,10 @@ namespace libgm {
 
       // compute the pseudo message (this is m0 in the Yedidia paper)
       F m0 = pow(graph_[u], graph_.counting(u));
-      for (std::size_t w : graph_.parents(u)) {
+      for (id_t w : graph_.parents(u)) {
         if (w != v) m0 *= message(w, u);
       }
-      for (std::size_t w : graph_.children(u)) {
+      for (id_t w : graph_.children(u)) {
         if (w != v) m0 *= message(w, u);
       }
       try {
@@ -170,10 +170,10 @@ namespace libgm {
         out << "beta = " << br << std::endl;
         out << m0 << std::endl;
         out << pow(graph_[u], graph_.counting(u)) << std::endl;
-        for (std::size_t w : graph_.parents(u)) {
+        for (id_t w : graph_.parents(u)) {
           if (w != v) out << message(w, u);
         }
-        for (std::size_t w : graph_.children(u)) {
+        for (id_t w : graph_.children(u)) {
           if (w != v) out << message(w, u);
         }
         throw std::runtime_error(out.str());
@@ -196,7 +196,7 @@ namespace libgm {
     }
 
     //! Returns the beta coefficient for vertex v.
-    real_type beta(std::size_t v) const {
+    real_type beta(id_t v) const {
       if (graph_.in_degree(v) > 0) {
         real_type qr = real_type(1 - graph_.counting(v)) / graph_.in_degree(v);
         real_type br = real_type(1) / (real_type(2) - qr);
@@ -262,14 +262,14 @@ namespace libgm {
     real_type iterate(real_type eta) override {
       // pass the messages downwards
       real_type residual(0);
-      for (std::size_t v : order_) {
-        for (std::size_t u : this->graph_.parents(v)) {
+      for (id_t v : order_) {
+        for (id_t u : this->graph_.parents(v)) {
           residual = std::max(residual, this->pass_message(u, v, eta));
         }
       }
       // pass the messages upwards
-      for (std::size_t v : make_reversed(order_)) {
-        for (std::size_t u : this->graph_.parents(v)) {
+      for (id_t v : make_reversed(order_)) {
+        for (id_t u : this->graph_.parents(v)) {
           residual = std::max(residual, this->pass_message(v, u, eta));
         }
       }
@@ -278,7 +278,7 @@ namespace libgm {
 
   private:
     //! A partial order over the graph vertices.
-    std::vector<std::size_t> order_;
+    std::vector<id_t> order_;
 
   }; // class asynchronous_generalized_bp
 

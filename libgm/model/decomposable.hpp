@@ -47,8 +47,8 @@ namespace libgm {
     typedef const_iterator              iterator;
 
     // Graph vertex, edge, and properties
-    typedef std::size_t                  vertex_type;
-    typedef undirected_edge<std::size_t> edge_type;
+    typedef id_t                  vertex_type;
+    typedef undirected_edge<id_t> edge_type;
     typedef F                       vertex_property;
     typedef F                       edge_property;
 
@@ -58,6 +58,9 @@ namespace libgm {
     typedef typename graph_type::edge_iterator     edge_iterator;
     typedef typename graph_type::in_edge_iterator  in_edge_iterator;
     typedef typename graph_type::out_edge_iterator out_edge_iterator;
+
+    // Model iterators
+    typedef typename graph_type::argument_iterator argument_iterator;
 
     // Constructors and destructors
     //==========================================================================
@@ -101,20 +104,25 @@ namespace libgm {
 
     // Accessors
     //==========================================================================
+    //! Returns the null vertex, guaranteed to be id_t().
+    static id_t null_vertex() {
+      return id_t();
+    }
+
     //! Returns the range of all vertices (clique ids) of the model.
     iterator_range<vertex_iterator>
     vertices() const {
       return jt_.vertices();
     }
 
-    //! Returns the first vertex or 0 if the graph is empty.
-    std::size_t root() const {
-      return jt_.empty() ? 0 : *jt_.vertices().begin();
+    //! Returns the first vertex or the null vertex if the graph is empty.
+    id_t root() const {
+      return jt_.empty() ? id_t() : *jt_.vertices().begin();
     }
 
     //! Returns the vertices (clique ids) adjacent to u.
     iterator_range<neighbor_iterator>
-    neighbors(std::size_t u) const {
+    neighbors(id_t u) const {
       return jt_.neighbors(u);
     }
 
@@ -126,23 +134,23 @@ namespace libgm {
 
     //! Returns the edges incoming to a vertex.
     iterator_range<in_edge_iterator>
-    in_edges(std::size_t u) const {
+    in_edges(id_t u) const {
       return jt_.in_edges(u);
     }
 
     //! Returns the outgoing edges from a vertex.
     iterator_range<out_edge_iterator>
-    out_edges(std::size_t u) const {
+    out_edges(id_t u) const {
       return jt_.out_edges(u);
     }
 
     //! Returns true if the graph contains the given vertex.
-    bool contains(std::size_t u) const {
+    bool contains(id_t u) const {
       return jt_.contains(u);
     }
 
     //! Returns true if the graph contains an undirected edge {u, v}.
-    bool contains(std::size_t u, std::size_t v) const {
+    bool contains(id_t u, id_t v) const {
       return jt_.contains(u, v);
     }
 
@@ -152,22 +160,22 @@ namespace libgm {
     }
 
     //! Returns an undirected edge (u, v). The edge must exist.
-    edge_type edge(std::size_t u, std::size_t v) const {
+    edge_type edge(id_t u, id_t v) const {
       return jt_.edge(u, v);
     }
 
     //! Returns the number of edges adjacent to a vertex.
-    std::size_t in_degree(std::size_t u) const {
+    std::size_t in_degree(id_t u) const {
       return jt_.in_degree(u);
     }
 
     //! Returns the number of edges adjacent to a vertex.
-    std::size_t out_degree(std::size_t u) const {
+    std::size_t out_degree(id_t u) const {
       return jt_.out_degree(u);
     }
 
     //! Returns the number of edges adjacent to a vertex.
-    std::size_t degree(std::size_t u) const {
+    std::size_t degree(id_t u) const {
       return jt_.degree(u);
     }
 
@@ -192,7 +200,7 @@ namespace libgm {
     }
 
     //! Returns the range of arguments of the model.
-    iterator_range<typename graph_type::value_iterator> arguments() const {
+    iterator_range<argument_iterator> arguments() const {
       return jt_.arguments();
     }
 
@@ -202,7 +210,7 @@ namespace libgm {
     }
 
     //! Returns the clique associated with a vertex.
-    const domain_type& clique(std::size_t v) const {
+    const domain_type& clique(id_t v) const {
       return jt_.cluster(v);
     }
 
@@ -222,7 +230,7 @@ namespace libgm {
     }
 
     //! Returns the marginal associated with a vertex.
-    const F& operator[](std::size_t u) const {
+    const F& operator[](id_t u) const {
       return jt_[u];
     }
 
@@ -246,7 +254,7 @@ namespace libgm {
       for (variable_type v : arguments()) {
         mg.add_vertex(v);
       }
-      for (std::size_t v : vertices()) {
+      for (id_t v : vertices()) {
         make_clique(mg, clique(v));
       }
     }
@@ -268,7 +276,7 @@ namespace libgm {
         if (msg) { *msg = "The underlying graph does not satisfiy RIP"; }
         return false;
       }
-      for (std::size_t v : vertices()) {
+      for (id_t v : vertices()) {
         if (clique(v) != jt_[v].arguments()) {
           if (msg) {
             std::ostringstream out;
@@ -307,7 +315,7 @@ namespace libgm {
       if (e) { return jt_[e].marginal(domain); }
 
       // Look for a clique that covers the variables.
-      std::size_t v = jt_.find_cluster_cover(domain);
+      id_t v = jt_.find_cluster_cover(domain);
       if (v) { return jt_[v].marginal(domain); }
 
       // Otherwise, compute the factors whose product represents
@@ -326,7 +334,7 @@ namespace libgm {
       if (domain.empty()) return;
 
       const_cast<graph_type&>(jt_).mark_subtree_cover(domain, false);
-      for (std::size_t v : vertices()) {
+      for (id_t v : vertices()) {
         if (jt_.marked(v)) {
           factors.push_back(jt_[v]);
         }
@@ -357,7 +365,7 @@ namespace libgm {
      */
     real_type entropy() const {
       real_type result(0);
-      for (std::size_t v : vertices()) { result += jt_[v].entropy(); }
+      for (id_t v : vertices()) { result += jt_[v].entropy(); }
       for (edge_type e : edges()) { result -= jt_[e].entropy(); }
       return result;
     }
@@ -370,7 +378,7 @@ namespace libgm {
       edge_type e = jt_.find_separator_cover(domain);
       if (e) { return jt_[e].entropy(domain); }
 
-      std::size_t v = jt_.find_cluster_cover(domain);
+      id_t v = jt_.find_cluster_cover(domain);
       if (v) { return jt_[v].entropy(domain); }
 
       // failing that, compute the marginal of the model
@@ -421,8 +429,8 @@ namespace libgm {
       if (empty()) { return result_type(1); }
 
       // copy the clique marginals into factors
-      std::unordered_map<std::size_t, F> factor;
-      for (std::size_t v : vertices()) {
+      std::unordered_map<id_t, F> factor;
+      for (id_t v : vertices()) {
         factor[v] = jt_[v];
       }
 
@@ -466,7 +474,7 @@ namespace libgm {
       domain_type args = restricted_args(a);
       real_type result(0);
       if (args.size() == num_arguments()) {
-        for (std::size_t v : vertices()) { result += jt_[v].log(a); }
+        for (id_t v : vertices()) { result += jt_[v].log(a); }
         for (edge_type e : edges()) { result -= jt_[e].log(a); }
       } else {
         std::list<F> factors;
@@ -569,7 +577,7 @@ namespace libgm {
       // initialize the clique/separator marginals
       graph_type jt;
       jt.triangulated(mg, min_degree_strategy());
-      for (std::size_t v : jt.vertices()) {
+      for (id_t v : jt.vertices()) {
         jt[v] = F(jt.cluster(v), typename F::result_type(1));
         jt[v] *= marginal(intersecting_args(jt.cluster(v)));
       }
@@ -587,8 +595,8 @@ namespace libgm {
      * that covers the supplied variables, and returns the vertex
      * associated with this clique.
      */
-    std::size_t make_cover(const domain_type& domain) {
-      std::size_t v = jt_.find_cluster_cover(domain);
+    id_t make_cover(const domain_type& domain) {
+      id_t v = jt_.find_cluster_cover(domain);
       if (v) {
         return v;
       } else {
@@ -602,9 +610,9 @@ namespace libgm {
      * swings all edges from the source of the supplied edge to the
      * target. The source is removed from the graph.
      */
-    std::size_t merge(const edge_type& e) {
-      std::size_t u = e.source();
-      std::size_t v = e.target();
+    id_t merge(const edge_type& e) {
+      id_t u = e.source();
+      id_t v = e.target();
 
       // compute the marginal for the new clique clique(u) | clique(v)
       F marginal;
@@ -623,15 +631,15 @@ namespace libgm {
 
     /**
      * Removes a vertex from the junction tree if its clique is nonmaximal.
-     * \return the vertex merged to or 0 if not merged
+     * \return the vertex merged to or the null vertex if not merged
      */
-    std::size_t remove_if_nonmaximal(std::size_t u) {
+    id_t remove_if_nonmaximal(id_t u) {
       for (edge_type e : out_edges(u)) {
         if (subset(clique(u), clique(e.target()))) {
           return merge(e);
         }
       }
-      return 0;
+      return id_t();
     }
 
     // Distribution updates
@@ -655,7 +663,7 @@ namespace libgm {
       // For each factor, multiply it into a clique that subsumes it.
       for (const auto& factor : factors) {
         if (!factor.arguments().empty()) {
-          std::size_t v = jt_.find_cluster_cover(factor.arguments());
+          id_t v = jt_.find_cluster_cover(factor.arguments());
           assert(v);
           jt_[v] *= factor;
         }
@@ -672,7 +680,7 @@ namespace libgm {
      * renormalizes the model.
      */
     decomposable& operator*=(const F& factor) {
-      std::size_t v = make_cover(factor.arguments());
+      id_t v = make_cover(factor.arguments());
       jt_[v] *= factor;
       distribute_evidence(v);
       return *this;
@@ -687,7 +695,7 @@ namespace libgm {
       domain_type restricted = restricted_args(a);
 
       // Update each affected clique
-      jt_.intersecting_clusters(restricted, [&](std::size_t v) {
+      jt_.intersecting_clusters(restricted, [&](id_t v) {
           F& factor = jt_[v];
           factor = factor.restrict(a);
           if (factor.arguments().empty()) {
@@ -715,7 +723,7 @@ namespace libgm {
      */
     F condition_flatten(const assignment_type& a) const {
       F result(typename F::result_type(1));
-      for (std::size_t v : jt_.vertices()) {
+      for (id_t v : jt_.vertices()) {
         result *= jt_[v].restrict(a);
       }
       for (edge_type e : jt_.edges()) {
@@ -798,7 +806,7 @@ namespace libgm {
     /**
      * Passes flows outwards from the supplied vertex.
      */
-    void distribute_evidence(std::size_t v) {
+    void distribute_evidence(id_t v) {
       pre_order_traversal(jt_, v, [&](const edge_type& e) {
           jt_[e.target()] /= jt_[e];
           jt_[e.source()].marginal(separator(e), jt_[e]);
@@ -811,7 +819,7 @@ namespace libgm {
      * passing protocol.
      */
     void calibrate() {
-      mpp_traversal(jt_, 0, [&](const edge_type& e) {
+      mpp_traversal(jt_, id_t(), [&](const edge_type& e) {
           jt_[e.target()] /= jt_[e];
           jt_[e.source()].marginal(separator(e), jt_[e]);
           jt_[e.target()] *= jt_[e];
@@ -823,7 +831,7 @@ namespace libgm {
      * marginals are normalized.
      */
     void normalize() {
-      for (std::size_t v : vertices()) { jt_[v].normalize(); }
+      for (id_t v : vertices()) { jt_[v].normalize(); }
       for (edge_type e : edges()) { jt_[e].normalize(); }
     }
 

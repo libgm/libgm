@@ -4,6 +4,9 @@
 #include <libgm/argument/array_domain.hpp>
 
 namespace libgm {
+  template <>
+  struct argument_traits<int> : fixed_discrete_traits<int, 5> { };
+
   template class array_domain<int, 2>;
   template class array_domain<int, 9>;
 }

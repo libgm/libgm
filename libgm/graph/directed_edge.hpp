@@ -2,6 +2,7 @@
 #define LIBGM_DIRECTED_EDGE_HPP
 
 #include <libgm/functional/hash.hpp>
+#include <libgm/graph/vertex_traits.hpp>
 
 #include <iosfwd>
 #include <utility>
@@ -24,15 +25,30 @@ namespace libgm {
   public:
     //! Constructs an empty edge with null source and target.
     directed_edge()
-      : source_(), target_(), property_() {}
+      : source_(vertex_traits<Vertex>::null()),
+        target_(vertex_traits<Vertex>::null()),
+        property_() {}
 
     //! Constructs a special "root" edge with empty source and given target.
     explicit directed_edge(Vertex target)
-      : source_(), target_(target), property_() { }
+      : source_(vertex_traits<Vertex>::null()),
+        target_(target),
+        property_() { }
 
     //! Conversion to bool indicating if this edge is empty.
     explicit operator bool() const {
-      return source_ != Vertex() || target_ != Vertex();
+      return source_ != vertex_traits<Vertex>::null() ||
+             target_ != vertex_traits<Vertex>::null();
+    }
+
+    //! Returns the source vertex.
+    const Vertex& source() const {
+      return source_;
+    }
+
+    //! Returns the target vertex.
+    const Vertex& target() const {
+      return target_;
     }
 
     //! Returns the pair consisting of source and target vertex.
@@ -61,20 +77,19 @@ namespace libgm {
       return !(a == b);
     }
 
-    //! Returns the source vertex.
-    const Vertex& source() const {
-      return source_;
-    }
-
-    //! Returns the target vertex.
-    const Vertex& target() const {
-      return target_;
+    //! Returns the hash value of an undirected edge.
+    friend std::size_t hash_value(const directed_edge& e) {
+      std::size_t seed = 0;
+      hash_combine(seed, e.source());
+      hash_combine(seed, e.target());
+      return seed;
     }
 
     //! Prints the edge to an output stream.
-    friend std::ostream&
-    operator<<(std::ostream& out, const directed_edge& e) {
-      out << e.source() << " --> " << e.target();
+    friend std::ostream& operator<<(std::ostream& out, const directed_edge& e) {
+      vertex_traits<Vertex>::print(out, e.source());
+      out << " --> ";
+      vertex_traits<Vertex>::print(out, e.target());
       return out;
     }
 
@@ -118,16 +133,8 @@ namespace std {
 
   //! \relates directed_edge
   template <typename Vertex>
-  struct hash<libgm::directed_edge<Vertex>> {
-    typedef libgm::directed_edge<Vertex> argument_type;
-    typedef std::size_t result_type;
-    std::size_t operator()(const libgm::directed_edge<Vertex>& e) const {
-      std::size_t seed = 0;
-      libgm::hash_combine(seed, e.source());
-      libgm::hash_combine(seed, e.target());
-      return seed;
-    }
-  };
+  struct hash<libgm::directed_edge<Vertex>>
+    : libgm::default_hash<libgm::directed_edge<Vertex>> { };
 
 } // namespace std
 

@@ -1,6 +1,7 @@
 #ifndef LIBGM_FINITE_ASSIGNMENT_HPP
 #define LIBGM_FINITE_ASSIGNMENT_HPP
 
+#include <libgm/argument/argument_traits.hpp>
 #include <libgm/argument/basic_domain.hpp>
 #include <libgm/argument/variable.hpp>
 #include <libgm/datastructure/uint_vector.hpp>
@@ -19,7 +20,8 @@ namespace libgm {
    * \tparam Var a type that satisfies the DiscreteArgument concept
    */
   template <typename Var = variable>
-  using uint_assignment = std::unordered_map<Var, std::size_t>;
+  using uint_assignment =
+    std::unordered_map<Var, std::size_t, typename argument_traits<Var>::hasher>;
 
   /**
    * Prints the assignment to an output stream.
@@ -31,7 +33,8 @@ namespace libgm {
     bool first = true;
     for (const auto& p : a) {
       if (first) { first = false; } else { out << ','; }
-      out << p.first << ':' << p.second;
+      argument_traits<Var>::print(out, p.first);
+      out << ':' << p.second;
     }
     out << '}';
     return out;

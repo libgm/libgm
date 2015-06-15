@@ -13,17 +13,18 @@ namespace libgm {
 #include "mn_fixture.hpp"
 
 BOOST_FIXTURE_TEST_CASE(test_calibrate, fixture) {
-  sum_product_calibrate<ptable> engine(mn);
+  using libgm::id_t;
+  sum_product_calibrate<ptable_type> engine(mn);
 
   // check if clique marginals are correct
   engine.calibrate();
-  for (std::size_t v : engine.jt().vertices()) {
+  for (id_t v : engine.jt().vertices()) {
     check_belief(engine.belief(v), 1e-8);
   }
 
   // check if clique marginals are correct after normalization
   engine.normalize();
-  for (std::size_t v : engine.jt().vertices()) {
+  for (id_t v : engine.jt().vertices()) {
     check_belief_normalized(engine.belief(v), 1e-8);
   }
 
@@ -33,12 +34,14 @@ BOOST_FIXTURE_TEST_CASE(test_calibrate, fixture) {
   }
 
   // condition on an assignment
-  uint_assignment<> a = {{vars[6], 0}, {vars[15], 1}, {vars[16], 0}};
+  uint_assignment<std::pair<int, int>> a = {
+    {{1, 1}, 0}, {{0, 3}, 1}, {{1, 3}, 0}
+  };
   engine.condition(a);
   engine.calibrate();
   engine.normalize();
   mn.condition(a);
-  for (std::size_t v : engine.jt().vertices()) {
+  for (id_t v : engine.jt().vertices()) {
     check_belief_normalized(engine.belief(v), 1e-10);
   }
 }

@@ -2,8 +2,10 @@
 #define LIBGM_VARIABLE_HPP
 
 #include <libgm/argument/argument_object.hpp>
+#include <libgm/argument/argument_traits.hpp>
 #include <libgm/argument/basic_domain.hpp>
 #include <libgm/functional/hash.hpp>
+#include <libgm/graph/vertex_traits.hpp>
 
 #include <unordered_map>
 
@@ -25,11 +27,17 @@ namespace libgm {
    */
   class variable {
   public:
+
     typedef argument_object::category_enum category_enum;
 
     //! Constructs an empty variable.
     variable()
-      : rep_(nullptr), index_(-1) { }
+      : rep_(nullptr), index_(0) { }
+
+    //! Returns a special "deleted" variable used in certain datastructures.
+    static variable deleted() {
+      return variable(argument_object::deleted(), 0);
+    }
 
     //! Returns the category of the variable (discrete / continuous).
     category_enum category() const {
@@ -59,8 +67,14 @@ namespace libgm {
     // Argument concept
     //==========================================================================
 
+    //! The category of the argument.
+    typedef mixed_argument_tag argument_category;
+
+    //! The type of index associated with the variable.
+    typedef std::size_t argument_index;
+
     //! Returns true if two variables are compatible.
-    friend bool compatible(variable x, variable y) {
+    static bool compatible(variable x, variable y) {
       return x.rep().category == y.rep().category
         && x.rep().size == y.rep().size;
     }
@@ -95,30 +109,34 @@ namespace libgm {
 
     //! Prints a variable to an output stream.
     friend std::ostream& operator<<(std::ostream& out, variable x) {
-      out << x.rep();
-      if (is_indexed(x)) { out << '(' << index(x) << ')'; }
+      if (x.rep_) {
+        out << x.rep();
+        if (x.is_indexed()) { out << '(' << x.index() << ')'; }
+      } else {
+        out << "null";
+      }
       return out;
     }
 
     //! Saves the variable to an archive.
     void save(oarchive& ar) const {
       ar.serialize_dynamic(rep_);
-      ar << index_;
+      if (rep_) { ar << index_; }
     }
 
     //! Loads the variable from an archive.
     void load(iarchive& ar) {
       rep_ = ar.deserialize_dynamic<argument_object>();
-      ar >> index_;
+      if (rep_) { ar >> index_; }
     }
 
     // DiscreteArgument concept
     //==========================================================================
 
     //! Returns the number of values for a discrete variable.
-    friend std::size_t num_values(variable v) {
-      if (v.rep().category == argument_object::DISCRETE) {
-        return v.rep().size;
+    std::size_t num_values() {
+      if (rep().category == argument_object::DISCRETE) {
+        return rep().size;
       } else {
         throw std::invalid_argument(
           "Attempt to call num_values() on a variable that is not discrete"
@@ -130,9 +148,9 @@ namespace libgm {
     //==========================================================================
 
     //! Returns the number of dimensions for continuous variable.
-    friend std::size_t num_dimensions(variable v) {
-      if (v.rep().category == argument_object::CONTINUOUS) {
-        return v.rep().size;
+    std::size_t num_dimensions() {
+      if (rep().category == argument_object::CONTINUOUS) {
+        return rep().size;
       } else {
         throw std::invalid_argument(
         "Attempt to call num_dimensions() on a variable that is not continouous"
@@ -140,30 +158,30 @@ namespace libgm {
       }
     }
 
-    // HybridArgument concept
+    // MixedArgument concept
     //==========================================================================
 
     //! Returns true if the variable is discrete.
-    friend bool is_discrete(variable v) {
-      return v.rep().category == argument_object::DISCRETE;
+    bool is_discrete() {
+      return rep().category == argument_object::DISCRETE;
     }
 
     //! Returns true if the variable is continuous.
-    friend bool is_continuous(variable v) {
-      return v.rep().category == argument_object::CONTINUOUS;
+    bool is_continuous() {
+      return rep().category == argument_object::CONTINUOUS;
     }
 
     // ProcessVariable concept
     //==========================================================================
 
     //! Returns the index of the variable.
-    friend std::size_t index(variable v) {
-      return v.index_;
+    std::size_t index() {
+      return index_;
     }
 
     //! Returns true if the variable is associated with a process.
-    friend bool is_indexed(variable v) {
-      return v.index_ != std::size_t(-1);
+    bool is_indexed() {
+      return index_ != std::size_t(-1);
     }
 
     // Private members
@@ -208,6 +226,27 @@ namespace libgm {
 
   //! A type that maps one variable to another.
   typedef std::unordered_map<variable, variable> variable_map;
+
+  // Traits
+  //============================================================================
+
+  /**
+   * A specialization of vertex_traits for variable.
+   */
+  template <>
+  struct vertex_traits<variable> {
+    //! Returns the default-constructed variable.
+    static variable null() { return variable(); }
+
+    //! Returns a special "deleted" variable.
+    static variable deleted() { return variable::deleted(); }
+
+    //! Prints the variable to an output stream.
+    static void print(std::ostream& out, variable v) { out << v; }
+
+    //! Variables use the default hasher.
+    typedef std::hash<variable> hasher;
+  };
 
 } // namespace libgm
 

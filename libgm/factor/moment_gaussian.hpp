@@ -23,6 +23,8 @@ namespace libgm {
    */
   template <typename T, typename Var>
   class moment_gaussian : public gaussian_factor<Var> {
+    typedef argument_traits<Var> arg_traits;
+
   public:
     // Public types
     //==========================================================================
@@ -297,13 +299,14 @@ namespace libgm {
 
     //! Returns the mean for a single variable.
     Eigen::VectorBlock<const vec_type> mean(Var v) const {
-      return param_.mean.segment(this->start(v), num_dimensions(v));
+      return param_.mean.segment(this->start(v), arg_traits::num_dimensions(v));
     }
 
     //! Returns the covariance matrix for a single variable.
     Eigen::Block<const mat_type> covariance(Var v) const {
       std::size_t i = this->start(v);
-      return param_.cov.block(i, i, num_dimensions(v), num_dimensions(v));
+      std::size_t n = arg_traits::num_dimensions(v);
+      return param_.cov.block(i, i, n, n);
     }
 
     //! Returns the mean for a subset of the arguments
@@ -341,8 +344,8 @@ namespace libgm {
       assert(vec.size() == head_size());
       std::size_t i = 0;
       for (Var v : head()) {
-        a[v] = vec.segment(i, num_dimensions(v));
-        i += num_dimensions(v);
+        a[v] = vec.segment(i, arg_traits::num_dimensions(v));
+        i += arg_traits::num_dimensions(v);
       }
     }
 
