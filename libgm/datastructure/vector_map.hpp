@@ -291,12 +291,14 @@ namespace libgm {
     }
 
     //! Removes the element at the given position.
-    iterator erase(const_iterator pos) {
+    iterator erase(iterator pos) {
+      // iterator required for compatibility with GCC 4.8
       return elems_.erase(pos);
     }
 
     //! Removes the elements in the given range.
-    iterator erase(const_iterator first, const_iterator last) {
+    iterator erase(iterator first, iterator last) {
+      // iterator required for compatibility with GCC 4.8
       return elems_.erase(first, last);
     }
 

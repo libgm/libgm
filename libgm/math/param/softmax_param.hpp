@@ -2,6 +2,7 @@
 #define LIBGM_SOFTMAX_PARAM_HPP
 
 #include <libgm/datastructure/hybrid_vector.hpp>
+#include <libgm/functional/arithmetic.hpp>
 #include <libgm/math/eigen/real.hpp>
 #include <libgm/serialization/eigen.hpp>
 
@@ -342,15 +343,8 @@ namespace libgm {
 
     friend softmax_param sign(const softmax_param& f) {
       softmax_param result(f.labels(), f.features());
-      auto sign = [](T x) {
-        if (x == T(0)) {
-          return T(0);
-        } else {
-          return copysign(T(1), x);
-        }
-      };
-      result.weight() = f.weight().unaryExpr(sign);
-      result.bias() = f.bias().unaryExpr(sign);
+      result.weight() = f.weight().unaryExpr(real_sign<T>());
+      result.bias() = f.bias().unaryExpr(real_sign<T>());
       return result;
     }
 

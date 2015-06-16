@@ -4,8 +4,7 @@
 #include <libgm/datastructure/set_index.hpp>
 #include <libgm/iterator/counting_output_iterator.hpp>
 
-#include <boost/range/algorithm.hpp>
-
+#include <algorithm>
 #include <iostream>
 #include <random>
 #include <set>
@@ -38,7 +37,8 @@ struct fixture {
 
   bool disjoint(const set_type& a, const set_type& b) {
     counting_output_iterator out;
-    return boost::set_intersection(a, b, out).count() == 0;
+    return std::set_intersection(a.begin(), a.end(),
+                                 b.begin(), b.end(), out).count() == 0;
   }
 
   set_index<int, list_type> index;
@@ -51,13 +51,15 @@ BOOST_FIXTURE_TEST_CASE(test_superset, fixture) {
     std::vector<int> results;
     int found = 0;
     index.supersets(lists[i], [&](int j) {
-        BOOST_CHECK(boost::includes(sets[j], sets[i]));
+        BOOST_CHECK(std::includes(sets[j].begin(), sets[j].end(),
+                                  sets[i].begin(), sets[i].end()));
         ++found;
       });
 
     // check the answers are complete
     for (int j = 0; j < n; ++j) {
-      if (boost::includes(sets[j], sets[i])) {
+      if (std::includes(sets[j].begin(), sets[j].end(),
+                        sets[i].begin(), sets[i].end())) {
         --found;
       }
     }

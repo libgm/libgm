@@ -1,9 +1,8 @@
 #ifndef LIBGM_MATH_CONSTANTS_HPP
 #define LIBGM_MATH_CONSTANTS_HPP
 
+#include <cmath>
 #include <limits>
-
-#include <boost/math/constants/constants.hpp>
 
 namespace libgm {
 
@@ -25,7 +24,19 @@ namespace libgm {
     return std::numeric_limits<T>::quiet_NaN();
   }
 
-  using namespace boost::math::constants;
+  //! Returns the constant \pi.
+  template <typename T>
+  inline T pi() {
+    static T value = acos(T(-1));
+    return value;
+  }
+
+  //! Returns the constant 2 * \pi.
+  template <typename T>
+  inline T two_pi() {
+    static T value = T(2) * acos(T(-1));
+    return value;
+  }
 
   // @}
 

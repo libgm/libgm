@@ -5,7 +5,6 @@
 #include <libgm/graph/algorithm/make_clique.hpp>
 #include <libgm/graph/algorithm/min_degree_strategy.hpp>
 
-#include <functional>
 #include <iterator>
 #include <vector>
 
@@ -20,13 +19,15 @@ namespace libgm {
    *
    * \tparam Graph
    *         The graph type (typically an undirected_graph).
+   * \tparam Visitor
+   *         A type that modes the VertexVisitor concept.
    * \tparam Strategy
    *         A type that models the EliminationStrategy concept.
    * \param graph
    *        The graph whose nodes are eliminated; it must have no
    *        self-loops or parallel edges, and its edges must be
    *        undirected or bidirected.
-   * \param visitor
+   * \param vertex_visitor
    *        The visitor which is applied to each vertex before the vertex is
    *        eliminated.
    * \param elim_strategy
@@ -35,9 +36,10 @@ namespace libgm {
    * \ingroup graph_algorithms
    */
   template <typename Graph,
+            typename Visitor,
             typename Strategy = min_degree_strategy>
   void eliminate(Graph& graph,
-                 std::function<void(typename Graph::vertex_type)> visitor,
+                 Visitor vertex_visitor,
                  Strategy elim_strategy = Strategy()) {
     typedef typename Graph::vertex_type vertex_type;
     typedef typename Strategy::priority_type priority_type;
@@ -57,7 +59,7 @@ namespace libgm {
       recompute_priority.clear();
       elim_strategy.updated(u, graph, std::back_inserter(recompute_priority));
       // eliminate the vertex
-      visitor(u);
+      vertex_visitor(u);
       make_clique(graph, graph.neighbors(u));
       graph.remove_edges(u);
       // update the priorities

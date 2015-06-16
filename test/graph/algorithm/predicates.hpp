@@ -3,6 +3,7 @@
 
 #include <fstream>
 #include <cstdio>
+#include <map>
 
 template <typename V, typename Graph>
 boost::test_tools::predicate_result

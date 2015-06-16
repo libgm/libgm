@@ -20,6 +20,8 @@ namespace libgm {
    *         specified explicitly.
    * \tparam Graph
    *         The graph type (typically an undirected graph)
+   * \tparam Visitor
+   *         A type that represents a function accepting Container&&.
    * \tparam Strategy
    *         A type that model the EliminationStrategy concept.
    * \param g
@@ -37,9 +39,10 @@ namespace libgm {
    */
   template <typename Container,
             typename Graph,
+            typename Visitor,
             typename Strategy = min_degree_strategy>
   void triangulate(Graph& g,
-                   std::function<void(Container&&)> visitor,
+                   Visitor visitor,
                    Strategy elim_strategy = Strategy()) {
     eliminate(g, [&](typename Graph::vertex_type v) {
         Container clique({v});
@@ -60,6 +63,8 @@ namespace libgm {
    *         specified explicitly.
    * \tparam Graph
    *         The graph type (typically an undirected graph)
+   * \tparam Visitor
+   *         A type that represents a function accepting Container&&.
    * \tparam Strategy
    *         A type that model the EliminationStrategy concept.
    * \param g
@@ -77,9 +82,10 @@ namespace libgm {
    */
   template <typename Container,
             typename Graph,
+            typename Visitor,
             typename Strategy = min_degree_strategy>
   void triangulate_maximal(Graph& g,
-                           std::function<void(Container&&)> visitor,
+                           Visitor visitor,
                            Strategy elim_strategy = Strategy()) {
     typedef typename Graph::vertex_type vertex_type;
     typedef typename vertex_traits<vertex_type>::hasher vertex_hasher;

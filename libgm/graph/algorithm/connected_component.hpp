@@ -1,6 +1,7 @@
 #ifndef LIBGM_CONNECTED_COMPONENT_HPP
 #define LIBGM_CONNECTED_COMPONENT_HPP
 
+#include <limits>
 #include <queue>
 #include <tuple>
 #include <utility>
@@ -60,4 +61,3 @@ namespace libgm {
 } // namespace libgm
 
 #endif
-

@@ -163,8 +163,12 @@ namespace libgm {
       return const_iterator(slices_);
     }
 
-    //! Returns a single datapoint in the dataset.
-    auto operator[](std::size_t row) const -> decltype(dataset()[0]) {
+    /**
+     * Returns a single datapoint in the dataset by reference or value
+     * (depending on the base dataset).
+     */
+    auto operator[](std::size_t row) const
+      -> decltype(static_cast<BaseDS*>(nullptr)->operator[](0)) {
       return dataset()[absolute(row)];
     }
 
@@ -456,4 +460,3 @@ namespace libgm {
 } // namespace libgm
 
 #endif
-

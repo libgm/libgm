@@ -56,8 +56,8 @@ else(MSVC)
   set(Boost_USE_MULTITHREADED ON)
 endif(MSVC)
 
-find_package(Boost 1.40 COMPONENTS 
-              program_options 
+find_package(Boost 1.40 COMPONENTS
+              program_options
               filesystem
               iostreams  # deprecate together with MPI
               date_time
@@ -88,9 +88,9 @@ include_directories(/usr/local/include/eigen3)
 # Flags for the debug and release mode
 if(CMAKE_COMPILER_IS_GNUCXX)
   # Note: -fkeep-inline-functions significantly slows down the compilation
-  set(CMAKE_CXX_FLAGS_DEBUG "-g -ggdb -O0 -Wall -Winit-self") #-fno-implicit-templates")
+  set(CMAKE_CXX_FLAGS_DEBUG "-g -ggdb -O0 -std=c++11 -static-libstdc++") #-fno-implicit-templates")
   # set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g -ggdb")
-  set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
+  set(CMAKE_CXX_FLAGS_RELEASE "-O3 -g -std=c++11 -static-libstdc++")
 else()
   set(CMAKE_CXX_FLAGS "-std=c++11 -g")
 endif(CMAKE_COMPILER_IS_GNUCXX)

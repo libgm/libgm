@@ -115,8 +115,8 @@ namespace libgm {
      * <base>id with id in [0, ..., n).
      */
     dprocess_domain
-    new_discrete_dprocesss(std::size_t n, const std::string& base,
-                           std::size_t card) {
+    new_discrete_dprocesses(std::size_t n, const std::string& base,
+                            std::size_t card) {
       dprocess_domain result(n);
       for (std::size_t i = 0; i < n; ++i) {
         result[i] = new_discrete_dprocess(base + std::to_string(i), card);
@@ -130,8 +130,8 @@ namespace libgm {
      * with id in [0, ..., n).
      */
     dprocess_domain
-    new_discrete_dprocesss(std::size_t n, const std::string& base,
-                           std::vector<std::string>& levels) {
+    new_discrete_dprocesses(std::size_t n, const std::string& base,
+                            std::vector<std::string>& levels) {
       dprocess_domain result(n);
       for (std::size_t i = 0; i < n; ++i) {
         result[i] = new_discrete_dprocess(base + std::to_string(i), levels);
@@ -154,8 +154,8 @@ namespace libgm {
      * <base>id with id in [0, ..., n).
      */
     dprocess_domain
-    new_continuous_dprocesss(std::size_t n,
-                             const std::string& base, std::size_t dim) {
+    new_continuous_dprocesses(std::size_t n,
+                              const std::string& base, std::size_t dim) {
       dprocess_domain result(n);
       for (std::size_t i = 0; i < n; ++i) {
         result[i] = new_continuous_dprocess(base + std::to_string(i), dim);

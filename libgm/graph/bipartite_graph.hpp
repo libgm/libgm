@@ -1,6 +1,7 @@
 #ifndef LIBGM_BIPARTITE_GRAPH_HPP
 #define LIBGM_BIPARTITE_GRAPH_HPP
 
+#include <libgm/functional/hash.hpp>
 #include <libgm/graph/vertex_traits.hpp>
 #include <libgm/graph/void.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>

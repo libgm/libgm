@@ -1,6 +1,7 @@
 #ifndef LIBGM_TEST_PREDICATES_HPP
 #define LIBGM_TEST_PREDICATES_HPP
 
+#include <algorithm>
 #include <fstream>
 #include <cstdio>
 
@@ -83,5 +84,29 @@ serialize_deserialize(const T& value, libgm::universe& u) {
   return true;
 }
 
+template <typename Range1, typename Range2>
+boost::test_tools::predicate_result
+range_equal(const Range1& x, const Range2& y) {
+  auto x_it = x.begin(), x_end = x.end();
+  auto y_it = y.begin(), y_end = y.end();
+  std::size_t pos = 0;
+  while (x_it != x_end && y_it != y_end) {
+    if (*x_it != *y_it) {
+      boost::test_tools::predicate_result result(false);
+      result.message() << "the ranges differ at position " << pos;
+      return result;
+    }
+    ++x_it;
+    ++y_it;
+  }
+  if ((x_it == x_end) ^ (y_it == y_end)) {
+    boost::test_tools::predicate_result result(false);
+    result.message() << "the ranges have different lengths ["
+                     << std::distance(x.begin(), x.end()) << " != "
+                     << std::distance(y.begin(), y.end()) << "]";
+    return result;
+  }
+  return true;
+}
 
 #endif

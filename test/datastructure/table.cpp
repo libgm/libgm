@@ -4,7 +4,6 @@
 #include <libgm/datastructure/table.hpp>
 
 #include <functional>
-#include <boost/range/algorithm.hpp>
 
 namespace libgm {
   template class table<double>;
@@ -50,7 +49,7 @@ BOOST_AUTO_TEST_CASE(test_sequential) {
 
   // Fill
   x.fill(3);
-  BOOST_CHECK_EQUAL(boost::count(x, 3), 4);
+  BOOST_CHECK_EQUAL(std::count(x.begin(), x.end(), 3), 4);
 
   // Unary transform
   std::iota(x.begin(), x.end(), 2);

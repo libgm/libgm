@@ -210,7 +210,7 @@ namespace libgm {
     //! The hash function used on the argument.
     typedef typename vertex_traits<Arg>::hasher hasher;
 
-    //! Prints the argument to an output stream using operator<<(ostream&)
+    //! Prints the argument to an output stream.
     static void print(std::ostream& out, Arg arg) {
       vertex_traits<Arg>::print(out, arg);
     }

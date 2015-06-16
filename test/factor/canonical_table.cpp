@@ -6,8 +6,6 @@
 #include <libgm/factor/canonical_table.hpp>
 #include <libgm/factor/probability_table.hpp>
 
-#include <boost/range/algorithm.hpp>
-
 #include "predicates.hpp"
 
 namespace libgm {
@@ -45,7 +43,7 @@ BOOST_AUTO_TEST_CASE(test_constructors) {
   param_type params({2, 3}, 5.0);
   ctable f({x, y}, params);
   BOOST_CHECK(table_properties(f, {x, y}));
-  BOOST_CHECK_EQUAL(boost::count(f, 5.0), 6);
+  BOOST_CHECK_EQUAL(std::count(f.begin(), f.end(), 5.0), 6);
 
   ctable g({x}, {6.0, 6.5});
   BOOST_CHECK(table_properties(g, {x}));
@@ -202,11 +200,11 @@ BOOST_AUTO_TEST_CASE(test_operators) {
 
   h = max(f1, f2);
   BOOST_CHECK(table_properties(h, {x, y}));
-  BOOST_CHECK(boost::equal(h, fmax));
+  BOOST_CHECK(range_equal(h, fmax));
 
   h = min(f1, f2);
   BOOST_CHECK(table_properties(h, {x, y}));
-  BOOST_CHECK(boost::equal(h, fmin));
+  BOOST_CHECK(range_equal(h, fmin));
 
   h = weighted_update(f1, f2, 0.3);
   for (std::size_t i = 0; i < 4; ++i) {
@@ -229,7 +227,7 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
 
   h = f.maximum({y});
   BOOST_CHECK(table_properties(h, {y}));
-  BOOST_CHECK(boost::equal(h, hmax));
+  BOOST_CHECK(range_equal(h, hmax));
   BOOST_CHECK_EQUAL(f.maximum().lv, 6.0);
   BOOST_CHECK_EQUAL(f.maximum(a).lv, 6.0);
   BOOST_CHECK_EQUAL(a[x], 1);
@@ -237,7 +235,7 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
 
   h = f.minimum({y});
   BOOST_CHECK(table_properties(h, {y}));
-  BOOST_CHECK(boost::equal(h, hmin));
+  BOOST_CHECK(range_equal(h, hmin));
   BOOST_CHECK_EQUAL(f.minimum().lv, 0.0);
   BOOST_CHECK_EQUAL(f.minimum(a).lv, 0.0);
   BOOST_CHECK_EQUAL(a[x], 0);
@@ -266,7 +264,7 @@ BOOST_AUTO_TEST_CASE(test_restrict) {
   ctable h = f.restrict({{x, 1}});
   std::vector<double> fr = {1, 3, 6};
   BOOST_CHECK(table_properties(h, {y}));
-  BOOST_CHECK(boost::equal(h, fr));
+  BOOST_CHECK(range_equal(h, fr));
 }
 
 

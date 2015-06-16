@@ -12,12 +12,12 @@ namespace libgm {
    * \f$u \rightarrow v\f$ are visited.
    *
    * \tparam Graph a directed graph type
+   * \tparam Visitor a type that models the VertexVisitor concept
    * \ingroup graph_algorithms
    */
-  template <typename Graph>
-  void partial_order_traversal(
-      const Graph& graph,
-      std::function<void(typename Graph::vertex_type)> visitor) {
+  template <typename Graph, typename Visitor>
+  void partial_order_traversal(const Graph& graph,
+                               Visitor vertex_visitor) {
     typedef typename Graph::vertex_type vertex_type;
     typedef typename Graph::edge_type edge_type;
 
@@ -36,7 +36,7 @@ namespace libgm {
     // Process the remaining vertices in partial order
     while (!q.empty()) {
       vertex_type u = q.front();
-      visitor(u);
+      vertex_visitor(u);
       q.pop();
       for (vertex_type v : graph.children(u)) {
         if (--in_degree[v] == 0) {

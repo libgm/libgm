@@ -8,8 +8,6 @@
 #include <libgm/factor/probability_table.hpp>
 #include <libgm/factor/random/uniform_table_generator.hpp>
 
-#include <boost/range/algorithm.hpp>
-
 #include <random>
 
 #include "predicates.hpp"
@@ -55,13 +53,6 @@ struct fixture {
   model_type fg;
 };
 
-struct domain_less {
-  template <typename Set>
-  bool operator()(const Set& a, const Set& b) {
-    return boost::lexicographical_compare(a, b);
-  }
-};
-
 BOOST_FIXTURE_TEST_CASE(test_structure, fixture) {
   for (std::size_t i = 0; i < nvars; ++i) {
     std::vector<domain> args1;
@@ -78,8 +69,8 @@ BOOST_FIXTURE_TEST_CASE(test_structure, fixture) {
       args2.push_back(fg.arguments(id));
     }
 
-    boost::sort(args1, domain_less());
-    boost::sort(args2, domain_less());
+    std::sort(args1.begin(), args1.end());
+    std::sort(args2.begin(), args2.end());
     BOOST_CHECK_EQUAL(args1, args2);
   }
   BOOST_CHECK_EQUAL(fg.num_arguments(), nvars);
@@ -103,8 +94,8 @@ BOOST_FIXTURE_TEST_CASE(test_simplify, fixture) {
       args2.push_back(fg.arguments(id));
     }
 
-    boost::sort(args1, domain_less());
-    boost::sort(args2, domain_less());
+    std::sort(args1.begin(), args1.end());
+    std::sort(args2.begin(), args2.end());
     BOOST_CHECK_EQUAL(args1, args2);
   }
   BOOST_CHECK_EQUAL(fg.num_arguments(), nvars);

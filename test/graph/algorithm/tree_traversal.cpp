@@ -4,6 +4,8 @@
 #include <libgm/graph/algorithm/tree_traversal.hpp>
 #include <libgm/graph/undirected_graph.hpp>
 
+#include <set>
+
 using namespace libgm;
 
 struct fixture {

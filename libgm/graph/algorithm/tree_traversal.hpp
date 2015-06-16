@@ -23,18 +23,17 @@ namespace libgm {
    *        and be either undirected or bidirectional.
    * \param root
    *        A vertex of the graph. The traversal is started at this vertex.
-   * \param visitor
+   * \param edge_visitor
    *        The visitor that is invoked to each edge traversed.
    *        If the graph is biconnected, then this visitor is applied
    *        only to edges directed away from the root vertex.
    *
    * \ingroup graph_algorithms
    */
-  template <typename Graph>
-  void pre_order_traversal(
-      const Graph& graph,
-      typename Graph::vertex_type root,
-      std::function<void(const typename Graph::edge_type&)> visitor) {
+  template <typename Graph, typename Visitor>
+  void pre_order_traversal(const Graph& graph,
+                           typename Graph::vertex_type root,
+                           Visitor edge_visitor) {
     typedef typename Graph::edge_type edge_type;
 
     // create a queue initialized all edges outgoing from the root
@@ -49,7 +48,7 @@ namespace libgm {
       // visit the incoming edge
       edge_type in = queue.front();
       queue.pop();
-      visitor(in);
+      edge_visitor(in);
       if (++nvisited >= graph.num_vertices()) {
         throw std::invalid_argument("tree traversal: detected a cycle");
       }
@@ -75,18 +74,17 @@ namespace libgm {
    *        undirected or bidirectional.
    * \param root
    *        A vertex of the graph. The traversal is started at this vertex.
-   * \param visitor
+   * \param edge_visitor
    *        The visitor that is applied to each edge of the graph.
    *        If the graph is biconnected, then this visitor is applied
    *        only to edges directed toward from the start vertex.
    *
    * \ingroup graph_algorithms
    */
-  template <typename Graph>
-  void post_order_traversal(
-      const Graph& graph,
-      typename Graph::vertex_type root,
-      std::function<void(const typename Graph::edge_type&)> visitor) {
+  template <typename Graph, typename Visitor>
+  void post_order_traversal(const Graph& graph,
+                            typename Graph::vertex_type root,
+                            Visitor edge_visitor) {
     typedef typename Graph::edge_type edge_type;
 
     // first compute a pre-order traversal of the edges starting at root
@@ -96,7 +94,7 @@ namespace libgm {
 
     // now visit the reverse of these edges in the reverse order
     for (std::size_t i = edges.size(); i > 0; --i) {
-      visitor(graph.reverse(edges[i-1]));
+      edge_visitor(graph.reverse(edges[i-1]));
     }
   }
 
@@ -114,18 +112,17 @@ namespace libgm {
    * \param root
    *        A vertex of the graph. The traversal is started at this vertex.
    *        Can be a null vertex to denote arbitrary root.
-   * \param visitor
+   * \param edge_visitor
    *        The visitor that is applied to each edge of the graph.
    *        If the graph is biconnected, then this visitor is applied
    *        only to edges directed toward from the start vertex.
    *
    * \ingroup graph_algorithms
    */
-  template <typename Graph>
-  void mpp_traversal(
-      const Graph& graph,
-      typename Graph::vertex_type root,
-      std::function<void(const typename Graph::edge_type&)> visitor) {
+  template <typename Graph, typename Visitor>
+  void mpp_traversal(const Graph& graph,
+                     typename Graph::vertex_type root,
+                     Visitor edge_visitor) {
     typedef typename Graph::vertex_type vertex_type;
     typedef typename Graph::edge_type edge_type;
 
@@ -136,8 +133,8 @@ namespace libgm {
     }
 
     // collect towards the root and then distribute from the root
-    post_order_traversal(graph, root, visitor);
-    pre_order_traversal(graph, root, visitor);
+    post_order_traversal(graph, root, edge_visitor);
+    pre_order_traversal(graph, root, edge_visitor);
   }
 
 } // namespace libgm

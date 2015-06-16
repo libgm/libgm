@@ -4,7 +4,6 @@
 #include <libgm/graph/bipartite_graph.hpp>
 
 #include <boost/mpl/list.hpp>
-#include <boost/range/algorithm.hpp>
 
 #include <map>
 #include <set>
@@ -128,16 +127,13 @@ BOOST_FIXTURE_TEST_CASE(test_edges, fixture) {
 
 
 BOOST_FIXTURE_TEST_CASE(test_neighbors, fixture) {
+  using std::size_t;
   std::vector<string> correct3 = {"1", "2", "4"}; // neighbors of 3
-  std::vector<std::size_t> correct4 = {3, 4};          // neighbors of "4"
-
-  std::multiset<string> actual3;
-  std::multiset<std::size_t> actual4;
-  boost::copy(g.neighbors(3),   std::inserter(actual3, actual3.begin()));
-  boost::copy(g.neighbors("4"), std::inserter(actual4, actual4.begin()));
-
-  BOOST_CHECK(boost::equal(correct3, actual3));
-  BOOST_CHECK(boost::equal(correct4, actual4));
+  std::vector<size_t> correct4 = {3, 4};          // neighbors of "4"
+  auto u = g.neighbors(3);
+  auto v = g.neighbors("4");
+  BOOST_CHECK(range_equal(correct3, std::multiset<string>(u.begin(), u.end())));
+  BOOST_CHECK(range_equal(correct4, std::multiset<size_t>(v.begin(), v.end())));
 }
 
 
@@ -164,8 +160,8 @@ BOOST_FIXTURE_TEST_CASE(test_in_edges, fixture) {
     actual2.insert(std::make_pair(e.endpoints(), g[e]));
   }
 
-  BOOST_CHECK(boost::equal(correct1, actual1));
-  BOOST_CHECK(boost::equal(correct2, actual2));
+  BOOST_CHECK(range_equal(correct1, actual1));
+  BOOST_CHECK(range_equal(correct2, actual2));
 }
 
 
@@ -192,8 +188,8 @@ BOOST_FIXTURE_TEST_CASE(test_out_edges, fixture) {
     actual2.insert(std::make_pair(e.endpoints(), g[e]));
   }
 
-  BOOST_CHECK(boost::equal(correct1, actual1));
-  BOOST_CHECK(boost::equal(correct2, actual2));
+  BOOST_CHECK(range_equal(correct1, actual1));
+  BOOST_CHECK(range_equal(correct2, actual2));
 }
 
 

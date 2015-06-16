@@ -5,14 +5,12 @@
 #include <algorithm>
 #include <vector>
 
-#include <boost/range/algorithm.hpp>
-
 #include "../predicates.hpp"
 
 struct factor_arg_less {
   template <typename F>
   bool operator()(const F& a, const F& b) {
-    return boost::lexicographical_compare(a.arguments(), b.arguments());
+    return a.arguments() < b.arguments();
   }
 };
 
@@ -59,4 +57,3 @@ model_close_log_likelihoods(const Model& a, const Model& b, double eps) {
 }
 
 #endif
-

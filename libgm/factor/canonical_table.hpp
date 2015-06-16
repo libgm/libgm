@@ -334,7 +334,7 @@ namespace libgm {
 
     //! Returns true if the factor is normalizable (approximation).
     bool is_normalizable() const {
-      return boost::math::isfinite(maximum().lv);
+      return std::isfinite(maximum().lv);
     }
 
     //! Restricts this factor to an assignment.

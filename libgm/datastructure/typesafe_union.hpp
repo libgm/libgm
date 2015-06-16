@@ -30,8 +30,10 @@ namespace libgm {
    */
   template <typename... Types>
   class typesafe_union {
+#ifndef __GNUC__
     static_assert(all_of_types<std::is_trivially_copyable, Types...>::value,
                   "The union types must be all trivially copyable");
+#endif
     static_assert(sizeof...(Types) < 128,
                   "A typesafe_union can consist of at most 127 types");
 

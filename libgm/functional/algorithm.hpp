@@ -26,6 +26,19 @@ namespace libgm {
   };
 
   /**
+   * An operator that always returns the given constant, irrespective of what
+   * arguments are passed to it. This class behaves like C++14's
+   * integral_constant, except that it can accept arbitrary number of arguments.
+   */
+  template <typename T, T Value>
+  struct constant {
+    template <typename... Types>
+    constexpr T operator()(Types&&... values) const {
+      return Value;
+    }
+  };
+
+  /**
    * An identity operator. Simply returns what is passed to it.
    */
   struct identity {

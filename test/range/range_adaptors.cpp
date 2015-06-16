@@ -5,8 +5,9 @@
 #include <libgm/range/reversed.hpp>
 #include <libgm/range/joined.hpp>
 
-#include <boost/range/algorithm.hpp>
+#include "../predicates.hpp"
 
+#include <iostream>
 #include <vector>
 
 int plus_one(int x) {
@@ -23,7 +24,7 @@ BOOST_AUTO_TEST_CASE(test_all) {
   std::vector<int> ar = {8, 4, 2, 0};
   std::vector<int> ab = {0, 2, 4, 8, 0, 2};
 
-  BOOST_CHECK(boost::equal(a1, make_transformed(a, plus_one)));
-  BOOST_CHECK(boost::equal(ar, make_reversed(a)));
-  BOOST_CHECK(boost::equal(ab, make_joined(a, b)));
+  BOOST_CHECK(range_equal(a1, make_transformed(a, plus_one)));
+  BOOST_CHECK(range_equal(ar, make_reversed(a)));
+  BOOST_CHECK(range_equal(ab, make_joined(a, b)));
 }

@@ -6,6 +6,7 @@
 #include <libgm/traits/pairwise_compatible.hpp>
 
 #include <functional>
+#include <mutex>
 #include <unordered_map>
 
 namespace libgm {
