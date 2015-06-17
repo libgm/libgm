@@ -87,6 +87,7 @@ namespace libgm {
       for (edge_type e : model_.in_edges(v)) {
         model_[e].exp_log_multiply(belief(e.source()), result);
       }
+      result /= result.maximum();
       belief_type new_belief(result);
       new_belief.normalize();
       swap(beliefs_.at(v), new_belief);

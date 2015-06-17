@@ -6,7 +6,7 @@
 #include <libgm/traits/pairwise_compatible.hpp>
 
 #include <functional>
-#include <mutex>
+#include <numeric>
 #include <unordered_map>
 
 namespace libgm {
@@ -104,15 +104,12 @@ namespace libgm {
      */
     template <typename Vertex>
     real_type update_all(std::vector<Vertex>& vertices) {
-      real_type sum(0);
-      std::mutex mutex;
-      vector_processor<Vertex> process(nthreads_, [&](Vertex v) {
-          real_type result = update(v);
-          std::lock_guard<std::mutex> guard(mutex);
-          sum += result;
+      std::vector<real_type> sums(nthreads_, real_type(0));
+      vector_processor<Vertex, real_type> process([&](Vertex v, real_type& sum){
+          sum += update(v);
         });
-      process(vertices);
-      return sum;
+      process(vertices, sums);
+      return std::accumulate(sums.begin(), sums.end(), real_type(0));
     }
 
     /**
