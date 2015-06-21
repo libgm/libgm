@@ -19,7 +19,7 @@ namespace libgm {
    * serialized.
    */
   template <typename Arg, std::size_t N>
-  class array_domain : public std::array<Arg, N> {
+  struct array_domain : public std::array<Arg, N> {
   public:
     //! Default constructor. Creates an uninitialized (invalid) domain.
     array_domain() { }

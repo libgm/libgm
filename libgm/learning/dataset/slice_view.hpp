@@ -288,10 +288,10 @@ namespace libgm {
        * \tparam OtherBaseIt type that is convertible to BaseIt
        */
       template <typename OtherBaseIt>
-      slice_iterator(
-        const slice_iterator<OtherBaseIt>& other,
-        typename std::enable_if<
-          std::is_convertible<OtherBaseIt, BaseIt>::value>::type* = 0) {
+      slice_iterator(const slice_iterator<OtherBaseIt>& other,
+                     typename std::enable_if<
+                       std::is_convertible<OtherBaseIt, BaseIt>::value
+                     >::type* = 0) {
         *this = other;
       }
 
@@ -300,10 +300,10 @@ namespace libgm {
        * \tparam OtherBaseIt type that is convertible to BaseIt
        */
       template <typename OtherBaseIt>
-      slice_iterator(
-        slice_iterator<OtherBaseIt>&& other,
-        typename std::enable_if<
-          std::is_convertible<OtherBaseIt, BaseIt>::value>::type* = 0) {
+      slice_iterator(slice_iterator<OtherBaseIt>&& other,
+                     typename std::enable_if<
+                       std::is_convertible<OtherBaseIt, BaseIt>::value
+                     >::type* = 0) {
         *this = std::move(other);
       }
 
@@ -313,7 +313,9 @@ namespace libgm {
        */
       template <typename OtherBaseIt>
       typename std::enable_if<
-        std::is_convertible<OtherBaseIt, BaseIt>::value, slice_iterator&>::type
+        std::is_convertible<OtherBaseIt, BaseIt>::value,
+        slice_iterator&
+      >::type
       operator=(const slice_iterator<OtherBaseIt>& other) {
         cur_ = other.cur_;
         end_ = other.end_;
@@ -328,7 +330,9 @@ namespace libgm {
        */
       template <typename OtherBaseIt>
       typename std::enable_if<
-        std::is_convertible<OtherBaseIt, BaseIt>::value, slice_iterator&>::type
+        std::is_convertible<OtherBaseIt, BaseIt>::value,
+        slice_iterator&
+      >::type
       operator=(slice_iterator<OtherBaseIt>&& other) {
         cur_ = other.cur_;
         end_ = other.end_;

@@ -51,7 +51,8 @@ namespace libgm {
     }
 
     //! Returns the pointer to the beginning of the given column.
-    auto ptr() const -> decltype(Vector().data()) {
+    auto ptr() const
+      -> decltype(static_cast<Vector*>(nullptr)->data()) {
       return vec_.data() + rows_.start();
     }
 

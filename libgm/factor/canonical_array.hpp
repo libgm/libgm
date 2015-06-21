@@ -11,6 +11,7 @@
 #include <libgm/math/likelihood/canonical_array_ll.hpp>
 #include <libgm/math/logarithmic.hpp>
 #include <libgm/math/random/array_distribution.hpp>
+#include <libgm/traits/static_max.hpp>
 
 #include <iostream>
 
@@ -539,10 +540,10 @@ namespace libgm {
    * \relates canonical_array
    */
   template <typename T, std::size_t M, std::size_t N, typename Var>
-  canonical_array<T, (M >= N) ? M : N, Var>
+  canonical_array<T, static_max<M, N>::value, Var>
   operator*(const canonical_array<T, M, Var>& f,
             const canonical_array<T, N, Var>& g) {
-    typedef canonical_array<T, (M >= N) ? M : N, Var> result_type;
+    typedef canonical_array<T, static_max<M, N>::value, Var> result_type;
     return join<result_type>(f, g, libgm::plus<>());
   }
 
@@ -554,10 +555,10 @@ namespace libgm {
    * \relates canonical_array
    */
   template <typename T, std::size_t M, std::size_t N, typename Var>
-  canonical_array<T, (M >= N) ? M : N, Var>
+  canonical_array<T, static_max<M, N>::value, Var>
   operator/(const canonical_array<T, M, Var>& f,
             const canonical_array<T, N, Var>& g) {
-    typedef canonical_array<T, (M >= N) ? M : N, Var> result_type;
+    typedef canonical_array<T, static_max<M, N>::value, Var> result_type;
     return join<result_type>(f, g, libgm::minus<>());
   }
 

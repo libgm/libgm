@@ -109,7 +109,7 @@ namespace libgm {
     /**
      * Exchanges the arguments and the parameters of two factors.
      */
-    friend void swap(const softmax& f, const softmax& g) {
+    friend void swap(softmax& f, softmax& g) {
       if (&f != &g) {
         swap(f.args_, g.args_);
         swap(f.param_, g.param_);

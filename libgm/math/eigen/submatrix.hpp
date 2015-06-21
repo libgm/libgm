@@ -63,7 +63,8 @@ namespace libgm {
     }
 
     //! Returns the pointer to the beginning of the given column.
-    auto colptr(std::size_t i) const -> decltype(Matrix().data()) {
+    auto colptr(std::size_t i) const
+      -> decltype(static_cast<Matrix*>(nullptr)->data()) {
       return mat_.data() + cols_(i) * mat_.rows() + rows_.start();
     }
 

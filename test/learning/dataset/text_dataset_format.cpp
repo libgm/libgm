@@ -21,7 +21,7 @@ BOOST_AUTO_TEST_CASE(test_load_save) {
   BOOST_CHECK_EQUAL(format.separator, "\t");
   BOOST_CHECK_EQUAL(format.skip_rows, 0);
   BOOST_CHECK_EQUAL(format.skip_cols, 1);
-  BOOST_CHECK_EQUAL(format.weighted, 1);
+  BOOST_CHECK_EQUAL(format.weighted, true);
 
   BOOST_CHECK_EQUAL(format.variables.size(), 3);
 

@@ -37,6 +37,7 @@ struct iarray : public array_factor<int, N, variable> {
 
 typedef iarray<1> iarray1;
 typedef iarray<2> iarray2;
+typedef array_domain<variable, 1> unary_domain;
 
 BOOST_AUTO_TEST_CASE(test_join) {
   universe u;
@@ -117,11 +118,11 @@ BOOST_AUTO_TEST_CASE(test_aggregate) {
   iarray2 fxy({x, y}, {-1, -2, -3, 4, 5, 6});
 
   iarray1 hx;
-  aggregate(fxy, {x}, hx, sum_op());
+  aggregate(fxy, unary_domain{x}, hx, sum_op());
   BOOST_CHECK_EQUAL(hx, iarray1({x}, {1, 8}));
 
   iarray1 hy;
-  aggregate(fxy, {y}, hy, sum_op());
+  aggregate(fxy, unary_domain{y}, hy, sum_op());
   BOOST_CHECK_EQUAL(hy, iarray1({y}, {-3, 1, 11}));
 }
 
@@ -135,11 +136,11 @@ BOOST_AUTO_TEST_CASE(test_restrict) {
   iarray2 fxy({x, y}, {-1, -2, -3, 4, 5, 6});
 
   iarray1 hy;
-  restrict_assign(fxy, {{x, 1}}, hy);
+  restrict_assign(fxy, uint_assignment<>{{x, 1}}, hy);
   BOOST_CHECK_EQUAL(hy, iarray1({y}, {-2, 4, 6}));
 
   iarray1 hx;
-  restrict_assign(fxy, {{y, 2}}, hx);
+  restrict_assign(fxy, uint_assignment<>{{y, 2}}, hx);
   BOOST_CHECK_EQUAL(hx, iarray1({x}, {5, 6}));
 }
 
@@ -159,18 +160,18 @@ BOOST_AUTO_TEST_CASE(test_restrict_join) {
 
   iarray1 hx;
   hx = gx;
-  restrict_join(fxy, {{x, 1}, {y, 2}}, hx, libgm::plus_assign<>());
+  restrict_join(fxy, uint_assignment<>{{x, 1}, {y, 2}}, hx, libgm::plus_assign<>());
   BOOST_CHECK_EQUAL(hx, iarray1({x}, {9, 8}));
 
   hx = gx;
-  restrict_join(fxy, {{y, 2}}, hx, libgm::plus_assign<>());
+  restrict_join(fxy, uint_assignment<>{{y, 2}}, hx, libgm::plus_assign<>());
   BOOST_CHECK_EQUAL(hx, iarray1({x}, {9, 8}));
 
   hx = gx;
-  restrict_join(fzy, {{z, 1}, {y, 2}}, hx, libgm::plus_assign<>());
+  restrict_join(fzy, uint_assignment<>{{z, 1}, {y, 2}}, hx, libgm::plus_assign<>());
   BOOST_CHECK_EQUAL(hx, iarray1({x}, {10, 8}));
 
   iarray1 hy = gy;
-  restrict_join(fxy, {{x, 1}}, hy, libgm::plus_assign<>());
+  restrict_join(fxy, uint_assignment<>{{x, 1}}, hy, libgm::plus_assign<>());
   BOOST_CHECK_EQUAL(hy, iarray1({y}, {-1, 6, 6}));
 }

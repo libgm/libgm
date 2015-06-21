@@ -284,7 +284,7 @@ namespace libgm {
 
       base_iterator it_; //!< the iterator over the underlying dataset
       index_type index_; //!< linear index of the values
-      value_type value_; //!< user-facing data
+      std::pair<data_type, weight_type> value_; //!< user-facing data
       std::size_t last_; //!< the one past the last required time step
 
     }; // class const_iterator

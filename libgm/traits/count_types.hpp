@@ -1,5 +1,5 @@
-#ifndef LIBGM_COUNT_TYPE_HPP
-#define LIBGM_COUNT_TYPE_HPP
+#ifndef LIBGM_COUNT_TYPES_HPP
+#define LIBGM_COUNT_TYPES_HPP
 
 #include <type_traits>
 
@@ -9,27 +9,33 @@ namespace libgm {
   //============================================================================
 
   /**
-   * Returns the number of types in an argument list that satisfy a predicate
-   * (base case, always 0).
+   * Represents the number of types in an argument list that satisfy
+   * a unary predicate.
    */
-  template <template <typename> class Predicate>
-  constexpr std::size_t count_types_fn() {
-    return 0;
-  }
+  template <template <typename> class Predicate, typename... Types>
+  struct count_types_unary;
 
   /**
-   * Returns the number of types in an argument list that satisfy a predicate,
-   *
-   * \tparam Predicate a template such as std::is_integral that accepts a type
-   * \tparam Head the first template argument in the list
-   * \tparam Rest the remaining template arguments in the list
+   * Represents the number of types in an argument list that satisfy
+   * a unary predicate (base case).
+   */
+  template <template <typename> class Predicate>
+  struct count_types_unary<Predicate> {
+    constexpr static std::size_t value = 0;
+  };
+
+  /**
+   * Returns the number of types in an argument list that satisfy
+   * a unary predicate (recursive case),
    */
   template <template <typename> class Predicate,
             typename Head,
             typename... Rest>
-  constexpr std::size_t count_types_fn() {
-    return Predicate<Head>::value + count_types_fn<Predicate, Rest...>();
-  }
+  struct count_types_unary<Predicate, Head, Rest...> {
+    constexpr static std::size_t value =
+      Predicate<Head>::value +
+      count_types_unary<Predicate, Rest...>::value;
+  };
 
   /**
    * A class that represents whether all types in a list satisfy a predicate.
@@ -42,7 +48,7 @@ namespace libgm {
   struct all_of_types
     : public std::integral_constant<
         bool,
-        count_types_fn<Predicate, Types...>() == sizeof...(Types)> { };
+        count_types_unary<Predicate, Types...>::value == sizeof...(Types)> { };
 
   /**
    * A class that represents whether any types in a list satisfy a predicate.
@@ -55,7 +61,7 @@ namespace libgm {
   struct any_of_types
     : public std::integral_constant<
         bool,
-        count_types_fn<Predicate, Types...>() != 0> { };
+        count_types_unary<Predicate, Types...>::value != 0> { };
 
   /**
    * A class that represents whether no types in a list satisfy a predicate.
@@ -68,53 +74,46 @@ namespace libgm {
   struct none_of_types
     : public std::integral_constant<
         bool,
-        count_types_fn<Predicate, Types...>() == 0> { };
+        count_types_unary<Predicate, Types...>::value == 0> { };
 
   // Binary traits
   //============================================================================
 
   /**
-   * Returns the number of times T matches a type in an argument list
-   * (base case, always 0).
-   */
-  template <template <typename, typename> class Compare,
-            typename T>
-  constexpr std::size_t count_types_fn() {
-    return 0;
-  }
-
-  /**
-   * Returns the number of times the given type matches a type in a
-   * template argument list.
+   * Returns the number of times T matches a type in an argument list.
    *
    * \tparam Compare a template such as std::is_same that compares two types
    * \tparam T the type sought
-   * \tparam Head the first template argument in the list
-   * \tparam Rest the remaining template arguments in the list
-   */
-  template <template <typename, typename> class Compare,
-            typename T,
-            typename Head,
-            typename... Rest>
-  constexpr std::size_t count_types_fn() {
-    return Compare<T, Head>::value + count_types_fn<Compare, T, Rest...>();
-  }
-
-  /**
-   * A class that represents the number of times a type matches a type in
-   * a template argument list.
-   *
-   * \tparam Compare a template such as std::is_same that compares two types
-   * \tparam T the type sought
-   * \tparam Types a variable-length list of types
+   * \tparam Types a list of types that is searched
    */
   template <template <typename, typename> class Compare,
             typename T,
             typename... Types>
-  struct count_types
-    : public std::integral_constant<
-        std::size_t,
-        count_types_fn<Compare, T, Types...>()> { };
+  struct count_types_binary;
+
+  /**
+   * Returns the number of times T matches a type in an argument list
+   * (base case).
+   */
+  template <template <typename, typename> class Compare,
+            typename T>
+  struct count_types_binary<Compare, T> {
+    constexpr static std::size_t value = 0;
+  };
+
+  /**
+   * Returns the number of times T matches a type in an argument list
+   * (recursive case).
+   */
+  template <template <typename, typename> class Compare,
+            typename T,
+            typename Head,
+            typename...Rest>
+  struct count_types_binary<Compare, T, Head, Rest...> {
+    constexpr static std::size_t value =
+      Compare<T, Head>::value +
+      count_types_binary<Compare, T, Rest...>::value;
+  };
 
   /**
    * A class that represents the number of times a type occurs in
@@ -126,7 +125,7 @@ namespace libgm {
    */
   template <typename T, typename... Types>
   struct count_same
-    : public count_types<std::is_same, T, Types...> { };
+    : public count_types_binary<std::is_same, T, Types...> { };
 
   /**
    * A class that represents the number of types in a template argument list
@@ -138,7 +137,7 @@ namespace libgm {
    */
   template <typename T, typename... Types>
   struct count_convertible
-    : public count_types<std::is_convertible, T, Types...> { };
+    : public count_types_binary<std::is_convertible, T, Types...> { };
 
 } // namespace libgm
 

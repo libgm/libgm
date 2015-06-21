@@ -525,7 +525,7 @@ namespace libgm {
    */
   template <typename T, typename Var, typename TransOp, typename AggOp>
   void transform_aggregate(const array_factor<T, 2, Var>& f,
-                           array_domain<Var, 1> retain,
+                           const array_domain<Var, 1>& retain,
                            array_factor<T, 1, Var>& h,
                            TransOp trans_op,
                            AggOp agg_op) {
@@ -548,7 +548,7 @@ namespace libgm {
    */
   template <typename T, typename Var, typename AggOp>
   void aggregate(const array_factor<T, 2, Var>& f,
-                 array_domain<Var, 1> retain,
+                 const array_domain<Var, 1>& retain,
                  array_factor<T, 1, Var>& h,
                  AggOp agg_op) {
     transform_aggregate(f, retain, h, identity(), agg_op);
@@ -560,7 +560,7 @@ namespace libgm {
    */
   template <typename Result, typename T, typename Var, typename AggOp>
   Result aggregate(const array_factor<T, 2, Var>& f,
-                   array_domain<Var, 1> retain,
+                   const array_domain<Var, 1>& retain,
                    AggOp agg_op) {
     Result result;
     aggregate(f, retain, result, agg_op);

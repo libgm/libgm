@@ -30,3 +30,4 @@
 # Build directories
 debug/
 release/
+vc14/

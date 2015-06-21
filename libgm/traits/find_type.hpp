@@ -5,45 +5,43 @@
 
 namespace libgm {
 
-  //! Returns the index of a type in the template argument list (base case).
-  template <template <typename, typename> class Compare,
-            typename T>
-  constexpr std::size_t
-  find_type_fn() {
-    static_assert(sizeof(T) == 0,
-                  "Could not find the type in the template argument list");
-    return 0;
-  }
+  // Implementation of find_type without using expression SFINAE
+  namespace detail {
+    template <bool Found,
+              template <typename, typename> class Compare,
+              typename T,
+              typename... Types>
+    struct find_type_impl;
 
-  //! Returns the index of a type in the template argument list (base case).
-  template <template <typename, typename> class Compare,
-            typename T,
-            typename Head,
-            typename... Rest>
-  constexpr std::size_t
-  find_type_fn(typename std::enable_if<Compare<T, Head>::value>::type* = 0) {
-    return 0;
-  }
+    template <template <typename, typename> class Compare,
+              typename T,
+              typename... Types>
+    struct find_type_impl<true, Compare, T, Types...> {
+      constexpr static std::size_t value = 0;
+    };
 
-  /**
-   * Returns the index of a type in the template argument list.
-   * \tparam Compare a template such as std::is_same that compares two types
-   * \tparam T the type sought
-   * \tparam Head the first template argument in the list
-   * \tparam Rest the remaining template arguments in the list
-   */
-  template <template <typename, typename> class Compare,
-            typename T,
-            typename Head,
-            typename... Rest>
-  constexpr std::size_t
-  find_type_fn(typename std::enable_if<!Compare<T, Head>::value>::type* = 0) {
-    return 1 + find_type_fn<Compare, T, Rest...>();
-  }
+    template <template <typename, typename> class Compare,
+              typename T,
+              typename Head,
+              typename... Rest>
+    struct find_type_impl<false, Compare, T, Head, Rest...> {
+      constexpr static std::size_t value =
+        find_type_impl<Compare<T, Head>::value, Compare, T, Rest...>::value + 1;
+    };
+
+    template <template <typename, typename> class Compare,
+              typename T>
+    struct find_type_impl<false, Compare, T> {
+      static_assert(sizeof(T) == 0,
+                    "Could not find the type in the template argument list");
+    };
+
+  } // namespace detail
 
   /**
-   * A class that finds a type in the template argument list.
-   * If present, the value member contains the index of first type matching T.
+   * A class that represents a type found in the template argument list.
+   * If present, the value member contains the index of the first type
+   * matching T.
    *
    * \tparam Compare a template such as std::is_same that compares two types
    * \tparam T the type sought
@@ -51,10 +49,10 @@ namespace libgm {
    */
   template <template <typename, typename> class Compare,
             typename T,
-            typename... Types>
+            typename Head,
+            typename... Rest>
   struct find_type
-    : public std::integral_constant<std::size_t,
-                                    find_type_fn<Compare, T, Types...>()> { };
+    : detail::find_type_impl<Compare<T, Head>::value, Compare, T, Rest...> { };
 
   /**
    * A class that finds exact match of a type in a template argument list.

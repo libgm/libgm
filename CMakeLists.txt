@@ -6,6 +6,8 @@ project(LibGM)
 
 cmake_minimum_required(VERSION 2.8.3)
 
+set(CMAKE_CXX_STANDARD 11)
+
 if(COMMAND cmake_policy)
   cmake_policy(SET CMP0003 NEW)
 endif(COMMAND cmake_policy)
@@ -27,7 +29,6 @@ subdirs(test)
 # add random environment variable definitions
 # deal with Boost time shtuff: we want nanoseconds!
 # add_definitions(-DBOOST_DATE_TIME_POSIX_TIME_STD_CONFIG)
-# add_definitions(-DBOOST_ALL_DYN_LINK)
 
 if (MSVC)
   add_definitions(-D_SCL_SECURE_NO_WARNINGS) # disable checked_iterator warnings
@@ -50,7 +51,9 @@ endif (${CMAKE_SYSTEM} MATCHES Linux)
 if(MSVC)
   set(Boost_USE_STATIC_LIBS OFF)
   set(Boost_USE_MULTITHREADED ON)
-  add_definitions(-DBOOST_ALL_NO_LIB=1)
+#  add_definitions(-DBOOST_ALL_NO_LIB=1)
+#  add_definitions(-DBOOST_TEST_DYN_LINK=1)
+  add_definitions(-DBOOST_ALL_DYN_LINK)
 else(MSVC)
   set(Boost_USE_STATIC_LIBS ON)
   set(Boost_USE_MULTITHREADED ON)
@@ -83,17 +86,18 @@ if (${CMAKE_SYSTEM} MATCHES Darwin)
   set(CMAKE_EXE_LINKER_FLAGS "-framework Accelerate")
 endif (${CMAKE_SYSTEM} MATCHES Darwin)
 
-include_directories(/usr/local/include/eigen3)
+include_directories(/usr/local/include/eigen3 "$ENV{EIGEN3_INCLUDE_DIR}")
 
 # Flags for the debug and release mode
 if(CMAKE_COMPILER_IS_GNUCXX)
   # Note: -fkeep-inline-functions significantly slows down the compilation
-  set(CMAKE_CXX_FLAGS_DEBUG "-g -ggdb -O0 -std=c++11 -static-libstdc++") #-fno-implicit-templates")
-  # set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g -ggdb")
+  set(CMAKE_CXX_FLAGS_DEBUG "-g -ggdb -O0 -std=c++11 -static-libstdc++")
   set(CMAKE_CXX_FLAGS_RELEASE "-O3 -g -std=c++11 -static-libstdc++")
+elseif(MSVC)
+  set(CMAKE_CXX_FLAGS "/EHsc /bigobj")
 else()
-  set(CMAKE_CXX_FLAGS "-std=c++11 -g")
-endif(CMAKE_COMPILER_IS_GNUCXX)
+  set(CMAKE_CXX_FLAGS "-g")
+endif()
 
 # uncomment the following line to get CMake variables to print to screen
 # include(CMakePrintSystemInformation)

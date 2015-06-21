@@ -256,6 +256,7 @@ namespace libgm {
     class iterator
       : public std::iterator<std::forward_iterator_tag, value_type> {
     public:
+      //! The iterator over the underlying samples
       typedef typename std::vector<value_type>::iterator base_iterator;
 
       //! default constructor
@@ -352,7 +353,13 @@ namespace libgm {
     class const_iterator
       : public std::iterator<std::forward_iterator_tag, const value_type> {
     public:
-      typedef typename std::vector<value_type>::const_iterator base_iterator;
+      // Needed in case std::iterator shadows basic_sequence_dataset::iterator
+      typedef typename basic_sequence_dataset::iterator iterator;
+
+      //! The iterator over the underlying samples
+      typedef typename std::vector<
+        std::pair<data_type, weight_type>
+      >::const_iterator base_iterator;
 
       //! default constructor
       const_iterator() { }
@@ -462,10 +469,10 @@ namespace libgm {
       base_iterator cur_; // iterator to the current value in the dataset
       base_iterator end_; // iterator to the one past last value in the dataset
       index_type index_;  // the indices for the extracted arguments
-      value_type value_;  // user-facing data for a subset of arguments
+      std::pair<data_type, weight_type> value_;  // indirect user-facing data
       bool direct_;       // if true, ignore index and access data directly
 
-      friend class iterator;
+      friend class basic_sequence_dataset::iterator;
     }; // class const_iterator
 
     /**
@@ -476,7 +483,10 @@ namespace libgm {
       : public std::iterator<std::forward_iterator_tag,
                              const std::pair<assignment_type, weight_type> > {
     public:
-      typedef typename std::vector<value_type>::const_iterator base_iterator;
+      //! The iterator over the underlying samples
+      typedef typename std::vector<
+        std::pair<data_type, weight_type>
+      >::const_iterator base_iterator;
 
       //! default constructor
       assignment_iterator() { }
@@ -561,7 +571,10 @@ namespace libgm {
     class weight_iterator
       : public std::iterator<std::forward_iterator_tag, const weight_type> {
     public:
-      typedef typename std::vector<value_type>::const_iterator base_iterator;
+      //! The iterator over the underlying samples
+      typedef typename std::vector<
+        std::pair<data_type, weight_type>
+      >::const_iterator base_iterator;
 
       //! default constructor
       weight_iterator() { }

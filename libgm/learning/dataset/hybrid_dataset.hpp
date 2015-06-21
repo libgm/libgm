@@ -411,12 +411,12 @@ namespace libgm {
         return nrows_ != 0;
       }
 
-      value_type& operator*() {
-        return value_;
+      value_type& operator*() const {
+        return const_cast<value_type&>(value_);
       }
 
-      value_type* operator->() {
-        return &value_;
+      value_type* operator->() const {
+        return const_cast<value_type*>(&value_);
       }
 
       iterator& operator++() {
@@ -523,6 +523,9 @@ namespace libgm {
     class const_iterator
       : public std::iterator<std::forward_iterator_tag, const value_type> {
     public:
+      // Needed in case std::iterator shadows hybrid_dataset::iterator
+      typedef typename hybrid_dataset::iterator iterator;
+
       //! end constructor
       const_iterator()
         : nrows_(0) { }
@@ -644,7 +647,7 @@ namespace libgm {
       std::vector<T*> relems_; // the pointers to the next real elements
       T* weight_;              // the pointer to the next weight
       std::size_t nrows_;      // the number of rows left
-      value_type value_;       // user-facing data
+      std::pair<data_type, weight_type> value_; // user-facing data
 
       //! increments the storage pointers by n
       void advance(std::ptrdiff_t n) {
@@ -672,7 +675,7 @@ namespace libgm {
         }
       }
 
-      friend class iterator;
+      friend class hybrid_dataset::iterator;
 
     }; // class const_iterator
 

@@ -289,7 +289,7 @@ namespace libgm {
       std::size_t time_;   // the current time offset
       std::size_t length_; // the length of the window
       index_type index_;   // linear index of the values
-      value_type value_;   // user-facing data
+      std::pair<data_type, weight_type> value_; // user-facing data
 
     }; // class const_iterator
 

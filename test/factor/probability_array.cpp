@@ -259,18 +259,18 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
   parray1 qx({x}, {0.4, 0.6});
   parray1 qy({y}, {0.2, 0.5, 0.3});
 
-  parray1 rx = product_marginal(pxy, qy, {x});
+  parray1 rx = pxy.product_marginal(qy, {x});
   BOOST_CHECK(table_properties(rx, {x}));
   BOOST_CHECK_CLOSE(rx[0], 1.1*0.2+0.1*0.5+0.4*0.3, 1e-8);
   BOOST_CHECK_CLOSE(rx[1], 0.5*0.2+0.2*0.5+0.0*0.3, 1e-8);
 
-  parray1 ry = product_marginal(qx, pxy, {y});
+  parray1 ry = qx.product_marginal(pxy, {y});
   BOOST_CHECK(table_properties(ry, {y}));
   BOOST_CHECK_CLOSE(ry[0], 1.1*0.4 + 0.5*0.6, 1e-8);
   BOOST_CHECK_CLOSE(ry[1], 0.1*0.4 + 0.2*0.6, 1e-8);
   BOOST_CHECK_CLOSE(ry[2], 0.4*0.4 + 0.0*0.6, 1e-8);
 
-  parray1 sx = product_marginal(pxy, qx, {x});
+  parray1 sx = pxy.product_marginal(qx, {x});
   BOOST_CHECK(table_properties(sx, {x}));
   BOOST_CHECK_CLOSE(sx[0], (1.1+0.1+0.4)*0.4, 1e-8);
   BOOST_CHECK_CLOSE(sx[1], (0.5+0.2+0.0)*0.6, 1e-8);

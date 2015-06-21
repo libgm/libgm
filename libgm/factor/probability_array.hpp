@@ -11,6 +11,7 @@
 #include <libgm/math/likelihood/probability_array_ll.hpp>
 #include <libgm/math/likelihood/probability_array_mle.hpp>
 #include <libgm/math/random/array_distribution.hpp>
+#include <libgm/traits/static_max.hpp>
 
 #include <iostream>
 
@@ -330,6 +331,40 @@ namespace libgm {
     }
 
     /**
+     * Computes the product of a binary and unary probability_array factor
+     * and marginalizes the result over a single variable.
+     */
+    template <bool B = (N == 2)>
+    typename std::enable_if<B, probability_array<T, 1, Var> >::type
+    product_marginal(const probability_array<T, 1, Var>& g,
+                     const unary_domain_type& retain) {
+      assert(arguments().count(g.x()));
+      assert(arguments().count(retain[0]));
+      if (g.x() == retain[0]) {
+        return marginal(retain) *= g;
+      } else {
+        return expectation<probability_array<T, 1, Var> >(*this, g);
+      }
+    }
+
+    /**
+     * Computes the product of a unary and a binary probability_array factor
+     * and marginalizes the result over a single variable.
+     */
+    template <bool B = (N == 1)>
+    typename std::enable_if<B, probability_array<T, 1, Var> >::type
+    product_marginal(const probability_array<T, 2, Var>& f,
+                     const unary_domain_type& retain) {
+      assert(f.arguments().count(this->x()));
+      assert(f.arguments().count(retain[0]));
+      if (this->x() == retain[0]) {
+        return f.marginal(retain) *= *this;
+      } else {
+        return expectation<probability_array<T, 1, Var> >(f, *this);
+      }
+    }
+
+    /**
      * Computes the maximum of the factor over a single variable.
      * This operation is only supported for binary factors.
      */
@@ -573,10 +608,10 @@ namespace libgm {
    * \relates probability_array
    */
   template <typename T, std::size_t M, std::size_t N, typename Var>
-  probability_array<T, (M >= N) ? M : N, Var>
+  probability_array<T, static_max<M, N>::value, Var>
   operator*(const probability_array<T, M, Var>& f,
             const probability_array<T, N, Var>& g) {
-    typedef probability_array<T, (M >= N) ? M : N, Var> result_type;
+    typedef probability_array<T, static_max<M, N>::value, Var> result_type;
     return join<result_type>(f, g, libgm::multiplies<>());
   }
 
@@ -588,47 +623,11 @@ namespace libgm {
    * \relates probability_array
    */
   template <typename T, std::size_t M, std::size_t N, typename Var>
-  probability_array<T, (M >= N) ? M : N, Var>
+  probability_array<T, static_max<M, N>::value, Var>
   operator/(const probability_array<T, M, Var>& f,
             const probability_array<T, N, Var>& g) {
-    typedef probability_array<T, (M >= N) ? M : N, Var> result_type;
+    typedef probability_array<T, static_max<M, N>::value, Var> result_type;
     return join<result_type>(f, g, libgm::divides<>()).clear_nan();
-  }
-
-  /**
-   * Multiplies a binary and a unary probability_array factor
-   * and computes the marginal over a single variable.
-   */
-  template <typename T, typename Var>
-  probability_array<T, 1, Var>
-  product_marginal(const probability_array<T, 2, Var>& f,
-                   const probability_array<T, 1, Var>& g,
-                   const array_domain<Var, 1>& retain) {
-    assert(f.arguments().count(g.x()));
-    assert(f.arguments().count(retain[0]));
-    if (g.x() == retain[0]) {
-      return f.marginal(retain) *= g;
-    } else {
-      return expectation<probability_array<T, 1, Var> >(f, g);
-    }
-  }
-
-  /**
-   * Multiplies a unary and a binary probability_array factor
-   * and computes the marginal over a single variable.
-   */
-  template <typename T, typename Var>
-  probability_array<T, 1, Var>
-  product_marginal(const probability_array<T, 1, Var>& g,
-                   const probability_array<T, 2, Var>& f,
-                   const array_domain<Var, 1>& retain) {
-    assert(f.arguments().count(g.x()));
-    assert(f.arguments().count(retain[0]));
-    if (g.x() == retain[0]) {
-      return f.marginal(retain) *= g;
-    } else {
-      return expectation<probability_array<T, 1, Var> >(f, g);
-    }
   }
 
 } // namespace libgm

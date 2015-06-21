@@ -125,7 +125,7 @@ namespace libgm {
       resize(n);
       mean = chol.solve(cg.eta);
       cov = chol.solve(mat_type::Identity(n, n));
-      lm = cg.lm + T(0.5) * (n*log(two_pi<T>()) - logdet(chol)
+      lm = cg.lm + T(0.5) * (n*std::log(two_pi<T>()) - logdet(chol)
                              + mean.dot(cg.eta));
       return *this;
     }
@@ -301,9 +301,9 @@ namespace libgm {
      */
     friend T max_diff(const moment_gaussian_param& f,
                       const moment_gaussian_param& g) {
-      T dmean = (f.mean - g.mean).array().abs().max();
-      T dcov  = (f.cov - g.cov).array().abs().max();
-      T dcoef = (f.coef - g.coef).array().abs().max();
+      T dmean = (f.mean - g.mean).array().abs().maxCoeff();
+      T dcov  = (f.cov - g.cov).array().abs().maxCoeff();
+      T dcoef = (f.coef - g.coef).array().abs().maxCoeff();
       return std::max(std::max(dmean, dcov), dcoef);
     }
 

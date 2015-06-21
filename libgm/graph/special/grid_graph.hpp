@@ -41,17 +41,17 @@ namespace libgm {
    * \tparam EP the edge property type of the graph
    */
   template <typename VP, typename EP>
-  void make_grid_graph(std::size_t m, std::size_t n,
+  void make_grid_graph(int m, int n,
                        undirected_graph<std::pair<int, int>, VP, EP>& g) {
     // if the grid is empty, we need to add vertex (0, 0) manually
-    if (m == 0 && n == 0) {
+    if (m == 1 && n == 1) {
       g.add_vertex({0, 0});
       return;
     }
 
     // otherwise, it's enough to add edges (vertices are added automatically)
-    for (std::size_t i = 0; i < m; i++) {
-      for (std::size_t j = 0; j < n; j++) {
+    for (int i = 0; i < m; i++) {
+      for (int j = 0; j < n; j++) {
         if (j+1 < n) { g.add_edge({i, j}, {i, j+1}); }
         if (i+1 < m) { g.add_edge({i, j}, {i+1, j}); }
       }

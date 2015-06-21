@@ -47,14 +47,6 @@ namespace libgm {
       : uint_assignment<Var>(ua),
         real_assignment<T, Var>(ra) { }
 
-    //! Constructs an assignment with the contents of an initializer list.
-    hybrid_assignment(std::initializer_list<uint_value_type> uinit)
-      : uint_assignment<Var>(uinit) { }
-
-    //! Constructs an assignment with the contents of an initializer list.
-    hybrid_assignment(std::initializer_list<real_value_type> rinit)
-      : real_assignment<T, Var>(rinit) { }
-
     //! Constructs an assignment with the contents of initializer lists.
     hybrid_assignment(std::initializer_list<uint_value_type> uinit,
                       std::initializer_list<real_value_type> rinit)

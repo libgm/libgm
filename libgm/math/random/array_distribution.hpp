@@ -4,6 +4,7 @@
 #include <libgm/datastructure/uint_vector.hpp>
 #include <libgm/math/log_tag.hpp>
 
+#include <numeric>
 #include <random>
 #include <stdexcept>
 

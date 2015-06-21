@@ -457,6 +457,9 @@ namespace libgm {
     class const_iterator
       : public std::iterator<std::forward_iterator_tag, const value_type> {
     public:
+      // Needed in case std::iterator shadows basic_dataset::iterator
+      typedef typename basic_dataset::iterator iterator;
+
       //! end constructor
       const_iterator()
         : nrows_(0) { }
@@ -567,8 +570,8 @@ namespace libgm {
     private:
       std::vector<element_type*> elems_; // the pointers to the next elements
       weight_type* weight_;              // the pointer to the next weight
-      std::size_t nrows_;                     // the number of rows left
-      value_type value_;                 // user-facing data
+      std::size_t nrows_;                // the number of rows left
+      std::pair<data_type, weight_type> value_; // user-facing data
 
       //! increments the storage pointers by n
       void advance(std::ptrdiff_t n) {
@@ -590,7 +593,7 @@ namespace libgm {
         }
       }
 
-      friend class iterator;
+      friend class basic_dataset::iterator;
 
     }; // class const_iterator
 
@@ -679,7 +682,7 @@ namespace libgm {
       domain_type args_;                 // the underlying domain
       std::vector<element_type*> elems_; // the pointers to the next elements
       weight_type* weight_;              // the pointer to the next weight
-      std::size_t nrows_;                     // the number of rows left
+      std::size_t nrows_;                // the number of rows left
       std::pair<assignment_type, weight_type> value_; // user-facing data
 
       //! increments the storage pointer by n

@@ -37,6 +37,7 @@ namespace libgm {
   struct invoke_hash {
     template <typename T>
     std::size_t operator()(const T& value) const {
+      using boost::hash_value;
       return hash_value(value);
     }
   };

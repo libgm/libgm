@@ -8,10 +8,10 @@
 #include <libgm/graph/vertex_traits.hpp>
 #include <libgm/serialization/iarchive.hpp>
 #include <libgm/serialization/oarchive.hpp>
-#include <libgm/traits/algorithm.hpp>
 #include <libgm/traits/at_type.hpp>
 #include <libgm/traits/count_types.hpp>
 #include <libgm/traits/find_type.hpp>
+#include <libgm/traits/static_max.hpp>
 
 #include <algorithm>
 #include <array>
@@ -34,6 +34,8 @@ namespace libgm {
     static_assert(all_of_types<std::is_trivially_copyable, Types...>::value,
                   "The union types must be all trivially copyable");
 #endif
+    static_assert(sizeof...(Types) > 0,
+                  "Empty typesafe_union is not allowed");
     static_assert(sizeof...(Types) < 128,
                   "A typesafe_union can consist of at most 127 types");
 
@@ -195,10 +197,20 @@ namespace libgm {
         (x.which() == y.which() && apply_binary(greater_equal<>(), x, y, true));
     }
 
+    //! Prints a union to an output stream.
+    friend std::ostream& operator<<(std::ostream& out, const typesafe_union& u){
+      switch (u.which()) {
+      case -1: out << "null"; break;
+      case -2: out << "deleted"; break;
+      default: apply_unary(stream_out<std::ostream>(out), u); break;
+      }
+      return out;
+    }
+
     // Data members
     //==========================================================================
   private:
-    static constexpr std::size_t length = max_parameter<sizeof(Types)...>();
+    static constexpr std::size_t length = static_max<sizeof(Types)...>::value;
 
     //! The underlying storage.
     char data_[length];
@@ -211,21 +223,6 @@ namespace libgm {
 
   // Access functions
   //============================================================================
-
-  /**
-   * Prints a union to an output stream.
-   * \relates typesafe_union
-   */
-  template <typename... Types>
-  std::ostream&
-  operator<<(std::ostream& out, const typesafe_union<Types...>& u) {
-    switch (u.which()) {
-    case -1: out << "null"; break;
-    case -2: out << "deleted"; break;
-    default: apply_unary(stream_out<std::ostream>(out), u); break;
-    }
-    return out;
-  }
 
   /**
    * Helper function that invokes a function on a set of arguments

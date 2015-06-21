@@ -79,8 +79,8 @@ void test(const pairwise_markov_network<ptable_type>& model,
 struct fixture {
   fixture() {
     // generate a random model
-    std::size_t m = 5;
-    std::size_t n = 4;
+    int m = 5;
+    int n = 4;
     make_grid_graph(m, n, mn);
     uniform_table_generator<ptable_type> gen;
     std::mt19937 rng;
@@ -95,8 +95,8 @@ struct fixture {
 
     // create a region graph with clusters over 2x2 adjacent variables
     std::vector<domain_type> root_clusters;
-    for(std::size_t i = 0; i < m - 1; i++) {
-      for(std::size_t j = 0; j < n - 1; j++) {
+    for(int i = 0; i < m - 1; i++) {
+      for(int j = 0; j < n - 1; j++) {
         domain_type cluster({{i, j}, {i+1, j}, {i, j+1}, {i+1, j+1}});
         root_clusters.push_back(cluster);
       }
