@@ -34,8 +34,14 @@ find_package(Boost 1.40 COMPONENTS
              unit_test_framework
 	     system REQUIRED)
 
+# Hacky Eigen3 configuration until there is a find module
+include_directories(
+  /usr/local/include/eigen3
+  /usr/include/eigen3
+  $ENV{EIGEN3_INCLUDE_DIR}
+)
+
 include_directories(${LibGM_SOURCE_DIR} ${Boost_INCLUDE_DIR})
-include_directories(/usr/local/include/eigen3 $ENV{EIGEN3_INCLUDE_DIR})
 link_directories(${Boost_LIBRARY_DIRS})
 link_libraries(${Boost_LIBRARIES})
 
