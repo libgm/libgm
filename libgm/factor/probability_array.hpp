@@ -338,8 +338,8 @@ namespace libgm {
     typename std::enable_if<B, probability_array<T, 1, Var> >::type
     product_marginal(const probability_array<T, 1, Var>& g,
                      const unary_domain_type& retain) {
-      assert(arguments().count(g.x()));
-      assert(arguments().count(retain[0]));
+      assert(this->arguments().count(g.x()));
+      assert(this->arguments().count(retain[0]));
       if (g.x() == retain[0]) {
         return marginal(retain) *= g;
       } else {
