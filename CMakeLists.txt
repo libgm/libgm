@@ -12,11 +12,6 @@ if (MSVC)
   add_definitions(-D_SECURE_SCL=0)  # necesary for release builds of MSVC
 endif(MSVC)
 
-if (${CMAKE_SYSTEM} MATCHES Linux)
-  link_directories(/usr/local/lib64)
-  set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS ON)
-endif (${CMAKE_SYSTEM} MATCHES Linux)
-
 if(MSVC)
   set(Boost_USE_STATIC_LIBS OFF)
   set(Boost_USE_MULTITHREADED ON)
