@@ -768,7 +768,7 @@ namespace libgm {
       //! Constructs the vertex info with the given cluster and property.
       vertex_info(const Domain& cluster,
                   const VertexProperty& property = VertexProperty())
-        : cluster(cluster), property(property) { }
+        : cluster(cluster), property(property), marked(false) { }
 
       //! Compares the cluster and vertex property stored at two vertices.
       friend bool operator==(const vertex_info& a, const vertex_info& b) {

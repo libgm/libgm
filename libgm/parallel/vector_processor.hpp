@@ -48,10 +48,10 @@ namespace libgm {
         std::atomic<std::size_t> index(0);
         std::vector<std::thread> threads;
         for (std::size_t t = 0; t < state.size(); ++t) {
-          threads.emplace_back([&] {
+          threads.emplace_back([this, t, &index, &jobs, &state] {
               std::size_t i;
               while ((i = index++) < jobs.size()) {
-                fn_(jobs[i], state[i]);
+                fn_(jobs[i], state[t]);
               }
             });
         }

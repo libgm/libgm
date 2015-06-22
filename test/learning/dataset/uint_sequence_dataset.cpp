@@ -227,8 +227,8 @@ BOOST_AUTO_TEST_CASE(test_load) {
   universe u;
   text_dataset_format format;
   uint_sequence_dataset<> ds;
-  format.load_config(dir + "/finite_seq.cfg", u);
-  load({dir + "/finite_seq0.txt", dir + "/finite_seq1.txt"}, format, ds);
+  format.load_config(dir + "/uint_seq.cfg", u);
+  load({dir + "/uint_seq0.txt", dir + "/uint_seq1.txt"}, format, ds);
 
   // check the sequences
   data_type seq0(2, 3), seq1(2, 4);
@@ -240,5 +240,5 @@ BOOST_AUTO_TEST_CASE(test_load) {
   BOOST_CHECK_EQUAL(ds[1].first, seq1);
   BOOST_CHECK_EQUAL(ds[1].second, 1.0);
 
-  save({"finite_seq0.tmp", "finite_seq1.tmp"}, format, ds);
+  save({"uint_seq0.tmp", "uint_seq1.tmp"}, format, ds);
 }

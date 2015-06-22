@@ -8,6 +8,7 @@
 #include <functional>
 #include <numeric>
 #include <unordered_map>
+#include <vector>
 
 namespace libgm {
 
@@ -69,6 +70,20 @@ namespace libgm {
         vertices2_.push_back(v);
         beliefs2_[v] = belief_type(model_[v].arguments(), real_type(1));
       }
+    }
+
+    /**
+     * Returns the vector of type-1 vertices.
+     */
+    const std::vector<Vertex1>& vertices1() const {
+      return vertices1_;
+    }
+
+    /**
+     * Returns the vector of type-1 vertices.
+     */
+    const std::vector<Vertex2>& vertices2() const {
+      return vertices2_;
     }
 
     /**

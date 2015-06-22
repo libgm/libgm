@@ -3,7 +3,6 @@
 
 #include <libgm/argument/basic_domain.hpp>
 #include <libgm/graph/algorithm/constrained_elim_strategy.hpp>
-#include <libgm/graph/algorithm/min_degree_strategy.hpp>
 #include <libgm/graph/algorithm/min_fill_strategy.hpp>
 #include <libgm/graph/algorithm/triangulate.hpp>
 #include <libgm/graph/special/grid_graph.hpp>
@@ -35,7 +34,7 @@ BOOST_AUTO_TEST_CASE(test_triangulation) {
 
   // Create a constrained elimination strategy that eliminates row 1 first
   auto s = constrained_strategy<int>([](grid_vertex v) { return v.first; },
-                                     min_degree_strategy());
+                                     min_fill_strategy());
 
   // Create a junction tree using this elimination strategy.
   // If we imagine vertices in row 0 as being discrete and vertices in row 1
@@ -50,8 +49,8 @@ BOOST_AUTO_TEST_CASE(test_triangulation) {
   std::vector<domain_type> cliques = {
     {{0, 4}, {1, 3}, {1, 4}},
     {{0, 0}, {1, 0}, {1, 1}},
-    {{0, 0}, {0, 1}, {1, 1}, {1, 2}},
     {{0, 3}, {0, 4}, {1, 2}, {1, 3}},
+    {{0, 0}, {0, 1}, {1, 1}, {1, 2}},
     {{0, 0}, {0, 1}, {0, 2}, {0, 3}, {0, 4}, {1, 2}}
   };
   cluster_graph<domain_type> jt2;

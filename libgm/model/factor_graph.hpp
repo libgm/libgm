@@ -139,9 +139,9 @@ namespace libgm {
       if (f.arguments().empty()) {
         return id_t(); // not added
       }
-      while (this->contains(max_id_)) {
+      do {
         ++max_id_;
-      }
+      } while (this->contains(max_id_));
       this->add_vertex(max_id_, f);
       for (variable_type var : f.arguments()) {
         this->add_edge(max_id_, var);

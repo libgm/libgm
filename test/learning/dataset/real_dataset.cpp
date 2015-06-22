@@ -288,8 +288,8 @@ BOOST_AUTO_TEST_CASE(test_load) {
   universe u;
   text_dataset_format format;
   real_dataset<> ds;
-  format.load_config(dir + "/vector.cfg", u);
-  load(dir + "/vector.txt", format, ds);
+  format.load_config(dir + "/real.cfg", u);
+  load(dir + "/real.txt", format, ds);
 
   double values[][3] = { {180, 0, 0}, {178.2, 1, 0}, {nan<double>(), 2, 2} };
   double weights[] = {1.0, 2.0, 0.5};

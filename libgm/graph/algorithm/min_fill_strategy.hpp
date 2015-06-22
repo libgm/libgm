@@ -1,6 +1,8 @@
 #ifndef LIBGM_MIN_FILL_STRATEGY_HPP
 #define LIBGM_MIN_FILL_STRATEGY_HPP
 
+#include <libgm/graph/vertex_traits.hpp>
+
 #include <unordered_set>
 
 namespace libgm {
@@ -41,10 +43,11 @@ namespace libgm {
     template <typename Graph, typename OutIt>
     void updated(typename Graph::vertex_type u, const Graph& g, OutIt out) {
       typedef typename Graph::vertex_type vertex_type;
+      typedef typename vertex_traits<vertex_type>::hasher hasher;
 
       // It is faster to store the values in a set than to output them
       // multiple times (which causes further priority updates)
-      std::unordered_set<vertex_type> update_set;
+      std::unordered_set<vertex_type, hasher> update_set;
       for (vertex_type v : g.neighbors(u)) {
         update_set.insert(v);
         update_set.insert(g.neighbors(v).begin(), g.neighbors(v).end());

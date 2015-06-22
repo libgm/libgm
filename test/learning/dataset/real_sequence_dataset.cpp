@@ -231,8 +231,8 @@ BOOST_AUTO_TEST_CASE(test_load) {
   universe u;
   text_dataset_format format;
   real_sequence_dataset<> ds;
-  format.load_config(dir + "/vector_seq.cfg", u);
-  load({dir + "/vector_seq0.txt", dir + "/vector_seq1.txt"}, format, ds);
+  format.load_config(dir + "/real_seq.cfg", u);
+  load({dir + "/real_seq0.txt", dir + "/real_seq1.txt"}, format, ds);
 
   // check the sequences
   data_type seq0(3, 3), seq1(3, 2);
@@ -244,5 +244,5 @@ BOOST_AUTO_TEST_CASE(test_load) {
   BOOST_CHECK_EQUAL(ds[1].first, seq1);
   BOOST_CHECK_EQUAL(ds[1].second, 1.0);
 
-  save({"vector_seq0.tmp", "vector_seq1.tmp"}, format, ds);
+  save({"real_seq0.tmp", "real_seq1.tmp"}, format, ds);
 }

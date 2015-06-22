@@ -186,9 +186,9 @@ namespace libgm {
      */
     void save_config(const std::string& filename) const {
       simple_config config;
+      save_options(config);
       save_variables(config);
       save_dprocesses(config);
-      save_options(config);
       config.save(filename);
     }
 
@@ -218,8 +218,8 @@ namespace libgm {
     void load_variables(simple_config& config, universe& u) {
       typedef std::pair<std::string, std::string> config_entry;
       for (const config_entry& entry : config["variables"]) {
-        if (entry.second.compare(0, 7, "continuous(") == 0) {
-          std::string param = entry.second.substr(7, entry.second.size() - 8);
+        if (entry.second.compare(0, 11, "continuous(") == 0) {
+          std::string param = entry.second.substr(11, entry.second.size() - 12);
           std::size_t dim;
           if (!parse_string(param, dim) || dim == 0) {
             std::string msg =
@@ -228,8 +228,8 @@ namespace libgm {
             throw std::invalid_argument(msg);
           }
           variables.push_back(u.new_continuous_variable(entry.first, dim));
-        } else if (entry.second.compare(0, 7, "discrete(") == 0) {
-          std::string param = entry.second.substr(7, entry.second.size() - 8);
+        } else if (entry.second.compare(0, 9, "discrete(") == 0) {
+          std::string param = entry.second.substr(9, entry.second.size() - 10);
           std::size_t values;
           if (!parse_string(param, values) || values <= 1) {
             std::string msg =
@@ -262,9 +262,9 @@ namespace libgm {
     void load_dprocesses(simple_config& config, universe& u) {
       typedef std::pair<std::string, std::string> config_entry;
       for (const config_entry& entry : config["discrete_processes"]) {
-        if (entry.second.compare(0, 7, "continuous(") == 0) {
+        if (entry.second.compare(0, 11, "continuous(") == 0) {
           std::string name = entry.first;
-          std::string param = entry.second.substr(7, entry.second.size() - 8);
+          std::string param = entry.second.substr(11, entry.second.size() - 12);
           std::size_t dim;
           if (!parse_string(param, dim) || dim == 0) {
             std::string msg =
@@ -273,9 +273,9 @@ namespace libgm {
             throw std::invalid_argument(msg);
           }
           dprocesses.push_back(u.new_continuous_dprocess(name, dim));
-        } else if (entry.second.compare(0, 7, "discrete(") == 0) {
+        } else if (entry.second.compare(0, 9, "discrete(") == 0) {
           std::string name = entry.first;
-          std::string param = entry.second.substr(7, entry.second.size() - 8);
+          std::string param = entry.second.substr(9, entry.second.size() - 10);
           std::size_t values;
           if (!parse_string(param, values) || values <= 1) {
             std::string msg =

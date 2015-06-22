@@ -213,8 +213,8 @@ struct fixture {
 BOOST_FIXTURE_TEST_CASE(test_reconstruction, fixture) {
   // verify that the distribution retrieved by immutable iterators
   // matches the factor for every variable or every pair of variables
-  for (std::size_t i = 0; i < num_dimensions(v); ++i) {
-    for (std::size_t j = i; j < num_dimensions(v); ++j) {
+  for (std::size_t i = 0; i < v.size(); ++i) {
+    for (std::size_t j = i; j < v.size(); ++j) {
       domain dom = domain({v[i], v[j]}).unique();
       double kl = kl_divergence(f.marginal(dom), mle(ds, dom));
       std::cout << dom << ": " << kl << std::endl;
@@ -274,8 +274,8 @@ BOOST_AUTO_TEST_CASE(test_load) {
   universe u;
   text_dataset_format format;
   uint_dataset<> ds;
-  format.load_config(dir + "/finite.cfg", u);
-  load(dir + "/finite.txt", format, ds);
+  format.load_config(dir + "/uint.cfg", u);
+  load(dir + "/uint.txt", format, ds);
 
   std::size_t values[][3] = { {0, std::size_t(-1), 2}, {2, 1, 3}, {1, 0, 0} };
   double weights[] = {1.0, 2.0, 0.5};
@@ -289,5 +289,5 @@ BOOST_AUTO_TEST_CASE(test_load) {
     ++i;
   }
 
-  save("finite.tmp", format, ds);
+  save("uint.tmp", format, ds);
 }
