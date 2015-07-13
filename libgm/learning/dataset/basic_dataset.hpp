@@ -304,7 +304,7 @@ namespace libgm {
     //! Randomly permutes the rows.
     template <typename RandomNumberGenerator>
     void shuffle(RandomNumberGenerator& rng) {
-      permute(randperm(inserted_, rng));
+      permute(randperm(rng, inserted_));
     }
 
     //! Swaps this dataset with the other.
@@ -413,7 +413,7 @@ namespace libgm {
     private:
       std::vector<element_type*> elems_; // the pointers to the next elements
       weight_type* weight_;              // the pointer to the next weight
-      std::size_t nrows_;                     // the number of rows left
+      std::size_t nrows_;                // the number of rows left
       value_type value_;                 // user-facing data
 
       //! increments the storage pointers by n

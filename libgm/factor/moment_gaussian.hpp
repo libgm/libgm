@@ -53,7 +53,7 @@ namespace libgm {
     // Constructors and conversion operators
     //==========================================================================
 
-    //! Default constructor. Creats an empty factor.
+    //! Default constructor. Creates an empty factor.
     moment_gaussian() { }
 
     //! Constructs a factor with given arguments and uninitialized parameters.

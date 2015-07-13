@@ -13,7 +13,7 @@ namespace libgm {
    */
   template <typename Generator>
   std::vector<std::size_t>
-  randperm(std::size_t n, Generator& rng, std::size_t k) {
+  randperm(Generator& rng, std::size_t n, std::size_t k) {
     if (k > n) {
       throw std::invalid_argument("randperm: k must be <= n");
     }
@@ -32,7 +32,7 @@ namespace libgm {
    */
   template <typename Generator>
   std::vector<std::size_t>
-  randperm(std::size_t n, Generator& rng) {
+  randperm(Generator& rng, std::size_t n) {
     std::vector<std::size_t> perm(n);
     std::iota(perm.begin(), perm.end(), std::size_t(0));
     std::shuffle(perm.begin(), perm.end(), rng);

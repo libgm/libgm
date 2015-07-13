@@ -349,7 +349,7 @@ namespace libgm {
     //! Randomly permutes the rows.
     template <typename RandomNumberGenerator>
     void shuffle(RandomNumberGenerator& rng) {
-      permute(randperm(inserted_, rng));
+      permute(randperm(rng, inserted_));
     }
 
     //! Swaps this dataset with the other.
