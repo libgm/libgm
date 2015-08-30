@@ -3,7 +3,8 @@
 
 #include <libgm/graph/cluster_graph.hpp>
 
-#include <libgm/argument/basic_domain.hpp>
+#include <libgm/argument/domain.hpp>
+#include <libgm/argument/var.hpp>
 #include <libgm/argument/universe.hpp>
 
 #include <functional>
@@ -11,14 +12,16 @@
 #include "../predicates.hpp"
 
 namespace libgm {
-  template class cluster_graph<domain>;
+  template class cluster_graph<domain<var>>;
 }
 
 using namespace libgm;
 
 struct fixture {
-  fixture()
-    : v(u.new_discrete_variables(6, "v", 2)) {
+  fixture() {
+    for (std::size_t i = 0; i < 6; ++i) {
+      v.push_back(var::discrete(u, "v" + std::to_string(i), 2));
+    }
     using libgm::id_t;
     cg.add_cluster(id_t(1), {v[0], v[1]});
     cg.add_cluster(id_t(2), {v[1], v[2], v[3]});
@@ -30,8 +33,8 @@ struct fixture {
   }
 
   universe u;
-  domain v;
-  cluster_graph<domain> cg;
+  domain<var> v;
+  cluster_graph<domain<var> > cg;
 };
 
 BOOST_FIXTURE_TEST_CASE(test_properties, fixture) {
@@ -47,7 +50,7 @@ BOOST_FIXTURE_TEST_CASE(test_properties, fixture) {
 }
 
 BOOST_FIXTURE_TEST_CASE(test_copy, fixture) {
-  cluster_graph<domain> cg2(cg);
+  cluster_graph<domain<var> > cg2(cg);
   BOOST_CHECK(cg2.connected());
   BOOST_CHECK(cg2.tree());
   BOOST_CHECK(cg2.running_intersection());
@@ -75,7 +78,7 @@ BOOST_AUTO_TEST_CASE(test_triangulated) {
     {vpair(6, 2), vpair(1, 2), vpair(1, 3), vpair(1, 5),
      vpair(2, 3), vpair(3, 4), vpair(4, 6), vpair(4, 1)};
   undirected_graph<std::size_t> g(vpairs);
-  typedef basic_domain<std::size_t> domain_type;
+  typedef domain<std::size_t> domain_type;
 
   // Build a junction tree using the min-degree strategy
   cluster_graph<domain_type> jt;

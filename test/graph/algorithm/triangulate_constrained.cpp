@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE constrained_triangulation
 #include <boost/test/unit_test.hpp>
 
-#include <libgm/argument/basic_domain.hpp>
+#include <libgm/argument/domain.hpp>
 #include <libgm/graph/algorithm/constrained_elim_strategy.hpp>
 #include <libgm/graph/algorithm/min_fill_strategy.hpp>
 #include <libgm/graph/algorithm/triangulate.hpp>
@@ -20,7 +20,7 @@ using namespace libgm;
 BOOST_AUTO_TEST_CASE(test_triangulation) {
   typedef std::pair<int, int> grid_vertex;
   typedef undirected_graph<grid_vertex> graph_type;
-  typedef basic_domain<grid_vertex> domain_type;
+  typedef domain<grid_vertex> domain_type;
 
   // Build a 2 x 5 lattice
   graph_type lattice;
@@ -42,7 +42,8 @@ BOOST_AUTO_TEST_CASE(test_triangulation) {
   // junction tree.
   cluster_graph<domain_type> jt;
   triangulate_maximal<domain_type>(lattice, [&](domain_type&& clique) {
-      jt.add_cluster(clique.sort());
+      std::sort(clique.begin(), clique.end());
+      jt.add_cluster(clique);
     }, s);
   jt.mst_edges();
 

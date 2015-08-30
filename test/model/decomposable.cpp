@@ -19,14 +19,14 @@ BOOST_FIXTURE_TEST_CASE(test_marginal, basic_fixture) {
   decomposable<ptable> model;
   model *= factors;
 
-  domain dom = {lvfailure, history, cvp, pcwp, hypovolemia};
+  domain<var> dom = {lvfailure, history, cvp, pcwp, hypovolemia};
   ptable marginal = model.marginal(dom);
   BOOST_CHECK_CLOSE(marginal.entropy(), 4.27667, 1e-3);
   BOOST_CHECK_EQUAL(marginal.arguments(), dom);
 
   decomposable<ptable> marginal_model;
   model.marginal(dom, marginal_model);
-  BOOST_CHECK(equivalent(domain(marginal_model.arguments()), dom));
+  BOOST_CHECK(equivalent(domain<var>(marginal_model.arguments()), dom));
   BOOST_CHECK_CLOSE(marginal_model.entropy(), 4.27667, 1e-3);
 }
 
@@ -74,8 +74,8 @@ BOOST_AUTO_TEST_CASE(test_sampling) {
   decomposable<ptable> model(bn.factors());
 
   // Test conditioning and computing log likelihoods.
-  finite_domain half_vars1(model.arguments());
-  finite_domain half_vars2;
+  domain<var> half_vars1(model.arguments());
+  domain<var> half_vars2;
   for (std::size_t i = 0; i < n / 2; ++i) {
     assert(!half_vars1.empty());
     variable v = *(half_vars1.begin());

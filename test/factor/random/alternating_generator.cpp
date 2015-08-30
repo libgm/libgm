@@ -2,6 +2,7 @@
 #include <boost/test/unit_test.hpp>
 
 #include <libgm/argument/universe.hpp>
+#include <libgm/argument/var.hpp>
 #include <libgm/factor/probability_table.hpp>
 #include <libgm/factor/random/alternating_generator.hpp>
 #include <libgm/factor/random/moment_gaussian_generator.hpp>
@@ -9,20 +10,23 @@
 
 #include <random>
 
+using namespace libgm;
+
+typedef probability_table<var> ptable;
+typedef moment_gaussian<var> mgaussian;
+
 namespace libgm{
   template class alternating_generator<uniform_table_generator<ptable> >;
-  template class alternating_generator<moment_gaussian_generator<double> >;
+  template class alternating_generator<moment_gaussian_generator<var> >;
 }
-
-using namespace libgm;
 
 BOOST_AUTO_TEST_CASE(test_constructors) {
   uniform_table_generator<ptable> def_gen(1.0, 2.0);
   uniform_table_generator<ptable> alt_gen(3.0, 4.0);
   uniform_table_generator<ptable>::param_type def_par = def_gen.param();
   uniform_table_generator<ptable>::param_type alt_par = alt_gen.param();
-  
-  
+
+
   alternating_generator<uniform_table_generator<ptable>> gen1(def_gen, alt_gen, 1);
   alternating_generator<uniform_table_generator<ptable>> gen2(def_par, alt_par, 3);
 
@@ -36,15 +40,15 @@ BOOST_AUTO_TEST_CASE(test_constructors) {
 
 BOOST_AUTO_TEST_CASE(test_operators) {
   universe u;
-  variable x = u.new_discrete_variable("x", 2);
-  variable y = u.new_discrete_variable("y", 1);
-  domain xs = { x };
-  domain ys = { y };
-  domain xy = { x, y };
+  var x = var::discrete(u, "x", 2);
+  var y = var::discrete(u, "y", 1);
+  domain<var> xs = { x };
+  domain<var> ys = { y };
+  domain<var> xy = { x, y };
 
   uniform_table_generator<ptable> def_gen(-2.0, -1.0); // log space
   uniform_table_generator<ptable> alt_gen(+1.0, +2.0); // log space
-  
+
   alternating_generator<uniform_table_generator<ptable>> gen(def_gen, alt_gen, 3);
   std::mt19937 rng;
 
@@ -57,7 +61,7 @@ BOOST_AUTO_TEST_CASE(test_operators) {
   BOOST_CHECK_GT(gen(xy, rng)[0], 1.0);
 
   // test conditionals
-  // not sure what to do besides instantiating the operator 
+  // not sure what to do besides instantiating the operator
   gen(ys, xs, rng);
   gen(ys, xs, rng);
   gen(ys, xs, rng);

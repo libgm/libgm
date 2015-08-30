@@ -1,53 +1,58 @@
 #ifndef LIBGM_TEST_MODEL_BASIC_FIXTURE_HPP
 #define LIBGM_TEST_MODEL_BASIC_FIXTURE_HPP
 
-#include <vector>
-
 #include <libgm/argument/universe.hpp>
+#include <libgm/argument/var.hpp>
 #include <libgm/factor/probability_table.hpp>
+
+#include <vector>
 
 using namespace libgm;
 
+typedef probability_table<var> ptable;
+
 struct basic_fixture {
 
+  typedef std::vector<std::string> sv;
+
   basic_fixture() {
-    history = u.new_discrete_variable("history", history_arity);
-    cvp = u.new_discrete_variable("cvp", cvp_arity);
-    pcwp = u.new_discrete_variable("pcwp", pcwp_arity);
-    hypovolemia = u.new_discrete_variable("hypovolemia", hypovolemia_arity);
-    lvedvolume = u.new_discrete_variable("lvedvolume", lvedvolume_arity);
-    lvfailure = u.new_discrete_variable("lvfailure", lvfailure_arity);
-    strokevolume = u.new_discrete_variable("strokevolume", strokevolume_arity);
-    errlowoutput = u.new_discrete_variable("errlowoutput", errlowoutput_arity);
-    hrbp = u.new_discrete_variable("hrbp", hrbp_arity);
-    hrekg = u.new_discrete_variable("hrekg", hrekg_arity);
-    errcauter = u.new_discrete_variable("errcauter", errcauter_arity);
-    hrsat = u.new_discrete_variable("hrsat", hrsat_arity);
-    insuffanesth = u.new_discrete_variable("insuffanesth", insuffanesth_arity);
-    anaphylaxis = u.new_discrete_variable("anaphylaxis", anaphylaxis_arity);
-    tpr = u.new_discrete_variable("tpr", tpr_arity);
-    expco2 = u.new_discrete_variable("expco2", expco2_arity);
-    kinkedtube = u.new_discrete_variable("kinkedtube", kinkedtube_arity);
-    minvol = u.new_discrete_variable("minvol", minvol_arity);
-    fio2 = u.new_discrete_variable("fio2", fio2_arity);
-    pvsat = u.new_discrete_variable("pvsat", pvsat_arity);
-    sao2 = u.new_discrete_variable("sao2", sao2_arity);
-    pap = u.new_discrete_variable("pap", pap_arity);
-    pulmembolus = u.new_discrete_variable("pulmebolus", pulmembolus_arity);
-    shunt = u.new_discrete_variable("shunt", shunt_arity);
-    intubation = u.new_discrete_variable("intubation", intubation_arity);
-    press = u.new_discrete_variable("press", press_arity);
-    disconnect = u.new_discrete_variable("disconnect", disconnect_arity);
-    minvolset = u.new_discrete_variable("minvolset", minvolset_arity);
-    ventmach = u.new_discrete_variable("ventmach", ventmach_arity);
-    venttube = u.new_discrete_variable("venttube", venttube_arity);
-    ventlung = u.new_discrete_variable("ventlung", ventlung_arity);
-    ventalv = u.new_discrete_variable("ventalv", ventalv_arity);
-    artco2 = u.new_discrete_variable("artco2", artco2_arity);
-    catechol = u.new_discrete_variable("catechol", catechol_arity);
-    hr = u.new_discrete_variable("hr", hr_arity);
-    co = u.new_discrete_variable("co", co_arity);
-    bp = u.new_discrete_variable("bp", bp_arity);
+    history      = var::discrete(u, "history", sv{"true", "false"});
+    cvp          = var::discrete(u, "cvp", sv{"low", "normal", "high"});
+    pcwp         = var::discrete(u, "pcwp", sv{"low", "normal", "high"});
+    hypovolemia  = var::discrete(u, "hypovolemia", sv{"true", "false"});
+    lvedvolume   = var::discrete(u, "lvedvolume", sv{"low", "normal", "high"});
+    lvfailure    = var::discrete(u, "lvfailure", sv{"true", "false"});
+    strokevolume = var::discrete(u, "strokevolume", sv{"low", "normal", "high"});
+    errlowoutput = var::discrete(u, "errlowoutput", sv{"true", "false"});
+    hrbp         = var::discrete(u, "hrbp", sv{"low", "normal", "high"});
+    hrekg        = var::discrete(u, "hrekg", sv{"low", "normal", "high"});
+    errcauter    = var::discrete(u, "errcauter", sv{"true", "false"});
+    hrsat        = var::discrete(u, "hrsat", sv{"low", "normal", "high"});
+    insuffanesth = var::discrete(u, "insuffanesth", sv{"true", "false"});
+    anaphylaxis  = var::discrete(u, "anaphylaxis", sv{"true", "false"});
+    tpr          = var::discrete(u, "tpr", sv{"low", "tpr", "normal", "high"});
+    expco2       = var::discrete(u, "expco2", sv{"zero", "low", "normal", "high"});
+    kinkedtube   = var::discrete(u, "kinkedtube", sv{"true", "false"});
+    minvol       = var::discrete(u, "minvol", sv{"zero", "low", "normal", "high"});
+    fio2         = var::discrete(u, "fio2", sv{"low", "normal"});
+    pvsat        = var::discrete(u, "pvsat", sv{"low", "normal" "high"});
+    sao2         = var::discrete(u, "sao2", sv{"low", "normal", "high"});
+    pap          = var::discrete(u, "pap", sv{"pap_low", "normal", "high"});
+    pulmembolus  = var::discrete(u, "pulmembolus", sv{"true", "false"});
+    shunt        = var::discrete(u, "shunt", sv{"normal", "high"});
+    intubation   = var::discrete(u, "intubation", sv{"normal", "esophageal", "onesided"});
+    press        = var::discrete(u, "press", sv{"zero", "low", "normal", "high"});
+    disconnect   = var::discrete(u, "disconnect", sv{"true", "false"});
+    minvolset    = var::discrete(u, "minvolset", sv{"low", "normal", "high"});
+    ventmach     = var::discrete(u, "ventmach", sv{"zero", "low", "normal", "high"});
+    venttube     = var::discrete(u, "venttube", sv{"zero", "low", "normal", "high"});
+    ventlung     = var::discrete(u, "ventlung", sv{"zero", "low", "normal", "high"});
+    ventalv      = var::discrete(u, "ventalv", sv{"zero", "low", "normal", "high"});
+    artco2       = var::discrete(u, "artco2", sv{"low", "normal", "high"});
+    catechol     = var::discrete(u, "catechol", sv{"normal", "high"});
+    hr           = var::discrete(u, "hr", sv{"low", "normal", "high"});
+    co           = var::discrete(u, "co", sv{"low", "normal", "high"});
+    bp           = var::discrete(u, "bp", sv{"low", "normal", "high"});
 
     // P(HISTORY | LVFAILURE)
     factors.push_back(ptable({lvfailure, history}, 1.0));
@@ -69,265 +74,45 @@ struct basic_fixture {
     factors.push_back(ptable({errlowoutput, hr, hrbp}, 1.0));
   }
 
-  // Variables
-  // =========================================================================
-
-  // Note: the last constant in each enum is the arity of the variable
   universe u;
 
-  // Variable: history (0)
-  enum history_values { history_true,
-                        history_false,
-                        history_arity };
-
-  // Variable: CVP (1)
-  enum cvp_values { cvp_low,
-                    cvp_normal,
-                    cvp_high,
-                    cvp_arity };
-
-  // Variable: PCWP (2)
-  enum pcwp_values { pcwp_low,
-                     pcwp_normal,
-                     pcwp_high,
-                     pcwp_arity };
-
-  // Variable: hypovolemia (3)
-  enum hypovolemia_values { hypovolemia_true,
-                            hypovolemia_false,
-                            hypovolemia_arity };
-
-  // Variable: LVED volume (4)
-  enum lvedvolume_values { lvedvolume_low,
-                           lvedvolume_normal,
-                           lvedvolume_high,
-                           lvedvolume_arity };
-
-  // Variable: liver failure (5)
-  enum lvfailure_values { lvfailure_true,
-                          lvfailure_false,
-                          lvfailure_arity };
-
-  // Variable: stroke volume (6)
-  enum strokevolume_values { strokevolume_low,
-                             strokevolume_normal,
-                             strokevolume_high,
-                             strokevolume_arity };
-
-  // Variable: low output error (7)
-  enum errlowoutput_values { errlowoutput_true,
-                             errlowoutput_false,
-                             errlowoutput_arity };
-
-  // Variable: heartrate/blood pressure (8)
-  enum hrbp_values { hrbp_low,
-                     hrbp_normal,
-                     hrbp_high,
-                     hrbp_arity };
-
-  // Variable: heartrate/EKG (9)
-  enum hrekg_values { hrekg_low,
-                      hrekg_normal,
-                      hrekg_high,
-                      hrekg_arity };
-
-  // Variable: error in cauterization (10)
-  enum errcauter_values { errcauter_true,
-                          errcauter_false,
-                          errcauter_arity };
-
-  // Variable: heart rate ??? (11)
-  enum hrsat_values { hrsat_low,
-                      hrsat_normal,
-                      hrsat_high,
-                      hrsat_arity };
-
-  // Variable: insufficient anesthesia (12)
-  enum insuffanesth_values { insuffanesth_true,
-                             insuffanesth_false,
-                             insuffanesth_arity  };
-
-  // Variable: anaphylaxis (13)
-  enum anaphylaxis_values { anaphylaxis_true,
-                            anaphylaxis_false,
-                            anaphylaxis_arity };
-
-  // Variable: TPR (14)
-  enum tpr_values { tpr_low,
-                      tpr_normal,
-                      tpr_high,
-                      tpr_arity };
-
-  // Variable: expelled CO2 (15)
-  enum expco2_values { expco2_zero,
-                       expco2_low,
-                       expco2_normal,
-                       expco2_high,
-                       expco2_arity };
-
-  // Variable: kinked tube (16)
-  enum kinkedtube_values { kinkedtube_true,
-                           kinkedtube_false,
-                           kinkedtube_arity };
-
-  // Variable: minimum volume (17)
-  enum minvol_values { minvol_zero,
-                       minvol_low,
-                       minvol_normal,
-                       minvol_high,
-                       minvol_arity };
-
-  // Variable: FiO2 (18)
-  enum fio2_values { fio2_low,
-                       fio2_normal,
-                       fio2_arity };
-
-  // Variable: PVSAT (19)
-  enum pvsat_values { pvsat_low,
-                      pvsat_normal,
-                      pvsat_high,
-                      pvsat_arity };
-
-  // Variable: SAO2 (20)
-  enum sao2_values { sao2_low,
-                     sao2_normal,
-                     sao2_high,
-                     sao2_arity };
-
-  // Variable: PAP (21)
-  enum pap_values { pap_low,
-                    pap_normal,
-                    pap_high,
-                    pap_arity };
-
-  // Variable: pulmembolus (22)
-  enum pulmembolus_values { pulmembolus_true,
-                            pulmembolus_false,
-                            pulmembolus_arity };
-
-  // Variable: shunt (23)
-  enum shunt_values { shunt_normal,
-                      shunt_high,
-                      shunt_arity };
-
-  // Variable: intubation (24)
-  enum intubation_values { intubation_normal,
-                           intubation_esophageal,
-                           intubation_onesided,
-                           intubation_arity };
-
-  // Variable: press (25)
-  enum press_values { press_zero,
-                      press_low,
-                      press_normal,
-                      press_high,
-                      press_arity };
-
-  // Variable: disconnect (26)
-  enum disconnect_values { disconnect_true,
-                           disconnect_false,
-                           disconnect_arity };
-
-  // Variable: minvolset (27)
-  enum minvolset_values { minvolset_low,
-                          minvolset_normal,
-                          minvolset_high,
-                          minvolset_arity };
-
-  // Variable: ventilation machine (28)
-  enum ventmach_values { ventmach_zero,
-                         ventmach_low,
-                         ventmach_normal,
-                         ventmach_high,
-                         ventmach_arity };
-
-  // Variable: ventilation tube (29)
-  enum venttube_values { venttube_zero,
-                         venttube_low,
-                         venttube_normal,
-                         venttube_high,
-                         venttube_arity };
-
-  // Variable: ventilation lung (30)
-  enum ventlung_values { ventlung_zero,
-                         ventlung_low,
-                         ventlung_normal,
-                         ventlung_high,
-                         ventlung_arity };
-
-  // Variable: ventilation alv (31)
-  enum ventalv_values { ventalv_zero,
-                        ventalv_low,
-                        ventalv_normal,
-                        ventalv_high,
-                        ventalv_arity };
-
-  // Variable: arterial CO2 (32)
-  enum artco2_values { artco2_low,
-                       artco2_normal,
-                       artco2_high,
-                       artco2_arity };
-
-  // Variable: catechol (33)
-  enum catechol_values { catechol_normal,
-                         catechol_high,
-                         catechol_arity };
-
-  // Variable: heart rate (34)
-  enum hr_values { hr_low,
-                   hr_normal,
-                   hr_high,
-                   hr_arity };
-
-  // Variable: carbon monoxide (35)
-  enum co_values { co_low,
-                   co_normal,
-                   co_high,
-                   co_arity };
-
-  // Variable: blood pressure (36)
-  enum bp_values { bp_low,
-                   bp_normal,
-                   bp_high,
-                   bp_arity };
-
-  variable history;
-  variable cvp;
-  variable pcwp;
-  variable hypovolemia;
-  variable lvedvolume;
-  variable lvfailure;
-  variable strokevolume;
-  variable errlowoutput;
-  variable hrbp;
-  variable hrekg;
-  variable errcauter;
-  variable hrsat;
-  variable insuffanesth;
-  variable anaphylaxis;
-  variable tpr;
-  variable expco2;
-  variable kinkedtube;
-  variable minvol;
-  variable fio2;
-  variable pvsat;
-  variable sao2;
-  variable pap;
-  variable pulmembolus;
-  variable shunt;
-  variable intubation;
-  variable press;
-  variable disconnect;
-  variable minvolset;
-  variable ventmach;
-  variable venttube;
-  variable ventlung;
-  variable ventalv;
-  variable artco2;
-  variable catechol;
-  variable hr;
-  variable co;
-  variable bp;
+  var history;        // history
+  var cvp;            // CVP
+  var pcwp;           // PCWP
+  var hypovolemia;    // hypovolemia
+  var lvedvolume;     // LVED volume
+  var lvfailure;      // liver failure
+  var strokevolume;   // stroke volume
+  var errlowoutput;   // low output error
+  var hrbp;           // heartrate/blood pressure
+  var hrekg;          // heartrate/EKG
+  var errcauter;      // error in cauterization
+  var hrsat;          // heart rate ???
+  var insuffanesth;   // insufficient anesthesia
+  var anaphylaxis;    // anaphylaxsi
+  var tpr;            // TPR
+  var expco2;         // expelled CO2
+  var kinkedtube;     // kinked tube
+  var minvol;         // minimum volume
+  var fio2;           // FiO2
+  var pvsat;          // PVSAT
+  var sao2;           // SAO2
+  var pap;            // PAP
+  var pulmembolus;    // pulmembolus
+  var shunt;          // shunt
+  var intubation;     // intubation
+  var press;          // press
+  var disconnect;     // disconnect
+  var minvolset;      // minvolset
+  var ventmach;       // ventilation machine
+  var venttube;       // ventilation tube
+  var ventlung;       // ventilation lung
+  var ventalv;        // ventilation alv
+  var artco2;         // arterial CO2
+  var catechol;       // catechol
+  var hr;             // heart rate
+  var co;             // carbon monoxide
+  var bp;             // blood pressure
 
   // Factors
   // =========================================================================

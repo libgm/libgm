@@ -72,6 +72,22 @@ namespace libgm {
     }
   };
 
+  //! A functor that invokes the count function on a container.
+  template <typename Container>
+  struct count_fn {
+    const Container* ptr;
+    explicit count_fn(const Container& c) : ptr(&c) { }
+    std::size_t operator()(const typename Container::key_type& x) const {
+      return ptr->count(x);
+    }
+  };
+
+  //! Returns a functor that invokes the count function on a container.
+  template <typename Container>
+  count_fn<Container> count_in(const Container& c) {
+    return count_fn<Container>(c);
+  }
+
 } // namespace libgm
 
 #endif

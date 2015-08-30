@@ -165,14 +165,14 @@ namespace libgm {
      * in their natural order. This type can be often used to evaluate the
      * factor efficiently.
      */
-    typedef typename F::index_type index_type;
+    typedef typename F::vector_type vector_type;
 
     /**
      * Returns the value of the factor for the given index.
      * For conditional factors, the index is specified in the order
      * (head, tail).
      */
-    typename F::result_type operator()(const index_type& index) const;
+    typename F::result_type operator()(const vector_type& index) const;
 
     /**
      * Returns a factor that is equivalent to this factor, but has the

@@ -4,6 +4,7 @@
 #include <libgm/argument/argument_traits.hpp>
 #include <libgm/datastructure/uint_vector.hpp>
 
+#include <algorithm>
 #include <iostream>
 #include <random>
 #include <stdexcept>
@@ -28,8 +29,6 @@ namespace libgm {
   class diagonal_table_generator {
   public:
     typedef typename F::real_type real_type;
-    typedef typename F::variable_type variable_type;
-    typedef argument_traits<variable_type> arg_traits;
 
     // RandomMarginalFactorGenerator typedefs
     typedef typename F::domain_type domain_type;
@@ -71,16 +70,15 @@ namespace libgm {
       if (!args.empty()) {
         real_type x = std::uniform_real_distribution<real_type>(
           param_.lower, param_.upper)(rng);
-        std::size_t size = arg_traits::num_values(args[0]);
-        for (variable_type v : args) {
-          if (arg_traits::num_values(v) != size) {
-            throw std::invalid_argument(
-              "diagonal_table_generator: all arguments must have the same size"
-            );
-          }
+        const uint_vector& shape = f.param().shape();
+        assert(!shape.empty());
+        if (std::count(shape.begin(), shape.end(), shape[0]) != shape.size()) {
+          throw std::invalid_argument(
+            "diagonal_table_generator: all arguments must have the same size"
+          );
         }
         uint_vector index;
-        for (std::size_t k = 0; k < size; ++k) {
+        for (std::size_t k = 0; k < shape[0]; ++k) {
           index.assign(args.size(), k);
           f.param(index) = x;
         }

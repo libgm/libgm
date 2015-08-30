@@ -18,8 +18,8 @@
 namespace libgm {
 
   // Forward declarations
-  template <typename T, typename Var> class canonical_table;
-  template <typename T, std::size_t N, typename Var> class probability_array;
+  template <typename Arg, typename T> class canonical_table;
+  template <typename Arg, std::size_t N, typename T> class probability_array;
 
   /**
    * A factor of a categorical canonical distribution that contains one or
@@ -37,30 +37,30 @@ namespace libgm {
    * \ingroup factor_types
    * \see Factor
    */
-  template <typename T, std::size_t N, typename Var>
-  class canonical_array : public array_factor<T, N, Var> {
+  template <typename Arg, std::size_t N, typename T = double>
+  class canonical_array : public array_factor<Arg, N, T> {
   public:
     // Helper types
-    typedef array_factor<T, N, Var> base;
-    typedef array_domain<Var, 1> unary_domain_type;
+    typedef array_factor<Arg, N, T> base;
+    typedef array_domain<Arg, 1> unary_domain_type;
 
     // Factor member types
     typedef T                    real_type;
     typedef logarithmic<T>       result_type;
-    typedef Var                  variable_type;
-    typedef array_domain<Var, N> domain_type;
-    typedef uint_assignment<Var> assignment_type;
+    typedef Arg                  argument_type;
+    typedef array_domain<Arg, N> domain_type;
+    typedef uint_assignment<Arg> assignment_type;
 
     // ParametricFactor member types
     typedef typename base::array_type param_type;
-    typedef uint_vector               index_type;
+    typedef uint_vector               vector_type;
     typedef array_distribution<T, N>  distribution_type;
 
     // LearnableFactor types
     typedef canonical_array_ll<T, N> ll_type;
 
     // ExponentialFamilyFactor member types
-    typedef probability_array<T, N, Var> probability_type;
+    typedef probability_array<Arg, N, T> probability_type;
 
     // Constructors and conversion operators
     //==========================================================================
@@ -91,24 +91,24 @@ namespace libgm {
       : base(args, values) { }
 
     //! Conversion from a probability_array factor.
-    explicit canonical_array(const probability_array<T, N, Var>& f) {
+    explicit canonical_array(const probability_array<Arg, N, T>& f) {
       *this = f;
     }
 
     //! Conversion from a canonical_table factor.
-    explicit canonical_array(const canonical_table<T, Var>& f) {
+    explicit canonical_array(const canonical_table<Arg, T>& f) {
       *this = f;
     }
 
     //! Assigns a probability_array factor to this factor.
-    canonical_array& operator=(const probability_array<T, N, Var>& f) {
+    canonical_array& operator=(const probability_array<Arg, N, T>& f) {
       this->reset(f.arguments());
       this->param_ = f.param().log();
       return *this;
     }
 
     //! Assigns a canonical_table to this factor
-    canonical_array& operator=(const canonical_table<T, Var>& f) {
+    canonical_array& operator=(const canonical_table<Arg, T>& f) {
       this->reset(f.arguments());
       assert(this->size() == f.size());
       std::copy(f.begin(), f.end(), this->begin());
@@ -164,7 +164,7 @@ namespace libgm {
      */
     template <std::size_t M>
     typename std::enable_if<M <= N, canonical_array&>::type
-    operator*=(const canonical_array<T, M, Var>& f) {
+    operator*=(const canonical_array<Arg, M, T>& f) {
       join_inplace(*this, f, libgm::plus_assign<>());
       return *this;
     }
@@ -176,7 +176,7 @@ namespace libgm {
      */
     template <std::size_t M>
     typename std::enable_if<M <= N, canonical_array&>::type
-    operator/=(const canonical_array<T, M, Var>& f) {
+    operator/=(const canonical_array<Arg, M, T>& f) {
       join_inplace(*this, f, libgm::minus_assign<>());
       return *this;
     }
@@ -257,9 +257,9 @@ namespace libgm {
      * This operation is only supported for binary factors.
      */
     template <bool B = (N == 2)>
-    typename std::enable_if<B, canonical_array<T, 1, Var> >::type
+    typename std::enable_if<B, canonical_array<Arg, 1, T> >::type
     marginal(const unary_domain_type& retain) const {
-      canonical_array<T, 1, Var> result;
+      canonical_array<Arg, 1, T> result;
       marginal(retain, result);
       return result;
     }
@@ -269,9 +269,9 @@ namespace libgm {
      * This operation is only supported for binary factors.
      */
     template <bool B = (N == 2)>
-    typename std::enable_if<B, canonical_array<T, 1, Var> >::type
+    typename std::enable_if<B, canonical_array<Arg, 1, T> >::type
     maximum(const unary_domain_type& retain) const {
-      return aggregate<canonical_array<T, 1, Var>>(*this, retain,
+      return aggregate<canonical_array<Arg, 1, T>>(*this, retain,
                                                    max_coeff_op());
     }
 
@@ -280,9 +280,9 @@ namespace libgm {
      * This operation is only supported for binary factors.
      */
     template <bool B = (N == 2)>
-    typename std::enable_if<B, canonical_array<T, 1, Var> >::type
+    typename std::enable_if<B, canonical_array<Arg, 1, T> >::type
     minimum(const unary_domain_type& retain) const {
-      return aggregate<canonical_array<T, 1, Var>>(*this, retain,
+      return aggregate<canonical_array<Arg, 1, T>>(*this, retain,
                                                    min_coeff_op());
     }
 
@@ -303,7 +303,7 @@ namespace libgm {
     template <bool B = (N == 2)>
     typename std::enable_if<B>::type
     marginal(const unary_domain_type& retain,
-             canonical_array<T, 1, Var>& result) const {
+             canonical_array<Arg, 1, T>& result) const {
       T max = this->param_.maxCoeff();
       transform_aggregate(*this, retain, result,
                           exp_op<T>(-max), log_sum_op<T>(+max));
@@ -316,7 +316,7 @@ namespace libgm {
     template <bool B = (N == 2)>
     typename std::enable_if<B>::type
     maximum(const unary_domain_type& retain,
-            canonical_array<T, 1, Var>& result) const {
+            canonical_array<Arg, 1, T>& result) const {
       aggregate(*this, retain, result, max_coeff_op());
     }
 
@@ -327,7 +327,7 @@ namespace libgm {
     template <bool B = (N == 2)>
     typename std::enable_if<B>::type
     minimum(const unary_domain_type& retain,
-            canonical_array<T, 1, Var>& result) const {
+            canonical_array<Arg, 1, T>& result) const {
       aggregate(*this, retain, result, min_coeff_op());
     }
 
@@ -381,9 +381,9 @@ namespace libgm {
      * factors, and the assignment must restrict exactly one argument.
      */
     template <bool B = (N == 2)>
-    typename std::enable_if<B, canonical_array<T, 1, Var> >::type
+    typename std::enable_if<B, canonical_array<Arg, 1, T> >::type
     restrict(const assignment_type& a) const {
-      canonical_array<T, 1, Var> result;
+      canonical_array<Arg, 1, T> result;
       restrict(a, result);
       return result;
     }
@@ -396,7 +396,7 @@ namespace libgm {
     template <bool B = (N == 2)>
     typename std::enable_if<B>::type
     restrict(const assignment_type& a,
-             canonical_array<T, 1, Var>& result) const {
+             canonical_array<Arg, 1, T>& result) const {
       restrict_assign(*this, a, result);
     }
 
@@ -409,7 +409,7 @@ namespace libgm {
     template <bool B = (N == 2)>
     typename std::enable_if<B>::type
     restrict_multiply(const assignment_type& a,
-                      canonical_array<T, 1, Var>& result) const {
+                      canonical_array<Arg, 1, T>& result) const {
       restrict_join(*this, a, result, plus_assign<>());
     }
 
@@ -421,9 +421,9 @@ namespace libgm {
      * This operation is only supported for binary factors.
      */
     template <bool B = (N == 2)>
-    typename std::enable_if<B, canonical_array<T, 1, Var> >::type
-    exp_log(const probability_array<T, 1, Var>& q) const {
-      return expectation<canonical_array<T, 1, Var> >(*this, q);
+    typename std::enable_if<B, canonical_array<Arg, 1, T> >::type
+    exp_log(const probability_array<Arg, 1, T>& q) const {
+      return expectation<canonical_array<Arg, 1, T> >(*this, q);
     }
 
     /**
@@ -434,8 +434,8 @@ namespace libgm {
      */
     template <bool B = (N == 2)>
     typename std::enable_if<B>::type
-    exp_log_multiply(const probability_array<T, 1, Var>& q,
-                     canonical_array<T, 1, Var>& result) const {
+    exp_log_multiply(const probability_array<Arg, 1, T>& q,
+                     canonical_array<Arg, 1, T>& result) const {
       join_expectation(result, *this, q, libgm::plus_assign<>());
     }
 
@@ -502,17 +502,6 @@ namespace libgm {
 
   }; // class canonical_array
 
-  /**
-   * A canonical_array factor over a single argument using double precision.
-   * \relates canonical_array
-   */
-  typedef canonical_array<double, 1, variable> carray1;
-
-  /**
-   * A canonical_array factor over two arguments using double precision.
-   * \relates canonical_array
-   */
-  typedef canonical_array<double, 2, variable> carray2;
 
   // Input / output
   //============================================================================
@@ -521,9 +510,9 @@ namespace libgm {
    * Outputs a human-readable representation of the factor to the stream.
    * \relates canonical_array
    */
-  template <typename T, std::size_t N, typename Var>
+  template <typename Arg, std::size_t N, typename T>
   std::ostream&
-  operator<<(std::ostream& out, const canonical_array<T, N, Var>& f) {
+  operator<<(std::ostream& out, const canonical_array<Arg, N, T>& f) {
     out << f.arguments() << std::endl
         << f.param() << std::endl;
     return out;
@@ -539,11 +528,11 @@ namespace libgm {
    * \return a canonical_array factor whose arity is the maximum of M and N
    * \relates canonical_array
    */
-  template <typename T, std::size_t M, std::size_t N, typename Var>
-  canonical_array<T, static_max<M, N>::value, Var>
-  operator*(const canonical_array<T, M, Var>& f,
-            const canonical_array<T, N, Var>& g) {
-    typedef canonical_array<T, static_max<M, N>::value, Var> result_type;
+  template <typename Arg, std::size_t M, std::size_t N, typename T>
+  canonical_array<Arg, static_max<M, N>::value, T>
+  operator*(const canonical_array<Arg, M, T>& f,
+            const canonical_array<Arg, N, T>& g) {
+    typedef canonical_array<Arg, static_max<M, N>::value, T> result_type;
     return join<result_type>(f, g, libgm::plus<>());
   }
 
@@ -554,11 +543,11 @@ namespace libgm {
    * \return a canonical_array factor whose arity is the maximum of M and N
    * \relates canonical_array
    */
-  template <typename T, std::size_t M, std::size_t N, typename Var>
-  canonical_array<T, static_max<M, N>::value, Var>
-  operator/(const canonical_array<T, M, Var>& f,
-            const canonical_array<T, N, Var>& g) {
-    typedef canonical_array<T, static_max<M, N>::value, Var> result_type;
+  template <typename Arg, std::size_t M, std::size_t N, typename T>
+  canonical_array<Arg, static_max<M, N>::value, T>
+  operator/(const canonical_array<Arg, M, T>& f,
+            const canonical_array<Arg, N, T>& g) {
+    typedef canonical_array<Arg, static_max<M, N>::value, T> result_type;
     return join<result_type>(f, g, libgm::minus<>());
   }
 

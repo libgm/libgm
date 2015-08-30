@@ -4,6 +4,7 @@
 #include <libgm/learning/dataset/slice_view.hpp>
 
 #include <libgm/argument/universe.hpp>
+#include <libgm/argument/var.hpp>
 #include <libgm/factor/probability_table.hpp>
 #include <libgm/factor/random/uniform_table_generator.hpp>
 #include <libgm/learning/dataset/uint_dataset.hpp>
@@ -13,34 +14,33 @@
 #include <libgm/learning/parameter/factor_mle.hpp>
 
 
-typedef libgm::slice_view<libgm::uint_dataset<>> view_type;
+typedef libgm::slice_view<libgm::uint_dataset<libgm::var>> view_type;
 
 namespace libgm {
-  template class slice_view<uint_dataset<> >;
-  template class slice_view<real_dataset<> >;
-  template class slice_view<hybrid_dataset<> >;
-  template class slice_view<uint_sequence_dataset<> >;
+  template class slice_view<uint_dataset<var> >;
+  template class slice_view<real_dataset<var> >;
+  template class slice_view<hybrid_dataset<var> >;
+  template class slice_view<uint_sequence_dataset<var> >;
   template class view_type::
-    template slice_iterator<uint_dataset<>::iterator>;
+    template slice_iterator<uint_dataset<var>::iterator>;
   template class view_type::
-    template slice_iterator<uint_dataset<>::const_iterator>;
-  template class view_type::
-    template slice_iterator<uint_dataset<>::assignment_iterator>;
+    template slice_iterator<uint_dataset<var>::const_iterator>;
 }
 
 using namespace libgm;
 
 typedef std::pair<uint_vector, double> sample_type;
+typedef probability_table<var> ptable;
 BOOST_TEST_DONT_PRINT_LOG_VALUE(uint_vector);
 BOOST_TEST_DONT_PRINT_LOG_VALUE(sample_type);
 
 
 BOOST_AUTO_TEST_CASE(test_accessors) {
   universe u;
-  variable x = u.new_discrete_variable("x", 3);
-  variable y = u.new_discrete_variable("y", 3);
+  var x = var::discrete(u, "x", 3);
+  var y = var::discrete(u, "y", 3);
 
-  uint_dataset<> ds({x, y});
+  uint_dataset<var> ds({x, y});
   ds.insert(uint_vector({1, 2}), 0.5);
   ds.insert(uint_vector({0, 1}), 0.3);
   ds.insert(uint_vector({2, 0}), 1.0);
@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_CASE(test_accessors) {
   auto view = subset(ds, slice(1, 3));
 
   // arguments
-  BOOST_CHECK_EQUAL(view.arguments(), domain({x, y}));
+  BOOST_CHECK_EQUAL(view.arguments(), domain<var>({x, y}));
   BOOST_CHECK_EQUAL(view.arity(), 2);
   BOOST_CHECK_EQUAL(view.size(), 3);
   BOOST_CHECK_EQUAL(view.num_slices(), 1);
@@ -57,20 +57,21 @@ BOOST_AUTO_TEST_CASE(test_accessors) {
   // total weight
   BOOST_CHECK_CLOSE(view.weight(), 3.3, 1e-6);
 
-  // operator[]
-  BOOST_CHECK_EQUAL(view[0].first, uint_vector({0, 1}));
-  BOOST_CHECK_EQUAL(view[2].first, uint_vector({1, 0}));
-  BOOST_CHECK_EQUAL(view[0].second, 0.3);
-  BOOST_CHECK_EQUAL(view[2].second, 2.0);
+  // sample
+  BOOST_CHECK_EQUAL(view.sample(0).first, uint_vector({0, 1}));
+  BOOST_CHECK_EQUAL(view.sample(2).first, uint_vector({1, 0}));
+  BOOST_CHECK_EQUAL(view.sample(0).second, 0.3);
+  BOOST_CHECK_EQUAL(view.sample(2).second, 2.0);
 
-  // operator()
-  BOOST_CHECK_EQUAL(view(0, {y}).first, uint_vector({1}));
-  BOOST_CHECK_EQUAL(view(2, {y}).first, uint_vector({0}));
-  BOOST_CHECK_EQUAL(view(0, {y}).second, 0.3);
-  BOOST_CHECK_EQUAL(view(2, {y}).second, 2.0);
+  // sample over a domain
+  BOOST_CHECK_EQUAL(view.sample(0, {y}).first, uint_vector({1}));
+  BOOST_CHECK_EQUAL(view.sample(2, {y}).first, uint_vector({0}));
+  BOOST_CHECK_EQUAL(view.sample(0, {y}).second, 0.3);
+  BOOST_CHECK_EQUAL(view.sample(2, {y}).second, 2.0);
 
+  /*
   // assignment
-  std::pair<uint_assignment<>, double> a;
+  std::pair<uint_assignment<var>, double> a;
   a = view.assignment(1);
   BOOST_CHECK_EQUAL(a.first.size(), 2);
   BOOST_CHECK_EQUAL(a.first.at(x), 2);
@@ -81,15 +82,16 @@ BOOST_AUTO_TEST_CASE(test_accessors) {
   BOOST_CHECK_EQUAL(a.first.size(), 1);
   BOOST_CHECK_EQUAL(a.first.at(x), 1);
   BOOST_CHECK_EQUAL(a.second, 2.0);
+  */
 }
 
 
 BOOST_AUTO_TEST_CASE(test_value_iterators) {
   universe u;
-  variable x = u.new_discrete_variable("x", 3);
-  variable y = u.new_discrete_variable("y", 3);
+  var x = var::discrete(u, "x", 3);
+  var y = var::discrete(u, "y", 3);
 
-  uint_dataset<> ds({x, y});
+  uint_dataset<var> ds({x, y});
   ds.insert(uint_vector({1, 2}), 0.5);
   ds.insert(uint_vector({0, 1}), 0.3);
   ds.insert(uint_vector({2, 0}), 1.0);
@@ -132,13 +134,13 @@ BOOST_AUTO_TEST_CASE(test_value_iterators) {
   BOOST_CHECK(!it);
 }
 
-
+/*
 BOOST_AUTO_TEST_CASE(test_assignment_iterator) {
   universe u;
-  variable x = u.new_discrete_variable("x", 3);
-  variable y = u.new_discrete_variable("y", 3);
+  var x = var::discrete(u, "x", 3);
+  var y = var::discrete(u, "y", 3);
 
-  uint_dataset<> ds({x, y});
+  uint_dataset<var> ds({x, y});
   ds.insert(uint_vector({1, 2}), 0.5);
   ds.insert(uint_vector({0, 1}), 0.3);
   ds.insert(uint_vector({2, 0}), 1.0);
@@ -176,12 +178,10 @@ BOOST_AUTO_TEST_CASE(test_assignment_iterator) {
   BOOST_CHECK(it == end);
   BOOST_CHECK(!it);
 }
-
+*/
 
 BOOST_AUTO_TEST_CASE(test_weight_iterator) {
-  domain v;
-
-  uint_dataset<> ds(v);
+  uint_dataset<var> ds(domain<var>{});
   ds.insert(uint_vector(), 0.5);
   ds.insert(uint_vector(), 0.3);
   ds.insert(uint_vector(), 1.0);
@@ -215,10 +215,12 @@ BOOST_AUTO_TEST_CASE(test_reconstruction) {
   // generate some random samples
   universe u;
   std::mt19937 rng;
-  domain v = u.new_discrete_variables(3, "v", 2);
+  domain<var> v = {
+    var::discrete(u, "a", 2), var::discrete(u, "b", 2), var::discrete(u, "c", 2)
+  };
   ptable f = uniform_table_generator<ptable>()(v, rng).normalize();
   auto d = f.distribution();
-  uint_dataset<> ds(v, 1000);
+  uint_dataset<var> ds(v, 1000);
   for (std::size_t i = 0; i < 1000; ++i) {
     ds.insert(d(rng), 1.0);
   }
@@ -226,8 +228,8 @@ BOOST_AUTO_TEST_CASE(test_reconstruction) {
 
   // contiguous range
   view_type view1 = subset(ds, slice(0, 500));
-  BOOST_CHECK_EQUAL(ds[48], view1[48]);
-  BOOST_CHECK_EQUAL(ds[99], view1[99]);
+  BOOST_CHECK_EQUAL(ds.sample(48), view1.sample(48));
+  BOOST_CHECK_EQUAL(ds.sample(99), view1.sample(99));
   BOOST_CHECK_SMALL(kl_divergence(f, mle(view1, v)), 1e-2);
 
   // multiple slices
@@ -235,8 +237,8 @@ BOOST_AUTO_TEST_CASE(test_reconstruction) {
   slices.push_back(slice(100, 100));
   slices.push_back(slice(300, 400));
   view_type view2 = subset(ds, slices);
-  BOOST_CHECK_EQUAL(ds[140], view2[40]);
-  BOOST_CHECK_EQUAL(ds[350], view2[150]);
+  BOOST_CHECK_EQUAL(ds.sample(140), view2.sample(40));
+  BOOST_CHECK_EQUAL(ds.sample(350), view2.sample(150));
   BOOST_CHECK_SMALL(kl_divergence(f, mle(view2, v)), 1e-2);
 
   // verify the number of samples

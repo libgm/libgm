@@ -2,12 +2,13 @@
 #define LIBGM_GAUSSIAN_FACTOR_HPP
 
 #include <libgm/argument/argument_traits.hpp>
-#include <libgm/argument/basic_domain.hpp>
+#include <libgm/argument/domain.hpp>
 #include <libgm/datastructure/vector_map.hpp>
 #include <libgm/factor/base/factor.hpp>
-#include <libgm/math/eigen/matrix_index.hpp>
 
+#include <numeric>
 #include <sstream>
+#include <vector>
 
 namespace libgm {
 
@@ -16,12 +17,15 @@ namespace libgm {
    *
    * \ingroup factor_types
    */
-  template <typename Var>
+  template <typename Arg>
   class gaussian_factor : public factor {
-    typedef argument_traits<Var> arg_traits;
+    static_assert(is_continuous<Arg>::value,
+                  "Gaussian factors require Arg to be continuous");
+
+    typedef argument_traits<Arg> arg_traits;
 
   public:
-    typedef basic_domain<Var> domain_type;
+    typedef domain<Arg> domain_type;
 
     // Constructors and indexing
     //==========================================================================
@@ -39,30 +43,14 @@ namespace libgm {
       compute_start(args1, args2);
     }
 
-    //! Returns the start of a single variable.
-    std::size_t start(Var v) const {
-      auto it = start_.find(v);
-      if (it == start_.end()) {
-        std::ostringstream out;
-        out << "gaussian_factor: cannnot find variable ";
-        arg_traits::print(out, v);
-        throw std::invalid_argument(out.str());
-      }
-      return it->second;
-    }
-
-    //! Returns the indices of arguments of this corresponding to dom.
-    matrix_index index_map(const domain_type& dom) const {
-      matrix_index result;
-      for (Var v : dom) {
-        result.append(start(v), arg_traits::num_dimensions(v));
-      }
-      return result;
-    }
-
     //! Returns the dimensionality of a marginal Gaussian with given arguments.
     static std::size_t param_shape(const domain_type& args) {
-      return num_dimensions(args);
+      return args.num_dimensions();
+    }
+
+    //! Returns the start map.
+    const vector_map<Arg, std::size_t>& start() const {
+      return start_;
     }
 
   protected:
@@ -73,24 +61,24 @@ namespace libgm {
     std::size_t compute_start(const domain_type& args) {
       start_.clear();
       start_.reserve(args.size());
-      std::size_t m = insert_start(args);
+      std::size_t m = args.insert_start(start_);
       start_.sort();
       return m;
     }
 
     //! Assigns a starting index span to each argument in an increasing order.
-    std::pair<std::size_t,std::size_t>
+    std::pair<std::size_t, std::size_t>
     compute_start(const domain_type& args1, const domain_type& args2) {
       start_.clear();
       start_.reserve(args1.size() + args2.size());
-      std::size_t m = insert_start(args1);
-      std::size_t n = insert_start(args2);
+      std::size_t m = args1.insert_start(start_);
+      std::size_t n = args2.insert_start(start_);
       start_.sort();
       return std::make_pair(m, n);
     }
 
     //! Renames the arguments and the variable-index span map
-    void subst_args(const std::unordered_map<Var, Var>& map) {
+    void subst_args(const std::unordered_map<Arg, Arg>& map) {
       start_.subst_keys(map);
     }
 
@@ -100,18 +88,7 @@ namespace libgm {
     }
 
     //! The map from each variable to its index span
-    vector_map<Var, std::size_t> start_;
-
-  private:
-    //! Inserts a domain into the start structure.
-    std::size_t insert_start(const domain_type& args) {
-      std::size_t n = 0;
-      for (Var v : args) {
-        start_.emplace(v, n);
-        n += arg_traits::num_dimensions(v);
-      }
-      return n;
-    }
+    vector_map<Arg, std::size_t> start_;
 
   }; // class gaussian_factor
 

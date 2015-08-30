@@ -41,10 +41,10 @@ BOOST_AUTO_TEST_CASE(test_operations) {
   domain1 c = {2};
   domain1 d = {3};
   domain2 ar = {5, 3};
-  BOOST_CHECK_EQUAL(a + c, domain3({3, 5, 2}));
+  BOOST_CHECK_EQUAL(b + c, domain2({5, 2}));
   BOOST_CHECK_EQUAL(a - b, domain1({3}));
   BOOST_CHECK_EQUAL(a & b, domain1({5}));
-  BOOST_CHECK_EQUAL(b | c, domain2({5, 2}));
+  BOOST_CHECK_EQUAL(concat(a, c), domain3({3, 5, 2}));
   BOOST_CHECK(!disjoint(a, b));
   BOOST_CHECK(disjoint(a, c));
   BOOST_CHECK(!equivalent(a, b));
@@ -54,6 +54,8 @@ BOOST_AUTO_TEST_CASE(test_operations) {
   BOOST_CHECK(subset(d, a));
   BOOST_CHECK(superset(a, b));
   BOOST_CHECK(superset(a, d));
+  BOOST_CHECK_EQUAL(a.num_values(), 25);
+  BOOST_CHECK_EQUAL(a.num_dimensions(), 2);
 }
 
 BOOST_AUTO_TEST_CASE(test_equivalent2) {

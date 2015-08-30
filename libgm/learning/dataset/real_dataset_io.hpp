@@ -4,6 +4,7 @@
 #include <libgm/learning/dataset/real_dataset.hpp>
 #include <libgm/learning/dataset/text_dataset_format.hpp>
 #include <libgm/parser/string_functions.hpp>
+#include <libgm/traits/missing.hpp>
 
 #include <cmath>
 #include <fstream>
@@ -19,17 +20,16 @@ namespace libgm {
    * \throw std::domain_error if the format contains non-continuous variables
    * \relates real_dataset
    */
-  template <typename T>
+  template <typename Arg, typename T>
   void load(const std::string& filename,
-            const text_dataset_format& format,
-            real_dataset<T>& ds) {
+            const text_dataset_format<Arg>& format,
+            real_dataset<Arg, T>& ds) {
     if (!format.all_variables_continuous()) {
       throw std::domain_error(
-        "The dataset contains variable(s) that are not continuous"
+        "The dataset contains argument(s) that are not continuous"
       );
     }
-    domain vars = format.variables;
-    ds.initialize(vars);
+    ds.initialize(format.variables);
 
     std::ifstream in(filename);
     if (!in) {
@@ -38,23 +38,19 @@ namespace libgm {
 
     std::string line;
     std::size_t line_number = 0;
-    real_vector<T> values(num_dimensions(vars));
+    real_vector<T> values(ds.num_cols());
     std::vector<const char*> tokens;
     while (std::getline(in, line)) {
-      if (format.tokenize(values.size(), line, line_number, tokens)) {
+      if (format.tokenize(ds.num_cols(), line, line_number, tokens)) {
         std::size_t col = format.skip_cols;
         std::size_t i = 0;
-        for (variable v : vars) {
-          std::size_t size = v.num_dimensions();
-          if (std::count(&tokens[col], &tokens[col] + size, format.missing)) {
-            // TODO: warning if only a subset of columns missing
-            values.segment(i, size).fill(std::numeric_limits<T>::quiet_NaN());
-            col += size;
-            i += size;
-          } else {
-            for (std::size_t j = 0; j < size; ++j) {
-              values[i++] = parse_string<T>(tokens[col++]);
-            }
+        for (Arg arg : format.variables) {
+          std::size_t size = arg.num_dimensions();
+          for (std::size_t j = 0; j < size; ++j) {
+            const char* token = tokens[col++];
+            values.real()[i++] = (token == format.missing)
+              ? missing<T>::value
+              : parse_string<T>(token);
           }
         }
         T weight = format.weighted ? parse_string<T>(tokens.back()) : T(1);
@@ -71,16 +67,15 @@ namespace libgm {
    * \throw std::domain_error if the format contains non-continuous variables
    * \relates real_dataset
    */
-  template <typename T>
+  template <typename Arg, typename T>
   void save(const std::string& filename,
-            const text_dataset_format& format,
-            const real_dataset<T>& ds) {
+            const text_dataset_format<Arg>& format,
+            const real_dataset<Arg, T>& ds) {
     if (!format.all_variables_continuous()) {
       throw std::domain_error(
-        "The dataset contains variable(s) that are not continuous"
+        "The dataset contains argument(s) that are not continuous"
       );
     }
-    domain vars = format.variables;
 
     std::ofstream out(filename);
     if (!out) {
@@ -92,20 +87,20 @@ namespace libgm {
     }
 
     std::string separator = format.separator.empty() ? " " : format.separator;
-    for (const auto& p : ds(vars)) {
+    for (const auto& s : ds.samples(format.variables)) {
       for (std::size_t i = 0; i < format.skip_cols; ++i) {
         out << "0" << separator;
       }
-      for (std::size_t i = 0; i < p.first.size(); ++i) {
+      for (std::size_t i = 0; i < s.first.size(); ++i) {
         if (i > 0) { out << separator; }
-        if (std::isnan(p.first[i])) {
+        if (ismissing(s.first[i])) {
           out << format.missing;
         } else {
-          out << p.first[i];
+          out << s.first[i];
         }
       }
       if (format.weighted) {
-        out << separator << p.second;
+        out << separator << s.second;
       }
       out << std::endl;
     }

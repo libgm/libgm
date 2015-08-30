@@ -2,11 +2,11 @@
 #define LIBGM_HYBRID_DATASET_HPP
 
 #include <libgm/argument/argument_traits.hpp>
-#include <libgm/argument/hybrid_assignment.hpp>
 #include <libgm/argument/hybrid_domain.hpp>
-#include <libgm/datastructure/hybrid_vector.hpp>
+#include <libgm/math/eigen/hybrid.hpp>
 #include <libgm/math/random/permutations.hpp>
 #include <libgm/range/iterator_range.hpp>
+#include <libgm/traits/missing.hpp>
 
 #include <iostream>
 #include <iterator>
@@ -30,24 +30,23 @@ namespace libgm {
    * The dataset can dynamicallly grow in the style of std::vector,
    * adding rows for newly inserted data points.
    *
+   * \tparam Arg a type that models the MixedArgument concept
    * \tparam T the type representing the weights and real values
-   * \tparam Var a type that models the MixedArgument concept
    * \see Dataset
    */
-  template <typename T = double, typename Var = variable>
+  template <typename Arg, typename T = double>
   class hybrid_dataset {
-    typedef argument_traits<Var> arg_traits;
+    // Helper types
+    typedef typename argument_traits<Arg>::hasher hasher;
 
   public:
     // Dataset concept types
-    typedef void                      traits_type;
-    typedef Var                       argument_type;
-    typedef hybrid_domain<Var>        domain_type;
-    typedef hybrid_assignment<T, Var> assignment_type;
-    typedef hybrid_vector<T>          data_type;
-    typedef T                         weight_type;
-    class assignment_iterator;
-    typedef const T* weight_iterator;
+    typedef Arg                argument_type;
+    typedef hybrid_domain<Arg> domain_type;
+    typedef hybrid_vector<T>   vector_type;
+    typedef T                  weight_type;
+    typedef const T*           weight_iterator;
+    typedef void               index_type;
 
     // Range concept types
     typedef std::pair<hybrid_vector<T>, T> value_type;
@@ -76,15 +75,8 @@ namespace libgm {
       args_ = args;
       allocated_ = std::max(capacity, std::size_t(1));
       inserted_ = 0;
-      std::size_t ucol = 0;
-      for (Var v : args.discrete()) {
-        col_.emplace(v, ucol++);
-      }
-      std::size_t rcol = 0;
-      for (Var v : args.continuous()) {
-        col_.emplace(v, rcol);
-        rcol += arg_traits::num_dimensions(v);
-      }
+      std::size_t ucol = args.discrete().insert_start(col_);
+      std::size_t rcol = args.continuous().insert_start(col_);
       udata_.reset(new std::size_t[allocated_ * ucol]);
       rdata_.reset(new T[allocated_ * rcol]);
       weight_.reset(new T[allocated_]);
@@ -113,6 +105,11 @@ namespace libgm {
     //! Returns the number of real columns of this dataset.
     std::size_t real_cols() const {
       return rcolptr_.size();
+    }
+
+    //! Returns the total number of columns of this dataset.
+    std::size_t num_cols() const {
+      return ucolptr_.size() + rcolptr_.size();
     }
 
     //! Returns the number of datapoints in the dataset.
@@ -152,21 +149,44 @@ namespace libgm {
     }
 
     //! Returns a single datapoint in the dataset.
-    value_type operator[](std::size_t row) const {
-      value_type value;
-      value.first.resize(uint_cols(), real_cols());
+    value_type sample(std::size_t row) const {
+      value_type result;
+      result.first.resize(uint_cols(), real_cols());
       for (std::size_t i = 0; i < uint_cols(); ++i) {
-        value.first.uint()[i] = ucolptr_[i][row];
+        result.first.uint()[i] = ucolptr_[i][row];
       }
       for (std::size_t i = 0; i < real_cols(); ++i) {
-        value.first.real()[i] = rcolptr_[i][row];
+        result.first.real()[i] = rcolptr_[i][row];
       }
-      value.second = weight_[row];
-      return value;
+      result.second = weight_[row];
+      return result;
+    }
+
+    //! Returns a single datapoint in the dataset over a subset of arguments.
+    value_type sample(std::size_t row, const domain_type& dom) const {
+      value_type result;
+      result.first.resize(dom.discrete().num_dimensions(),
+                          dom.continuous().num_dimensions());
+      std::size_t* udest = result.first.uint().data();
+      for (Arg arg : dom.discrete()) {
+        std::size_t n = argument_traits<Arg>::num_dimensions(arg);
+        for (std::size_t i = 0, col = col_.at(arg); i < n; ++i, ++col) {
+          *udest++ = ucolptr_[col][row];
+        }
+      }
+      T* rdest = result.first.real().data();
+      for (Arg arg : dom.continuous()) {
+        std::size_t n = argument_traits<Arg>::num_dimensions(arg);
+        for (std::size_t i = 0, col = col_.at(arg); i < n; ++i, ++col) {
+          *rdest++ = rcolptr_[col][row];
+        }
+      }
+      result.second = weight_[row];
+      return result;
     }
 
     //! Returns a mutable range of datapoints over a subset of arguments.
-    iterator_range<iterator> operator()(const domain_type& dom) {
+    iterator_range<iterator> samples(const domain_type& dom) {
       return iterator_range<iterator>(
         iterator(ucolptrs(dom), rcolptrs(dom), weight_.get(), inserted_),
         iterator()
@@ -174,72 +194,11 @@ namespace libgm {
     }
 
     //! Returns an immutable range of datapoints over a subset of arguments.
-    iterator_range<const_iterator> operator()(const domain_type& dom) const {
+    iterator_range<const_iterator> samples(const domain_type& dom) const {
       return iterator_range<const_iterator>(
         const_iterator(ucolptrs(dom), rcolptrs(dom), weight_.get(), inserted_),
         const_iterator()
       );
-    }
-
-    //! Returns a single datapoint in the dataset over a subset of arguments.
-    value_type operator()(std::size_t row, const domain_type& dom) const {
-      value_type value;
-      value.first.resize(dom.discrete_size(), num_dimensions(dom));
-      std::size_t* udest = value.first.uint().data();
-      for (Var v : dom.discrete()) {
-        *udest++ = ucolptr_[col_.at(v)][row];
-      }
-      T* rdest = value.first.real().data();
-      for (Var v : dom.continuous()) {
-        std::size_t n = arg_traits::num_dimensions(v);
-        for (std::size_t i = 0, col = col_.at(v); i < n; ++i, ++col) {
-          *rdest++ = rcolptr_[col][row];
-        }
-      }
-      value.second = weight_[row];
-      return value;
-    }
-
-    //! Returns a range over the assignment-weight pairs.
-    iterator_range<assignment_iterator>
-    assignments() const {
-      return iterator_range<assignment_iterator>(
-        assignment_iterator(args_, ucolptr_, rcolptr_, weight_.get(), inserted_),
-        assignment_iterator()
-      );
-    }
-
-    //! Returns a range over the assignment-weight pairs for a subset of args.
-    iterator_range<assignment_iterator>
-    assignments(const domain_type& d) const {
-      return iterator_range<assignment_iterator>(
-        assignment_iterator(d, ucolptrs(d), rcolptrs(d), weight_.get(), inserted_),
-        assignment_iterator()
-      );
-    }
-
-    //! Returns the assignment and weight for a single datapoint.
-    std::pair<assignment_type, T>
-    assignment(std::size_t row) const {
-      return assignment(row, args_); // we don't optimize this call
-    }
-
-    //! Returns the assignment and weight for a single datapoint.
-    std::pair<assignment_type, T>
-    assignment(std::size_t row, const domain_type& dom) const {
-      std::pair<assignment_type, T> a;
-      for (Var v : dom.discrete()) {
-        a.first.uint()[v] = ucolptr_[col_.at(v)][row];
-      }
-      for (Var v : dom.continuous()) {
-        real_vector<T>& vec = a.first.real()[v];
-        vec.resize(arg_traits::num_dimensions(v));
-        for (std::size_t i = 0, col = col_.at(v); i < vec.size(); ++i, ++col) {
-          vec[i] = rcolptr_[col][row];
-        }
-      }
-      a.second = weight_[row];
-      return a;
     }
 
     //! Returns the range of all the weights in the dataset.
@@ -281,29 +240,14 @@ namespace libgm {
       for (std::size_t i = 0; i < values.uint().size(); ++i) {
         ucolptr_[i][inserted_] = values.uint()[i];
       }
+
       assert(values.real().size() == real_cols());
       for (std::size_t i = 0; i < values.real().size(); ++i) {
         rcolptr_[i][inserted_] = values.real()[i];
       }
+
       weight_[inserted_] = weight;
       ++inserted_;
-    }
-
-    //! Inserts a new datapoint from an assignment (all variables must exist).
-    void insert(const assignment_type& a, weight_type weight) {
-      hybrid_vector<T> values;
-      values.resize(uint_cols(), real_cols());
-      std::size_t ucol = 0;
-      for (Var v : args_.discrete()) {
-        values.uint()[ucol++] = a.uint().at(v);
-      }
-      std::size_t rcol = 0;
-      for (Var v :  args_.continuous()) {
-        std::size_t n = arg_traits::num_dimensions(v);
-        values.real().segment(rcol, n) = a.real().at(v);
-        rcol += n;
-      }
-      insert(values, weight);
     }
 
     //! Inserts a new datapoint to the dataset.
@@ -316,12 +260,10 @@ namespace libgm {
       check_initialized();
       reserve(inserted_ + nrows);
       for (std::size_t* ptr : ucolptr_) {
-        std::fill_n(ptr + inserted_, nrows,
-                    std::numeric_limits<std::size_t>::max());
+        std::fill_n(ptr + inserted_, nrows, missing<std::size_t>::value);
       }
       for (T* ptr : rcolptr_) {
-        std::fill_n(ptr + inserted_, nrows,
-                    std::numeric_limits<T>::quiet_NaN());
+        std::fill_n(ptr + inserted_, nrows, missing<T>::value);
       }
       std::fill_n(weight_.get() + inserted_, nrows, T(1));
       inserted_ += nrows;
@@ -647,7 +589,7 @@ namespace libgm {
       std::vector<T*> relems_; // the pointers to the next real elements
       T* weight_;              // the pointer to the next weight
       std::size_t nrows_;      // the number of rows left
-      std::pair<data_type, weight_type> value_; // user-facing data
+      std::pair<hybrid_vector<T>, T> value_; // user-facing data
 
       //! increments the storage pointers by n
       void advance(std::ptrdiff_t n) {
@@ -678,146 +620,6 @@ namespace libgm {
       friend class hybrid_dataset::iterator;
 
     }; // class const_iterator
-
-    /**
-     * Iterator over assignments to (a subset of) dataset arguments.
-     * Provides const access to teh elements and weights.
-     */
-    class assignment_iterator
-      : public std::iterator<std::forward_iterator_tag,
-                             const std::pair<assignment_type, T> > {
-    public:
-      //! end constructor
-      assignment_iterator()
-        : nrows_(0) { }
-
-      //! begin constructor
-      assignment_iterator(const domain_type& args,
-                          const std::vector<std::size_t*>& uelems,
-                          const std::vector<T*>& relems,
-                          T* weight,
-                          std::size_t nrows)
-        : args_(args),
-          uelems_(uelems),
-          relems_(relems),
-          weight_(weight),
-          nrows_(nrows) {
-        assert(args_.discrete_size() == uelems_.size());
-        assert(num_dimensions(args_) == relems_.size());
-        load_advance();
-      }
-
-      //! begin move constructor
-      assignment_iterator(const domain_type& args,
-                          std::vector<std::size_t*>&& uelems,
-                          std::vector<T*>&& relems,
-                          T* weight,
-                          std::size_t nrows)
-        : args_(args),
-          uelems_(std::move(uelems)),
-          relems_(std::move(relems)),
-          weight_(weight),
-          nrows_(nrows) {
-        assert(args_.discrete_size() == uelems_.size());
-        assert(num_dimensions(args_) == relems_.size());
-        load_advance();
-      }
-
-      //! evaluates to true if the iterator has not reached the end of the range
-      explicit operator bool() const {
-        return nrows_ != 0;
-      }
-
-      const std::pair<assignment_type, T>& operator*() const {
-        return value_;
-      }
-
-      const std::pair<assignment_type, T>* operator->() const {
-        return &value_;
-      }
-
-      assignment_iterator& operator++() {
-        --nrows_;
-        load_advance();
-        return *this;
-      }
-
-      assignment_iterator& operator+=(std::ptrdiff_t n) {
-        if (n != 0) {
-          nrows_ -= n;
-          advance(n - 1);
-          load_advance();
-        }
-        return *this;
-      }
-
-      assignment_iterator operator++(int) {
-        throw std::logic_error(
-          "assignment iterators do not support posincrement"
-        );
-      }
-
-      bool operator==(const assignment_iterator& other) const {
-        return nrows_ == other.nrows_;
-      }
-
-      bool operator!=(const assignment_iterator& other) const {
-        return nrows_ != other.nrows_;
-      }
-
-      friend void swap(assignment_iterator& a, assignment_iterator& b) {
-        using std::swap;
-        swap(a.args_, b.args_);
-        swap(a.uelems_, b.uelems_);
-        swap(a.relems_, b.relems_);
-        swap(a.weight_, b.weight_);
-        swap(a.nrows_, b.nrows_);
-        swap(a.value_, b.value_);
-      }
-
-    private:
-      domain_type args_;            // the underlying domain
-      std::vector<std::size_t*> uelems_; // pointers to the next uint elements
-      std::vector<T*> relems_;      // the pointers to the next real elements
-      T* weight_;                   // the pointer to the next weight
-      std::size_t nrows_;           // the number of rows left
-      std::pair<assignment_type, T> value_; // user-facing data
-
-      //! increments the storage pointers by n
-      void advance(std::ptrdiff_t n) {
-        if (n != 0) {
-          for (std::size_t i = 0; i < uelems_.size(); ++i) {
-            uelems_[i] += n;
-          }
-          for (std::size_t i = 0; i < relems_.size(); ++i) {
-            relems_[i] += n;
-          }
-          weight_ += n;
-        }
-      }
-
-      //! loads the data into the value and increments the storage pointers
-      void load_advance() {
-        if (nrows_ > 0) {
-          std::size_t ucol = 0;
-          for (Var v : args_.discrete()) {
-            value_.first.uint()[v] = *uelems_[ucol]++;
-            ++ucol;
-          }
-          std::size_t rcol = 0;
-          for (Var v : args_.continuous()) {
-            real_vector<T>& vec = value_.first.real()[v];
-            vec.resize(arg_traits::num_dimensions(v));
-            for (std::size_t i = 0; i < vec.size(); ++i) {
-              vec[i] = *relems_[rcol]++;
-              ++rcol;
-            }
-          }
-          value_.second = *weight_++;
-        }
-      }
-
-    }; // class assignment_iterator
 
     // Private functions and data
     //==========================================================================
@@ -874,9 +676,12 @@ namespace libgm {
     //! Returns the column pointers for variables in a discrete domain
     std::vector<std::size_t*> ucolptrs(const domain_type& dom) const {
       std::vector<std::size_t*> result;
-      result.reserve(dom.discrete_size());
-      for (Var v : dom.discrete()) {
-        result.push_back(ucolptr_[col_.at(v)]);
+      result.reserve(dom.discrete().num_dimensions());
+      for (Arg arg : dom.discrete()) {
+        std::size_t n = argument_traits<Arg>::num_dimensions(arg);
+        for (std::size_t i = 0, col = col_.at(arg); i < n; ++i, ++col) {
+          result.push_back(ucolptr_[col]);
+        }
       }
       return result;
     }
@@ -884,10 +689,10 @@ namespace libgm {
     //! Returns the column pointers for variables in a continuous domain
     std::vector<T*> rcolptrs(const domain_type& dom) const {
       std::vector<T*> result;
-      result.reserve(num_dimensions(dom));
-      for (Var v : dom.continuous()) {
-        std::size_t n = arg_traits::num_dimensions(v);
-        for (std::size_t i = 0, col = col_.at(v); i < n; ++i, ++col) {
+      result.reserve(dom.continuous().num_dimensions());
+      for (Arg arg : dom.continuous()) {
+        std::size_t n = argument_traits<Arg>::num_dimensions(arg);
+        for (std::size_t i = 0, col = col_.at(arg); i < n; ++i, ++col) {
           result.push_back(rcolptr_[col]);
         }
       }
@@ -895,7 +700,7 @@ namespace libgm {
     }
 
     domain_type args_;                  //!< the dataset arguments
-    std::unordered_map<Var, std::size_t> col_; //!< the column of each argument
+    std::unordered_map<Arg, std::size_t, hasher> col_; //!< column of each arg
     std::unique_ptr<std::size_t[]> udata_; //!< the uint data storage
     std::unique_ptr<T[]> rdata_;        //!< the real data storage
     std::unique_ptr<T[]> weight_;       //!< the weight storage

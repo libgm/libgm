@@ -1,14 +1,16 @@
 #ifndef LIBGM_TABLE_FACTOR_HPP
 #define LIBGM_TABLE_FACTOR_HPP
 
+#include <libgm/macros.hpp>
 #include <libgm/argument/argument_traits.hpp>
-#include <libgm/argument/basic_domain.hpp>
+#include <libgm/argument/domain.hpp>
 #include <libgm/argument/uint_assignment.hpp>
 #include <libgm/datastructure/table.hpp>
 #include <libgm/factor/base/factor.hpp>
 #include <libgm/serialization/serialize.hpp>
 
 #include <algorithm>
+#include <numeric>
 #include <sstream>
 #include <type_traits>
 
@@ -24,12 +26,10 @@ namespace libgm {
    * \tparam T the type of parameters stored in the table.
    * \see canonical_table, probability_table, hybrid
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T>
   class table_factor : public factor {
-    static_assert(std::is_convertible<
-                    typename argument_traits<Var>::argument_category,
-                    discrete_argument_tag
-                  >::value, "Var must be a discrete argument");
+    static_assert(is_discrete<Arg>::value,
+                  "Table factors require Arg to be discrete");
 
   public:
     // Range types
@@ -38,9 +38,9 @@ namespace libgm {
     typedef T        value_type;
 
     // Arguments
-    typedef argument_traits<Var> arg_traits;
-    typedef basic_domain<Var>    domain_type;
-    typedef uint_assignment<Var> assignment_type;
+    typedef argument_traits<Arg> arg_traits;
+    typedef domain<Arg>          domain_type;
+    typedef uint_assignment<Arg> assignment_type;
 
     // Constructors
     //==========================================================================
@@ -97,7 +97,7 @@ namespace libgm {
 
     //! Returns the number of arguments of this factor.
     std::size_t arity() const {
-      return param_.arity();
+      return finite_args_.size();
     }
 
     //! Returns the total number of elements of the factor.
@@ -120,12 +120,12 @@ namespace libgm {
       return param_.begin();
     }
 
-    //! Returns the pointer past the last element or nullptr if the factor is empty
+    //! Returns the pointer past the last element or nullptr if the factor is empty.
     T* end() {
       return param_.end();
     }
 
-    //! Returns the pointer past the last element or nullptr if the factor is empty
+    //! Returns the pointer past the last element or nullptr if the factor is empty.
     const T* end() const {
       return param_.end();
     }
@@ -174,9 +174,15 @@ namespace libgm {
     //==========================================================================
 
     /**
-     * Returns the shape of the table for a given arguments.
+     * Returns the shape of the table for the given domain. The resulting vector
+     * contains the number of values for each argument (when Arg is univariate)
+     * or a sequence of value couts for each argument (when Arg is multivariate)
+     * in the order specified by args.
+     *
+     * \fn static uint_vector param_shape(const domain_type& args)
      */
-    static uint_vector param_shape(const domain_type& args) {
+    LIBGM_ENABLE_IF_STATIC(A = Arg, is_univariate<A>::value, uint_vector)
+    param_shape(const domain_type& args) {
       uint_vector shape(args.size());
       for (std::size_t i = 0; i < args.size(); ++i) {
         shape[i] = arg_traits::num_values(args[i]);
@@ -184,34 +190,37 @@ namespace libgm {
       return shape;
     }
 
-    /**
-     * Converts the index to this factor's arguments to an assignment.
-     * The index may be merely a prefix, and the output assignment is
-     * not cleared.
-     */
-    void assignment(const uint_vector& index, assignment_type& a) const {
-      assert(index.size() <= finite_args_.size());
-      for(std::size_t i = 0; i < index.size(); i++) {
-        a[finite_args_[i]] = index[i];
+    LIBGM_ENABLE_IF_STATIC(A = Arg, is_multivariate<A>::value, uint_vector)
+    param_shape(const domain_type& args) {
+      uint_vector shape(args.num_dimensions());
+      uint_vector::iterator it = shape.begin();
+      for (Arg arg : args) {
+        for (std::size_t i = 0; i < arg_traits::num_dimensions(arg); ++i) {
+          *it++ = arg_traits::num_values(arg, i);
+        }
       }
+      return shape;
     }
 
     /**
-     * Returns the linear index corresponding to the given assignment.
-     * If strict, each argument of this factor must be present in the
-     * assignment. If not strict, the missing arguments will be associated
-     * with value 0.
+     * Returns the linear index of the cell corresponding to the given
+     * assignment. If strict is true, each argument of this factor must be
+     * present in the assignment. If strict is false, the missing arguments
+     * are assumed to be 0.
+     *
+     * \fn std::size_t index(const assignment_type& a, bool strict = true) const
      */
-    std::size_t index(const assignment_type& a, bool strict = true) const {
+    LIBGM_ENABLE_IF(A = Arg, is_univariate<A>::value, std::size_t)
+    index(const assignment_type& a, bool strict = true) const {
       std::size_t result = 0;
-      for (std::size_t i = 0; i < arity(); ++i) {
-        Var v = finite_args_[i];
+      for (std::size_t i = 0; i < finite_args_.size(); ++i) {
+        Arg v = finite_args_[i];
         auto it = a.find(v);
         if (it != a.end()) {
           result += param_.offset().multiplier(i) * it->second;
         } else if (strict) {
           std::ostringstream out;
-          out << "The assignment does not contain the variable ";
+          out << "The assignment does not contain the argument ";
           arg_traits::print(out, v);
           throw std::invalid_argument(out.str());
         }
@@ -219,29 +228,85 @@ namespace libgm {
       return result;
     }
 
+    LIBGM_ENABLE_IF(A = Arg, is_multivariate<A>::value, std::size_t)
+    index(const assignment_type& a, bool strict = true) const {
+      std::size_t result = 0;
+      std::size_t i = 0;
+      for (Arg arg : finite_args_) {
+        std::size_t n = arg_traits::num_dimensions(arg);
+        auto it = a.find(arg);
+        if (it != a.end()) {
+          assert(it->second.size() == n);
+          for (std::size_t val : it->second) {
+            result += param_.offset().multiplier(i++) * val;
+          }
+        } else if (!strict) {
+          i += n;
+        } else {
+          std::ostringstream out;
+          out << "The assignment does not contain the argument ";
+          arg_traits::print(out, arg);
+          throw std::invalid_argument(out.str());
+        }
+      }
+      return result;
+    }
+
     /**
-     * Returns the mapping of this factor's arguments to the given var vector.
-     * If strict, all the arguments must be present in the given vector.
-     * If not strict, the missing variables will be assigned a NA value,
+     * Returns the mapping of this factor's arguments to the given domain.
+     * Resulting vector contains, for each dimension of this factor's table,
+     * the dimension of the table corresponding to args. If strict is true,
+     * all arguments of this factor must be present in the specified domain.
+     * If strict is false, the missing arguments will be assigned a NA value,
      * std::numeric_limits<std::size_t>::max().
      *
      * When using this function in factor operations, always call the
      * dim_map function on the factor whose elements will be iterated
-     * over in a non-linear fashion. The vector vars are the arguments
+     * over in a non-linear fashion. The specified args are the arguments
      * of the table that is iterated over in a linear fashion.
+     *
+     * \fn uint_vector dim_map(const domain_type& args, bool strict=true) const
      */
-    uint_vector dim_map(const domain_type& vars, bool strict = true) const {
-      uint_vector map(arity(), std::numeric_limits<std::size_t>::max());
+    LIBGM_ENABLE_IF(A = Arg, is_univariate<A>::value, uint_vector)
+    dim_map(const domain_type& args, bool strict = true) const {
+      uint_vector map(param_.arity(), std::numeric_limits<std::size_t>::max());
       for(std::size_t i = 0; i < map.size(); i++) {
-        auto it = std::find(vars.begin(), vars.end(), finite_args_[i]);
-        if (it != vars.end()) {
-          map[i] = it - vars.begin();
+        auto it = std::find(args.begin(), args.end(), finite_args_[i]);
+        if (it != args.end()) {
+          map[i] = it - args.begin();
         } else if (strict) {
           std::ostringstream out;
-          out << "table factor: missing variable ";
+          out << "table factor: missing argument ";
           arg_traits::print(out, finite_args_[i]);
           throw std::invalid_argument(out.str());
         }
+      }
+      return map;
+    }
+
+    LIBGM_ENABLE_IF(A = Arg, is_multivariate<A>::value, uint_vector)
+    dim_map(const domain_type& args, bool strict = true) const {
+      // compute the first dimension of each argument in args
+      std::vector<std::size_t> dim(args.size());
+      for (std::size_t i = 1; i < args.size(); ++i) {
+        dim[i] = dim[i-1] + arg_traits::num_dimensions(args[i-1]);
+      }
+
+      // extract the dimensions for the arguments in this factor
+      uint_vector map(param_.arity(), std::numeric_limits<std::size_t>::max());
+      uint_vector::iterator dest = map.begin();
+      for (Arg arg : finite_args_) {
+        auto it = std::find(args.begin(), args.end(), arg);
+        std::size_t n = arg_traits::num_dimensions(arg);
+        if (it != args.end()) {
+          std::iota(dest, dest + n, dim[it - args.begin()]);
+        } else if (strict) {
+          std::ostringstream out;
+          out << "table factor: missing argument ";
+          arg_traits::print(out, arg);
+          throw std::invalid_argument(out.str());
+        }
+        dest += n;
       }
       return map;
     }
@@ -250,17 +315,17 @@ namespace libgm {
      * Substitutes this factor's arguments according to the given map,
      * in place.
      */
-    void subst_args(const std::unordered_map<Var, Var>& var_map) {
-      for (Var& var : finite_args_) {
-        Var new_var = var_map.at(var);
-        if (!arg_traits::compatible(var, new_var)) {
+    void subst_args(const std::unordered_map<Arg, Arg>& arg_map) {
+      for (Arg& arg : finite_args_) {
+        Arg new_arg = arg_map.at(arg);
+        if (!arg_traits::compatible(arg, new_arg)) {
           std::ostringstream out;
-          out << "subst_args: "; arg_traits::print(out, var);
-          out << " and "; arg_traits::print(out, new_var);
+          out << "subst_args: "; arg_traits::print(out, arg);
+          out << " and "; arg_traits::print(out, new_arg);
           out << " are not compatible";
           throw std::invalid_argument(out.str());
         }
-        var = new_var;
+        arg = new_arg;
       }
     }
 
@@ -268,13 +333,29 @@ namespace libgm {
      * Checks if the shape of the table matches this factor's argument vector.
      * \throw std::runtime_error if some of the dimensions do not match
      */
-    void check_param() const {
-      if (param_.arity() != finite_args_.size()) {
+    LIBGM_ENABLE_IF(A = Arg, is_univariate<A>::value, void)
+    check_param() const {
+      if (param_.arity() != finite_args_.num_dimensions()) {
         throw std::runtime_error("Invalid table arity");
       }
       for (std::size_t i = 0; i < finite_args_.size(); ++i) {
         if (param_.size(i) != arg_traits::num_values(finite_args_[i])) {
           throw std::runtime_error("Invalid table shape");
+        }
+      }
+    }
+
+    LIBGM_ENABLE_IF(A = Arg, is_multivariate<A>::value, void)
+    check_param() const {
+      if (param_.arity() != finite_args_.num_dimensions()) {
+        throw std::runtime_error("Invalid table arity");
+      }
+      std::size_t dim = 0;
+      for (Arg arg : finite_args_) {
+        for (std::size_t i = 0; i < arg_traits::num_dimensions(arg); ++i) {
+          if (param_.size(dim) != arg_traits::num_values(arg, i)) {
+            throw std::runtime_error("Invalid table shape");
+          }
         }
       }
     }
@@ -308,7 +389,7 @@ namespace libgm {
 
     /**
      * Aggregates the parameter table of this factor along all dimensions
-     * other than those for the retained variables using the given binary
+     * other than those for the retained arguments using the given binary
      * operation and stores the result to the specified factor. This function
      * avoids reallocation if the target argument vector has not changed.
      */
@@ -328,12 +409,12 @@ namespace libgm {
      * and store the result in a canonical_table or vice versa.
      */
     void restrict(const assignment_type& a, table_factor& result) const {
-      domain_type new_vars;
-      for (Var v : finite_args_) {
-        if (!a.count(v)) { new_vars.push_back(v); }
+      domain_type new_args;
+      for (Arg v : finite_args_) {
+        if (!a.count(v)) { new_args.push_back(v); }
       }
-      result.reset(new_vars);
-      if (prefix(result.finite_args_, finite_args_)) {
+      result.reset(new_args);
+      if (finite_args_.prefix(result.finite_args_)) {
         result.param_.restrict(param_, index(a, false));
       } else {
         uint_vector map = dim_map(result.finite_args_, false);
@@ -371,16 +452,16 @@ namespace libgm {
    * Joins the parameter tables of two factors using a binary operation.
    * The resulting factor contains the union of f's and g's argument sets.
    */
-  template <typename Result, typename T, typename Var, typename Op>
-  Result join(const table_factor<T, Var>& f,
-              const table_factor<T, Var>& g,
+  template <typename Result, typename Arg, typename T, typename Op>
+  Result join(const table_factor<Arg, T>& f,
+              const table_factor<Arg, T>& g,
               Op op) {
     if (f.finite_args() == g.finite_args()) {
       Result result(f.finite_args());
       std::transform(f.begin(), f.end(), g.begin(), result.begin(), op);
       return result;
     } else {
-      Result result(f.finite_args() | g.finite_args());
+      Result result(f.finite_args() + g.finite_args());
       uint_vector f_map = f.dim_map(result.finite_args());
       uint_vector g_map = g.dim_map(result.finite_args());
       table_join<T, T, Op>(result.param(), f.param(), g.param(),
@@ -393,8 +474,8 @@ namespace libgm {
    * Transforms the parameters of the factor with a unary operation
    * and returns the result.
    */
-  template <typename Result, typename T, typename Var, typename Op>
-  Result transform(const table_factor<T, Var>& f, Op op) {
+  template <typename Result, typename Arg, typename T, typename Op>
+  Result transform(const table_factor<Arg, T>& f, Op op) {
     Result result(f.finite_args());
     std::transform(f.begin(), f.end(), result.begin(), op);
     return result;
@@ -404,9 +485,9 @@ namespace libgm {
    * Transforms the parameters of two factors using a binary operation
    * and returns the result. The two factors must have the same arguments
    */
-  template <typename Result, typename T, typename Var, typename Op>
-  Result transform(const table_factor<T, Var>& f,
-                   const table_factor<T, Var>& g,
+  template <typename Result, typename Arg, typename T, typename Op>
+  Result transform(const table_factor<Arg, T>& f,
+                   const table_factor<Arg, T>& g,
                    Op op) {
     assert(f.finite_args() == g.finite_args());
     Result result(f.finite_args());
@@ -418,9 +499,9 @@ namespace libgm {
    * Transforms the parameters of two factors using a binary operation
    * and accumulates the result using another operation.
    */
-  template <typename T, typename Var, typename JoinOp, typename AggOp>
-  T transform_accumulate(const table_factor<T, Var>& f,
-                         const table_factor<T, Var>& g,
+  template <typename Arg, typename T, typename JoinOp, typename AggOp>
+  T transform_accumulate(const table_factor<Arg, T>& f,
+                         const table_factor<Arg, T>& g,
                          JoinOp join_op,
                          AggOp agg_op) {
     assert(f.finite_args() == g.finite_args());

@@ -4,6 +4,7 @@
 #include <libgm/factor/random/uniform_table_generator.hpp>
 
 #include <libgm/argument/universe.hpp>
+#include <libgm/argument/var.hpp>
 #include <libgm/factor/canonical_table.hpp>
 #include <libgm/factor/probability_table.hpp>
 
@@ -11,27 +12,30 @@
 
 #include <boost/mpl/list.hpp>
 
+using namespace libgm;
+
+typedef canonical_table<var> ctable;
+typedef probability_table<var> ptable;
+
 namespace libgm {
   template class uniform_table_generator<ctable>;
   template class uniform_table_generator<ptable>;
 }
 
-using namespace libgm;
-
 std::size_t nsamples = 100;
 const double lower = -0.7;
 const double upper = +0.5;
 
-typedef boost::mpl::list<ctable,ptable> factor_types;
+typedef boost::mpl::list<ctable, ptable> factor_types;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_all, F, factor_types) {
   universe u;
-  variable x = u.new_discrete_variable("x", 4);
-  variable y = u.new_discrete_variable("y", 3);
-  domain xs = { x };
-  domain ys = { y };
-  domain xy = { x, y };
-  
+  var x = var::discrete(u, "x", 4);
+  var y = var::discrete(u, "y", 3);
+  domain<var> xs = { x };
+  domain<var> ys = { y };
+  domain<var> xy = { x, y };
+
   std::mt19937 rng;
   uniform_table_generator<F> gen(lower, upper);
 
@@ -44,7 +48,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_all, F, factor_types) {
       sum += x;
     }
   }
-  sum /= nsamples * num_values(xy);
+  sum /= nsamples * xy.num_values();
   BOOST_CHECK_CLOSE_FRACTION(sum, (lower + upper) / 2, 0.05);
 
   /*

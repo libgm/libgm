@@ -1,7 +1,7 @@
 #ifndef LIBGM_CANONICAL_GAUSSIAN_HPP
 #define LIBGM_CANONICAL_GAUSSIAN_HPP
 
-#include <libgm/argument/basic_domain.hpp>
+#include <libgm/argument/domain.hpp>
 #include <libgm/argument/real_assignment.hpp>
 #include <libgm/factor/base/gaussian_factor.hpp>
 #include <libgm/factor/traits.hpp>
@@ -12,7 +12,7 @@
 namespace libgm {
 
   // forward declaration
-  template <typename T, typename Var> class moment_gaussian;
+  template <typename Arg, typename T> class moment_gaussian;
 
   /**
    * A factor of a Gaussian distribution in the natural parameterization.
@@ -20,15 +20,15 @@ namespace libgm {
    * \tparam T the real type for representing the parameters.
    * \ingroup factor_types
    */
-  template <typename T, typename Var>
-  class canonical_gaussian : public gaussian_factor<Var> {
-    typedef argument_traits<Var> arg_traits;
+  template <typename Arg, typename T = double>
+  class canonical_gaussian : public gaussian_factor<Arg> {
+    typedef argument_traits<Arg> arg_traits;
 
   public:
     // Public types
     //==========================================================================
     // Base type
-    typedef gaussian_factor<Var> base;
+    typedef gaussian_factor<Arg> base;
 
     // Underlying storage
     typedef real_matrix<T> mat_type;
@@ -37,16 +37,17 @@ namespace libgm {
     // Factor member types
     typedef T                       real_type;
     typedef logarithmic<T>          result_type;
-    typedef Var                     variable_type;
-    typedef basic_domain<Var>       domain_type;
-    typedef real_assignment<T, Var> assignment_type;
+    typedef Arg                     argument_type;
+    typedef domain<Arg>             domain_type;
+    typedef real_assignment<Arg, T> assignment_type;
 
     // ParametricFactor member types
     typedef canonical_gaussian_param<T> param_type;
-    typedef real_vector<T>              index_type;
+    typedef real_vector<T>              vector_type;
+    typedef std::vector<std::size_t>    index_type;
 
     // ExponentialFamilyFactor member types
-    typedef moment_gaussian<T, Var> probability_type;
+    typedef moment_gaussian<Arg, T> probability_type;
 
     // Constructors and conversion operators
     //==========================================================================
@@ -65,7 +66,7 @@ namespace libgm {
 
     //! Constructs a factor with given arguments and constant value.
     canonical_gaussian(const domain_type& args, logarithmic<T> value)
-      : base(args), args_(args), param_(num_dimensions(args), value.lv) { }
+      : base(args), args_(args), param_(args.num_dimensions(), value.lv) { }
 
     //! Constructs a factor with the given arguments and parameters.
     canonical_gaussian(const domain_type& args, const param_type& param)
@@ -89,7 +90,7 @@ namespace libgm {
     }
 
     //! Conversion from a moment_gaussian
-    explicit canonical_gaussian(const moment_gaussian<T, Var>& mg) {
+    explicit canonical_gaussian(const moment_gaussian<Arg, T>& mg) {
       *this = mg;
     }
 
@@ -101,15 +102,15 @@ namespace libgm {
     }
 
     //! Assigns a moment_gaussian to this factor.
-    canonical_gaussian& operator=(const moment_gaussian<T, Var>& mg) {
+    canonical_gaussian& operator=(const moment_gaussian<Arg, T>& mg) {
       reset(mg.arguments());
       param_ = mg.param();
       return *this;
     }
 
     //! Casts this canonical_gaussian to a moment_gaussian.
-    moment_gaussian<T, Var> moment() const {
-      return moment_gaussian<T, Var>(*this);
+    moment_gaussian<Arg, T> moment() const {
+      return moment_gaussian<Arg, T>(*this);
     }
 
     //! Exchanges the content of two factors.
@@ -151,7 +152,7 @@ namespace libgm {
         std::size_t n = this->compute_start(args);
         param_.resize(0);
         return n;
-      } else return num_dimensions(args);
+      } else return args.num_dimensions();
     }
 
     // Accessors and comparison operators
@@ -202,29 +203,35 @@ namespace libgm {
       return param_.lambda;
     }
 
-    //! Returns the information vector for a single variable.
-    Eigen::VectorBlock<const vec_type> inf_vector(Var v) const {
+    /**
+     * Returns the information subvector for a single argument.
+     * Supported for multivariate arguments.
+     */
+    Eigen::VectorBlock<const vec_type> inf_vector(Arg v) const {
       std::size_t n = arg_traits::num_dimensions(v);
-      return param_.eta.segment(this->start(v), n);
+      return param_.eta.segment(this->start_.at(v), n);
     }
 
-    //! Returns the information matrix for a single variable.
-    Eigen::Block<const mat_type> inf_matrix(Var v) const {
-      std::size_t i = this->start(v);
+    /**
+     * Returns the information submatrix for a single argument.
+     * Supported for multivariate arguments.
+     */
+    Eigen::Block<const mat_type> inf_matrix(Arg v) const {
+      std::size_t i = this->start_.at(v);
       std::size_t n = arg_traits::num_dimensions(v);
       return param_.lambda.block(i, i, n, n);
     }
 
     //! Returns the information vector for a subset of the arguments
     vec_type inf_vector(const domain_type& args) const {
-      matrix_index map = this->index_map(args);
-      return subvec(param_.eta, map).plain();
+      index_type index = args.index(this->start_);
+      return subvec(param_.eta, index).ref();
     }
 
     //! Returns the information matrix for a subset of the arguments
     mat_type inf_matrix(const domain_type& args) const {
-      matrix_index map = this->index_map(args);
-      return submat(param_.eta, map, map).plain();
+      index_type index = args.index(this->start_);
+      return submat(param_.eta, index, index).ref();
     }
 
     //! Returns true of the two factors have the same domains and parameters.
@@ -244,20 +251,15 @@ namespace libgm {
      * Converts the given vector to an assignment.
      */
     void assignment(const vec_type& vec, assignment_type& a) const {
-      assert(vec.size() == size());
-      std::size_t i = 0;
-      for (Var v : args_) {
-        a[v] = vec.segment(i, arg_traits::num_dimensions(v));
-        i += arg_traits::num_dimensions(v);
-      }
+      a.insert_or_assign(args_, vec);
     }
 
     /**
      * Substitutes the arguments in-place according to the given map.
      */
-    void subst_args(const std::unordered_map<Var, Var>& map) {
+    void subst_args(const std::unordered_map<Arg, Arg>& map) {
       base::subst_args(map);
-      args_.subst(map);
+      args_.substitute(map);
     }
 
     /**
@@ -269,7 +271,7 @@ namespace libgm {
           "canonical_gaussian::reorder: ordering changes the argument set"
         );
       }
-      return canonical_gaussian(args, param_.reorder(this->index_map(args)));
+      return canonical_gaussian(args, param_.reorder(args.index(this->start_)));
     }
 
     /**
@@ -279,7 +281,7 @@ namespace libgm {
      */
     void check_param() const {
       param_.check();
-      if (param_.size() != num_dimensions(args_)) {
+      if (param_.size() != args_.num_dimensions()) {
         throw std::runtime_error("canonical_gaussian: Invalid parameter size");
       }
     }
@@ -312,7 +314,7 @@ namespace libgm {
 
     //! Returns the log-value of the factor for an assignment.
     T log(const assignment_type& a) const {
-      return param_(extract(a, args_));
+      return param_(a.values(args_));
     }
 
     //! Returns the log-value of the factor for a vector.
@@ -470,7 +472,7 @@ namespace libgm {
     logarithmic<T> maximum(assignment_type& a) const {
       vec_type vec;
       T max = param_.maximum(vec);
-      assignment(vec, a);
+      a.insert_or_assign(args_, vec);
       return logarithmic<T>(max, log_tag());
     }
 
@@ -522,7 +524,7 @@ namespace libgm {
 
     //! Computes the mutual information bewteen two subsets of arguments.
     T mutual_information(const domain_type& a, const domain_type& b) const {
-      return entropy(a) + entropy(b) - entropy(a | b);
+      return entropy(a) + entropy(b) - entropy(a + b);
     }
 
     //! Computes the Kullback-Liebler divergence from p to q.
@@ -549,11 +551,6 @@ namespace libgm {
 
   }; // class canonical_gaussian
 
-  /**
-   * A canonical_gaussian factor using double precision.
-   * \relates canonical_gaussian
-   */
-  typedef canonical_gaussian<double, variable> cgaussian;
 
   // Common operations
   //============================================================================
@@ -562,9 +559,9 @@ namespace libgm {
    * Prints the canonical_gaussian to a stream.
    * \relates canonical_gaussian
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T>
   std::ostream&
-  operator<<(std::ostream& out, const canonical_gaussian<T, Var>& f) {
+  operator<<(std::ostream& out, const canonical_gaussian<Arg, T>& f) {
     out << f.arguments() << std::endl
         << f.param() << std::endl;
     return out;
@@ -577,20 +574,20 @@ namespace libgm {
    * Returns an object that can add the parameters of one canonical Gaussian
    * to another one in-place.
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T>
   canonical_gaussian_join_inplace<T, libgm::plus_assign<> >
-  multiplies_assign_op(canonical_gaussian<T, Var>& h,
-                       const canonical_gaussian<T, Var>& f) {
-    return { h.index_map(f.arguments()) };
+  multiplies_assign_op(canonical_gaussian<Arg, T>& h,
+                       const canonical_gaussian<Arg, T>& f) {
+    return { f.arguments().index(h.start()) };
   }
 
   /**
    * Returns an object that can add a constant to the log-multiplier of
    * a canonical Gaussian in-place.
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T>
   canonical_gaussian_join_inplace<T, libgm::plus_assign<> >
-  multiplies_assign_op(canonical_gaussian<T, Var>& h) {
+  multiplies_assign_op(canonical_gaussian<Arg, T>& h) {
     return { };
   }
 
@@ -598,20 +595,20 @@ namespace libgm {
    * Returns an object that can subtract the parameters of one canonical
    * Gaussian from another one in-place.
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T>
   canonical_gaussian_join_inplace<T, libgm::minus_assign<> >
-  divides_assign_op(canonical_gaussian<T, Var>& h,
-                    const canonical_gaussian<T, Var>& f) {
-    return { h.index_map(f.arguments()) };
+  divides_assign_op(canonical_gaussian<Arg, T>& h,
+                    const canonical_gaussian<Arg, T>& f) {
+    return { f.arguments().index(h.start()) };
   }
 
   /**
    * Returns an object that can subtract a constant to the log-multiplier of
    * a canonical Gaussian in-place.
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T>
   canonical_gaussian_join_inplace<T, libgm::minus_assign<> >
-  divides_assign_op(canonical_gaussian<T, Var>& h) {
+  divides_assign_op(canonical_gaussian<Arg, T>& h) {
     return { };
   }
 
@@ -620,26 +617,26 @@ namespace libgm {
    * product of two canonical Gaussians. Initializes the arguments of the
    * result.
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T>
   canonical_gaussian_join<T, libgm::plus_assign<> >
-  multiplies_op(const canonical_gaussian<T, Var>& f,
-                const canonical_gaussian<T, Var>& g,
-                canonical_gaussian<T, Var>& h) {
-    std::size_t n = h.reset_prototype(f.arguments() | g.arguments());
-    return { h.index_map(f.arguments()), h.index_map(g.arguments()), n };
+  multiplies_op(const canonical_gaussian<Arg, T>& f,
+                const canonical_gaussian<Arg, T>& g,
+                canonical_gaussian<Arg, T>& h) {
+    std::size_t n = h.reset_prototype(f.arguments() + g.arguments());
+    return {f.arguments().index(h.start()), g.arguments().index(h.start()), n};
   }
 
   /**
    * Returns an object that can compute the parameters corresponding to the
    * ratio of two canonical Gaussians. Initializes the arguments of the result.
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T>
   canonical_gaussian_join<T, libgm::minus_assign<> >
-  divides_op(const canonical_gaussian<T, Var>& f,
-             const canonical_gaussian<T, Var>& g,
-             canonical_gaussian<T, Var>& h) {
-    std::size_t n = h.reset_prototype(f.arguments() | g.arguments());
-    return { h.index_map(f.arguments()), h.index_map(g.arguments()), n };
+  divides_op(const canonical_gaussian<Arg, T>& f,
+             const canonical_gaussian<Arg, T>& g,
+             canonical_gaussian<Arg, T>& h) {
+    std::size_t n = h.reset_prototype(f.arguments() + g.arguments());
+    return {f.arguments().index(h.start()), g.arguments().index(h.start()), n};
   }
 
   /**
@@ -647,13 +644,13 @@ namespace libgm {
    * the marginal of a canonical Gaussian over a subset of arguments.
    * Initializes the arguments of the result.
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T>
   canonical_gaussian_marginal<T>
-  marginal_op(const canonical_gaussian<T, Var>& f,
-              const basic_domain<Var>& retain,
-              canonical_gaussian<T, Var>& h) {
+  marginal_op(const canonical_gaussian<Arg, T>& f,
+              const domain<Arg>& retain,
+              canonical_gaussian<Arg, T>& h) {
     h.reset_prototype(retain);
-    return { f.index_map(retain), f.index_map(f.arguments() - retain) };
+    return { retain.index(f.start()), (f.arguments()-retain).index(f.start()) };
   }
 
   /**
@@ -661,13 +658,13 @@ namespace libgm {
    * the maximum of a canonical Gaussian over a subset of arguments.
    * Initializes the arguments of the result.
    */
-  template <typename T, typename Var>
-  canonical_gaussian_marginal<T>
-  maximum_op(const canonical_gaussian<T, Var>& f,
-             const basic_domain<Var>& retain,
-             canonical_gaussian<T, Var>& h) {
+  template <typename Arg, typename T>
+  canonical_gaussian_maximum<T>
+  maximum_op(const canonical_gaussian<Arg, T>& f,
+             const domain<Arg>& retain,
+             canonical_gaussian<Arg, T>& h) {
     h.reset_prototype(retain);
-    return { f.index_map(retain), f.index_map(f.arguments() - retain) };
+    return { retain.index(f.start()), (f.arguments()-retain).index(f.start()) };
   }
 
   /**
@@ -675,29 +672,30 @@ namespace libgm {
    * restricting a canonical Gaussian to the given assignment.
    * Initializes the arguments of the result.
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T>
   canonical_gaussian_restrict<T>
-  restrict_op(const canonical_gaussian<T, Var>& f,
-              const real_assignment<T, Var>& a,
-              canonical_gaussian<T, Var>& h) {
-    basic_domain<Var> y, x; // restricted, retained
+  restrict_op(const canonical_gaussian<Arg, T>& f,
+              const real_assignment<Arg, T>& a,
+              canonical_gaussian<Arg, T>& h) {
+    domain<Arg> y, x; // restricted, retained
     f.arguments().partition(a, y, x);
     h.reset_prototype(x);
-    return { f.index_map(x), f.index_map(y), extract(a, y) };
+    return { x.index(f.start()), y.index(f.start()), a.values(y) };
   }
 
   /**
    * Returns an object that can restrict a canonical Gaussian and
    * add the resulting parameters to another one.
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T>
   canonical_gaussian_restrict_join<T, libgm::plus_assign<> >
-  restrict_multiply_op(const canonical_gaussian<T, Var>& f,
-                       const real_assignment<T, Var>& a,
-                       canonical_gaussian<T, Var>& h) {
-    basic_domain<Var> y, x; // restricted, retained
+  restrict_multiply_op(const canonical_gaussian<Arg, T>& f,
+                       const real_assignment<Arg, T>& a,
+                       canonical_gaussian<Arg, T>& h) {
+    domain<Arg> y, x; // restricted, retained
     f.arguments().partition(a, y, x);
-    return { f.index_map(x), f.index_map(y), h.index_map(x), extract(a, y) };
+    return { x.index(f.start()), y.index(f.start()), x.index(h.start()),
+             a.values(y) };
   }
 
   // Traits
@@ -706,32 +704,32 @@ namespace libgm {
   //! \addtogroup factor_traits
   //! @{
 
-  template <typename T, typename Var>
-  struct has_multiplies<canonical_gaussian<T, Var>>
+  template <typename Arg, typename T>
+  struct has_multiplies<canonical_gaussian<Arg, T>>
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_multiplies_assign<canonical_gaussian<T, Var>>
+  template <typename Arg, typename T>
+  struct has_multiplies_assign<canonical_gaussian<Arg, T>>
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_divides<canonical_gaussian<T, Var>>
+  template <typename Arg, typename T>
+  struct has_divides<canonical_gaussian<Arg, T>>
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_divides_assign<canonical_gaussian<T, Var>>
+  template <typename Arg, typename T>
+  struct has_divides_assign<canonical_gaussian<Arg, T>>
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_marginal<canonical_gaussian<T, Var>>
+  template <typename Arg, typename T>
+  struct has_marginal<canonical_gaussian<Arg, T>>
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_maximum<canonical_gaussian<T, Var>>
+  template <typename Arg, typename T>
+  struct has_maximum<canonical_gaussian<Arg, T>>
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_arg_max<canonical_gaussian<T, Var>>
+  template <typename Arg, typename T>
+  struct has_arg_max<canonical_gaussian<Arg, T>>
     : public std::true_type { };
 
   //! @}

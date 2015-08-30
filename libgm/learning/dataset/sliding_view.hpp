@@ -1,11 +1,15 @@
 #ifndef LIBGM_SLIDING_VIEW_HPP
 #define LIBGM_SLIDING_VIEW_HPP
 
+#include <libgm/argument/argument_traits.hpp>
+#include <libgm/math/eigen/subvector.hpp>
+#include <libgm/range/integral.hpp>
 #include <libgm/range/iterator_range.hpp>
 
 #include <iterator>
 #include <numeric>
 #include <tuple>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -22,25 +26,25 @@ namespace libgm {
    */
   template <typename BaseDS>
   class sliding_view {
+    typedef typename BaseDS::argument_type sequence_type;
+    typedef typename BaseDS::domain_type   sequence_domain_type;
+
   public:
     // Dataset concept types
-    typedef typename BaseDS::traits_type          traits_type;
-    typedef typename traits_type::variable_type   argument_type;
-    typedef typename traits_type::var_domain_type domain_type;
-    typedef typename traits_type::var_data_type   data_type;
-    typedef typename traits_type::assignment_type assignment_type;
-    typedef typename traits_type::weight_type     weight_type;
-    class assignment_iterator;
+    typedef typename sequence_type::instance_type argument_type;
+    typedef decltype(sequence_domain_type()(0))   domain_type;
+    typedef typename BaseDS::vector_type          vector_type;
+    typedef typename BaseDS::weight_type          weight_type;
+    typedef typename BaseDS::index_type           index_type;
     class weight_iterator;
 
     // Range concept types
-    typedef std::pair<data_type, weight_type> value_type;
+    typedef std::pair<vector_type, weight_type> value_type;
     class const_iterator;
     typedef const_iterator iterator;
 
     // Helper types
-    typedef typename traits_type::index_type index_type;
-    typedef typename traits_type::offset_map_type offset_map_type;
+    typedef typename argument_traits<argument_type>::hasher hasher;
 
     //! Default constructor. Creates an uninitialized view
     sliding_view()
@@ -51,9 +55,9 @@ namespace libgm {
       : dataset_(dataset), length_(length) {
       assert(length > 0);
 
-      // initialize the state
-      all_ = traits_type::initialize(dataset->arguments(),
-                                     0, length, args_, offset_);
+      // initialize the arguments and the linear argument indices
+      args_ = dataset->arguments()(range(0, length));
+      args_.insert_start(start_);
 
       // compute the cumulative size for each record in the underlying dataset
       std::size_t size = 0;
@@ -70,11 +74,10 @@ namespace libgm {
     friend void swap(sliding_view& a, sliding_view& b) {
       using std::swap;
       swap(a.dataset_, b.dataset_);
-      swap(a.length_, b.length_);
+      swap(a.length_,  b.length_);
+      swap(a.args_,    b.args_);
+      swap(a.start_,   b.start_);
       swap(a.cumsize_, b.cumsize_);
-      swap(a.args_, b.args_);
-      swap(a.offset_, b.offset_);
-      swap(a.all_, b.all_);
     }
 
     // Accessors
@@ -88,6 +91,11 @@ namespace libgm {
     //! Returns the number of arguments of this view.
     std::size_t arity() const {
       return args_.size();
+    }
+
+    //! Returns the number of columns of this view.
+    std::size_t num_cols() const {
+      return args_.num_dimensions();
     }
 
     //! Returns the number of rows in this view.
@@ -112,7 +120,7 @@ namespace libgm {
 
     //! Returns the iterator to the first datapoint.
     const_iterator begin() const {
-      return const_iterator(dataset().begin(), length_, index_type(all_));
+      return const_iterator(dataset().begin(), length_, args_.index(start_));
     }
 
     //! Returns the iterator to the datapoint past the last one.
@@ -121,63 +129,28 @@ namespace libgm {
     }
 
     //! Returns a single datapoint in the dataset.
-    value_type operator[](std::size_t row) const {
-      std::size_t r, t;
-      std::tie(r, t) = absolute(row);
-      value_type value;
-      traits_type::extract(dataset()[r], all_, t, value);
-      return value;
-    }
-
-    //! Returns an immutable range of datapoints over a subset of arguments.
-    iterator_range<const_iterator> operator()(const domain_type& dom) const {
-      return iterator_range<const_iterator>(
-        const_iterator(dataset().begin(), length_, offsets(dom)),
-        const_iterator(dataset().end())
-      );
+    value_type sample(std::size_t row) const {
+      return sample(row, args_); // this case is not optimized
     }
 
     //! Returns a single datapoint in the dataset over a subset of arguments.
-    value_type operator()(std::size_t row, const domain_type& dom) const {
+    value_type sample(std::size_t row, const domain_type& dom) const {
       std::size_t r, t;
       std::tie(r, t) = absolute(row);
-      value_type value;
-      traits_type::extract(dataset()[r], offsets(dom), t, value);
-      return value;
+      const auto& s = dataset().sample(r);
+
+      value_type result;
+      elements(s.first, dom.index(start_), t).eval_to(result.first);
+      result.second = s.second;
+      return result;
     }
 
-    //! Returns a range over assignment-weight pairs.
-    iterator_range<assignment_iterator>
-    assignments() const {
-      return iterator_range<assignment_iterator>(
-        assignment_iterator(dataset().begin(), length_, args_, &offset_),
-        assignment_iterator(dataset().end())
+    //! Returns an immutable range of datapoints over a subset of arguments.
+    iterator_range<const_iterator> samples(const domain_type& dom) const {
+      return iterator_range<const_iterator>(
+        const_iterator(dataset().begin(), length_, dom.index(start_)),
+        const_iterator(dataset().end())
       );
-    }
-
-    //! Returns a range over the assignment-weight pairs for a subset of args.
-    iterator_range<assignment_iterator>
-    assignments(const domain_type& d) const {
-      return iterator_range<assignment_iterator>(
-        assignment_iterator(dataset().begin(), length_, d, &offset_),
-        assignment_iterator(dataset().end())
-      );
-    }
-
-    //! Returns an assignment and weight for a single datapoint.
-    std::pair<assignment_type, weight_type>
-    assignment(std::size_t row) const {
-      return assignment(row, args_);
-    }
-
-    //! Returns an assignment and weight for a single datapoint.
-    std::pair<assignment_type, weight_type>
-    assignment(std::size_t row, const domain_type& dom) const {
-      std::size_t r, t;
-      std::tie(r, t) = absolute(row);
-      std::pair<assignment_type, weight_type> a;
-      traits_type::extract(dataset()[r], dom, offset_, t, a);
-      return a;
     }
 
     //! Returns the range of all the weights in the dataset.
@@ -281,112 +254,18 @@ namespace libgm {
           time_ = 0;
         }
         if (it_) {
-          traits_type::extract(*it_, index_, time_, value_);
+          elements(it_->first, index_, time_).eval_to(value_.first);
+          value_.second = it_->second;
         }
       }
 
       base_iterator it_;   // the iterator over the underlying sequence dataset
       std::size_t time_;   // the current time offset
       std::size_t length_; // the length of the window
-      index_type index_;   // linear index of the values
-      std::pair<data_type, weight_type> value_; // user-facing data
+      index_type index_;   // the linear index of the values
+      std::pair<vector_type, weight_type> value_; // user-facing data
 
     }; // class const_iterator
-
-    /**
-     * Iterator over (a subset of) columns of a sliding_view,
-     * converted to an assignment-weight pair.
-     */
-    class assignment_iterator
-      : public std::iterator<std::forward_iterator_tag,
-                             const std::pair<assignment_type, value_type> > {
-    public:
-      typedef typename BaseDS::const_iterator base_iterator;
-
-      //! default constructor
-      assignment_iterator()
-        : time_(0) { }
-
-      //! end constructor
-      explicit assignment_iterator(const base_iterator& it)
-        : it_(it),
-          time_(0) { }
-
-      //! begin constructor
-      assignment_iterator(const base_iterator& it,
-                          std::size_t length,
-                          const domain_type& args,
-                          const offset_map_type* offset)
-        : it_(std::move(it)),
-          time_(0),
-          length_(length),
-          args_(args),
-          offset_(offset) {
-        load();
-      }
-
-      //! evaluates to true if the iterator has not reached the end of the range
-      explicit operator bool() const {
-        return bool(it_);
-      }
-
-      const std::pair<assignment_type, weight_type>& operator*() const {
-        return value_;
-      }
-
-      const std::pair<assignment_type, weight_type>* operator->() const {
-        return &value_;
-      }
-
-      assignment_iterator& operator++() {
-        ++time_;
-        load();
-        return *this;
-      }
-
-      assignment_iterator operator++(int) {
-        // this operation is too expensive and is not supported
-        throw std::logic_error("data iterators do not support postincrement");
-      }
-
-      bool operator==(const assignment_iterator& other) const {
-        return it_ == other.it_ && time_ == other.time_;
-      }
-
-      bool operator!=(const assignment_iterator other) const {
-        return it_ != other.it_ || time_ != other.time_;
-      }
-
-      friend void swap(assignment_iterator& a, assignment_iterator& b) {
-        using std::swap;
-        swap(a.it_, b.it_);
-        swap(a.time_, b.time_);
-        swap(a.length_, b.length_);
-        swap(a.args_, b.args_);
-        swap(a.offset_, b.offset_);
-        swap(a.value_, b.value_);
-      }
-
-    private:
-      //! Searches for the next valid sequence and loads the data
-      void load() {
-        while (it_ && it_->first.cols() < time_ + length_) {
-          ++it_;
-          time_ = 0;
-        }
-        if (it_) {
-          traits_type::extract(*it_, args_, *offset_, time_, value_);
-        }
-      }
-
-      base_iterator it_;   //!< the iterator over an underlying sequence dataset
-      std::size_t time_;   //!< the current time offset
-      std::size_t length_; //!< the length of the window
-      domain_type args_;   //!< the arguments iterated over
-      const offset_map_type* offset_; //!< map from arguments to offsets
-      std::pair<assignment_type, weight_type> value_; //!< user-facing data
-
-    }; // class assignment_iterator
 
     /**
      * Iterator over the weghts of a sliding_view.
@@ -474,17 +353,11 @@ namespace libgm {
       return {r, (r > 0) ? row - cumsize_[r-1] : row};
     }
 
-    //! Returns the linear indices of the given arguments
-    index_type offsets(const domain_type& args) const {
-      return traits_type::index(args, offset_);
-    }
-
-    const BaseDS* dataset_;  //!< the underlying dataset
-    std::size_t length_;          //!< the length of the window
-    std::vector<std::size_t> cumsize_; //!< the cumulative sums of datapoint count
-    domain_type args_;       //!< the arguments of the view
-    offset_map_type offset_; //!< the mapping from arguments to sequence offsets
-    index_type all_;         //!< the index range containing all arguments
+    const BaseDS* dataset_;            //!< the underlying dataset
+    std::size_t length_;               //!< the length of the window
+    domain_type args_;                 //!< the arguments of the view
+    std::unordered_map<argument_type, std::size_t, hasher> start_; // arg start
+    std::vector<std::size_t> cumsize_; //!< cumulative sums of datapoint counts
 
   }; // class sliding_view
 

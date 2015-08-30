@@ -3,8 +3,8 @@
 
 #include <libgm/learning/dataset/real_sequence_dataset.hpp>
 #include <libgm/learning/dataset/text_dataset_format.hpp>
+#include <libgm/traits/missing.hpp>
 
-#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <limits>
@@ -23,53 +23,48 @@ namespace libgm {
    *        that are not continuous-valued
    * \relates real_sequence_dataset
    */
-  template <typename T>
+  template <typename Arg, typename T>
   void load(const std::vector<std::string>& filenames,
-            const text_dataset_format& format,
-            real_sequence_dataset<T>& ds) {
+            const text_dataset_format<Arg>& format,
+            real_sequence_dataset<Arg, T>& ds) {
     // initialize the dataset
-    if (!format.all_dprocesses_continuous()) {
+    if (!format.all_sequences_continuous()) {
       throw std::domain_error(
-        "The format contains process(es) that are not continuous-valued"
+        "The format contains sequence(s) that are not continuous-valued"
       );
     }
-    ds.initialize(format.dprocesses, filenames.size());
-    std::size_t num_dims = num_dimensions(ds.arguments());
+    ds.initialize(format.sequences, filenames.size());
+    std::size_t num_dims = ds.num_cols();
 
-    for (std::size_t i = 0; i < filenames.size(); ++i) {
+    for (const std::string& filename : filenames) {
       // open the file
-      std::ifstream in(filenames[i]);
+      std::ifstream in(filename);
       if (!in) {
-        throw std::runtime_error("Cannot open the file " + filenames[i]);
+        throw std::runtime_error("Cannot open the file " + filename);
       }
 
       // read the table line-by-line, storing the values for each time step
-      std::vector<std::vector<T> > values; // [t][i]
+      std::vector<T> values;
       std::string line;
       std::size_t line_number = 0;
+      std::size_t t = 0;
       std::vector<const char*> tokens;
       while (std::getline(in, line)) {
         if (format.tokenize(num_dims, line, line_number, tokens)) {
-          std::vector<T> val_t(num_dims);
+          ++t;
           for (std::size_t i = 0; i < num_dims; ++i) {
             const char* token = tokens[i + format.skip_cols];
             if (token == format.missing) {
-              val_t[i] = std::numeric_limits<T>::quiet_NaN();
+              values.push_back(missing<T>::value);
             } else {
-              val_t[i] = parse_string<T>(token);
+              values.push_back(parse_string<T>(token));
             }
           }
-          values.push_back(std::move(val_t));
         }
       }
 
-      // concatenate the values and store them in the dataset
-      real_matrix<T> data(num_dims, values.size());
-      T* dest = data.data();
-      for (const std::vector<T>& val_t : values) {
-        dest = std::copy(val_t.begin(), val_t.end(), dest);
-      }
-      ds.insert(data, T(1));
+      // the values are already in the right format (column-major)
+      ds.insert(Eigen::Map<real_matrix<T> >(values.data(), num_dims, t), T(1));
     }
   }
 
@@ -83,14 +78,14 @@ namespace libgm {
    * \throw std::invalid_argument if the filenames and samples do not match
    * \relates real_sequence_dataset
    */
-  template <typename T>
+  template <typename Arg, typename T>
   void save(const std::vector<std::string>& filenames,
-            const text_dataset_format& format,
-            const real_sequence_dataset<T>& ds) {
+            const text_dataset_format<Arg>& format,
+            const real_sequence_dataset<Arg, T>& ds) {
     // Check the arguments
-    if (!format.all_dprocesses_continuous()) {
+    if (!format.all_sequences_continuous()) {
       throw std::domain_error(
-        "The format contains process(es) that are not continuous-valued"
+        "The format contains sequence(s) that are not continuous-valued"
       );
     }
     if (filenames.size() != ds.size()) {
@@ -98,7 +93,7 @@ namespace libgm {
     }
 
     std::size_t row = 0;
-    for (const auto& value : ds(format.dprocesses)) {
+    for (const auto& sample : ds.samples(format.sequences)) {
       // Open the file
       std::ofstream out(filenames[row]);
       if (!out) {
@@ -113,14 +108,14 @@ namespace libgm {
 
       // Output the data
       std::string separator = format.separator.empty() ? " " : format.separator;
-      const real_matrix<T>& data = value.first;
+      const real_matrix<T>& data = sample.first;
       for (std::size_t t = 0; t < data.cols(); ++t) {
         for (std::size_t i = 0; i < format.skip_cols; ++i) {
           out << "0" << separator;
         }
         for (std::size_t i = 0; i < data.rows(); ++i) {
           if (i > 0) { out << separator; }
-          if (std::isnan(data(i, t))) {
+          if (ismissing(data(i, t))) {
             out << format.missing;
           } else {
             out << data(i, t);

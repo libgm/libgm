@@ -3,34 +3,67 @@
 
 #include <libgm/argument/uint_assignment_iterator.hpp>
 #include <libgm/argument/universe.hpp>
+#include <libgm/argument/var.hpp>
+#include <libgm/argument/vec.hpp>
+
+namespace libgm {
+  template class uint_assignment_iterator<var>;
+  template class uint_assignment_iterator<vec>;
+}
 
 using namespace libgm;
 
-BOOST_TEST_DONT_PRINT_LOG_VALUE(uint_assignment<>);
-BOOST_TEST_DONT_PRINT_LOG_VALUE(uint_assignment_iterator<>);
+BOOST_TEST_DONT_PRINT_LOG_VALUE(uint_assignment_iterator<var>);
+BOOST_TEST_DONT_PRINT_LOG_VALUE(uint_assignment_iterator<vec>);
 
-BOOST_AUTO_TEST_CASE(test_iteration) {
+BOOST_AUTO_TEST_CASE(test_univariate) {
   universe u;
-  variable v = u.new_discrete_variable("v", 2);
-  variable x = u.new_discrete_variable("x", 3);
-  variable y = u.new_continuous_variable("y", 2);
+  var x = var::discrete(u, "x", 3);
+  var y = var::discrete(u, "y", 2);
 
-  // Test the assignment iterator
-  uint_assignment_iterator<> it({v, x}), end;
-  uint_assignment<> fa;
+  // test a non-empty domain
+  uint_assignment_iterator<var> it({y, x}), end;
+  uint_assignment<var> a;
   for (std::size_t i = 0; i < 3; ++i) {
-    fa[x] = i;
+    a[x] = i;
     for (std::size_t j = 0; j < 2; ++j) {
-      fa[v] = j;
+      a[y] = j;
       BOOST_CHECK_NE(it, end);
-      BOOST_CHECK_EQUAL(*it++, fa);
+      BOOST_CHECK_EQUAL(*it++, a);
     }
   }
   BOOST_CHECK_EQUAL(it, end);
 
-  // Test the empty iterator
-  it = uint_assignment_iterator<>(domain());
-  fa.clear();
-  BOOST_CHECK_EQUAL(*it, fa);
+  // test an empty domain
+  it = uint_assignment_iterator<var>(domain<var>());
+  a.clear();
+  BOOST_CHECK_EQUAL(*it, a);
+  BOOST_CHECK_EQUAL(++it, end);
+}
+
+BOOST_AUTO_TEST_CASE(test_multivariate) {
+  universe u;
+  vec x = vec::discrete(u, "x", {2, 3});
+  vec y = vec::discrete(u, "y", 2);
+
+  // test a non-empty domain
+  uint_assignment_iterator<vec> it({y, x}), end;
+  uint_assignment<vec> a;
+  for (std::size_t i = 0; i < 3; ++i) {
+    for (std::size_t j = 0; j < 2; ++j) {
+      a[x] = {j, i};
+      for (std::size_t k = 0; k < 2; ++k) {
+        a[y] = {k};
+        BOOST_CHECK_NE(it, end);
+        BOOST_CHECK_EQUAL(*it++, a);
+      }
+    }
+  }
+  BOOST_CHECK_EQUAL(it, end);
+
+  // test an empty domain
+  it = uint_assignment_iterator<vec>(domain<vec>());
+  a.clear();
+  BOOST_CHECK_EQUAL(*it, a);
   BOOST_CHECK_EQUAL(++it, end);
 }

@@ -1,9 +1,9 @@
 #ifndef LIBGM_SOFTMAX_LL_HPP
 #define LIBGM_SOFTMAX_LL_HPP
 
-#include <libgm/datastructure/hybrid_vector.hpp>
 #include <libgm/datastructure/real_pair.hpp>
 #include <libgm/functional/arithmetic.hpp>
+#include <libgm/math/eigen/hybrid.hpp>
 #include <libgm/math/param/softmax_param.hpp>
 #include <libgm/traits/is_sample_range.hpp>
 

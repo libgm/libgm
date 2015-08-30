@@ -62,16 +62,12 @@ namespace libgm {
     template <typename BaseIt> class slice_iterator;
 
     // Dataset concept types
-    typedef typename BaseDS::traits_type     traits_type;
-    typedef typename BaseDS::argument_type   argument_type;
-    typedef typename BaseDS::domain_type     domain_type;
-    typedef typename BaseDS::assignment_type assignment_type;
-    typedef typename BaseDS::data_type       data_type;
-    typedef typename BaseDS::weight_type     weight_type;
-    typedef slice_iterator<typename BaseDS::assignment_iterator>
-      assignment_iterator;
-    typedef slice_iterator<typename BaseDS::weight_iterator>
-      weight_iterator;
+    typedef typename BaseDS::argument_type argument_type;
+    typedef typename BaseDS::domain_type   domain_type;
+    typedef typename BaseDS::vector_type   vector_type;
+    typedef typename BaseDS::weight_type   weight_type;
+    typedef typename BaseDS::index_type    index_type;
+    typedef slice_iterator<typename BaseDS::weight_iterator> weight_iterator;
 
     // Range concept types
     typedef typename BaseDS::value_type value_type;
@@ -116,6 +112,11 @@ namespace libgm {
     //! Returns the number of arguments of this view.
     std::size_t arity() const {
       return dataset_->arity();
+    }
+
+    //! Returns the number of columns of this view.
+    std::size_t num_cols() const {
+      return dataset_->num_cols();
     }
 
     //! Returns the number of rows in this view.
@@ -167,62 +168,31 @@ namespace libgm {
      * Returns a single datapoint in the dataset by reference or value
      * (depending on the base dataset).
      */
-    auto operator[](std::size_t row) const
-      -> decltype(static_cast<BaseDS*>(nullptr)->operator[](0)) {
-      return dataset()[absolute(row)];
+    auto sample(std::size_t row) const
+      -> decltype(static_cast<BaseDS*>(nullptr)->sample(0)) {
+      return dataset().sample(absolute(row));
+    }
+
+    //! Returns a single datapoint in the dataset over a subset of arguments.
+    value_type sample(std::size_t row, const domain_type& dom) const {
+      return dataset().sample(absolute(row), dom);
     }
 
     //! Returns a mutable range of datapoints over a subset of arguments.
-    iterator_range<iterator> operator()(const domain_type& dom) {
+    iterator_range<iterator> samples(const domain_type& dom) {
       return iterator_range<iterator>(
-        iterator(slices_, dataset()(dom).begin()),
+        iterator(slices_, dataset().samples(dom).begin()),
         iterator(slices_)
       );
     }
 
     //! Returns an immutable range of datapoints over a subset of arguments.
-    iterator_range<const_iterator> operator()(const domain_type& dom) const {
+    iterator_range<const_iterator> samples(const domain_type& dom) const {
       return iterator_range<const_iterator>(
-        const_iterator(slices_, dataset()(dom).begin()),
+        const_iterator(slices_, dataset().samples(dom).begin()),
         const_iterator(slices_)
       );
     }
-
-    //! Returns a single datapoint in the dataset over a subset of arguments.
-    value_type operator()(std::size_t row, const domain_type& dom) const {
-      return dataset()(absolute(row), dom);
-    }
-
-    //! Returns a range over assignment-weight pairs.
-    iterator_range<assignment_iterator>
-    assignments() const {
-      return iterator_range<assignment_iterator>(
-        assignment_iterator(slices_, dataset().assignments().begin()),
-        assignment_iterator(slices_)
-      );
-    }
-
-    //! Returns a range over the assignment-weight pairs for a subset of args.
-    iterator_range<assignment_iterator>
-    assignments(const domain_type& d) const {
-      return iterator_range<assignment_iterator>(
-        assignment_iterator(slices_, dataset().assignments(d).begin()),
-        assignment_iterator(slices_)
-      );
-    }
-
-    //! Returns an assignment and weight for a single datapoint.
-    std::pair<assignment_type, weight_type>
-    assignment(std::size_t row) const {
-      return dataset().assignment(absolute(row));
-    }
-
-    //! Returns an assignment and weight for a single datapoint.
-    std::pair<assignment_type, weight_type>
-    assignment(std::size_t row, const domain_type& dom) const {
-      return dataset().assignment(absolute(row), dom);
-    }
-
     //! Returns the range of all the weights in the datset.
     iterator_range<weight_iterator> weights() const {
       return { weight_iterator(slices_, dataset().weights().begin()),

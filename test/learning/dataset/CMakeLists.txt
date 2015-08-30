@@ -15,10 +15,10 @@ add_test(hybrid_dataset hybrid_dataset ${DATA_DIR})
 # Sequence datasets
 add_executable(uint_sequence_dataset uint_sequence_dataset.cpp)
 add_executable(real_sequence_dataset real_sequence_dataset.cpp)
-# add_executable(hybrid_sequence_dataset hybrid_sequence_dataset.cpp)
+add_executable(hybrid_sequence_dataset hybrid_sequence_dataset.cpp)
 add_test(uint_sequence_dataset uint_sequence_dataset ${DATA_DIR})
 add_test(real_sequence_dataset real_sequence_dataset ${DATA_DIR})
-# add_test(hybrid_sequence_dataset hybrid_sequence_dataset ${DATA_DIR})
+add_test(hybrid_sequence_dataset hybrid_sequence_dataset ${DATA_DIR})
 
 # Views
 add_executable(slice_view slice_view.cpp)

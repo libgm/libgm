@@ -1,20 +1,21 @@
 #define BOOST_TEST_MODULE sum_product_calibrate
 #include <boost/test/unit_test.hpp>
 
+#include <libgm/argument/var.hpp>
 #include <libgm/factor/canonical_gaussian.hpp>
 #include <libgm/factor/probability_table.hpp>
 #include <libgm/inference/exact/sum_product_calibrate.hpp>
 
 namespace libgm {
-  template class sum_product_calibrate<ptable>;
-  template class sum_product_calibrate<cgaussian>;
+  template class sum_product_calibrate<probability_table<var> >;
+  template class sum_product_calibrate<canonical_gaussian<var> >;
 }
 
 #include "mn_fixture.hpp"
 
 BOOST_FIXTURE_TEST_CASE(test_calibrate, fixture) {
   using libgm::id_t;
-  sum_product_calibrate<ptable_type> engine(mn);
+  sum_product_calibrate<ptable> engine(mn);
 
   // check if clique marginals are correct
   engine.calibrate();

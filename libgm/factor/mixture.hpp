@@ -25,13 +25,13 @@ namespace libgm {
     // Factor member types
     typedef typename F::real_type       real_type;
     typedef typename F::result_type     result_type;
-    typedef typename F::variable_type   variable_type;
+    typedef typename F::argument_type   argument_type;
     typedef typename F::domain_type     domain_type;
     typedef typename F::assignment_type assignment_type;
 
     // ParametricFactor member types
     typedef std::vector<typename F::param_type> param_type;
-    typedef typename F::index_type              index_type;
+    typedef typename F::vector_type              vector_type;
     typedef mixture_distribution<typename F::distribution_type>
       distribution_type;
 
@@ -177,14 +177,14 @@ namespace libgm {
     /**
      * Converts the given index to an assignment over head variables.
      */
-    void assignment(const index_type& index, assignment_type& a) const {
+    void assignment(const vector_type& index, assignment_type& a) const {
       prototype_.assignment(index, a);
     }
 
     /**
      * Substitutes the arguments in-place according to the given map.
      */
-    void subst_args(const std::unordered_map<variable_type, variable_type>& m) {
+    void subst_args(const std::unordered_map<argument_type, argument_type>& m) {
       prototype_.subst_args(m);
     }
 
@@ -197,7 +197,7 @@ namespace libgm {
     }
 
     //! Evaluates the factor for the given index.
-    result_type operator()(const index_type& index) const {
+    result_type operator()(const vector_type& index) const {
       result_type result(0);
       for (const auto& p : param_) {
         result += p(index);
@@ -211,7 +211,7 @@ namespace libgm {
     }
 
     //! Returns the log-value of the factor for an index.
-    real_type log(const index_type& index) const {
+    real_type log(const vector_type& index) const {
       using std::log;
       return log(operator()(index));
     }

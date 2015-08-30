@@ -35,7 +35,7 @@ namespace libgm {
     // Factorized Inference types
     typedef typename NodeF::real_type        real_type;
     typedef typename NodeF::result_type      result_type;
-    typedef typename NodeF::variable_type    variable_type;
+    typedef typename NodeF::argument_type    argument_type;
     typedef typename NodeF::assignment_type  assignment_type;
     typedef typename NodeF::probability_type belief_type;
 
@@ -43,7 +43,7 @@ namespace libgm {
     typedef typename model_type::vertex_type vertex_type;
     typedef typename model_type::edge_type edge_type;
 
-    typedef typename argument_traits<variable_type>::hasher argument_hasher;
+    typedef typename argument_traits<argument_type>::hasher argument_hasher;
 
     // Public functions
     //==========================================================================
@@ -55,7 +55,7 @@ namespace libgm {
      */
     explicit mean_field_pairwise(const model_type* model)
       : model_(*model) {
-      for (variable_type v : model_.vertices()) {
+      for (argument_type v : model_.vertices()) {
         beliefs_[v] = belief_type({v}, real_type(1));
       }
     }
@@ -65,7 +65,7 @@ namespace libgm {
      */
     real_type iterate() {
       real_type sum = 0.0;
-      for (variable_type v : model_.vertices()) {
+      for (argument_type v : model_.vertices()) {
         sum += update(v);
       }
       return sum / model_.num_vertices();
@@ -74,7 +74,7 @@ namespace libgm {
     /**
      * Returns the belief for a vertex.
      */
-    const belief_type& belief(variable_type v) const {
+    const belief_type& belief(argument_type v) const {
       return beliefs_.at(v);
     }
 
@@ -82,7 +82,7 @@ namespace libgm {
     /**
      * Updates a single vertex.
      */
-    real_type update(variable_type v) {
+    real_type update(argument_type v) {
       NodeF result = model_[v];
       for (edge_type e : model_.in_edges(v)) {
         model_[e].exp_log_multiply(belief(e.source()), result);
@@ -98,7 +98,7 @@ namespace libgm {
     const model_type& model_;
 
     //! A map of current beliefs, one for each variable
-    std::unordered_map<variable_type, belief_type, argument_hasher> beliefs_;
+    std::unordered_map<argument_type, belief_type, argument_hasher> beliefs_;
 
   }; // class mean_field_pairwise
 

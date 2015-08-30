@@ -1,20 +1,22 @@
 #define BOOST_TEST_MODULE belief_update_calibrate
 #include <boost/test/unit_test.hpp>
 
-#include <libgm/factor/canonical_gaussian.hpp>
-#include <libgm/factor/probability_table.hpp>
 #include <libgm/inference/exact/belief_update_calibrate.hpp>
 
+#include <libgm/argument/var.hpp>
+#include <libgm/factor/canonical_gaussian.hpp>
+#include <libgm/factor/probability_table.hpp>
+
 namespace libgm {
-  template class belief_update_calibrate<ptable>;
-  template class belief_update_calibrate<cgaussian>;
+  template class belief_update_calibrate<probability_table<var> >;
+  template class belief_update_calibrate<canonical_gaussian<var> >;
 }
 
 #include "mn_fixture.hpp"
 
 BOOST_FIXTURE_TEST_CASE(test_calibrate, fixture) {
   using libgm::id_t;
-  belief_update_calibrate<ptable_type> engine(mn);
+  belief_update_calibrate<ptable> engine(mn);
 
   // check if clique marginals are correct
   engine.calibrate();

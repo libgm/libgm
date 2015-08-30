@@ -18,9 +18,9 @@
 namespace libgm {
 
   // Forward declaration
-  template <typename T, typename Var> class canonical_table;
-  template <typename T, std::size_t N, typename Var> class probability_array;
-  template <typename T, std::size_t N, typename Var> class canonical_array;
+  template <typename Arg, typename T> class canonical_table;
+  template <typename Arg, std::size_t N, typename T> class probability_array;
+  template <typename Arg, std::size_t N, typename T> class canonical_array;
 
   /**
    * A factor of a categorical probability distribution in the probability
@@ -36,8 +36,8 @@ namespace libgm {
    * \ingroup factor_types
    * \see Factor
    */
-  template <typename T, typename Var>
-  class probability_table : public table_factor<T, Var> {
+  template <typename Arg, typename T = double>
+  class probability_table : public table_factor<Arg, T> {
   public:
     // Public types
     //==========================================================================
@@ -45,13 +45,13 @@ namespace libgm {
     // Factor member types
     typedef T                    real_type;
     typedef T                    result_type;
-    typedef Var                  variable_type;
-    typedef basic_domain<Var>    domain_type;
-    typedef uint_assignment<Var> assignment_type;
+    typedef Arg                  argument_type;
+    typedef domain<Arg>          domain_type;
+    typedef uint_assignment<Arg> assignment_type;
 
     // ParametricFactor types
     typedef table<T>    param_type;
-    typedef uint_vector index_type;
+    typedef uint_vector vector_type;
     typedef table_distribution<T> distribution_type;
 
     // LearnableDistributionFactor types
@@ -83,11 +83,11 @@ namespace libgm {
 
     //! Creates a factor with the specified arguments and parameters.
     probability_table(const domain_type& args, const table<T>& param)
-      : table_factor<T, Var>(args, param) { }
+      : table_factor<Arg, T>(args, param) { }
 
     //! Creates a factor with the specified arguments and parameters.
     probability_table(const domain_type& args, table<T>&& param)
-      : table_factor<T, Var>(args, std::move(param)) { }
+      : table_factor<Arg, T>(args, std::move(param)) { }
 
     //! Creates a factor with the specified arguments and parameters.
     probability_table(const domain_type& args,
@@ -98,20 +98,20 @@ namespace libgm {
     }
 
     //! Conversion from a canonical_table factor.
-    explicit probability_table(const canonical_table<T, Var>& f) {
+    explicit probability_table(const canonical_table<Arg, T>& f) {
       *this = f;
     }
 
     //! Conversion from a probability_array factor.
     template <std::size_t N>
-    explicit probability_table(const probability_array<T, N, Var>& f) {
+    explicit probability_table(const probability_array<Arg, N, T>& f) {
       this->reset(f.arguments());
       std::copy(f.begin(), f.end(), this->begin());
     }
 
     //! Conversion from a canonical_array factor.
     template <std::size_t N>
-    explicit probability_table(const canonical_array<T, N, Var>& f) {
+    explicit probability_table(const canonical_array<Arg, N, T>& f) {
       this->reset(f.arguments());
       std::transform(f.begin(), f.end(), this->begin(), exponent<T>());
     }
@@ -124,7 +124,7 @@ namespace libgm {
     }
 
     //! Assigns a probability table factor to this factor.
-    probability_table& operator=(const canonical_table<T, Var>& f) {
+    probability_table& operator=(const canonical_table<Arg, T>& f) {
       this->reset(f.arguments());
       std::transform(f.begin(), f.end(), this->begin(), exponent<T>());
       return *this;
@@ -383,14 +383,14 @@ namespace libgm {
     //! Computes the maximum value and stores the corresponding assignment.
     T maximum(assignment_type& a) const {
       const T* it = std::max_element(this->begin(), this->end());
-      this->assignment(this->param_.index(it), a);
+      a.insert_or_assign(arguments(), this->param_.index(it));
       return *it;
     }
 
     //! Computes the minimum value and stores the corresponding assignment.
     T minimum(assignment_type& a) const {
       const T* it = std::min_element(this->begin(), this->end());
-      this->assignment(this->param_.index(it), a);
+      a.insert_or_assign(arguments(), this->param_.index(it));
       return *it;
     }
 
@@ -414,7 +414,7 @@ namespace libgm {
 
     //! Restricts this factor to an assignment.
     void restrict(const assignment_type& a, probability_table& result) const {
-      table_factor<T, Var>::restrict(a, result);
+      table_factor<Arg, T>::restrict(a, result);
     }
 
     // Sampling
@@ -443,7 +443,7 @@ namespace libgm {
      */
     template <typename Generator>
     void sample(Generator& rng, assignment_type& a) const {
-      this->assignment(sample(rng), a);
+      a.insert_or_assign(arguments(), sample(rng));
     }
 
     /**
@@ -454,8 +454,8 @@ namespace libgm {
     template <typename Generator>
     void sample(Generator& rng, const domain_type& head,
                 assignment_type& a) const {
-      assert(prefix(head, arguments()));
-      this->assignment(sample(rng, extract(a, arguments(), head.size())), a);
+      assert(arguments().prefix(head));
+      a.insert_or_assign(head, sample(rng, a.values(arguments(), head.size())));
     }
 
     // Entropy and divergences
@@ -475,7 +475,7 @@ namespace libgm {
     //! Computes the mutual information between two subsets of this factor's
     //! arguments.
     T mutual_information(const domain_type& a, const domain_type& b) const {
-      return entropy(a) + entropy(b) - entropy(a | b);
+      return entropy(a) + entropy(b) - entropy(a + b);
     }
 
     //! Computes the cross entropy from p to q.
@@ -508,12 +508,6 @@ namespace libgm {
 
   }; // class probability_table
 
-  /**
-   * A probability_table factor using double precision.
-   * \relates probability_table
-   */
-  typedef probability_table<double, variable> ptable;
-
   // Input / output
   //============================================================================
 
@@ -521,9 +515,9 @@ namespace libgm {
    * Prints a human-readable representation of the table factor to the stream.
    * \relates probability_table
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T>
   std::ostream&
-  operator<<(std::ostream& out, const probability_table<T, Var>& f) {
+  operator<<(std::ostream& out, const probability_table<Arg, T>& f) {
     out << "#PT(" << f.arguments() << ")" << std::endl;
     out << f.param();
     return out;
@@ -532,48 +526,48 @@ namespace libgm {
   // Traits
   //============================================================================
 
-  template <typename T, typename Var>
-  struct has_multiplies<probability_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_multiplies<probability_table<Arg, T> >
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_multiplies_assign<probability_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_multiplies_assign<probability_table<Arg, T> >
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_divides<probability_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_divides<probability_table<Arg, T> >
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_divides_assign<probability_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_divides_assign<probability_table<Arg, T> >
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_max<probability_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_max<probability_table<Arg, T> >
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_min<probability_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_min<probability_table<Arg, T> >
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_marginal<probability_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_marginal<probability_table<Arg, T> >
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_maximum<probability_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_maximum<probability_table<Arg, T> >
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_minimum<probability_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_minimum<probability_table<Arg, T> >
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_arg_max<probability_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_arg_max<probability_table<Arg, T> >
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_arg_min<probability_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_arg_min<probability_table<Arg, T> >
     : public std::true_type { };
 
 } // namespace libgm

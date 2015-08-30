@@ -1,0 +1,5 @@
+dummy1
+dummy2
+id1 adjective 0.1 0.2 sk 1.0
+id2 noun 0.2 0.3 sk 0.9
+id3 verb 0.1 0.4 en 0.8

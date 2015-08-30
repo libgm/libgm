@@ -3,18 +3,21 @@
 
 #include <libgm/graph/region_graph.hpp>
 
-#include <libgm/argument/basic_domain.hpp>
+#include <libgm/argument/domain.hpp>
+#include <libgm/argument/var.hpp>
 #include <libgm/argument/universe.hpp>
 
 namespace libgm {
-  template class region_graph<basic_domain<variable> >;
+  template class region_graph<domain<var> >;
 }
 
 using namespace libgm;
 
 struct fixture {
   fixture() {
-    x = u.new_discrete_variables(6, "x", 2);
+    for (std::size_t i = 0; i < 6; ++i) {
+      x.push_back(var::discrete(u, "x" + std::to_string(i), 2));
+    }
     root_clusters.push_back({x[1], x[2], x[5]});
     root_clusters.push_back({x[2], x[3], x[5]});
     root_clusters.push_back({x[3], x[4], x[5]});
@@ -22,9 +25,8 @@ struct fixture {
     rg.saturated(root_clusters);
   }
 
-  libgm::id_t find_cluster(domain cluster) {
+  libgm::id_t find_cluster(const domain<var>& cluster) {
     using libgm::id_t;
-    cluster.sort();
     id_t v;
     for (id_t u : rg.vertices()) {
       if (equivalent(rg.cluster(u), cluster)) {
@@ -37,9 +39,9 @@ struct fixture {
   }
 
   universe u;
-  domain x;
-  std::vector<domain> root_clusters;
-  region_graph<domain> rg;
+  domain<var> x;
+  std::vector<domain<var> > root_clusters;
+  region_graph<domain<var> > rg;
 };
 
 BOOST_FIXTURE_TEST_CASE(test_validity, fixture) {

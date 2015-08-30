@@ -3,6 +3,8 @@
 
 #include <libgm/learning/dataset/hybrid_dataset.hpp>
 #include <libgm/learning/dataset/text_dataset_format.hpp>
+#include <libgm/parser/string_functions.hpp>
+#include <libgm/traits/missing.hpp>
 
 #include <cmath>
 #include <fstream>
@@ -16,12 +18,11 @@ namespace libgm {
    *
    * \relates hybrid_dataset
    */
-  template <typename T>
+  template <typename Arg, typename T>
   void load(const std::string& filename,
-            const text_dataset_format& format,
-            hybrid_dataset<T>& ds) {
-    hybrid_domain<> vars = format.variables;
-    ds.initialize(vars);
+            const text_dataset_format<Arg>& format,
+            hybrid_dataset<Arg, T>& ds) {
+    ds.initialize(format.variables);
 
     std::ifstream in(filename);
     if (!in) {
@@ -30,38 +31,31 @@ namespace libgm {
 
     std::string line;
     std::size_t line_number = 0;
-    hybrid_vector<T> values(vars.discrete_size(), num_dimensions(vars));
-    std::size_t ncols = values.uint_size() + values.real_size();
+    hybrid_vector<T> values(ds.uint_cols(), ds.real_cols());
     std::vector<const char*> tokens;
     while (std::getline(in, line)) {
-      if (format.tokenize(ncols, line, line_number, tokens)) {
+      if (format.tokenize(ds.num_cols(), line, line_number, tokens)) {
         std::size_t col = format.skip_cols;
         std::size_t ui = 0;
         std::size_t ri = 0;
-        for (variable v : format.variables) {
-          if (v.is_discrete()) {
-            const char* token = tokens[col++];
-            if (token == format.missing) {
-              values.uint()[ui++] = std::size_t(-1);
-            } else {
-              values.uint()[ui++] = v.parse_discrete(token);
+        for (Arg arg : format.variables) {
+          std::size_t size = arg.num_dimensions();
+          if (arg.discrete()) {
+            for (std::size_t j = 0; j < size; ++j) {
+              const char* token = tokens[col++];
+              values.uint()[ui++] = (token == format.missing)
+                ? missing<std::size_t>::value
+                : arg.desc()->parse_discrete(token, j);
             }
-          } else if (v.is_continuous()) {
-            std::size_t size = v.num_dimensions();
-            if (std::count(&tokens[col], &tokens[col] + size, format.missing)) {
-              // TODO: warning if only a subset of columns missing
-              std::fill(values.real().data() + ri,
-                        values.real().data() + ri + size,
-                        std::numeric_limits<T>::quiet_NaN());
-              col += size;
-              ri += size;
-            } else {
-              for (std::size_t j = 0; j < size; ++j) {
-                values.real()[ri++] = parse_string<T>(tokens[col++]);
-              }
+          } else if (arg.continuous()) {
+            for (std::size_t j = 0; j < size; ++j) {
+              const char* token = tokens[col++];
+              values.real()[ri++] = (token == format.missing)
+                ? missing<T>::value
+                : parse_string<T>(token);
             }
           } else {
-            throw std::logic_error("Unsupported type of variable " + v.name());
+            throw std::logic_error("Unsupported argument category");
           }
         }
         assert(values.uint_size() == ui);
@@ -79,11 +73,10 @@ namespace libgm {
    *
    * \relates hybrid_dataset
    */
-  template <typename T>
+  template <typename Arg, typename T>
   void save(const std::string& filename,
-            const text_dataset_format& format,
-            const hybrid_dataset<T>& data) {
-    hybrid_domain<> vars = format.variables;
+            const text_dataset_format<Arg>& format,
+            const hybrid_dataset<Arg, T>& ds) {
 
     std::ofstream out(filename);
     if (!out) {
@@ -95,32 +88,36 @@ namespace libgm {
     }
 
     std::string separator = format.separator.empty() ? " " : format.separator;
-    for (const auto& s : data(vars)) {
+    for (const auto& s : ds.samples(format.variables)) {
       for (std::size_t i = 0; i < format.skip_cols; ++i) {
         out << "0" << separator;
       }
       std::size_t ui = 0;
       std::size_t ri = 0;
-      bool first = true;
-      for (variable v : format.variables) {
-        if (v.is_discrete()) {
-          if (first) { first = false; } else { out << separator; }
-          std::size_t value = s.first.uint()[ui++];
-          if (value == std::size_t(-1)) {
-            out << format.missing;
-          } else {
-            v.print_discrete(out, value);
+      for (Arg arg : format.variables) {
+        std::size_t size = arg.num_dimensions();
+        if (arg.discrete()) {
+          for (std::size_t j = 0; j < size; ++j) {
+            if (ui || ri) { out << separator; }
+            std::size_t value = s.first.uint()[ui++];
+            if (ismissing(value)) {
+              out << format.missing;
+            } else {
+              arg.desc()->print_discrete(out, value);
+            }
           }
-        } else {
-          for (std::size_t j = 0; j < v.num_dimensions(); ++j) {
-            if (first) { first = false; } else { out << separator; }
+        } else if (arg.continuous()) {
+          for (std::size_t j = 0; j < size; ++j) {
+            if (ui || ri) { out << separator; }
             T value = s.first.real()[ri++];
-            if (std::isnan(value)) {
+            if (ismissing(value)) {
               out << format.missing;
             } else {
               out << value;
             }
           }
+        } else {
+          throw std::logic_error("Unsupported argument category");
         }
       }
       if (format.weighted) {

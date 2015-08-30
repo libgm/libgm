@@ -33,7 +33,7 @@ namespace libgm {
     typedef em_parameters<regul_type> param_type;
 
     // Other types
-    typedef typename F::variable_type variable_type;
+    typedef typename F::argument_type argument_type;
     typedef typename F::domain_type   domain_type;
 
     /**
@@ -44,7 +44,7 @@ namespace libgm {
 
     /**
      * Fits a model using the supplied dataset, k mixture components,
-     * and all the variables in the dataset.
+     * and all the arguments in the dataset.
      */
     template <typename Dataset>
     model_type& fit(const Dataset& ds, std::size_t k) {
@@ -53,7 +53,7 @@ namespace libgm {
 
     /**
      * Fits a model using the supplied dataset, k mixture components,
-     * and given variables that must be present in the dataset.
+     * and given arguments that must be present in the dataset.
      */
     template <typename Dataset>
     model_type& fit(const Dataset& ds, std::size_t k, const domain_type& args) {

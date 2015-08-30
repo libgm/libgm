@@ -4,8 +4,9 @@
 #include <libgm/learning/parameter/mixture_em.hpp>
 
 #include <libgm/argument/universe.hpp>
+#include <libgm/argument/vec.hpp>
 #include <libgm/factor/moment_gaussian.hpp>
-#include <libgm/learning/dataset/vector_dataset.hpp>
+#include <libgm/learning/dataset/real_dataset.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -13,8 +14,11 @@
 #include <utility>
 
 namespace libgm {
-  template class mixture_em<mgaussian>;
+  template class mixture_em<moment_gaussian<vec> >;
 }
+
+using namespace libgm;
+typedef moment_gaussian<vec> mgaussian;
 
 BOOST_AUTO_TEST_CASE(test_convergence) {
   using namespace libgm;
@@ -25,7 +29,7 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   std::size_t niters = 50;
 
   universe u;
-  variable x = u.new_vector_variable("x", 2);
+  vec x = vec::continuous(u, "x", 2);
 
   // construct the ground truth
   mixture<mgaussian> truth(k, {x});
@@ -38,10 +42,10 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   auto sample = original.distribution();
 
   // generate some data
-  vector_dataset<> data({x}, nsamples);
+  vector_dataset<vec> data({x}, nsamples);
   std::mt19937 rng;
   for (std::size_t i = 0; i < nsamples; ++i) {
-    data.insert(sample(rng));
+    data.insert(sample(rng), 1.0);
   }
 
   // learn the model
@@ -51,8 +55,8 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   // retrieve the indices in the canonical order
   std::vector<std::size_t> indices = {0, 1, 2};
   std::sort(indices.begin(), indices.end(), [&](std::size_t i, std::size_t j) {
-      const dynamic_vector<>& mi = estimate.param(i).mean;
-      const dynamic_vector<>& mj = estimate.param(j).mean;
+      const real_vector<>& mi = estimate.param(i).mean;
+      const real_vector<>& mj = estimate.param(j).mean;
       return std::pair(mi[0], mi[1]) < std::pair(mj[0], mj[1]);
     });
 

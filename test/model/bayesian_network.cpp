@@ -4,6 +4,7 @@
 #include <libgm/model/bayesian_network.hpp>
 
 #include <libgm/argument/universe.hpp>
+#include <libgm/argument/var.hpp>
 #include <libgm/factor/canonical_gaussian.hpp>
 #include <libgm/factor/moment_gaussian.hpp>
 #include <libgm/factor/probability_table.hpp>
@@ -13,17 +14,23 @@
 
 #include "predicates.hpp"
 
+using namespace libgm;
+
+typedef canonical_gaussian<var> cgaussian;
+typedef moment_gaussian<var> mgaussian;
+typedef probability_table<var> ptable;
+
 namespace libgm {
   template class bayesian_network<ptable>;
   template class bayesian_network<cgaussian>;
   template class bayesian_network<mgaussian>;
 }
 
-using namespace libgm;
-
 struct fixture {
-  fixture()
-    : x(u.new_discrete_variables(5, "x", 2)) {
+  fixture() {
+    for (std::size_t i = 0; i < 5; ++i) {
+      x.push_back(var::discrete(u, "x" + std::to_string(i), 2));
+    }
 
     /* Create factors for a Bayesian network with this structure:
      * 0, 1 (no parents)
@@ -46,7 +53,7 @@ struct fixture {
   }
 
   universe u;
-  domain x;
+  domain<var> x;
   ptable f0, f1, f21, f312, f403;
   bayesian_network<ptable> bn;
 };
@@ -58,18 +65,18 @@ BOOST_FIXTURE_TEST_CASE(test_serialization, fixture) {
 */
 
 BOOST_FIXTURE_TEST_CASE(test_markov_graph, fixture) {
-  typedef std::pair<variable, variable> vpair;
+  typedef std::pair<var, var> vpair;
   std::vector<vpair> vpairs =
     {vpair(x[1], x[2]), vpair(x[1], x[3]), vpair(x[2], x[3]),
      vpair(x[0], x[3]), vpair(x[0], x[4]), vpair(x[3], x[4])};
-  undirected_graph<variable> mg(vpairs);
-  undirected_graph<variable> mg2;
+  undirected_graph<var> mg(vpairs);
+  undirected_graph<var> mg2;
   bn.markov_graph(mg2);
   BOOST_CHECK_EQUAL(mg, mg2);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_conditioning, fixture) {
-  uint_assignment<> a;
+  uint_assignment<var> a;
   a[x[0]] = 0;
   a[x[1]] = 1;
   double likelihood(bn.condition(a));
@@ -85,13 +92,13 @@ BOOST_FIXTURE_TEST_CASE(test_conditioning, fixture) {
 }
 
 BOOST_FIXTURE_TEST_CASE(test_sample, fixture) {
-  uint_dataset<> ds(x);
-  uint_assignment<> a;
+  uint_dataset<var> ds(x);
+  uint_assignment<var> a;
   std::size_t nsamples = 5000;
   std::mt19937 rng;
   for (std::size_t i = 0; i < nsamples; ++i) {
     bn.sample(rng, a);
-    ds.insert(a, 1.0);
+    ds.insert(a.values(ds.arguments()), 1.0);
   }
 
   factor_mle<ptable> mle;

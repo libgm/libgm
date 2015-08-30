@@ -1,7 +1,7 @@
 #ifndef LIBGM_DYNAMIC_BAYESIAN_NETWORK_HPP
 #define LIBGM_DYNAMIC_BAYESIAN_NETWORK_HPP
 
-#include <libgm/base/discrete_process.hpp>
+#include <libgm/argument/field.hpp>
 #include <libgm/graph/directed_graph.hpp>
 #include <libgm/model/bayesian_network.hpp>
 
@@ -24,10 +24,10 @@ namespace libgm {
 
     typedef typename F::domain_type domain_type;
 
-    typedef typename F::variable_type variable_type;
+    typedef typename F::argument_type argument_type;
 
     //! The type of processes used in this network
-    typedef discrete_process<variable_type> process_type;
+    typedef sequence<argument_type> process_type;
 
     // Private data members
     // =========================================================================
@@ -75,8 +75,8 @@ namespace libgm {
       return transition[p->next()];
     }
 
-    //! Returns the CPD of the transition model for a given time-t+1 variable
-    const F& operator[](variable_type v) const {
+    //! Returns the CPD of the transition model for a given time-t+1 argument
+    const F& operator[](argument_type v) const {
       return transition[v];
     }
 
@@ -85,11 +85,11 @@ namespace libgm {
     // Queries
     // =========================================================================
     /**
-     * Returns the ancestors of the t+1-time variables in the transition model.
+     * Returns the ancestors of the t+1-time arguments in the transition model.
      * \param procs The set of processes whose ancestors are being sought
      */
     domain_type ancestors(const std::set<process_type>& procs) const {
-      return transition.ancestors(variables(procs, next_step));
+      return transition.ancestors(arguments(procs, next_step));
     }
 
     /**
@@ -98,7 +98,7 @@ namespace libgm {
      */
     bayesian_network<F> unroll(std::size_t n) const {
       // Initialize the prior
-      std::map<variable_type, variable_type> prior_var_map
+      std::map<argument_type, argument_type> prior_var_map
         = make_process_var_map(processes(), current_step, 0);
       bayesian_network<F> bn;
       for (process_type p : processes()) {
@@ -109,7 +109,7 @@ namespace libgm {
 
       // Add the n transition models
       for(std::size_t t = 0; t < n; t++) {
-        std::map<variable_type, variable_type> var_map
+        std::map<argument_type, argument_type> var_map
           = map_union(make_process_var_map(processes(), current_step, t),
                       make_process_var_map(processes(), next_step, t+1));
         for (process_type p : processes()) {
@@ -123,9 +123,9 @@ namespace libgm {
 
     //! Throws an assertion violation if the DBN is not valid
     void check_valid() const {
-      // The variables at the current and next time step
-      domain_type vars_t  = variables(processes(), current_step);
-      domain_type vars_t1 = variables(processes(), next_step);
+      // The arguments at the current and next time step
+      domain_type vars_t  = arguments(processes(), current_step);
+      domain_type vars_t1 = arguments(processes(), next_step);
 
       // Check the prior and the transition model
       assert(prior.arguments() == vars_t);
@@ -140,14 +140,14 @@ namespace libgm {
      * @param factor
      *        A factor that represents the conditional probability distribution.
      *        The arguments of this factor must be either time-t or time-t+1
-     *        variables of one or more timed processes.
+     *        arguments of one or more timed processes.
      * @param p
      *        The process, for which the CPD is being added.  The argument
-     *        factor must contain the t+1-step variable of process p.
+     *        factor must contain the t+1-step argument of process p.
      */
     void add_factor(process_type p, const F& factor) {
       assert(factor.arguments().count(p->next()) > 0);
-      for (variable_type v : factor.arguments()) {
+      for (argument_type v : factor.arguments()) {
         int t = boost::any_cast<int>(v.index());
         assert(t == current_step || t == next_step);
       }
@@ -159,12 +159,12 @@ namespace libgm {
      * Adds a new factor to the prior distribution.
      * @param factor
      *        A factor that represents the conditional probability distribution.
-     *        The arguments of this factor must be time-t variables of one or
+     *        The arguments of this factor must be time-t arguments of one or
      *        more timed processes.
      * @param v
      *        The head of the conditional probability distribution.
      */
-    void add_factor(variable_type head, const F& factor) {
+    void add_factor(argument_type head, const F& factor) {
       assert(factor.arguments().count(head) > 0);
       check_index(factor.arguments(), current_step);
       prior.add_factor(head, factor);

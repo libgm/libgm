@@ -18,8 +18,8 @@
 namespace libgm {
 
   // Forward declarations
-  template <typename T, std::size_t N, typename Var> class canonical_array;
-  template <typename T, typename Var> class probability_table;
+  template <typename Arg, std::size_t N, typename T> class canonical_array;
+  template <typename Arg, typename T> class probability_table;
 
   /**
    * A factor of a categorical probability distribution that contains
@@ -39,23 +39,23 @@ namespace libgm {
    * \ingroup factor_types
    * \see Factor
    */
-  template <typename T, std::size_t N, typename Var>
-  class probability_array : public array_factor<T, N, Var> {
+  template <typename Arg, std::size_t N, typename T = double>
+  class probability_array : public array_factor<Arg, N, T> {
   public:
     // Helper types
-    typedef array_factor<T, N, Var> base;
-    typedef array_domain<Var, 1>    unary_domain_type;
+    typedef array_factor<Arg, N, T> base;
+    typedef array_domain<Arg, 1>    unary_domain_type;
 
     // Factor member types
     typedef T                    real_type;
     typedef T                    result_type;
-    typedef Var                  variable_type;
-    typedef array_domain<Var, N> domain_type;
-    typedef uint_assignment<Var> assignment_type;
+    typedef Arg                  argument_typex;
+    typedef array_domain<Arg, N> domain_type;
+    typedef uint_assignment<Arg> assignment_type;
 
     // ParametricFactor member types
     typedef typename base::array_type param_type;
-    typedef uint_vector               index_type;
+    typedef uint_vector               vector_type;
     typedef array_distribution<T, N>  distribution_type;
 
     // LearnableDistributionFactor member types
@@ -92,24 +92,24 @@ namespace libgm {
       : base(args, values) { }
 
     //! Conversion from a canonical_array factor.
-    explicit probability_array(const canonical_array<T, N, Var>& f) {
+    explicit probability_array(const canonical_array<Arg, N, T>& f) {
       *this = f;
     }
 
     //! Conversion from a probability_table factor.
-    explicit probability_array(const probability_table<T, Var>& f) {
+    explicit probability_array(const probability_table<Arg, T>& f) {
       *this = f;
     }
 
     //! Assigns a canonical_array factor to this factor.
-    probability_array& operator=(const canonical_array<T, N, Var>& f) {
+    probability_array& operator=(const canonical_array<Arg, N, T>& f) {
       this->reset(f.arguments());
       this->param_ = exp(f.param());
       return *this;
     }
 
     //! Assigns a probability_table to this factor
-    probability_array& operator=(const probability_table<T, Var>& f) {
+    probability_array& operator=(const probability_table<Arg, T>& f) {
       this->reset(f.arguments());
       assert(f.size() == this->size());
       std::copy(f.begin(), f.end(), this->begin());
@@ -187,7 +187,7 @@ namespace libgm {
      */
     template <std::size_t M>
     typename std::enable_if<M <= N, probability_array&>::type
-    operator*=(const probability_array<T, M, Var>& f) {
+    operator*=(const probability_array<Arg, M, T>& f) {
       join_inplace(*this, f, libgm::multiplies_assign<>());
       return *this;
     }
@@ -199,7 +199,7 @@ namespace libgm {
      */
     template <std::size_t M>
     typename std::enable_if<M <= N, probability_array&>::type
-    operator/=(const probability_array<T, M, Var>& f) {
+    operator/=(const probability_array<Arg, M, T>& f) {
       join_inplace(*this, f, libgm::divides_assign<>());
       clear_nan();
       return *this;
@@ -325,9 +325,9 @@ namespace libgm {
      * This operation is only supported for binary factors.
      */
     template <bool B = (N == 2)>
-    typename std::enable_if<B, probability_array<T, 1, Var> >::type
+    typename std::enable_if<B, probability_array<Arg, 1, T> >::type
     marginal(const unary_domain_type& retain) const {
-      return aggregate<probability_array<T, 1, Var>>(*this, retain, sum_op());
+      return aggregate<probability_array<Arg, 1, T>>(*this, retain, sum_op());
     }
 
     /**
@@ -335,15 +335,15 @@ namespace libgm {
      * and marginalizes the result over a single variable.
      */
     template <bool B = (N == 2)>
-    typename std::enable_if<B, probability_array<T, 1, Var> >::type
-    product_marginal(const probability_array<T, 1, Var>& g,
+    typename std::enable_if<B, probability_array<Arg, 1, T> >::type
+    product_marginal(const probability_array<Arg, 1, T>& g,
                      const unary_domain_type& retain) {
       assert(this->arguments().count(g.x()));
       assert(this->arguments().count(retain[0]));
       if (g.x() == retain[0]) {
         return marginal(retain) *= g;
       } else {
-        return expectation<probability_array<T, 1, Var> >(*this, g);
+        return expectation<probability_array<Arg, 1, T> >(*this, g);
       }
     }
 
@@ -352,15 +352,15 @@ namespace libgm {
      * and marginalizes the result over a single variable.
      */
     template <bool B = (N == 1)>
-    typename std::enable_if<B, probability_array<T, 1, Var> >::type
-    product_marginal(const probability_array<T, 2, Var>& f,
+    typename std::enable_if<B, probability_array<Arg, 1, T> >::type
+    product_marginal(const probability_array<Arg, 2, T>& f,
                      const unary_domain_type& retain) {
       assert(f.arguments().count(this->x()));
       assert(f.arguments().count(retain[0]));
       if (this->x() == retain[0]) {
         return f.marginal(retain) *= *this;
       } else {
-        return expectation<probability_array<T, 1, Var> >(f, *this);
+        return expectation<probability_array<Arg, 1, T> >(f, *this);
       }
     }
 
@@ -369,9 +369,9 @@ namespace libgm {
      * This operation is only supported for binary factors.
      */
     template <bool B = (N == 2)>
-    typename std::enable_if<B, probability_array<T, 1, Var> >::type
+    typename std::enable_if<B, probability_array<Arg, 1, T> >::type
     maximum(const unary_domain_type& retain) const {
-      return aggregate<probability_array<T, 1, Var>>(*this, retain,
+      return aggregate<probability_array<Arg, 1, T>>(*this, retain,
                                                      max_coeff_op());
     }
 
@@ -380,9 +380,9 @@ namespace libgm {
      * This operation is only supported for binary factors.
      */
     template <bool B = (N == 2)>
-    typename std::enable_if<B, probability_array<T, 1, Var> >::type
+    typename std::enable_if<B, probability_array<Arg, 1, T> >::type
     minimum(const unary_domain_type& retain) const {
-      return aggregate<probability_array<T, 1, Var>>(*this, retain,
+      return aggregate<probability_array<Arg, 1, T>>(*this, retain,
                                                      min_coeff_op());
     }
 
@@ -403,7 +403,7 @@ namespace libgm {
     template <bool B = (N == 2)>
     typename std::enable_if<B>::type
     marginal(const unary_domain_type& retain,
-             probability_array<T, 1, Var>& result) const {
+             probability_array<Arg, 1, T>& result) const {
       aggregate(*this, retain, result, sum_op());
     }
 
@@ -414,7 +414,7 @@ namespace libgm {
     template <bool B = (N == 2)>
     typename std::enable_if<B>::type
     maximum(const unary_domain_type& retain,
-            probability_array<T, 1, Var>& result) const {
+            probability_array<Arg, 1, T>& result) const {
       aggregate(*this, retain, result, max_coeff_op());
     }
 
@@ -425,7 +425,7 @@ namespace libgm {
     template <bool B = (N == 2)>
     typename std::enable_if<B>::type
     minimum(const unary_domain_type& retain,
-            probability_array<T, 1, Var>& result) const {
+            probability_array<Arg, 1, T>& result) const {
       aggregate(*this, retain, result, min_coeff_op());
     }
 
@@ -475,9 +475,9 @@ namespace libgm {
      * factors, and the assignment must restrict exactly one argument.
      */
     template <bool B = (N == 2)>
-    typename std::enable_if<B, probability_array<T, 1, Var> >::type
+    typename std::enable_if<B, probability_array<Arg, 1, T> >::type
     restrict(const assignment_type& a) const {
-      probability_array<T, 1, Var> result;
+      probability_array<Arg, 1, T> result;
       restrict_assign(*this, a, result);
       return result;
     }
@@ -490,7 +490,7 @@ namespace libgm {
     template <bool B = (N == 2)>
     typename std::enable_if<B>::type
     restrict(const assignment_type& a,
-             probability_array<T, 1, Var>& result) const {
+             probability_array<Arg, 1, T>& result) const {
       restrict_assign(*this, a, result);
     }
 
@@ -503,7 +503,7 @@ namespace libgm {
     template <bool B = (N == 2)>
     typename std::enable_if<B>::type
     restrict_multiply(const assignment_type& a,
-                      probability_array<T, 1, Var>& result) const {
+                      probability_array<Arg, 1, T>& result) const {
       restrict_join(*this, a, result, multiplies_assign<>());
     }
 
@@ -570,18 +570,6 @@ namespace libgm {
 
   }; // class probability_array
 
-  /**
-   * A probability_array factor over a single argument using double precision.
-   * \relates probability_array
-   */
-  typedef probability_array<double, 1, variable> parray1;
-
-  /**
-   * A probability_array factor over two arguments using double precision.
-   * \relates probability_array
-   */
-  typedef probability_array<double, 2, variable> parray2;
-
   // Input / output
   //============================================================================
 
@@ -589,9 +577,9 @@ namespace libgm {
    * Outputs a human-readable representation of the factor to the stream.
    * \relates probability_array
    */
-  template <typename T, std::size_t N, typename Var>
+  template <typename Arg, std::size_t N, typename T>
   std::ostream&
-  operator<<(std::ostream& out, const probability_array<T, N, Var>& f) {
+  operator<<(std::ostream& out, const probability_array<Arg, N, T>& f) {
     out << f.arguments() << std::endl
         << f.param() << std::endl;
     return out;
@@ -607,11 +595,11 @@ namespace libgm {
    * \return a probability_array factor whose arity is the maximum of M and N
    * \relates probability_array
    */
-  template <typename T, std::size_t M, std::size_t N, typename Var>
-  probability_array<T, static_max<M, N>::value, Var>
-  operator*(const probability_array<T, M, Var>& f,
-            const probability_array<T, N, Var>& g) {
-    typedef probability_array<T, static_max<M, N>::value, Var> result_type;
+  template <typename Arg, std::size_t M, std::size_t N, typename T>
+  probability_array<Arg, static_max<M, N>::value, T>
+  operator*(const probability_array<Arg, M, T>& f,
+            const probability_array<Arg, N, T>& g) {
+    typedef probability_array<Arg, static_max<M, N>::value, T> result_type;
     return join<result_type>(f, g, libgm::multiplies<>());
   }
 
@@ -622,11 +610,11 @@ namespace libgm {
    * \return a probability_array factor whose arity is the maximum of M and N
    * \relates probability_array
    */
-  template <typename T, std::size_t M, std::size_t N, typename Var>
-  probability_array<T, static_max<M, N>::value, Var>
-  operator/(const probability_array<T, M, Var>& f,
-            const probability_array<T, N, Var>& g) {
-    typedef probability_array<T, static_max<M, N>::value, Var> result_type;
+  template <typename Arg, std::size_t M, std::size_t N, typename T>
+  probability_array<Arg, static_max<M, N>::value, T>
+  operator/(const probability_array<Arg, M, T>& f,
+            const probability_array<Arg, N, T>& g) {
+    typedef probability_array<Arg, static_max<M, N>::value, T> result_type;
     return join<result_type>(f, g, libgm::divides<>()).clear_nan();
   }
 

@@ -1,14 +1,15 @@
 #ifndef LIBGM_BASIC_SEQUENCE_DATASET_HPP
 #define LIBGM_BASIC_SEQUENCE_DATASET_HPP
 
-#include <libgm/functional/utility.hpp>
+#include <libgm/argument/argument_traits.hpp>
+#include <libgm/argument/domain.hpp>
+#include <libgm/argument/sequence.hpp>
+#include <libgm/math/eigen/submatrix.hpp>
 #include <libgm/range/iterator_range.hpp>
 
-#include <algorithm>
 #include <iostream>
 #include <iterator>
-#include <numeric>
-#include <utility>
+#include <unordered_map>
 #include <vector>
 
 namespace libgm {
@@ -18,33 +19,30 @@ namespace libgm {
    * The dataset stores observations in an std::vector of values,
    * where each value is a pair of a matrix and the corresponding weight.
    *
-   * \tparam Traits the type that specifies the interfaced types and
-   *         core functions for determining the number of columns occupied
-   *         by a process and copying values to an assignment.
+   * \tparam Arg a type that represents a single argument at one point in time
+   * \tparam Data a type that represents the values for 0 or more sequences
+   * \tparam Weight a type that represents the weight of datapoints
    *
    * \see Dataset, uint_sequence_dataset, real_sequence_dataset
    */
-  template <typename Traits>
+  template <typename Arg, typename Vector, typename Data, typename Weight>
   class basic_sequence_dataset {
   public:
     // Dataset concept types
-    typedef Traits                            traits_type;
-    typedef typename Traits::process_type     argument_type;
-    typedef typename Traits::proc_domain_type domain_type;
-    typedef typename Traits::proc_data_type   data_type;
-    typedef typename Traits::assignment_type  assignment_type;
-    typedef typename Traits::weight_type      weight_type;
-    class assignment_iterator;
+    typedef sequence<Arg>            argument_type;
+    typedef domain<sequence<Arg> >   domain_type;
+    typedef Vector                   vector_type;
+    typedef Weight                   weight_type;
+    typedef std::vector<std::size_t> index_type;
     class weight_iterator;
 
     // Range concept types
-    typedef std::pair<data_type, weight_type> value_type;
+    typedef std::pair<Data, Weight> value_type;
     class iterator;
     class const_iterator;
 
     // Helper types
-    typedef typename Traits::index_type      index_type;
-    typedef typename Traits::column_map_type column_map_type;
+    typedef typename argument_traits<sequence<Arg> >::hasher hasher;
 
     // Construction and initialization
     //==========================================================================
@@ -67,8 +65,8 @@ namespace libgm {
         throw std::logic_error("Attempt to call initialize() more than once");
       }
       args_ = args;
-      values_.reserve(capacity);
-      Traits::initialize(args, col_);
+      samples_.reserve(capacity);
+      num_cols_ = args.insert_start(col_);
     }
 
     // Accessors
@@ -84,111 +82,85 @@ namespace libgm {
       return args_.size();
     }
 
+    //! Returns the number of columns of this dataset.
+    std::size_t num_cols() const {
+      return num_cols_;
+    }
+
     //! Returns the number of datapoints in the dataset.
     std::size_t size() const {
-      return values_.size();
+      return samples_.size();
     }
 
     //! Returns true if the dataset has no datapoints.
     bool empty() const {
-      return values_.empty();
+      return samples_.empty();
     }
 
     //! Returns the number of values this dataset can hold before reallocation.
     std::size_t capacity() const {
-      return values_.capacity();
+      return samples_.capacity();
     }
 
     //! Returns the iterator to the first datapoint.
     iterator begin() {
-      return iterator(values_.begin(), values_.end());
+      return iterator(samples_.begin(), samples_.end());
     }
 
     //! Returns the iterator to the first datapoint.
     const_iterator begin() const {
-      return const_iterator(values_.begin(), values_.end());
+      return const_iterator(samples_.begin(), samples_.end());
     }
 
     //! Returns the iterator to the datapoint past the last one.
     iterator end() {
-      return iterator(values_.end(), values_.end());
+      return iterator(samples_.end(), samples_.end());
     }
 
     //! Returns the iterator to the datapoint past the last one.
     const_iterator end() const {
-      return const_iterator(values_.end(), values_.end());
+      return const_iterator(samples_.end(), samples_.end());
     }
 
     //! Returns a single datapoint in the dataset.
-    const value_type& operator[](std::size_t row) const {
-      return values_[row];
+    const value_type& sample(std::size_t row) const {
+      return samples_[row];
+    }
+
+    //! Returns a single datapoint in the dataset over a subset of arguments.
+    value_type sample(std::size_t row, const domain_type& dom) const {
+      value_type value;
+      rows(samples_[row].first, dom.index(col_)).eval_to(value.first);
+      value.second = samples_[row].second;
+      return value;
     }
 
     //! Returns a mutable range of datapoints over a subset of arguments.
-    iterator_range<iterator> operator()(const domain_type& dom) {
+    iterator_range<iterator> samples(const domain_type& dom) {
       return iterator_range<iterator>(
-        iterator(values_.begin(), values_.end(), index(dom)),
-        iterator(values_.end(), values_.end(), index_type())
+        iterator(samples_.begin(), samples_.end(), dom.index(col_)),
+        iterator(samples_.end(), samples_.end(), index_type())
       );
     }
 
     //! Returns an immutable range of datapoints over a subset of arguments.
-    iterator_range<const_iterator> operator()(const domain_type& dom) const {
+    iterator_range<const_iterator> samples(const domain_type& dom) const {
       return iterator_range<const_iterator>(
-        const_iterator(values_.begin(), values_.end(), index(dom)),
-        const_iterator(values_.end(), values_.end(), index_type())
+        const_iterator(samples_.begin(), samples_.end(), dom.index(col_)),
+        const_iterator(samples_.end(), samples_.end(), index_type())
       );
-    }
-
-    //! Returns a single datapoint in the dataset over a subset of arguments.
-    value_type operator()(std::size_t row, const domain_type& dom) const {
-      value_type value;
-      Traits::load(values_[row], index(dom), value);
-      return value;
-    }
-
-    //! Returns a range over the assignment-weight pairs.
-    iterator_range<assignment_iterator>
-    assignments() const {
-      return iterator_range<assignment_iterator>(
-        assignment_iterator(values_.begin(), values_.end(), args_, &col_),
-        assignment_iterator(values_.end())
-      );
-    }
-
-    //! Returns a range over the assignment-weight pairs for a subset of args.
-    iterator_range<assignment_iterator>
-    assignments(const domain_type& d) const {
-      return iterator_range<assignment_iterator>(
-        assignment_iterator(values_.begin(), values_.end(), d, &col_),
-        assignment_iterator(values_.end())
-      );
-    }
-
-    //! Returns the assignment and weight for a single datapoint.
-    std::pair<assignment_type, weight_type>
-    assignment(std::size_t row) const {
-      return assignment(row, args_);
-    }
-
-    //! Returns the assignment and weight for a single datapoint.
-    std::pair<assignment_type, weight_type>
-    assignment(std::size_t row, const domain_type& dom) const {
-      std::pair<assignment_type, weight_type> a;
-      Traits::extract(values_[row], dom, col_, a);
-      return a;
     }
 
     //! Returns the range of all the weights in the dataset.
     iterator_range<weight_iterator> weights() const {
-      return { weight_iterator(values_.begin(), values_.end()),
-               weight_iterator(values_.end(), values_.end()) };
+      return { weight_iterator(samples_.begin(), samples_.end()),
+               weight_iterator(samples_.end(), samples_.end()) };
     }
 
     //! Computes the total weight of all the samples in this dataset.
-    weight_type weight() const {
-      weight_type result(0);
-      for (const auto& p : values_) { result += p.second; }
+    Weight weight() const {
+      Weight result(0);
+      for (const auto& s : samples_) { result += s.second; }
       return result;
     }
 
@@ -205,36 +177,36 @@ namespace libgm {
 
     //! Ensures that the dataset has allocated space for at least n datapoints.
     void reserve(std::size_t n) {
-      values_.reserve(n);
+      samples_.reserve(n);
     }
 
     //! Inserts a new datapoint to the dataset.
-    void insert(const data_type& data, weight_type weight) {
-      assert(Traits::compatible(data, args_));
-      values_.emplace_back(data, weight);
+    void insert(const Data& data, Weight weight) {
+      assert(data.rows() == num_cols());
+      samples_.emplace_back(data, weight);
     }
 
     //! Inserts a new datapoint to the dataset.
     void insert(const value_type& value) {
-      assert(Traits::compatible(value.first, args_));
-      values_.push_back(value);
+      assert(value.first.rows() == num_cols());
+      samples_.push_back(value);
     }
 
     //! Moves a new datapoint to the dataset.
     void insert(value_type&& value) {
-      assert(Traits::compatible(value.first, args_));
-      values_.push_back(std::move(value));
+      assert(value.first.rows() == num_cols());
+      samples_.push_back(std::move(value));
     }
 
     //! Inserts a number of empty values.
     void insert(std::size_t n) {
-      values_.insert(values_.end(), n, {Traits::empty(args_), weight_type(1)});
+      samples_.insert(samples_.end(), n, { Data(num_cols(), 0), Weight(1) });
     }
 
     //! Randomly permutes the rows.
     template <typename RandomNumberGenerator>
     void shuffle(RandomNumberGenerator& rng) {
-      std::shuffle(values_.begin(), values_.end(), rng);
+      std::shuffle(samples_.begin(), samples_.end(), rng);
     }
 
     //! Swaps this dataset with the other.
@@ -242,7 +214,8 @@ namespace libgm {
       using std::swap;
       swap(a.args_, b.args_);
       swap(a.col_, b.col_);
-      swap(a.values_, b.values_);
+      swap(a.num_cols_, b.num_cols_);
+      swap(a.samples_, b.samples_);
     }
 
     // Iterators
@@ -269,9 +242,7 @@ namespace libgm {
       //! constructor for extracting a subset of columns
       iterator(base_iterator cur, base_iterator end, index_type&& index)
         : cur_(cur), end_(end), index_(std::move(index)), direct_(false) {
-        if (update()) {
-          Traits::load(*cur_, index_, value_);
-        }
+        load();
       }
 
       //! evaluates to true if the iterator has not reached the end of the range
@@ -288,16 +259,18 @@ namespace libgm {
       }
 
       iterator& operator++() {
-        if (update()) { Traits::save(value_, index_, *cur_); }
+        save();
         ++cur_;
-        if (update()) { Traits::load(*cur_, index_, value_); }
+        load();
         return *this;
       }
 
       iterator& operator+=(std::ptrdiff_t n) {
-        if (update()) { Traits::save(value_, index_, *cur_); }
-        cur_ += n;
-        if (update() && n != 0) { Traits::load(*cur_, index_, value_); }
+        save();
+        if (n != 0) {
+          cur_ += n;
+          load();
+        }
         return *this;
       }
 
@@ -332,8 +305,18 @@ namespace libgm {
       }
 
     private:
-      bool update() const {
-        return cur_ != end_ && !direct_;
+      void load() {
+        if (cur_ != end_ && !direct_) {
+          rows(cur_->first, index_).eval_to(value_.first);
+          value_.second = cur_->second;
+        }
+      }
+
+      void save() {
+        if (cur_ != end_ && !direct_) {
+          rows(cur_->first, index_) = value_.first;
+          cur_->second = value_.second;
+        }
       }
 
       base_iterator cur_; // iterator to the current value in the dataset
@@ -357,9 +340,8 @@ namespace libgm {
       typedef typename basic_sequence_dataset::iterator iterator;
 
       //! The iterator over the underlying samples
-      typedef typename std::vector<
-        std::pair<data_type, weight_type>
-      >::const_iterator base_iterator;
+      typedef typename std::vector<std::pair<Data, Weight> >::const_iterator
+        base_iterator;
 
       //! default constructor
       const_iterator() { }
@@ -371,9 +353,7 @@ namespace libgm {
       //! begin constructor that extracts data for a subset of arguments
       const_iterator(base_iterator cur, base_iterator end, index_type&& index)
         : cur_(cur), end_(end), index_(std::move(index)), direct_(false) {
-        if (update()) {
-          Traits::load(*cur_, index_, value_);
-        }
+        load();
       }
 
       //! conversion from an iterator
@@ -421,13 +401,15 @@ namespace libgm {
 
       const_iterator& operator++() {
         ++cur_;
-        if (update()) { Traits::load(*cur_, index_, value_); }
+        load();
         return *this;
       }
 
       const_iterator& operator+=(std::ptrdiff_t n) {
-        cur_ += n;
-        if (update() && n != 0) { Traits::load(*cur_, index_, value_); }
+        if (n != 0) {
+          cur_ += n;
+          load();
+        }
         return *this;
       }
 
@@ -462,108 +444,21 @@ namespace libgm {
       }
 
     private:
-      bool update() const {
-        return cur_ != end_ && !direct_;
+      void load() {
+        if (cur_ != end_ && !direct_) {
+          rows(cur_->first, index_).eval_to(value_.first);
+          value_.second = cur_->second;
+        }
       }
 
       base_iterator cur_; // iterator to the current value in the dataset
       base_iterator end_; // iterator to the one past last value in the dataset
       index_type index_;  // the indices for the extracted arguments
-      std::pair<data_type, weight_type> value_;  // indirect user-facing data
+      std::pair<Data, Weight> value_;  // user-facing data for a subset of seq
       bool direct_;       // if true, ignore index and access data directly
 
       friend class basic_sequence_dataset::iterator;
     }; // class const_iterator
-
-    /**
-     * Iterator over the rows of a basic_sequence_dataset, converting each
-     * row to an assignment over the variables.
-     */
-    class assignment_iterator
-      : public std::iterator<std::forward_iterator_tag,
-                             const std::pair<assignment_type, weight_type> > {
-    public:
-      //! The iterator over the underlying samples
-      typedef typename std::vector<
-        std::pair<data_type, weight_type>
-      >::const_iterator base_iterator;
-
-      //! default constructor
-      assignment_iterator() { }
-
-      //! end constructor
-      assignment_iterator(base_iterator end)
-        : cur_(end), end_(end) { }
-
-      //! begin constructor
-      assignment_iterator(base_iterator cur, base_iterator end,
-                          const domain_type& args,
-                          const column_map_type* colmap)
-        : cur_(cur), end_(end), args_(args), colmap_(colmap) {
-        if (cur_ != end_) {
-          Traits::extract(*cur_, args_, *colmap_, value_);
-        }
-      }
-
-      //! evaluate to true if the iterator has not reached the end of the range
-      explicit operator bool() const {
-        return cur_ != end_;
-      }
-
-      const std::pair<assignment_type, weight_type>& operator*() const {
-        return value_;
-      }
-
-      const std::pair<assignment_type, weight_type>* operator->() const {
-        return &value_;
-      }
-
-      assignment_iterator& operator++() {
-        ++cur_;
-        if (cur_ != end_) {
-          Traits::extract(*cur_, args_, *colmap_, value_);
-        }
-        return *this;
-      }
-
-      assignment_iterator& operator+=(std::ptrdiff_t n) {
-        cur_ += n;
-        if (cur_ != end_ && n != 0) {
-          Traits::extract(*cur_, args_, *colmap_, value_);
-        }
-        return *this;
-      }
-
-      assignment_iterator operator++(int) {
-        // this operation is too expensive and is not supported
-        throw std::logic_error("data iterators do not support postincrement");
-      }
-
-      bool operator==(const assignment_iterator& other) const {
-        return cur_ == other.cur_;
-      }
-
-      bool operator!=(const assignment_iterator other) const {
-        return cur_ != other.cur_;
-      }
-
-      friend void swap(assignment_iterator& a, assignment_iterator& b) {
-        using std::swap;
-        swap(a.cur_, b.cur_);
-        swap(a.end_, b.end_);
-        swap(a.args_, b.args_);
-        swap(a.colmap_, b.colmap_);
-        swap(a.value_, b.value_);
-      }
-
-    private:
-      base_iterator cur_; // iterator to the current value in the dataset
-      base_iterator end_; // iterator to the one past last value in the dataset
-      domain_type args_;  // the processes to which we seek assignment
-      const column_map_type* colmap_; // the map from dataset arguments to columns
-      std::pair<assignment_type, weight_type> value_; // user-facing data
-
-    }; // class assignment_iterator
 
     /**
      * Iterator over the weights of a basic_sequence_dataset.
@@ -572,9 +467,8 @@ namespace libgm {
       : public std::iterator<std::forward_iterator_tag, const weight_type> {
     public:
       //! The iterator over the underlying samples
-      typedef typename std::vector<
-        std::pair<data_type, weight_type>
-      >::const_iterator base_iterator;
+      typedef typename std::vector<std::pair<Data, Weight> >::const_iterator
+        base_iterator;
 
       //! default constructor
       weight_iterator() { }
@@ -634,14 +528,10 @@ namespace libgm {
     // Private functions and data
     //==========================================================================
   private:
-    //! Returns the index for the given arguments
-    index_type index(const domain_type& dom) const {
-      return Traits::index(dom, col_);
-    }
-
-    domain_type args_;    //!< the dataset arguments
-    column_map_type col_; //!< the first column of each argument
-    std::vector<value_type> values_; //!< the rows of the dataset
+    domain_type args_;                //!< the dataset arguments
+    std::unordered_map<sequence<Arg>, std::size_t, hasher> col_;
+    std::size_t num_cols_;            //!< the number of columns
+    std::vector<value_type> samples_; //!< the samples the dataset
 
   }; // class basic_sequence_dataset
 

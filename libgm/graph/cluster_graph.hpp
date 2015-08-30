@@ -609,7 +609,7 @@ namespace libgm {
           graph_.add_edge(in.source(), v, graph_[in]);
         }
       }
-      graph_[v].cluster = cluster(u) | cluster(v);
+      graph_[v].cluster = cluster(u) + cluster(v);
       this->remove_vertex(u);
       return v;
     }

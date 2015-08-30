@@ -24,7 +24,7 @@ namespace libgm {
     static_assert(pairwise_compatible<LabelF, FeatureF>::value,
                   "The prior and feature factors are not pairwise compatible.");
 
-    typedef std::unordered_map<variable_type, F> feature_map;
+    typedef std::unordered_map<argument_type, F> feature_map;
 
     // Public type declarations
     //==========================================================================
@@ -32,7 +32,7 @@ namespace libgm {
     // FactorizedModel types
     typedef typename LabelF::real_type       real_type;
     typedef typename LabelF::result_type     result_type;
-    typedef typename LabelF::variable_type   variable_type;
+    typedef typename LabelF::argument_type   argument_type;
     typedef typename LabelF::domain_type     domain_type;
     typedef typename LabelF::assignment_type assignment_type;
 
@@ -48,7 +48,7 @@ namespace libgm {
     naive_bayes() { }
 
     //! Creates a naive Bayes model with the given label and uniform prior.
-    explicit naive_bayes(variable_type label)
+    explicit naive_bayes(argument_type label)
       : prior_({label}, result_type(1)) {
       check_prior(prior_);
     }
@@ -60,14 +60,14 @@ namespace libgm {
     }
 
     /**
-     * Sets the prior. Must not change the label variable if one is set already.
+     * Sets the prior. Must not change the label argument if one is set already.
      */
     void prior(const F& prior) {
       check_prior(prior);
       if (prior_.empty() || prior_.arguments() == prior.arguments()) {
         prior_ = prior;
       } else {
-        throw std::invalid_argument("attempt to change the label variable");
+        throw std::invalid_argument("attempt to change the label argument");
       }
     }
 
@@ -81,8 +81,8 @@ namespace libgm {
           "naive_bayes::add_feature(): CPD must contain exactly two arguments"
         );
       }
-      variable_type f = *cpd.arguments().begin();
-      variable_type l = *++cpd.arguments().begin();
+      argument_type f = *cpd.arguments().begin();
+      argument_type l = *++cpd.arguments().begin();
       if (f == label() || l != label()) {
         throw std::invalid_argument(
           "naive_bayes::add_feature(): the arguments must be (feature, label)"
@@ -93,8 +93,8 @@ namespace libgm {
 
     // Queries
     //==========================================================================
-    //! Returns the label variable.
-    variable_type label() const {
+    //! Returns the label argument.
+    argument_type label() const {
       if (prior_.arguments().empty()) {
         throw std::runtime_error("The naive_bayes object is empty");
       }
@@ -107,7 +107,7 @@ namespace libgm {
                feature_iterator(feature_.end()) };
     }
 
-    //! Returns all the variables in the model.
+    //! Returns all the arguments in the model.
     iterator_range<argument_iterator> arguments() const {
       return make_joined(prior_.arguments(), features());
     }
@@ -118,12 +118,12 @@ namespace libgm {
     }
 
     //! Returns the feature CPD.
-    const FeatureF& cpd(variable_type v) const {
+    const FeatureF& cpd(argument_type v) const {
       return feature_.at(v);
     }
 
-    //! Returns true if the model contains the given variable.
-    bool contains(variable_type v) const {
+    //! Returns true if the model contains the given argument.
+    bool contains(argument_type v) const {
       return v == label() || feature_.count(v);
     }
 
@@ -193,7 +193,7 @@ namespace libgm {
     template <typename Dataset>
     typename std::enable_if<is_dataset<Dataset>::value, real_type>::type
     accuracy(const dataset_type& ds) const {
-      variable_type label = label_var();
+      argument_type label = label_var();
       real_type result(0);
       real_type weight(0);
       assignment_type a;
@@ -226,7 +226,7 @@ namespace libgm {
     //! The prior distribution (empty if this naive_bayes is uninitialized).
     LabelF prior_;
 
-    //! The map from feature variables to CPDs.
+    //! The map from feature arguments to CPDs.
     feature_map feature_;
 
   }; // class naive_bayes

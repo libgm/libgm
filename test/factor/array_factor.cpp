@@ -2,21 +2,22 @@
 #include <boost/test/unit_test.hpp>
 
 #include <libgm/argument/universe.hpp>
+#include <libgm/argument/var.hpp>
 #include <libgm/factor/base/array_factor.hpp>
 #include <libgm/functional/arithmetic.hpp>
 #include <libgm/functional/assign.hpp>
 #include <libgm/functional/eigen.hpp>
 
 namespace libgm {
-  template class array_factor<double, 1, variable>;
-  template class array_factor<double, 2, variable>;
+  template class array_factor<var, 1, double>;
+  template class array_factor<var, 2, double>;
 }
 
 using namespace libgm;
 
 template <std::size_t N>
-struct iarray : public array_factor<int, N, variable> {
-  typedef array_factor<int, N, variable> base;
+struct iarray : public array_factor<var, N, int> {
+  typedef array_factor<var, N, int> base;
   typedef typename base::domain_type domain_type;
   typedef typename base::array_type array_type;
   iarray() { }
@@ -37,12 +38,12 @@ struct iarray : public array_factor<int, N, variable> {
 
 typedef iarray<1> iarray1;
 typedef iarray<2> iarray2;
-typedef array_domain<variable, 1> unary_domain;
+typedef array_domain<var, 1> unary_domain;
 
 BOOST_AUTO_TEST_CASE(test_join) {
   universe u;
-  variable x = u.new_discrete_variable("x", 2);
-  variable y = u.new_discrete_variable("y", 3);
+  var x = var::discrete(u, "x", 2);
+  var y = var::discrete(u, "y", 3);
 
   iarray1 fx({x}, {1, 2});
   iarray1 fy({y}, {2, 3, 4});
@@ -82,8 +83,8 @@ BOOST_AUTO_TEST_CASE(test_join) {
 
 BOOST_AUTO_TEST_CASE(test_join_inplace) {
   universe u;
-  variable x = u.new_discrete_variable("x", 2);
-  variable y = u.new_discrete_variable("y", 3);
+  var x = var::discrete(u, "x", 2);
+  var y = var::discrete(u, "y", 3);
 
   iarray1 fx({x}, {1, 2});
   iarray1 fy({y}, {2, 3, 4});
@@ -112,8 +113,8 @@ BOOST_AUTO_TEST_CASE(test_join_inplace) {
 
 BOOST_AUTO_TEST_CASE(test_aggregate) {
   universe u;
-  variable x = u.new_discrete_variable("x", 2);
-  variable y = u.new_discrete_variable("y", 3);
+  var x = var::discrete(u, "x", 2);
+  var y = var::discrete(u, "y", 3);
 
   iarray2 fxy({x, y}, {-1, -2, -3, 4, 5, 6});
 
@@ -128,28 +129,28 @@ BOOST_AUTO_TEST_CASE(test_aggregate) {
 
 BOOST_AUTO_TEST_CASE(test_restrict) {
   universe u;
-  variable x = u.new_discrete_variable("x", 2);
-  variable y = u.new_discrete_variable("y", 3);
-  variable z = u.new_discrete_variable("z", 3);
-  uint_assignment<> empty = {{z, 2}};
+  var x = var::discrete(u, "x", 2);
+  var y = var::discrete(u, "y", 3);
+  var z = var::discrete(u, "z", 3);
+  uint_assignment<var> empty = {{z, 2}};
 
   iarray2 fxy({x, y}, {-1, -2, -3, 4, 5, 6});
 
   iarray1 hy;
-  restrict_assign(fxy, uint_assignment<>{{x, 1}}, hy);
+  restrict_assign(fxy, uint_assignment<var>{{x, 1}}, hy);
   BOOST_CHECK_EQUAL(hy, iarray1({y}, {-2, 4, 6}));
 
   iarray1 hx;
-  restrict_assign(fxy, uint_assignment<>{{y, 2}}, hx);
+  restrict_assign(fxy, uint_assignment<var>{{y, 2}}, hx);
   BOOST_CHECK_EQUAL(hx, iarray1({x}, {5, 6}));
 }
 
 BOOST_AUTO_TEST_CASE(test_restrict_join) {
   universe u;
-  variable x = u.new_discrete_variable("x", 2);
-  variable y = u.new_discrete_variable("y", 3);
-  variable z = u.new_discrete_variable("z", 2);
-  uint_assignment<> empty = {{z, 1}};
+  var x = var::discrete(u, "x", 2);
+  var y = var::discrete(u, "y", 3);
+  var z = var::discrete(u, "z", 2);
+  uint_assignment<var> empty = {{z, 1}};
 
   iarray1 fy({y}, {2, 3, 4});
   iarray2 fxy({x, y}, {-1, -2, -3, 4, 5, 6});
@@ -158,20 +159,21 @@ BOOST_AUTO_TEST_CASE(test_restrict_join) {
   iarray1 gx({x}, {4, 2});
   iarray1 gy({y}, {1, 2, 0});
 
+  using libgm::plus_assign;
   iarray1 hx;
   hx = gx;
-  restrict_join(fxy, uint_assignment<>{{x, 1}, {y, 2}}, hx, libgm::plus_assign<>());
+  restrict_join(fxy, uint_assignment<var>{{x, 1}, {y, 2}}, hx, plus_assign<>());
   BOOST_CHECK_EQUAL(hx, iarray1({x}, {9, 8}));
 
   hx = gx;
-  restrict_join(fxy, uint_assignment<>{{y, 2}}, hx, libgm::plus_assign<>());
+  restrict_join(fxy, uint_assignment<var>{{y, 2}}, hx, plus_assign<>());
   BOOST_CHECK_EQUAL(hx, iarray1({x}, {9, 8}));
 
   hx = gx;
-  restrict_join(fzy, uint_assignment<>{{z, 1}, {y, 2}}, hx, libgm::plus_assign<>());
+  restrict_join(fzy, uint_assignment<var>{{z, 1}, {y, 2}}, hx, plus_assign<>());
   BOOST_CHECK_EQUAL(hx, iarray1({x}, {10, 8}));
 
   iarray1 hy = gy;
-  restrict_join(fxy, uint_assignment<>{{x, 1}}, hy, libgm::plus_assign<>());
+  restrict_join(fxy, uint_assignment<var>{{x, 1}}, hy, plus_assign<>());
   BOOST_CHECK_EQUAL(hy, iarray1({y}, {-1, 6, 6}));
 }

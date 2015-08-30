@@ -4,31 +4,34 @@
 #include <libgm/factor/moment_gaussian.hpp>
 
 #include <libgm/argument/universe.hpp>
+#include <libgm/argument/var.hpp>
+#include <libgm/argument/vec.hpp>
 #include <libgm/factor/canonical_gaussian.hpp>
 
 #include "predicates.hpp"
 #include "../math/eigen/helpers.hpp"
 
 namespace libgm {
-  template class moment_gaussian<double, variable>;
-  template class moment_gaussian<float, variable>;
-  template class moment_gaussian_param<double>;
-  template class moment_gaussian_param<float>;
+  template class moment_gaussian<var>;
+  template class moment_gaussian<vec>;
+  template class moment_gaussian_param<>;
 }
 
 using namespace libgm;
 
-typedef moment_gaussian_param<double> param_type;
-typedef real_vector<double> vec_type;
-typedef real_matrix<double> mat_type;
+typedef moment_gaussian<vec> mgaussian;
+typedef canonical_gaussian<vec> cgaussian;
+typedef moment_gaussian_param<> param_type;
+typedef real_vector<> vec_type;
+typedef real_matrix<> mat_type;
 
 boost::test_tools::predicate_result
 mg_properties(const mgaussian& f,
-              const domain& head,
-              const domain& tail = domain()) {
-  std::size_t m = num_dimensions(head);
-  std::size_t n = num_dimensions(tail);
-  domain args = head + tail;
+              const domain<vec>& head,
+              const domain<vec>& tail = domain<vec>()) {
+  std::size_t m = head.num_dimensions();
+  std::size_t n = tail.num_dimensions();
+  domain<vec> args = concat(head, tail);
 
   if (f.empty() && !args.empty()) {
     boost::test_tools::predicate_result result(false);
@@ -132,9 +135,9 @@ mg_params(const mgaussian& f,
 
 BOOST_AUTO_TEST_CASE(test_constructors) {
   universe u;
-  variable x = u.new_continuous_variable("x", 2);
-  variable y = u.new_continuous_variable("y", 1);
-  variable z = u.new_continuous_variable("z", 1);
+  vec x = vec::continuous(u, "x", 2);
+  vec y = vec::continuous(u, "y", 1);
+  vec z = vec::continuous(u, "z", 1);
 
   mgaussian a;
   BOOST_CHECK(a.empty());
@@ -181,9 +184,9 @@ BOOST_AUTO_TEST_CASE(test_constructors) {
 
 BOOST_AUTO_TEST_CASE(test_assignment_swap) {
   universe u;
-  variable x = u.new_continuous_variable("x", 2);
-  variable y = u.new_continuous_variable("y", 1);
-  variable z = u.new_continuous_variable("z", 1);
+  vec x = vec::continuous(u, "x", 2);
+  vec y = vec::continuous(u, "y", 1);
+  vec z = vec::continuous(u, "z", 1);
 
   mgaussian f;
   f = logd(2.0);
@@ -215,21 +218,21 @@ BOOST_AUTO_TEST_CASE(test_assignment_swap) {
 
 BOOST_AUTO_TEST_CASE(test_indexing) {
   universe u;
-  variable x = u.new_continuous_variable("x", 2);
-  variable y = u.new_continuous_variable("y", 1);
+  vec x = vec::continuous(u, "x", 2);
+  vec y = vec::continuous(u, "y", 1);
 
   mgaussian f({x, y}, vec3(2, 1, 0), 2*mat_type::Identity(3, 3), 0.5);
-  vec_type vec = vec3(0.5, -2, 0);
+  vec_type val = vec3(0.5, -2, 0);
   double lv = -0.25*(1.5*1.5+3*3)-1.5*log(two_pi<double>())-0.5*log(8)+0.5;
-  BOOST_CHECK_CLOSE(f.log(vec), lv, 1e-8);
+  BOOST_CHECK_CLOSE(f.log(val), lv, 1e-8);
 
-  real_assignment<double> a;
+  real_assignment<vec> a;
   f.assignment(vec3(3, 2, 1), a);
   BOOST_CHECK_EQUAL(a[x], vec2(3, 2));
   BOOST_CHECK_EQUAL(a[y], vec1(1));
 
-  variable v = u.new_continuous_variable("v", 2);
-  variable w = u.new_continuous_variable("w", 1);
+  vec v = vec::continuous(u, "v", 2);
+  vec w = vec::continuous(u, "w", 1);
   f.subst_args({{x, v}, {y, w}});
   BOOST_CHECK(mg_properties(f, {v, w}));
 }
@@ -237,9 +240,9 @@ BOOST_AUTO_TEST_CASE(test_indexing) {
 
 BOOST_AUTO_TEST_CASE(test_multiplication) {
   universe u;
-  variable x = u.new_continuous_variable("x", 1);
-  variable y = u.new_continuous_variable("y", 2);
-  variable z = u.new_continuous_variable("z", 1);
+  vec x = vec::continuous(u, "x", 1);
+  vec y = vec::continuous(u, "y", 2);
+  vec z = vec::continuous(u, "z", 1);
 
   // small test
   mgaussian f({x}, {y}, vec1(1), mat11(2), mat12(0.5, 3), 1.2);
@@ -287,9 +290,9 @@ BOOST_AUTO_TEST_CASE(test_multiplication) {
 
 BOOST_AUTO_TEST_CASE(test_collapse) {
   universe u;
-  variable x = u.new_continuous_variable("x", 1);
-  variable y = u.new_continuous_variable("y", 1);
-  variable z = u.new_continuous_variable("z", 1);
+  vec x = vec::continuous(u, "x", 1);
+  vec y = vec::continuous(u, "y", 1);
+  vec z = vec::continuous(u, "z", 1);
 
   vec_type mean = vec3(2, 0.5, 0.2);
   mat_type cov = mat33(2, 1, 1, 1, 3, 1, 1, 1, 4);
@@ -303,7 +306,6 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
 
   // test block marginal
   h = f.marginal({x, y});
-  matrix_index ind(0, 2);
   vec_type meanxy = mean.segment(0, 2);
   mat_type covxy = cov.block(0, 0, 2, 2);
   BOOST_CHECK(mg_properties(h, {x, y}));
@@ -312,9 +314,9 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
 
   // test plain marginal
   h = f.marginal({z, x});
-  ind = {2, 0};
-  vec_type meanzx = subvec(mean, ind).plain();
-  mat_type covzx = submat(cov, ind, ind).plain();
+  std::vector<std::size_t> ind = {2, 0};
+  vec_type meanzx = subvec(mean, ind).ref();
+  mat_type covzx = submat(cov, ind, ind).ref();
   BOOST_CHECK(mg_properties(h, {z, x}));
   BOOST_CHECK(mg_params(h, meanzx, covzx, mat_type(2,0), f.log_multiplier()));
   BOOST_CHECK_CLOSE(h.marginal().lv, 2.0, 1e-8);
@@ -326,7 +328,7 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
   BOOST_CHECK(mg_params(h, vec1(2), mat11(2), mat11(5), 1.2));
 
   // test maximum assignment
-  real_assignment<double> a;
+  real_assignment<vec> a;
   logd max = f.maximum(a);
   BOOST_CHECK_CLOSE(a[x][0], mean[0], 1e-8);
   BOOST_CHECK_CLOSE(a[y][0], mean[1], 1e-8);
@@ -337,15 +339,15 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
 
 BOOST_AUTO_TEST_CASE(test_restrict) {
   universe u;
-  variable x = u.new_continuous_variable("x", 1);
-  variable y = u.new_continuous_variable("y", 1);
-  variable z = u.new_continuous_variable("z", 1);
-  variable w = u.new_continuous_variable("w", 1);
+  vec x = vec::continuous(u, "x", 1);
+  vec y = vec::continuous(u, "y", 1);
+  vec z = vec::continuous(u, "z", 1);
+  vec w = vec::continuous(u, "w", 1);
 
   mgaussian f({x, y}, {z, w}, vec2(3,4), mat22(2,1,1,2), mat22(4,5,2,-1), 2.0);
 
   // restrict all tail and some head
-  real_assignment<double> a = {{y, vec1(1)}, {z, vec1(2)}, {w, vec1(3)}};
+  real_assignment<vec> a = {{y, vec1(1)}, {z, vec1(2)}, {w, vec1(3)}};
   mgaussian g = f.restrict(a);
   param_type p = f.canonical().restrict(a).moment().param();
   BOOST_CHECK(mg_properties(g, {x}, {}));
@@ -361,13 +363,13 @@ BOOST_AUTO_TEST_CASE(test_restrict) {
 
 BOOST_AUTO_TEST_CASE(test_sample) {
   universe u;
-  variable x = u.new_continuous_variable("x", 1);
-  variable y = u.new_continuous_variable("y", 1);
-  variable z = u.new_continuous_variable("z", 1);
+  vec x = vec::continuous(u, "x", 1);
+  vec y = vec::continuous(u, "y", 1);
+  vec z = vec::continuous(u, "z", 1);
   std::mt19937 rng1;
   std::mt19937 rng2;
   std::mt19937 rng3;
-  real_assignment<double> a;
+  real_assignment<vec> a;
 
   // test marginal sample
   mgaussian f({x, y}, vec2(3,4), mat22(2,1,1,2));
@@ -403,9 +405,9 @@ BOOST_AUTO_TEST_CASE(test_sample) {
 
 BOOST_AUTO_TEST_CASE(test_entropy) {
   universe u;
-  variable x = u.new_continuous_variable("x", 1);
-  variable y = u.new_continuous_variable("y", 1);
-  variable z = u.new_continuous_variable("z", 1);
+  vec x = vec::continuous(u, "x", 1);
+  vec y = vec::continuous(u, "y", 1);
+  vec z = vec::continuous(u, "z", 1);
 
   vec_type mean = vec3(2, 0.5, 0.2);
   mat_type cov = mat33(2, 1, 1, 1, 3, 1, 1, 1, 4);

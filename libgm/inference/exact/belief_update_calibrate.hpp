@@ -24,7 +24,7 @@ namespace libgm {
     // FactorizedInference types
     typedef typename F::real_type       real_type;
     typedef typename F::result_type     result_type;
-    typedef typename F::variable_type   variable_type;
+    typedef typename F::argument_type   argument_type;
     typedef typename F::domain_type     domain_type;
     typedef typename F::assignment_type assignment_type;
     typedef F                           factor_type;
@@ -69,7 +69,7 @@ namespace libgm {
     typename std::enable_if<is_range<Range, F>::value>::type
     reset(const Range& factors) {
       // compute the junction tree for the given factors
-      undirected_graph<variable_type> mg;
+      undirected_graph<argument_type> mg;
       for (const F& factor : factors) {
         make_clique(mg, factor.arguments());
       }

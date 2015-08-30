@@ -7,6 +7,7 @@
 #include <libgm/math/eigen/submatrix.hpp>
 #include <libgm/math/eigen/subvector.hpp>
 #include <libgm/math/numerical_error.hpp>
+#include <libgm/range/integral.hpp>
 #include <libgm/serialization/eigen.hpp>
 
 #include <algorithm>
@@ -39,6 +40,7 @@ namespace libgm {
     // The underlying representation
     typedef real_matrix<T> mat_type;
     typedef real_vector<T> vec_type;
+    typedef std::vector<std::size_t> index_type;
 
     //! The conditional mean.
     vec_type mean;
@@ -220,13 +222,13 @@ namespace libgm {
 
     //! Reorders the parameter according to the given index.
     moment_gaussian_param
-    reorder(const matrix_index& head, const matrix_index& tail) const {
+    reorder(const index_type& head, const index_type& tail) const {
       assert(head_size() == head.size());
       assert(tail_size() == tail.size());
       moment_gaussian_param result;
-      set(result.mean, subvec(mean, head));
-      set(result.cov, submat(cov, head, head));
-      set(result.coef, submat(coef, head, tail));
+      subvec(mean, head).eval_to(result.mean);
+      submat(cov, head, head).eval_to(result.cov);
+      submat(coef, head, tail).eval_to(result.coef);
       result.lm = lm;
       return result;
     }
@@ -382,20 +384,17 @@ namespace libgm {
    * where one of the functions represents a marginal distribution,
    * whose head is disjoint from the head of the other factor.
    *
-   * In the notation below, p(x_1, x_2) is one factor, and
-   * q(x_3 | x_1, y) is another.
-   * Then r(x_1, x_2, x_3 | y) or r(x_3, x_1, x_2 | y) is the result
+   * In the notation below, p(x) is one factor, and q(y | x_1, z) is another,
+   * where x_1 is a subset of x. Then h(x, y | z) or h(y, x | z) is the result
    * (depending on the ordering of p and q).
    */
   template <typename T>
   struct moment_gaussian_multiplies {
     typedef moment_gaussian_param<T> param_type;
 
-    matrix_index p1; //!< the indices of x1 in p
-    matrix_index q1; //!< the indices of x1 in q
-    matrix_index qy; //!< the indices of y in q
-    matrix_index hp; //!< the indices of x1, x2 in h (always a block)
-    matrix_index hq; //!< the indices of x3 in h (always a block)
+    std::vector<std::size_t> p1; //!< the indices of x_1 in the head of p
+    std::vector<std::size_t> q1; //!< the indices of x_1 in the tail of q
+    std::vector<std::size_t> qz; //!< the indices of z   in the tail of q
 
     //! Default constructor (the caller must initialize indices manually).
     moment_gaussian_multiplies() { }
@@ -403,43 +402,44 @@ namespace libgm {
     //! Performs the multiplication operation
     void operator()(const param_type& f, const param_type& g,
                     param_type& h) const {
-      // ensure that p is a marginal (consistent with multiplies_op)
+      // figure out which input factor is p and which q (see multiplies_op)
       const param_type& p = f.is_marginal() ? f : g;
       const param_type& q = f.is_marginal() ? g : f;
 
-      // define "all" indices for {x1, x2} in p and x3 in q
-      matrix_index pall(0, p.head_size());
-      matrix_index qall(0, q.head_size());
+      // compute the position of x & y in h and their lengths
+      std::size_t sx = f.is_marginal() ? 0 : f.head_size();
+      std::size_t sy = f.is_marginal() ? f.head_size() : 0;
+      std::size_t nx = p.head_size();
+      std::size_t ny = q.head_size();
+
+      // compute the "all" indices for x and y in p and q, respectively
+      std::vector<std::size_t> px = range(0, p.head_size());
+      std::vector<std::size_t> qy = range(0, q.head_size());
 
       // allocate and initialize the parameters
-      h.resize(p.head_size() + q.head_size(), qy.size());
+      h.resize(nx + ny, qz.size());
       h.coef.fill(T(0));
       h.lm = f.lm + g.lm;
 
       // extract the coefficients
-      real_matrix<T> a;
-      set(a, submat(q.coef, qall, qy));
-      h.coef.block(hq.start(), 0, a.rows(), a.cols()) = a;
-      set(a, submat(q.coef, qall, q1));
+      h.coef.block(sy, 0, ny, qz.size()) = submat(q.coef, qy, qz).ref();
+      auto a = submat(q.coef, qy, q1);
+
+      // create the blocks over the partitioned mean and covariance matrix
+      auto mean_x = h.mean.segment(sx, nx).noalias();
+      auto mean_y = h.mean.segment(sy, ny).noalias();
+      auto cov_xx = h.cov.block(sx, sx, nx, nx).noalias();
+      auto cov_yy = h.cov.block(sy, sy, ny, ny).noalias();
+      auto cov_xy = h.cov.block(sx, sy, nx, ny).noalias();
+      auto cov_yx = h.cov.block(sy, sx, ny, nx).noalias();
 
       // compute the new conditional mean and covariance
-      set(subvec(h.mean, hp), p.mean);
-      set(submat(h.cov, hp, hp), p.cov);
-      auto meanq = subvec(h.mean, hq).block();
-      auto covqq = submat(h.cov, hq, hq).block();
-      auto covpq = submat(h.cov, hp, hq).block();
-      auto covqp = submat(h.cov, hq, hp).block();
-      if (p1.contiguous()) {
-        meanq.noalias() = q.mean + a * subvec(p.mean, p1).block();
-        covqq.noalias() = q.cov + a * submat(p.cov, p1, p1).block() * a.transpose();
-        covpq.noalias() = submat(p.cov, pall, p1).block() * a.transpose();
-        covqp.noalias() = covpq.transpose();
-      } else {
-        meanq.noalias() = q.mean + a * subvec(p.mean, p1).plain();
-        covqq.noalias() = q.cov + a * submat(p.cov, p1, p1).plain() * a.transpose();
-        covpq.noalias() = submat(p.cov, pall, p1).plain() * a.transpose();
-        covqp.noalias() = covpq.transpose();
-      }
+      mean_x = p.mean;
+      mean_y = q.mean + a.ref() * subvec(p.mean, p1).ref();
+      cov_xx = p.cov;
+      cov_yy = q.cov + a.ref() * submat(p.cov, p1, p1).ref() * a.ref().transpose();
+      cov_xy = submat(p.cov, px, p1).ref() * a.ref().transpose();
+      cov_yx = h.cov.block(sx, sy, nx, ny).transpose();
     }
   };
 
@@ -460,8 +460,8 @@ namespace libgm {
      * \param preserve_maximum if true, adjusts the log-multiplier so that the
      *        maximum value of the function is preserved
      */
-    moment_gaussian_collapse(matrix_index&& head_map,
-                             matrix_index&& tail_map,
+    moment_gaussian_collapse(std::vector<std::size_t>&& head_map,
+                             std::vector<std::size_t>&& tail_map,
                              bool preserve_maximum = false)
       : head_map(std::move(head_map)),
         tail_map(std::move(tail_map)),
@@ -469,17 +469,17 @@ namespace libgm {
 
     //! Performs the marginalization operation on f, storing the result in h.
     void operator()(const param_type& f, param_type& h) {
-      set(h.mean, subvec(f.mean, head_map));
-      set(h.cov,  submat(f.cov,  head_map, head_map));
-      set(h.coef, submat(f.coef, head_map, tail_map));
+      subvec(f.mean, head_map).eval_to(h.mean);
+      submat(f.cov,  head_map, head_map).eval_to(h.cov);
+      submat(f.coef, head_map, tail_map).eval_to(h.coef);
       h.lm = f.lm;
       if (preserve_maximum) {
         h.lm += f.maximum() - h.maximum();
       }
     }
 
-    matrix_index head_map;
-    matrix_index tail_map;
+    std::vector<std::size_t> head_map;
+    std::vector<std::size_t> tail_map;
     bool preserve_maximum;
   };
 
@@ -488,7 +488,7 @@ namespace libgm {
 
   /**
    * A class that can condition a marginal moment Gaussian distribution.
-   * Specifically, if f represents p(x,y), this class computes p(x | y).
+   * Specifically, if f represents p(x, y), this class computes p(x | y).
    */
   template <typename T>
   struct moment_gaussian_conditional {
@@ -497,8 +497,8 @@ namespace libgm {
     typedef real_vector<T> vec_type;
 
     //! Constructs a conditioning operator.
-    moment_gaussian_conditional(matrix_index&& x,
-                                matrix_index&& y)
+    moment_gaussian_conditional(std::vector<std::size_t>&& x,
+                                std::vector<std::size_t>&& y)
       : x(std::move(x)), y(std::move(y)) { }
 
     //! Performs the conditioning operation.
@@ -506,8 +506,8 @@ namespace libgm {
       assert(f.is_marginal());
 
       // compute sol_yx = cov_yy^{-1} cov_yx using Cholesky decomposition
-      set(cov_yy, submat(f.cov, y, y));
-      set(sol_yx, submat(f.cov, y, x));
+      submat(f.cov, y, y).eval_to(cov_yy);
+      submat(f.cov, y, x).eval_to(sol_yx);
       chol_yy.compute(cov_yy);
       if (chol_yy.info() != Eigen::Success) {
         throw numerical_error(
@@ -517,24 +517,16 @@ namespace libgm {
       chol_yy.solveInPlace(sol_yx);
 
       // compute the parameters of the conditional
-      set(h.mean, subvec(f.mean, x));
-      set(h.cov, submat(f.cov, x, x));
-      if (y.contiguous()) {
-        h.mean.noalias() -= sol_yx.transpose() * subvec(f.mean, y).block();
-      } else {
-        h.mean.noalias() -= sol_yx.transpose() * subvec(f.mean, y).plain();
-      }
-      if (x.contiguous() && y.contiguous()) {
-        h.cov.noalias() -= submat(f.cov, x, y).block() * sol_yx;
-      } else {
-        h.cov.noalias() -= submat(f.cov, x, y).plain() * sol_yx;
-      }
+      subvec(f.mean, x).eval_to(h.mean);
+      submat(f.cov, x, x).eval_to(h.cov);
+      h.mean.noalias() -= sol_yx.transpose() * subvec(f.mean, y).ref();
+      h.cov.noalias() -= submat(f.cov, x, y).ref() * sol_yx;
       h.coef.noalias() = sol_yx.transpose();
       h.lm = f.lm;
     }
 
-    matrix_index x;
-    matrix_index y;
+    std::vector<std::size_t> x;
+    std::vector<std::size_t> y;
     Eigen::LLT<mat_type> chol_yy;
     mat_type cov_yy;
     mat_type sol_yx;
@@ -560,8 +552,8 @@ namespace libgm {
     enum restrict_type { MARGINAL, CONDITIONAL };
     restrict_type type; //!< which version to perform
 
-    matrix_index x; //!< the indices of the retained arguments in f
-    matrix_index y; //!< the indices of the restricted arguments in f
+    std::vector<std::size_t> x; //!< the indices of the retained arguments in f
+    std::vector<std::size_t> y; //!< the indices of the restricted arguments in f
     vec_type vec_y; //!< the assignment to the restricted arguments
     vec_type vec_z; //!< the assignment to the tail (for type = MARGINAL)
 
@@ -583,8 +575,8 @@ namespace libgm {
     //! Performs a marginal restrict operation on f, storing the result in h.
     void restrict_marginal(const param_type f, param_type& h) {
       // compute sol_yx = cov_yy^{-1} cov_yx using Cholesky decomposition
-      set(cov_yy, submat(f.cov, y, y));
-      set(sol_yx, submat(f.cov, y, x));
+      submat(f.cov, y, y).eval_to(cov_yy);
+      submat(f.cov, y, x).eval_to(sol_yx);
       chol_yy.compute(cov_yy);
       if (chol_yy.info() != Eigen::Success) {
         throw numerical_error(
@@ -594,35 +586,21 @@ namespace libgm {
       chol_yy.solveInPlace(sol_yx);
 
       // some useful submatrices
-      matrix_index z(0, f.tail_size());
-      subvector<const vec_type> mean_x(f.mean, x);
-      subvector<const vec_type> mean_y(f.mean, y);
-      submatrix<const mat_type> coef_x(f.coef, x, z);
-      submatrix<const mat_type> coef_y(f.coef, y, z);
+      std::vector<std::size_t> z = range(0, f.tail_size());
+      submatrix<const mat_type> coef_xz(f.coef, x, z);
+      submatrix<const mat_type> coef_yz(f.coef, y, z);
       h.resize(x.size());
 
       // compute the residual over y (observation vec_y - the prediction)
-      if (y.contiguous()) {
-        res_y.noalias() = vec_y - mean_y.block() - coef_y.block() * vec_z;
-      } else {
-        res_y.noalias() = vec_y - mean_y.plain() - coef_y.plain() * vec_z;
-      }
+      res_y.noalias() = vec_y - subvec(f.mean, y).ref() - coef_yz.ref() * vec_z;
 
       // compute the mean: original mean + scaled residual
-      set(h.mean, mean_x);
-      if (x.contiguous()) {
-        h.mean.noalias() += coef_x.block() * vec_z + sol_yx.transpose() * res_y;
-      } else {
-        h.mean.noalias() += coef_x.plain() * vec_z + sol_yx.transpose() * res_y;
-      }
+      subvec(f.mean, x).eval_to(h.mean);
+      h.mean.noalias() += coef_xz.ref() * vec_z + sol_yx.transpose() * res_y;
 
       // compute the covariance: original covariance - shrinking factor
-      set(h.cov, submat(f.cov, x, x));
-      if (x.contiguous() && y.contiguous()) {
-        h.cov.noalias() -= submat(f.cov, x, y).block() * sol_yx;
-      } else {
-        h.cov.noalias() -= submat(f.cov, x, y).plain() * sol_yx;
-      }
+      submat(f.cov, x, x).eval_to(h.cov);
+      h.cov.noalias() -= submat(f.cov, x, y).ref() * sol_yx;
 
       // compute the log-multiplier
       h.lm = f.lm
@@ -632,17 +610,11 @@ namespace libgm {
 
     //! Performs a conditional restrict operation on f, storing the result in h
     void restrict_conditional(const param_type& f, param_type& h) {
-      matrix_index z(0, f.head_size());
-      submatrix<const mat_type> coef_x(f.coef, z, x);
-      submatrix<const mat_type> coef_y(f.coef, z, y);
-      if (y.contiguous()) {
-        h.mean.noalias() = f.mean + coef_y.block() * vec_y;
-      } else {
-       h.mean.noalias() = f.mean + coef_y.plain() + vec_y;
-      }
+      std::vector<std::size_t> z = range(0, f.head_size());
+      h.mean.noalias() = f.mean + submat(f.coef, z, y).ref() * vec_y;
       h.cov.noalias() = f.cov;
-      set(h.coef, coef_x);
       h.lm = f.lm;
+      submat(f.coef, z, x).eval_to(h.coef);
     }
 
     // temporary storage

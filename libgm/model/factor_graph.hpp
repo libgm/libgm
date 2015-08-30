@@ -15,19 +15,19 @@ namespace libgm {
   /**
    * This class represents a factor graph model. A factor graph is a bipartite
    * graph, where type-1 vertices correspond to factors, and type-2 vertices
-   * correspond to variables. There is an undirected edge between a factor
-   * and a variable if the variable is in the domain of the factor.
+   * correspond to arguments. There is an undirected edge between a factor
+   * and a argument if the argument is in the domain of the factor.
    * This model represents (an unnormalized) distribution over the
-   * variables as a product of all the contained factors.
+   * arguments as a product of all the contained factors.
    *
    * \tparam F the factor type stored in this model
    * \ingroup model
    */
   template <typename F>
   class factor_graph
-    : public bipartite_graph<id_t, typename F::variable_type, F> {
+    : public bipartite_graph<id_t, typename F::argument_type, F> {
 
-    typedef bipartite_graph<id_t, typename F::variable_type, F> base;
+    typedef bipartite_graph<id_t, typename F::argument_type, F> base;
 
     // Public type declarations
     // =========================================================================
@@ -35,7 +35,7 @@ namespace libgm {
     // FactorizedModel types
     typedef typename F::real_type       real_type;
     typedef logarithmic<real_type>      result_type;
-    typedef typename F::variable_type   variable_type;
+    typedef typename F::argument_type   argument_type;
     typedef typename F::domain_type     domain_type;
     typedef typename F::assignment_type assignment_type;
     typedef F                           value_type;
@@ -86,7 +86,7 @@ namespace libgm {
       return this->vertices1();
     }
 
-    //! Returns the number of variables in the graph (alias for num_vertices2).
+    //! Returns the number of arguments in the graph (alias for num_vertices2).
     std::size_t num_arguments() const {
       return this->num_vertices2();
     }
@@ -122,7 +122,7 @@ namespace libgm {
 
     //! Prints the degree distribution to the given stream
     void print_degree_distribution(std::ostream& out) const {
-      out << "Degree distribution of variables:" << std::endl;
+      out << "Degree distribution of arguments:" << std::endl;
       print_degree_distribution(out, arguments());
       out << "Degree distribution of factors:" << std::endl;
       print_degree_distribution(out, factor_ids());
@@ -143,7 +143,7 @@ namespace libgm {
         ++max_id_;
       } while (this->contains(max_id_));
       this->add_vertex(max_id_, f);
-      for (variable_type var : f.arguments()) {
+      for (argument_type var : f.arguments()) {
         this->add_edge(max_id_, var);
       }
       return max_id_;
@@ -162,7 +162,7 @@ namespace libgm {
       // remove all the old edges
       this->remove_edges(id);
       // add all the new edges
-      for (variable_type v : f.arguments()) {
+      for (argument_type v : f.arguments()) {
         this->add_edge(id, v);
       }
       (*this)[id] = f;
@@ -184,7 +184,7 @@ namespace libgm {
     void condition(const assignment_type& a) {
       assert(false); // not working yet
       for (const auto& p : a) {
-        variable_type var = p.first;
+        argument_type var = p.first;
         if (!this->contains(var)) {
           continue;
         }
@@ -206,10 +206,10 @@ namespace libgm {
       std::vector<id_t> ids(factor_ids().begin(), factor_ids().end());
       for (id_t f_id : ids) {
         const domain_type& f_args = arguments(f_id);
-        // identify the variable with the fewest connected factors
+        // identify the argument with the fewest connected factors
         std::size_t min_degree = std::numeric_limits<std::size_t>::max();
-        variable_type var;
-        for (variable_type v : f_args) {
+        argument_type var;
+        for (argument_type v : f_args) {
           if (this->degree(v) < min_degree) {
             min_degree = this->degree(v);
             var = v;

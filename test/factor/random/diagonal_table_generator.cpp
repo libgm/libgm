@@ -4,30 +4,34 @@
 #include <libgm/factor/random/diagonal_table_generator.hpp>
 
 #include <libgm/argument/universe.hpp>
+#include <libgm/argument/var.hpp>
 #include <libgm/datastructure/uint_vector.hpp>
 #include <libgm/factor/canonical_table.hpp>
 #include <libgm/factor/probability_table.hpp>
 
 #include <boost/mpl/list.hpp>
 
+using namespace libgm;
+
+typedef canonical_table<var> ctable;
+typedef probability_table<var> ptable;
+
 namespace libgm {
   template class diagonal_table_generator<ctable>;
   template class diagonal_table_generator<ptable>;
 }
 
-using namespace libgm;
-
 std::size_t nsamples = 1000;
 const double lower = -0.7;
 const double upper = +0.5;
 
-typedef boost::mpl::list<ctable,ptable> factor_types;
+typedef boost::mpl::list<ctable, ptable> factor_types;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_all, F, factor_types) {
   universe u;
-  variable x = u.new_discrete_variable("x", 3);
-  variable y = u.new_discrete_variable("y", 3);
-  domain xy = {x, y};
+  var x = var::discrete(u, "x", 3);
+  var y = var::discrete(u, "y", 3);
+  domain<var> xy = {x, y};
 
   std::mt19937 rng;
   diagonal_table_generator<F> gen(lower, upper);

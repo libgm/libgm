@@ -39,7 +39,7 @@ namespace libgm {
     // FactorizedModel types
     typedef typename F::real_type       real_type;
     typedef typename F::result_type     result_type;
-    typedef typename F::variable_type   variable_type;
+    typedef typename F::argument_type   argument_type;
     typedef typename F::domain_type     domain_type;
     typedef typename F::assignment_type assignment_type;
     typedef F                           value_type;
@@ -49,8 +49,8 @@ namespace libgm {
     // Graph vertex, edge, and properties
     typedef id_t                  vertex_type;
     typedef undirected_edge<id_t> edge_type;
-    typedef F                       vertex_property;
-    typedef F                       edge_property;
+    typedef F                     vertex_property;
+    typedef F                     edge_property;
 
     // Graph iterators
     typedef typename graph_type::vertex_iterator   vertex_iterator;
@@ -250,8 +250,8 @@ namespace libgm {
     /**
      * Computes the Markov graph capturing the dependencies in this model.
      */
-    void markov_graph(undirected_graph<variable_type>& mg) const {
-      for (variable_type v : arguments()) {
+    void markov_graph(undirected_graph<argument_type>& mg) const {
+      for (argument_type v : arguments()) {
         mg.add_vertex(v);
       }
       for (id_t v : vertices()) {
@@ -302,19 +302,19 @@ namespace libgm {
     }
 
     /**
-     * Computes a marginal over an arbitrary subset of variables.
-     * The variables must be all present in this decomposble model.
+     * Computes a marginal over an arbitrary subset of arguments.
+     * The arguments must be all present in this decomposble model.
      */
     F marginal(const domain_type& domain) const {
       if (domain.empty()) {
         return F(typename F::result_type(1));
       }
 
-      // Look for a separator that covers the variables.
+      // Look for a separator that covers the arguments.
       edge_type e = jt_.find_separator_cover(domain);
       if (e) { return jt_[e].marginal(domain); }
 
-      // Look for a clique that covers the variables.
+      // Look for a clique that covers the arguments.
       id_t v = jt_.find_cluster_cover(domain);
       if (v) { return jt_[v].marginal(domain); }
 
@@ -327,7 +327,7 @@ namespace libgm {
 
     /**
      * Computes a list of factors whose product represents
-     * a marginal over a subset of variables.
+     * a marginal over a subset of arguments.
      */
     void marginal(const domain_type& domain, std::list<F>& factors) const {
       factors.clear();
@@ -350,7 +350,7 @@ namespace libgm {
 
     /**
      * Computes a decomposable model that represents the marginal
-     * distribution over one ore more variables.
+     * distribution over one ore more arguments.
      * Note: This operation can create large cliques.
      */
     void marginal(const domain_type& domain, decomposable& result) const {
@@ -371,7 +371,7 @@ namespace libgm {
     }
 
     /**
-     * Computes the entropy over a subset of variables.
+     * Computes the entropy over a subset of arguments.
      */
     real_type entropy(const domain_type& domain) const {
       // first try to compute the entropy directly from the marginals
@@ -394,7 +394,7 @@ namespace libgm {
      */
     real_type conditional_entropy(const domain_type& y,
                                   const domain_type& x) const {
-      return entropy(x | y) - entropy(x);
+      return entropy(x + y) - entropy(x);
     }
 
     /**
@@ -403,7 +403,7 @@ namespace libgm {
      */
     real_type mutual_information(const domain_type& a,
                                  const domain_type& b) const {
-      return entropy(a) + entropy(b) - entropy(a | b);
+      return entropy(a) + entropy(b) - entropy(a + b);
     }
 
     /**
@@ -417,7 +417,7 @@ namespace libgm {
     real_type conditional_mutual_information(const domain_type& a,
                                              const domain_type& b,
                                              const domain_type& c) const {
-      return conditional_entropy(a, c) - conditional_entropy(a, b | c);
+      return conditional_entropy(a, c) - conditional_entropy(a, b + c);
     }
 
     /**
@@ -497,7 +497,7 @@ namespace libgm {
     // Restructuring operations
     //==========================================================================
 
-    //! Clears all factors and variables from this model.
+    //! Clears all factors and arguments from this model.
     void clear() {
       jt_.clear();
     }
@@ -552,9 +552,9 @@ namespace libgm {
 
     /**
      * Restructures this decomposable model so that it includes the
-     * supplied cliques. These cliques can include new variables
+     * supplied cliques. These cliques can include new arguments
      * (which are not present in this model). In this case, the
-     * marginals over these new variables will be set to 1.
+     * marginals over these new arguments will be set to 1.
      *
      * \tparam Range A single pass range with elements convertible to Domain
      *
@@ -565,7 +565,7 @@ namespace libgm {
     template <typename Range>
     void retriangulate(const Range& cliques) {
       // Create a graph with the cliques of this decomposable model.
-      undirected_graph<variable_type> mg;
+      undirected_graph<argument_type> mg;
       markov_graph(mg);
 
       // Add the new cliques
@@ -592,7 +592,7 @@ namespace libgm {
 
     /**
      * Restructures this decomposable model so that it has a clique
-     * that covers the supplied variables, and returns the vertex
+     * that covers the supplied arguments, and returns the vertex
      * associated with this clique.
      */
     id_t make_cover(const domain_type& domain) {
@@ -614,7 +614,7 @@ namespace libgm {
       id_t u = e.source();
       id_t v = e.target();
 
-      // compute the marginal for the new clique clique(u) | clique(v)
+      // compute the marginal for the new clique clique(u) + clique(v)
       F marginal;
       if (superset(clique(u), clique(v))) {
         marginal = std::move(jt_[u]);
@@ -688,7 +688,7 @@ namespace libgm {
 
     /**
      * Conditions this decomposable model on an assignment to one or
-     * more of its variables and returns the likelihood of the evidence.
+     * more of its arguments and returns the likelihood of the evidence.
      * \todo compute the likelihood of evidence, reconnect the tree
      */
     result_type condition(const assignment_type& a) {
@@ -841,7 +841,7 @@ namespace libgm {
      */
     domain_type restricted_args(const assignment_type& a) const {
       domain_type result;
-      for (variable_type v : arguments()) {
+      for (argument_type v : arguments()) {
         if (a.count(v)) {
           result.push_back(v);
         }
@@ -854,7 +854,7 @@ namespace libgm {
      */
     domain_type intersecting_args(const domain_type& dom) const {
       domain_type result;
-      for (variable_type v : dom) {
+      for (argument_type v : dom) {
         if (jt_.count(v)) {
           result.push_back(v);
         }
@@ -875,7 +875,7 @@ namespace boost {
   template <typename F>
   struct graph_traits< libgm::decomposable<F> >
     : public graph_traits<
-        libgm::cluster_graph<typename F::variable_type, F, F> > { };
+        libgm::cluster_graph<typename F::argument_type, F, F> > { };
 
 } // namespace boost
 

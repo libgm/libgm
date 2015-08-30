@@ -1,19 +1,7 @@
 #ifndef LIBGM_EIGEN_OPTIMIZATION_HPP
 #define LIBGM_EIGEN_OPTIMIZATION_HPP
 
-#include <libgm/traits/vector_value.hpp>
-
 #include <Eigen/Core>
-
-namespace libgm {
-
-  //! Specialization of vector_value for Eigen's vector classes.
-  template <typename T, int Rows, int Cols>
-  struct vector_value<Eigen::Matrix<T, Rows, Cols>> {
-    typedef T type;
-  };
-
-} // namespace libgm
 
 namespace Eigen {
 

@@ -4,6 +4,7 @@
 #include <libgm/model/factor_graph.hpp>
 
 #include <libgm/argument/universe.hpp>
+#include <libgm/argument/var.hpp>
 #include <libgm/factor/canonical_gaussian.hpp>
 #include <libgm/factor/probability_table.hpp>
 #include <libgm/factor/random/uniform_table_generator.hpp>
@@ -12,14 +13,17 @@
 
 #include "predicates.hpp"
 
+using namespace libgm;
+
+typedef canonical_gaussian<var> cgaussian;
+typedef probability_table<var> ptable;
+
 namespace libgm {
   template class factor_graph<cgaussian>;
   template class factor_graph<ptable>;
 }
 
-using namespace libgm;
-
-BOOST_TEST_DONT_PRINT_LOG_VALUE(std::vector<domain>);
+BOOST_TEST_DONT_PRINT_LOG_VALUE(std::vector<domain<var> >);
 
 struct fixture {
   typedef factor_graph<ptable> model_type;
@@ -31,9 +35,8 @@ struct fixture {
     uniform_table_generator<ptable> gen;
 
     // Create some variables
-    x.resize(nvars);
     for(std::size_t i = 0; i < nvars; ++i) {
-      x[i] = u.new_discrete_variable("Variable: " + std::to_string(i), 2);
+      x.push_back(var::discrete(u, "x" + std::to_string(i), 2));
     }
 
     // Create some unary factors
@@ -49,13 +52,13 @@ struct fixture {
 
   universe u;
   std::size_t nvars;
-  std::vector<variable> x;
+  domain<var> x;
   model_type fg;
 };
 
 BOOST_FIXTURE_TEST_CASE(test_structure, fixture) {
   for (std::size_t i = 0; i < nvars; ++i) {
-    std::vector<domain> args1;
+    std::vector<domain<var> > args1;
     args1.push_back({x[i]});
     if (i > 0) {
       args1.push_back({x[i-1], x[i]});
@@ -64,7 +67,7 @@ BOOST_FIXTURE_TEST_CASE(test_structure, fixture) {
       args1.push_back({x[i], x[i+1]});
     }
 
-    std::vector<domain> args2;
+    std::vector<domain<var> > args2;
     for (libgm::id_t id : fg.neighbors(x[i])) {
       args2.push_back(fg.arguments(id));
     }
@@ -81,7 +84,7 @@ BOOST_FIXTURE_TEST_CASE(test_structure, fixture) {
 BOOST_FIXTURE_TEST_CASE(test_simplify, fixture) {
   fg.simplify();
   for (std::size_t i = 0; i < nvars; ++i) {
-    std::vector<domain> args1;
+    std::vector<domain<var> > args1;
     if (i > 0) {
       args1.push_back({x[i-1], x[i]});
     }
@@ -89,7 +92,7 @@ BOOST_FIXTURE_TEST_CASE(test_simplify, fixture) {
       args1.push_back({x[i], x[i+1]});
     }
 
-    std::vector<domain> args2;
+    std::vector<domain<var> > args2;
     for (libgm::id_t id : fg.neighbors(x[i])) {
       args2.push_back(fg.arguments(id));
     }

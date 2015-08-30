@@ -27,17 +27,18 @@ namespace libgm {
    * functions on the factors. This class does not model the Factor
    * concept.
    *
-   * \tparam T the type of parameters stored in the table.
    * \tparam N the arity of the factor (must be either 1 or 2).
+   * \tparam T the type of parameters stored in the table.
    * \see canonical_array, probability_array
    */
-  template <typename T, std::size_t N, typename Var>
+  template <typename Arg, std::size_t N, typename T>
   class array_factor : public factor {
-    static_assert(N == 1 || N == 2, "The arity of factor must be 1 or 2");
-    static_assert(std::is_convertible<
-                    typename argument_traits<Var>::argument_category,
-                    discrete_argument_tag
-                  >::value, "Var must be a discrete argument");
+    static_assert(is_discrete<Arg>::value,
+                  "Array factors require Arg to be discrete");
+    static_assert(is_univariate<Arg>::value,
+                  "Array factors require Arg to be univariate");
+    static_assert(N == 1 || N == 2,
+                  "The arity of factor must be 1 or 2");
 
   public:
     // Underlying representation
@@ -50,9 +51,9 @@ namespace libgm {
     typedef T        value_type;
 
     // Arguments
-    typedef argument_traits<Var> arg_traits;
-    typedef array_domain<Var, N> domain_type;
-    typedef uint_assignment<Var> assignment_type;
+    typedef argument_traits<Arg> arg_traits;
+    typedef array_domain<Arg, N> domain_type;
+    typedef uint_assignment<Arg> assignment_type;
 
     // Constructors
     //==========================================================================
@@ -146,13 +147,13 @@ namespace libgm {
     }
 
     //! Returns the first argument or null if the factor is empty or nullary.
-    Var x() const {
+    Arg x() const {
       return args_[0];
     }
 
     //! Returns the second argument or null if the factor has <=1 arguments.
-    Var y() const {
-      return N == 2 ? args_[1] : Var();
+    Arg y() const {
+      return N == 2 ? args_[1] : Arg();
     }
 
     //! Returns the number of arguments of this factor.
@@ -236,7 +237,7 @@ namespace libgm {
     /**
      * Returns the size of the parameter array for a single argument.
      */
-    static std::size_t param_shape(const array_domain<Var, 1>& args) {
+    static std::size_t param_shape(const array_domain<Arg, 1>& args) {
       return arg_traits::num_values(args[0]);
     }
 
@@ -244,7 +245,7 @@ namespace libgm {
      * Returns the shape of the parmeter array for 2-argument domain.
      */
     static std::pair<std::size_t, std::size_t>
-    param_shape(const array_domain<Var, 2>& args) {
+    param_shape(const array_domain<Arg, 2>& args) {
       return {
         arg_traits::num_values(args[0]), arg_traits::num_values(args[1])
       };
@@ -292,9 +293,9 @@ namespace libgm {
      * Substitutes this factor's arguments according to the given map
      * in place.
      */
-    void subst_args(const std::unordered_map<Var, Var>& var_map) {
-      for (Var& x : args_) {
-        Var xn = var_map.at(x);
+    void subst_args(const std::unordered_map<Arg, Arg>& var_map) {
+      for (Arg& x : args_) {
+        Arg xn = var_map.at(x);
         if (!arg_traits::compatible(x, xn)) {
           std::ostringstream out;
           out << "subst_args: "; arg_traits::print(out, x);
@@ -360,9 +361,9 @@ namespace libgm {
    * have the same argument vectors.
    * \relates array_factor
    */
-  template <typename T, std::size_t N, typename Var>
-  void check_same_arguments(const array_factor<T, N, Var>& f,
-                            const array_factor<T, N, Var>& g) {
+  template <typename Arg, std::size_t N, typename T>
+  void check_same_arguments(const array_factor<Arg, N, T>& f,
+                            const array_factor<Arg, N, T>& g) {
     if (f.arguments() != g.arguments()) {
       throw std::invalid_argument(
         "Element-wise operations require the two factors "
@@ -376,10 +377,10 @@ namespace libgm {
    * \relates array_factor
    */
   template <typename Result,
-            typename T, std::size_t N, typename Var,
+            typename T, std::size_t N, typename Arg,
             typename Op>
-  Result join(const array_factor<T, N, Var>& f,
-              const array_factor<T, N, Var>& g,
+  Result join(const array_factor<Arg, N, T>& f,
+              const array_factor<Arg, N, T>& g,
               Op op) {
     if (f.arguments() == g.arguments()) {
       return Result(f.arguments(), op(f.param(), g.param()));
@@ -394,9 +395,9 @@ namespace libgm {
    * Joins a binary and a unary factor.
    * \relates array_factor
    */
-  template <typename Result, typename T, typename Var, typename Op>
-  Result join(const array_factor<T, 2, Var>& f,
-              const array_factor<T, 1, Var>& g,
+  template <typename Result, typename T, typename Arg, typename Op>
+  Result join(const array_factor<Arg, 2, T>& f,
+              const array_factor<Arg, 1, T>& g,
               Op op) {
     const auto& a = f.param(); // 2D array
     const auto& b = g.param(); // 1D array
@@ -416,9 +417,9 @@ namespace libgm {
    * Joins a unary and a binary factor.
    * \relates array_factor
    */
-  template <typename Result, typename T, typename Var, typename Op>
-  Result join(const array_factor<T, 1, Var>& f,
-              const array_factor<T, 2, Var>& g,
+  template <typename Result, typename T, typename Arg, typename Op>
+  Result join(const array_factor<Arg, 1, T>& f,
+              const array_factor<Arg, 2, T>& g,
               Op op) {
     const auto& a = f.param(); // 1D array
     const auto& b = g.param(); // 2D array
@@ -438,9 +439,9 @@ namespace libgm {
    * Joins two factors with the same arity element-wise in-place
    * using a mutating operation.
    */
-  template <typename T, std::size_t N, typename Var, typename Op>
-  void join_inplace(array_factor<T, N, Var>& h,
-                    const array_factor<T, N, Var>& f,
+  template <typename T, std::size_t N, typename Arg, typename Op>
+  void join_inplace(array_factor<Arg, N, T>& h,
+                    const array_factor<Arg, N, T>& f,
                     Op op) {
     if (h.arguments() == f.arguments()) {
       op(h.param(), f.param());
@@ -457,9 +458,9 @@ namespace libgm {
    * Joins a binary factor with a unary factor in-place
    * using a mutating operation.
    */
-  template <typename T, typename Var, typename Op>
-  void join_inplace(array_factor<T, 2, Var>& h,
-                    const array_factor<T, 1, Var>& f, Op op) {
+  template <typename T, typename Arg, typename Op>
+  void join_inplace(array_factor<Arg, 2, T>& h,
+                    const array_factor<Arg, 1, T>& f, Op op) {
     if (h.x() == f.x()) {
       op(h.param().colwise(), f.param());
     } else if (h.y() == f.x()) {
@@ -478,9 +479,9 @@ namespace libgm {
    *
    * \throws std::invalid_argument if f does not contain the argument of g
    */
-  template <typename Result, typename T, typename Var>
-  Result expectation(const array_factor<T, 2, Var>& f,
-                     const array_factor<T, 1, Var>& g) {
+  template <typename Result, typename T, typename Arg>
+  Result expectation(const array_factor<Arg, 2, T>& f,
+                     const array_factor<Arg, 1, T>& g) {
     auto a = f.param().matrix(); // matrix
     auto b = g.param().matrix(); // vector
     if (f.y() == g.x()) {
@@ -499,10 +500,10 @@ namespace libgm {
    * under the probabilities given by a unary factor g and joins the
    * result into a unary factor h.
    */
-  template <typename T, typename Var, typename Op>
-  void join_expectation(array_factor<T, 1, Var>& h,
-                        const array_factor<T, 2, Var>& f,
-                        const array_factor<T, 1, Var>& g,
+  template <typename T, typename Arg, typename Op>
+  void join_expectation(array_factor<Arg, 1, T>& h,
+                        const array_factor<Arg, 2, T>& f,
+                        const array_factor<Arg, 1, T>& g,
                         Op op) {
     auto a = f.param().matrix(); // matrix
     auto b = g.param().matrix(); // vector
@@ -523,10 +524,10 @@ namespace libgm {
    * dimension different from retain and stores the result to the specified
    * unary factor.
    */
-  template <typename T, typename Var, typename TransOp, typename AggOp>
-  void transform_aggregate(const array_factor<T, 2, Var>& f,
-                           const array_domain<Var, 1>& retain,
-                           array_factor<T, 1, Var>& h,
+  template <typename T, typename Arg, typename TransOp, typename AggOp>
+  void transform_aggregate(const array_factor<Arg, 2, T>& f,
+                           const array_domain<Arg, 1>& retain,
+                           array_factor<Arg, 1, T>& h,
                            TransOp trans_op,
                            AggOp agg_op) {
     h.reset({retain});
@@ -546,10 +547,10 @@ namespace libgm {
    * different from retain (if any) and stores the result to the specified
    * unary factor.
    */
-  template <typename T, typename Var, typename AggOp>
-  void aggregate(const array_factor<T, 2, Var>& f,
-                 const array_domain<Var, 1>& retain,
-                 array_factor<T, 1, Var>& h,
+  template <typename T, typename Arg, typename AggOp>
+  void aggregate(const array_factor<Arg, 2, T>& f,
+                 const array_domain<Arg, 1>& retain,
+                 array_factor<Arg, 1, T>& h,
                  AggOp agg_op) {
     transform_aggregate(f, retain, h, identity(), agg_op);
   }
@@ -558,9 +559,9 @@ namespace libgm {
    * Aggregates the parameter array of a binary factor along dimension
    * different from retain (if any) and returns the result with given type.
    */
-  template <typename Result, typename T, typename Var, typename AggOp>
-  Result aggregate(const array_factor<T, 2, Var>& f,
-                   const array_domain<Var, 1>& retain,
+  template <typename Result, typename T, typename Arg, typename AggOp>
+  Result aggregate(const array_factor<Arg, 2, T>& f,
+                   const array_domain<Arg, 1>& retain,
                    AggOp agg_op) {
     Result result;
     aggregate(f, retain, result, agg_op);
@@ -573,10 +574,10 @@ namespace libgm {
    * excluded, so that the result is exactly representable by
    * a unary factor.
    */
-  template <typename T, typename Var>
-  void restrict_assign(const array_factor<T, 2, Var>& f,
-                       const uint_assignment<Var>& a,
-                       array_factor<T, 1, Var>& result) {
+  template <typename T, typename Arg>
+  void restrict_assign(const array_factor<Arg, 2, T>& f,
+                       const uint_assignment<Arg>& a,
+                       array_factor<Arg, 1, T>& result) {
     auto itx = a.find(f.x());
     auto ity = a.find(f.y());
     if (itx == a.end() && ity != a.end()) {
@@ -596,10 +597,10 @@ namespace libgm {
    * Restricts a binary factor to an assignment, excluding the variables
    * in the unary factor result, and joins the restriction into result.
    */
-  template <typename T, typename Var, typename Op>
-  void restrict_join(const array_factor<T, 2, Var>& f,
-                     const uint_assignment<Var>& a,
-                     array_factor<T, 1, Var>& result,
+  template <typename T, typename Arg, typename Op>
+  void restrict_join(const array_factor<Arg, 2, T>& f,
+                     const uint_assignment<Arg>& a,
+                     array_factor<Arg, 1, T>& result,
                      Op op) {
     auto itx = result.x() != f.x() ? a.find(f.x()) : a.end();
     auto ity = result.x() != f.y() ? a.find(f.y()) : a.end();
@@ -625,10 +626,10 @@ namespace libgm {
    * and returns the result. The two factors must have the same domains.
    */
   template <typename Result,
-            typename T, std::size_t N, typename Var,
+            typename T, std::size_t N, typename Arg,
             typename Op>
-  Result transform(const array_factor<T, N, Var>& f,
-                   const array_factor<T, N, Var>& g,
+  Result transform(const array_factor<Arg, N, T>& f,
+                   const array_factor<Arg, N, T>& g,
                    Op op) {
     check_same_arguments(f, g);
     Result result(f.arguments());
@@ -640,9 +641,9 @@ namespace libgm {
    * Transforms the elements of a single factor using a unary operation
    * and accumulates the result using another operation.
    */
-  template <typename T, std::size_t N, typename Var,
+  template <typename T, std::size_t N, typename Arg,
             typename TransOp, typename AccuOp>
-  T transform_accumulate(const array_factor<T, N, Var>& f,
+  T transform_accumulate(const array_factor<Arg, N, T>& f,
                          TransOp trans_op, AccuOp accu_op) {
     T result(0);
     for (const T& x : f) {
@@ -655,10 +656,10 @@ namespace libgm {
    * Transforms the parameters of two factors using a binary operation
    * and accumulates the result using another operation.
    */
-  template <typename T, std::size_t N, typename Var,
+  template <typename T, std::size_t N, typename Arg,
             typename JoinOp, typename AggOp>
-  T transform_accumulate(const array_factor<T, N, Var>& f,
-                         const array_factor<T, N, Var>& g,
+  T transform_accumulate(const array_factor<Arg, N, T>& f,
+                         const array_factor<Arg, N, T>& g,
                          JoinOp join_op,
                          AggOp agg_op) {
     check_same_arguments(f, g);

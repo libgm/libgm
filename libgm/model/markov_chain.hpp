@@ -1,8 +1,8 @@
 #ifndef LIBGM_MARKOV_CHAIN_HPP
 #define LIBGM_MARKOV_CHAIN_HPP
 
-#include <libgm/argument/basic_domain.hpp>
-#include <libgm/base/discrete_process.hpp>
+#include <libgm/argument/domain.hpp>
+#include <libgm/argument/field.hpp>
 #include <libgm/math/logarithmic.hpp>
 
 namespace libgm {
@@ -12,15 +12,15 @@ namespace libgm {
     // Public type declarations
     //==========================================================================
   public:
-    typedef typename F::real_type           real_type;
-    typedef logarithmic<real_type>          result_type;
-    typedef typename F::variable_type       variable_type;
-    typedef typename F::domain_type         var_domain_type;
-    typedef discrete_process<variable_type> process_type;
-    typedef domain<process_type>           domain_type;
-    typedef typename F::assignment_type     assignment_type;
-    typedef typename F::index_type          var_index_type;
-    typedef real_matrix<real_type>       index_type; // for now
+    typedef typename F::real_type       real_type;
+    typedef logarithmic<real_type>      result_type;
+    typedef typename F::argument_type   argument_type;
+    typedef typename F::domain_type     var_domain_type;
+    typedef sequence<argument_type>     process_type;
+    typedef domain<process_type>        domain_type;
+    typedef typename F::assignment_type assignment_type;
+    typedef typename F::index_type      var_index_type;
+    typedef real_matrix<real_type>      index_type; // for now
 
     //! Default constructor. Creates an empty chain.
     markov_chain()
@@ -42,14 +42,14 @@ namespace libgm {
       return processes_;
     }
 
-    //! Returns the variables representing the current state of this chain
+    //! Returns the arguments representing the current state of this chain
     var_domain_type current() const {
-      return variables(processes_, current_step);
+      return arguments(processes_, current_step);
     }
 
     //! Returns the vairables representing the next state of this chain
     var_domain_type next() const {
-      return variables(processes_, next_step);
+      return arguments(processes_, next_step);
     }
 
     //! Returns the order of the chain

@@ -34,14 +34,18 @@ model_equal_factors(const Model& a, const Model& b) {
 template <typename Model>
 boost::test_tools::predicate_result
 model_close_log_likelihoods(const Model& a, const Model& b, double eps) {
-  libgm::domain arga(a.arguments()), argb(b.arguments());
+  using namespace libgm;
+  domain<var> arga(a.arguments());
+  domain<var> argb(b.arguments());
   if (!equivalent(arga, argb)) {
+    arga.unique();
+    argb.unique();
     boost::test_tools::predicate_result result(false);
     result.message() << "The two models do not have identical argument sets: "
-                     << arga.unique() << " != " << argb.unique();
+                     << arga << " != " << argb;
     return result;
   }
-  libgm::uint_assignment_iterator<> it(arga), end;
+  uint_assignment_iterator<var> it(arga), end;
   for(; it != end; ++it) {
     if (std::abs(a.log(*it) - b.log(*it)) > eps) {
       boost::test_tools::predicate_result result(false);

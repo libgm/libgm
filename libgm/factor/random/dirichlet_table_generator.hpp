@@ -79,9 +79,9 @@ namespace libgm {
                  RandomNumberGenerator& rng) const {
       // things go horribly wrong if this is not true
       assert(disjoint(head, tail));
-      F f(head + tail);
-      std::size_t m = num_values(head);
-      std::size_t n = num_values(tail);
+      F f(concaft(head, tail));
+      std::size_t m = head.num_values();
+      std::size_t n = tail.num_values();
       assert(f.size() == m * n);
       std::gamma_distribution<real_type> gamma(param_.alpha);
       real_type* dest = f.begin();

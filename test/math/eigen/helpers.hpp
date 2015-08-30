@@ -31,6 +31,11 @@ vec5(double v0, double v1, double v2, double v3, double v4) {
   return (real_vector<double>(5) << v0, v1, v2, v3, v4).finished();
 }
 
+inline real_vector<double>
+vec6(double v0, double v1, double v2, double v3, double v4, double v5) {
+  return (real_vector<double>(6) << v0, v1, v2, v3, v4, v5).finished();
+}
+
 inline real_matrix<double>
 mat11(double v00) {
   return (real_matrix<double>(1, 1) << v00).finished();

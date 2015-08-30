@@ -1,6 +1,7 @@
 #ifndef LIBGM_MOMENT_GAUSSIAN_HPP
 #define LIBGM_MOMENT_GAUSSIAN_HPP
 
+#include <libgm/macros.hpp>
 #include <libgm/argument/real_assignment.hpp>
 #include <libgm/factor/base/gaussian_factor.hpp>
 #include <libgm/factor/traits.hpp>
@@ -13,7 +14,7 @@
 namespace libgm {
 
   // forward declaration
-  template <typename T, typename Var> class canonical_gaussian;
+  template <typename Arg, typename T> class canonical_gaussian;
 
   /**
    * A factor of a Gaussian distribution in the moment parameterization.
@@ -21,30 +22,27 @@ namespace libgm {
    * \tparam T the real type for representing the parameters.
    * \ingroup factor_types
    */
-  template <typename T, typename Var>
-  class moment_gaussian : public gaussian_factor<Var> {
-    typedef argument_traits<Var> arg_traits;
+  template <typename Arg, typename T = double >
+  class moment_gaussian : public gaussian_factor<Arg> {
+    typedef argument_traits<Arg> arg_traits;
 
   public:
     // Public types
     //==========================================================================
     // Base type
-    typedef gaussian_factor<Var> base;
-
-    // Underlying storage
-    typedef real_matrix<T> mat_type;
-    typedef real_vector<T> vec_type;
+    typedef gaussian_factor<Arg> base;
 
     // Factor member types
     typedef T                       real_type;
     typedef logarithmic<T>          result_type;
-    typedef Var                     variable_type;
-    typedef basic_domain<Var>       domain_type;
-    typedef real_assignment<T, Var> assignment_type;
+    typedef Arg                     argument_type;
+    typedef domain<Arg>             domain_type;
+    typedef real_assignment<Arg, T> assignment_type;
 
     // ParametricFactor member types
     typedef moment_gaussian_param<T> param_type;
-    typedef real_vector<T>           index_type;
+    typedef real_vector<T>           vector_type;
+    typedef std::vector<std::size_t> index_type;
     typedef gaussian_distribution<T> distribution_type;
 
     // LearnableDistributionFactor member types
@@ -110,8 +108,8 @@ namespace libgm {
 
     //! Constructs a marginal moment Gaussian factor.
     moment_gaussian(const domain_type& head,
-                    const vec_type& mean,
-                    const mat_type& cov,
+                    const real_vector<T>& mean,
+                    const real_matrix<T>& cov,
                     T lm = T(0))
       : base(head),
         head_(head),
@@ -122,9 +120,9 @@ namespace libgm {
     //! Constructs a conditional moment Gaussian factor.
     moment_gaussian(const domain_type& head,
                     const domain_type& tail,
-                    const vec_type& mean,
-                    const mat_type& cov,
-                    const mat_type& coeff,
+                    const real_vector<T>& mean,
+                    const real_matrix<T>& cov,
+                    const real_matrix<T>& coeff,
                     T lm = T(0))
       : base(head, tail),
         head_(head),
@@ -135,7 +133,7 @@ namespace libgm {
     }
 
     //! Conversion from a canonical_gaussian.
-    explicit moment_gaussian(const canonical_gaussian<T, Var>& cg) {
+    explicit moment_gaussian(const canonical_gaussian<Arg, T>& cg) {
       *this = cg;
     }
 
@@ -146,16 +144,16 @@ namespace libgm {
       return *this;
     }
 
-    //! Assigns a moment_gaussian to this factor.
-    moment_gaussian& operator=(const canonical_gaussian<T, Var>& cg) {
+    //! Assigns a canonical_gaussian to this factor.
+    moment_gaussian& operator=(const canonical_gaussian<Arg, T>& cg) {
       reset(cg.arguments());
       param_ = cg.param();
       return *this;
     }
 
     //! Casts this moment_gaussian to a canonical_gaussian.
-    canonical_gaussian<T, Var> canonical() const {
-      return canonical_gaussian<T, Var>(*this);
+    canonical_gaussian<Arg, T> canonical() const {
+      return canonical_gaussian<Arg, T>(*this);
     }
 
     //! Exchanges the content of two factors.
@@ -190,7 +188,7 @@ namespace libgm {
       if (head_ != head || tail_ != tail) {
         head_ = head;
         tail_ = tail;
-        if (tail.empty()) args_.clear(); else args_ = head + tail;
+        if (tail.empty()) { args_.clear(); } else { args_ = head + tail; }
         std::size_t m, n;
         std::tie(m, n) = this->compute_start(head, tail);
         param_.resize(m, n);
@@ -203,7 +201,7 @@ namespace libgm {
       if (head_ != head || tail_ != tail) {
         head_ = head;
         tail_ = tail;
-        if (tail.empty()) args_.clear(); else args_ = head + tail;
+        if (tail.empty()) { args_.clear(); } else { args_ = head + tail; }
         this->compute_start(head, tail);
         param_.resize(0, 0);
       }
@@ -283,42 +281,66 @@ namespace libgm {
     }
 
     //! Returns the mean vector.
-    const vec_type& mean() const {
+    const real_vector<T>& mean() const {
       return param_.mean;
     }
 
     //! Returns the covariance matrix.
-    const mat_type& covariance() const {
+    const real_matrix<T>& covariance() const {
       return param_.cov;
     }
 
     //! Returns the coefficient matrix.
-    const mat_type& coefficients() const {
+    const real_matrix<T>& coefficients() const {
       return param_.coef;
     }
 
-    //! Returns the mean for a single variable.
-    Eigen::VectorBlock<const vec_type> mean(Var v) const {
-      return param_.mean.segment(this->start(v), arg_traits::num_dimensions(v));
+    //! Returns the mean for a single argument. Supported for univariate Arg.
+    LIBGM_ENABLE_IF(A = Arg, is_univariate<A>::value, T)
+    mean(Arg v) const {
+      return param_.mean[this->start_.at(v)];
     }
 
-    //! Returns the covariance matrix for a single variable.
-    Eigen::Block<const mat_type> covariance(Var v) const {
-      std::size_t i = this->start(v);
+    //! Returns variance for a single argument. Supported for univariate Arg.
+    LIBGM_ENABLE_IF(A = Arg, is_univariate<A>::value, T)
+    variance(Arg v) const {
+      std::size_t i = this->start_.at(v);
+      return param_.cov(i, i);
+    }
+
+    /**
+     * Returns the mean vector for a single argument.
+     * Supported for multivariate Arg.
+     */
+    LIBGM_ENABLE_IF(A = Arg, is_multivariate<A>::value,
+                    Eigen::VectorBlock<const real_vector<T> >)
+    mean(Arg v) const {
+      return param_.mean.segment(this->start_.at(v),
+                                 arg_traits::num_dimensions(v));
+    }
+
+    /**
+     * Returns the covariance matrix for a single argument.
+     * Supported for multivariate Arg.
+     */
+    LIBGM_ENABLE_IF(A = Arg, is_multivariate<A>::value,
+                    Eigen::Block<const real_matrix<T> >)
+    covariance(Arg v) const {
+      std::size_t i = this->start_.at(v);
       std::size_t n = arg_traits::num_dimensions(v);
       return param_.cov.block(i, i, n, n);
     }
 
     //! Returns the mean for a subset of the arguments
-    vec_type mean(const domain_type& args) const {
-      matrix_index map = this->index_map(args);
-      return subvec(param_.mean, map).plain();
+    real_vector<T> mean(const domain_type& args) const {
+      index_type index = args.index(this->start_);
+      return subvec(param_.mean, index).ref();
     }
 
     //! Returns the covariance matrix for a subset of the arguments
-    mat_type covariance(const domain_type& args) const {
-      matrix_index map = this->index_map(args);
-      return submat(param_.cov, map, map).plain();
+    real_matrix<T> covariance(const domain_type& args) const {
+      index_type index = args.index(this->start_);
+      return submat(param_.cov, index, index).ref();
     }
 
     //! Returns true of the two factors have the same domains and parameters.
@@ -338,25 +360,20 @@ namespace libgm {
     //==========================================================================
 
     /**
-     * Converts the given vector to an assignment over head variables.
+     * Converts the given vector to an assignment over head arguments.
      */
-    void assignment(const vec_type& vec, assignment_type& a) const {
-      assert(vec.size() == head_size());
-      std::size_t i = 0;
-      for (Var v : head()) {
-        a[v] = vec.segment(i, arg_traits::num_dimensions(v));
-        i += arg_traits::num_dimensions(v);
-      }
+    void assignment(const real_vector<T>& vec, assignment_type& a) const {
+      a.insert_or_assign(head(), vec);
     }
 
     /**
      * Substitutes the arguments in-place according to the given map.
      */
-    void subst_args(const std::unordered_map<Var, Var>& map) {
+    void subst_args(const std::unordered_map<Arg, Arg>& map) {
       base::subst_args(map);
-      head_.subst(map);
-      tail_.subst(map);
-      args_.subst(map);
+      head_.substitute(map);
+      tail_.substitute(map);
+      args_.substitute(map);
     }
 
     /**
@@ -371,9 +388,9 @@ namespace libgm {
       if (!equivalent(tail, tail_)) {
         throw std::runtime_error("moment_gaussian::reorder: invalid tail");
       }
-      matrix_index head_map = this->index_map(head);
-      matrix_index tail_map = this->index_map(tail);
-      return moment_gaussian(head, tail, param_.reorder(head_map, tail_map));
+      index_type head_index = head.index(this->start_);
+      index_type tail_index = tail.index(this->start_);
+      return moment_gaussian(head, tail, param_.reorder(head_index, tail_index));
     }
 
     /**
@@ -383,10 +400,10 @@ namespace libgm {
      */
     void check_param() const {
       param_.check();
-      if (param_.head_size() != num_dimensions(head_)) {
+      if (param_.head_size() != head_.num_dimensions()) {
         throw std::runtime_error("moment_gaussian: Invalid head size");
       }
-      if (param_.tail_size() != num_dimensions(tail_)) {
+      if (param_.tail_size() != tail_.num_dimensions()) {
         throw std::runtime_error("moment_gaussian: Invalid tail size");
       }
     }
@@ -411,17 +428,17 @@ namespace libgm {
     }
 
     //! Evaluates the factor for a vector.
-    logarithmic<T> operator()(const vec_type& x) const {
+    logarithmic<T> operator()(const vector_type& x) const {
       return logarithmic<T>(log(x), log_tag());
     }
 
     //! Returns the log-value of the factor for an assignment.
     T log(const assignment_type& a) const {
-      return param_(extract(a, arguments()));
+      return param_(a.values(arguments()));
     }
 
     //! Returns the log-value of the factor for a vector.
-    T log(const vec_type& x) const {
+    T log(const vector_type& x) const {
       return param_(x);
     }
 
@@ -526,9 +543,9 @@ namespace libgm {
 
     //! Computes the maximum value and stores the corresponding assignment.
     logarithmic<T> maximum(assignment_type& a) const {
-      vec_type vec;
+      real_vector<T> vec;
       T max = param_.maximum(vec);
-      assignment(vec, a);
+      a.insert_or_assign(head_, vec);
       return logarithmic<T>(max, log_tag());
     }
 
@@ -565,13 +582,13 @@ namespace libgm {
 
     //! Draws a random sample from a marginal distribution.
     template <typename Generator>
-    vec_type sample(Generator& rng) const {
+    real_vector<T> sample(Generator& rng) const {
       return param_.sample(rng);
     }
 
     //! Draws a random sample from a conditional distribution.
     template <typename Generator>
-    vec_type sample(Generator& rng, const vec_type& tail) const {
+    real_vector<T> sample(Generator& rng, const real_vector<T>& tail) const {
       assert(tail.size() == tail_size());
       return param_.sample(rng, tail);
     }
@@ -582,19 +599,19 @@ namespace libgm {
      */
     template <typename Generator>
     void sample(Generator& rng, assignment_type& a) const {
-      this->assignment(sample(rng, extract(a, tail_)), a);
+      a.insert_or_assign(head_, sample(rng, a.values(tail_)));
     }
 
     /**
      * Draws a random sample from a conditional distribution,
      * extracting the tail from and storing the result to an assignment.
-     * \param ntail the tail variables (must be equivalent to factor tail).
+     * \param ntail the tail arguments (must be equivalent to factor tail).
      */
     template <typename Generator>
     void sample(Generator& rng, const domain_type& tail,
                 assignment_type& a) const {
       assert(equivalent(tail, tail_));
-      this->assignment(sample(rng, extract(a, tail_)), a);
+      a.insert_or_assign(head_, sample(rng, a.values(tail_)));
     }
 
     // Entropy and divergences
@@ -605,7 +622,7 @@ namespace libgm {
       return param_.entropy();
     }
 
-    //! Computes the entropy for a subset of variables.
+    //! Computes the entropy for a subset of arguments.
     T entropy(const domain_type& dom) const {
       if (equivalent(args_, dom)) {
         return entropy();
@@ -616,7 +633,7 @@ namespace libgm {
 
     //! Computes the mutual information bewteen two subsets of arguments.
     T mutual_information(const domain_type& a, const domain_type& b) const {
-      return entropy(a) + entropy(b) - entropy(a | b);
+      return entropy(a) + entropy(b) - entropy(a + b);
     }
 
     //! Computes the Kullback-Liebler divergence from p to q.
@@ -649,12 +666,6 @@ namespace libgm {
 
   }; // class moment_gaussian
 
-  /**
-   * A moment_gaussian factor using double precision.
-   * \relates moment_gaussian
-   */
-  typedef moment_gaussian<double, variable> mgaussian;
-
   // Input / outputx
   //============================================================================
 
@@ -662,9 +673,9 @@ namespace libgm {
    * Prints the moment_gaussian to a stream.
    * \relates moment_gaussian
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T>
   std::ostream& operator<<(std::ostream& out,
-                           const moment_gaussian<T, Var>& f) {
+                           const moment_gaussian<Arg, T>& f) {
     out << "moment_gaussian(" << f.head() << ", " << f.tail() << ")\n"
         << f.param() << std::endl;
     return out;
@@ -677,9 +688,9 @@ namespace libgm {
    * Returns an object that can add a constant to the log-multiplier of
    * a moment Gaussian in-place.
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T>
   moment_gaussian_join_inplace<T, libgm::plus_assign<> >
-  multiplies_assign_op(moment_gaussian<T, Var>& h) {
+  multiplies_assign_op(moment_gaussian<Arg, T>& h) {
     return { };
   }
 
@@ -687,9 +698,9 @@ namespace libgm {
    * Returns an object that can subtract a constant from the log-multiplier
    * of moment Gaussian in-place.
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T>
   moment_gaussian_join_inplace<T, libgm::minus_assign<> >
-  divides_assign_op(moment_gaussian<T, Var>& h) {
+  divides_assign_op(moment_gaussian<Arg, T>& h) {
     return { };
   }
 
@@ -697,23 +708,21 @@ namespace libgm {
    * Returns an object that can compute the parameters corresponding to the
    * product of two moment Gaussians. Initializes the arguments of the result.
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T>
   moment_gaussian_multiplies<T>
-  multiplies_op(const moment_gaussian<T, Var>& f,
-                const moment_gaussian<T, Var>& g,
-                moment_gaussian<T, Var>& h) {
-    const moment_gaussian<T, Var>& p = f.is_marginal() ? f : g;
-    const moment_gaussian<T, Var>& q = f.is_marginal() ? g : f;
+  multiplies_op(const moment_gaussian<Arg, T>& f,
+                const moment_gaussian<Arg, T>& g,
+                moment_gaussian<Arg, T>& h) {
+    const moment_gaussian<Arg, T>& p = f.is_marginal() ? f : g;
+    const moment_gaussian<Arg, T>& q = f.is_marginal() ? g : f;
     if (p.is_marginal() && disjoint(f.head(), g.head())) {
-      basic_domain<Var> x1 = q.tail() & p.head();
-      basic_domain<Var> y  = q.tail() - p.head();
-      h.reset_prototype(f.head() + g.head(), y);
+      domain<Arg> x1 = q.tail() & p.head();
+      domain<Arg> z  = q.tail() - p.head();
+      h.reset_prototype(concat(f.head(), g.head()), z);
       moment_gaussian_multiplies<T> op;
-      op.p1 = p.index_map(x1);
-      op.q1 = q.index_map(x1);
-      op.qy = q.index_map(y);
-      op.hp = h.index_map(p.head());
-      op.hq = h.index_map(q.head());
+      op.p1 = x1.index(p.start());
+      op.q1 = x1.index(q.start());
+      op.qz = z.index(q.start());
       return op;
     } else {
       throw std::invalid_argument(
@@ -727,26 +736,26 @@ namespace libgm {
    * the marginal of a moment Gaussian over a subset of arguments.
    * Initializes the arguments of the result.
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T>
   moment_gaussian_collapse<T>
-  marginal_op(const moment_gaussian<T, Var>& f,
-              const basic_domain<Var>& retain,
-              moment_gaussian<T, Var>& h) {
-    basic_domain<Var> head = retain & f.head();
-    basic_domain<Var> tail = retain & f.tail();
+  marginal_op(const moment_gaussian<Arg, T>& f,
+              const domain<Arg>& retain,
+              moment_gaussian<Arg, T>& h) {
+    domain<Arg> head = retain & f.head();
+    domain<Arg> tail = retain & f.tail();
     if (head.size() + tail.size() != retain.size()) {
       throw std::invalid_argument(
-        "moment_gaussian::marginal: some of the retained variables "
+        "moment_gaussian::marginal: some of the retained arguments "
         "are not present in the factor"
       );
     }
     if (tail.size() != f.tail_size()) {
       throw std::invalid_argument(
-        "moment_gaussian::marginal cannot eliminate tail variables"
+        "moment_gaussian::marginal cannot eliminate tail arguments"
       );
     }
     h.reset_prototype(head, tail);
-    return { f.index_map(head), f.index_map(tail) };
+    return { head.index(f.start()), tail.index(f.start()) };
   }
 
   /**
@@ -754,26 +763,26 @@ namespace libgm {
    * the maximum of a moment Gaussian over a subset of arguments.
    * Initializes the arguments of the result.
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T>
   moment_gaussian_collapse<T>
-  maximum_op(const moment_gaussian<T, Var>& f,
-             const basic_domain<Var>& retain,
-             moment_gaussian<T, Var>& h) {
-    basic_domain<Var> head = retain & f.head();
-    basic_domain<Var> tail = retain & f.tail();
+  maximum_op(const moment_gaussian<Arg, T>& f,
+             const domain<Arg>& retain,
+             moment_gaussian<Arg, T>& h) {
+    domain<Arg> head = retain & f.head();
+    domain<Arg> tail = retain & f.tail();
     if (head.size() + tail.size() != retain.size()) {
       throw std::invalid_argument(
-        "moment_gaussian::maximum: some of the retained variables "
+        "moment_gaussian::maximum: some of the retained arguments "
         "are not present in the factor"
       );
     }
     if (tail.size() != f.tail_size()) {
       throw std::invalid_argument(
-        "moment_gaussian::maximum cannot eliminate tail variables"
+        "moment_gaussian::maximum cannot eliminate tail arguments"
       );
     }
     h.reset_prototype(head, tail);
-    return { f.index_map(head), f.index_map(tail), true /* preserve max */ };
+    return { head.index(f.start()), tail.index(f.start()), true /*keep max*/ };
   }
 
   /**
@@ -781,20 +790,20 @@ namespace libgm {
    * conditioning a marginal moment Gaussian distribution.
    * Initializes the arguments of the result.
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T>
   moment_gaussian_conditional<T>
-  conditional_op(const moment_gaussian<T, Var>& f,
-                 const basic_domain<Var>& tail,
-                 moment_gaussian<T, Var>& h) {
+  conditional_op(const moment_gaussian<Arg, T>& f,
+                 const domain<Arg>& tail,
+                 moment_gaussian<Arg, T>& h) {
     assert(f.is_marginal());
-    basic_domain<Var> head = f.head() - tail;
+    domain<Arg> head = f.head() - tail;
     if (f.size() != head.size() + tail.size()) {
       throw std::invalid_argument(
-        "moment_gaussian::conditional: some of the tail variables "
+        "moment_gaussian::conditional: some of the tail arguments "
         "are note present in the factor"
       );
     }
-    return { f.index_map(head), f.index_map(tail) };
+    return { head.index(f.start()), tail.index(f.start()) };
   }
 
   /**
@@ -802,31 +811,31 @@ namespace libgm {
    * restricting a moment Gaussian to the given assignment.
    * Initializes the arguments of the result.
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T>
   moment_gaussian_restrict<T>
-  restrict_op(const moment_gaussian<T, Var>& f,
-              const real_assignment<T>& a,
-              moment_gaussian<T, Var>& h) {
+  restrict_op(const moment_gaussian<Arg, T>& f,
+              const real_assignment<Arg, T>& a,
+              moment_gaussian<Arg, T>& h) {
     if (subset(f.tail(), a)) {
       // case 1: partially restricted head, fully restricted tail
-      basic_domain<Var> y, x; // restricted, retained
+      domain<Arg> y, x; // restricted, retained
       f.head().partition(a, y, x);
       h.reset_prototype(x);
       moment_gaussian_restrict<T> op(moment_gaussian_restrict<T>::MARGINAL);
-      op.x = f.index_map(x);
-      op.y = f.index_map(y);
-      op.vec_y = extract(a, y);
-      op.vec_z = extract(a, f.tail());
+      op.x = x.index(f.start());
+      op.y = y.index(f.start());
+      op.vec_y = a.values(y);
+      op.vec_z = a.values(f.tail());
       return op;
     } else if (disjoint(f.head(), a)) {
       // case 2: unrestricted head, partially restricted tail
-      basic_domain<Var> y, x; // restricted, retained
+      domain<Arg> y, x; // restricted, retained
       f.tail().partition(a, y, x);
       h.reset_prototype(f.head(), x);
       moment_gaussian_restrict<T> op(moment_gaussian_restrict<T>::CONDITIONAL);
-      op.x = f.index_map(x);
-      op.y = f.index_map(y);
-      op.vec_y = extract(a, y);
+      op.x = x.index(f.start());
+      op.y = y.index(f.start());
+      op.vec_y = a.values(y);
       return op;
     } else {
       throw std::invalid_argument(
@@ -841,28 +850,28 @@ namespace libgm {
   //! \addtogroup factor_traits
   //! @{
 
-  template <typename T, typename Var>
-  struct has_multiplies<moment_gaussian<T, Var>>
+  template <typename Arg, typename T>
+  struct has_multiplies<moment_gaussian<Arg, T>>
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_multiplies_assign<moment_gaussian<T, Var>>
+  template <typename Arg, typename T>
+  struct has_multiplies_assign<moment_gaussian<Arg, T>>
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_divides_assign<moment_gaussian<T, Var>>
+  template <typename Arg, typename T>
+  struct has_divides_assign<moment_gaussian<Arg, T>>
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_marginal<moment_gaussian<T, Var>>
+  template <typename Arg, typename T>
+  struct has_marginal<moment_gaussian<Arg, T>>
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_maximum<moment_gaussian<T, Var>>
+  template <typename Arg, typename T>
+  struct has_maximum<moment_gaussian<Arg, T>>
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_arg_max<moment_gaussian<T, Var>>
+  template <typename Arg, typename T>
+  struct has_arg_max<moment_gaussian<Arg, T>>
     : public std::true_type { };
 
   //! @}

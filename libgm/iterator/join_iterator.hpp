@@ -9,7 +9,7 @@ namespace libgm {
    * An iterator over one range, followed by another.
    * \ingroup iterator
    */
-  template <typename It1, typename It2>
+  template <typename It1, typename It2 = It1>
   class join_iterator
     : public std::iterator<std::forward_iterator_tag,
                            typename std::iterator_traits<It1>::value_type,

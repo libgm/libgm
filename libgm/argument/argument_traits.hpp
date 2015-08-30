@@ -5,6 +5,7 @@
 
 #include <functional>
 #include <iosfwd>
+#include <type_traits>
 
 namespace libgm {
 
@@ -12,200 +13,309 @@ namespace libgm {
   //============================================================================
 
   /**
+   * A tag that denotes a univariate argument.
+   * See the UnivariateArgument concept.
+   */
+  struct univariate_tag { };
+
+  /**
+   * A tag that denotes a multivariate argument.
+   * See the MultivariateArgument concept.
+   */
+  struct multivariate_tag { };
+
+  /**
    * A tag that denotes a discrete argument category.
    * See the DiscreteArgument concept.
    */
-  struct discrete_argument_tag { };
+  struct discrete_tag { };
 
   /**
    * A tag that denotes a continuous argument category.
    * See the ContinuousArgument concept.
    */
-  struct continuous_argument_tag { };
+  struct continuous_tag { };
 
   /**
    * A tag that denotes a mixed argument category.
    * See the MixedArgument concept.
    */
-  struct mixed_argument_tag
-    : discrete_argument_tag, continuous_argument_tag { };
+  struct mixed_tag : discrete_tag, continuous_tag { };
 
-
-  // Defaults for argument traits
+  // Argument traits primary template
   //============================================================================
 
   /**
-   * This class provides some meaningful defaults for arguments traits
-   * Specifically, all the functions get forwarded to member functions of
-   * the class, print() uses operator<< for ostream, hasher uses std::hash,
-   * and argument category is determined from the class's own argument_category.
+   * A class that specifies the traits for an argument. By default, this class
+   * simply forwards the calls to the argument's member functions, except for
+   * print(), which gets forwarded to vertex_traits<Arg>::print. The clients
+   * of the library can specialize this class to provide a different behavior.
    *
-   * The default template does not define any members; the actual implementation
-   * is in the specializations for each tag.
-   */
-  template <typename Arg, typename Tag>
-  struct default_argument_traits { };
-
-
-  /**
-   * Defaults for discrete arguments.
+   * \see fixed_discrete_traits, fixed_continuous_traits
    */
   template <typename Arg>
-  struct default_argument_traits<Arg, discrete_argument_tag> {
+  struct argument_traits {
 
-    //! The category of the argument.
-    typedef discrete_argument_tag argument_category;
+    /**
+     * The arity of the argument. This tag type specifies whether the
+     * argument is univariate or multivariate.
+     *
+     * \see univariate_tag, multivarite_tag
+     */
+    typedef typename Arg::argument_arity argument_arity;
 
-    //! The hash function used on the argument.
-    typedef std::hash<Arg> hasher;
+    /**
+     * The category of the argument. This tag type specifies whether the
+     * argument is discrete, continuous, or mixed.
+     *
+     * \see discrete_tag, continuous_tag, mixed_tag
+     */
+    typedef typename Arg::argument_category argument_category;
 
-    //! Prints the argument to an output stream.
+    /**
+     * The type representing the argument internally, stripped off its index.
+     * Allows the argument to participate in conversions.
+     */
+    typedef typename Arg::descriptor descriptor;
+
+    /**
+     * The type representing the argument index if the argument is indexed
+     * or indexable and void if it is not.
+     */
+    typedef typename Arg::index_type index_type;
+
+    /**
+     * The type representing the argument instantiated for a specific index
+     * if the argument is indexable and void if it is not.
+     */
+    typedef typename Arg::instance_type instance_type;
+
+    /**
+     * The hash function used when this argument is used as a key in
+     * unordered associative containers. By default, this is the
+     * hasher specified by vertex_traits, which in turn defaults
+     * to std::hash.
+     */
+    typedef typename vertex_traits<Arg>::hasher hasher;
+
+    /**
+     * Prints the argument to an output stream.
+     */
     static void print(std::ostream& out, Arg arg) {
-      out << arg;
+      vertex_traits<Arg>::print(out, arg);
     }
 
-    //! Returns true if two arguments are compatible.
+    /**
+     * Returns true if two arguments are compatible. In general, two arguments
+     * are compatible if one can be substituted for the other.
+     */
     static bool compatible(Arg arg1, Arg arg2) {
       return Arg::compatible(arg1, arg2);
     }
 
-    //! Returns the number of values the argument can take on.
-    static std::size_t num_values(Arg arg) {
-      return arg.num_values();
-    }
-
-  }; // struct default_argument_traits<Arg, discrete_argument_tag>
-
-
-  /**
-   * Defaults for continuous arguments.
-   */
-  template <typename Arg>
-  struct default_argument_traits<Arg, continuous_argument_tag> {
-
-    //! The category of the argument.
-    typedef continuous_argument_tag argument_category;
-
-    //! The hash function used on the argument.
-    typedef std::hash<Arg> hasher;
-
-    //! Prints the argument to an output stream.
-    static void print(std::ostream& out, Arg arg) {
-      out << arg;
-    }
-
-    //! Returns true if two arguments are compatible.
-    static bool compatible(Arg arg1, Arg arg2) {
-      return Arg::compatible(arg1, arg2);
-    }
-
-    //! Returns the number of dimensions of the argument.
+    /**
+     * Returns the dimensionality of the argument.
+     */
     static std::size_t num_dimensions(Arg arg) {
       return arg.num_dimensions();
     }
 
-  }; // struct default_argument_traits<Arg, continuous_argument_tag>
-
-
-  /**
-   * Defaults for mixed arguments.
-   */
-  template <typename Arg>
-  struct default_argument_traits<Arg, mixed_argument_tag> {
-
-    //! The category of the argument.
-    typedef mixed_argument_tag argument_category;
-
-    //! The hash function used on the argument.
-    typedef std::hash<Arg> hasher;
-
-    //! Prints the argument to an output stream.
-    static void print(std::ostream& out, Arg arg) {
-      out << arg;
-    }
-
-    //! Returns true if two arguments are compatible.
-    static bool compatible(Arg arg1, Arg arg2) {
-      return Arg::compatible(arg1, arg2);
-    }
-
-    //! Returns the number of values the argument can take on.
-    static std::size_t num_values(Arg arg) {
+    /**
+     * Returns the number of values of an argument. For multivariate arguments,
+     * this is the total number of assignments to all the components of the
+     * argument.
+     * This function is only supported for discrete arguments.
+     */
+    template <bool B =
+              std::is_convertible<argument_category, discrete_tag>::value>
+    static typename std::enable_if<B, std::size_t>::type
+    num_values(Arg arg) {
       return arg.num_values();
     }
 
-    //! Returns the number of dimensions of the argument.
-    static std::size_t num_dimensions(Arg arg) {
-      return arg.num_dimensions();
+    /**
+     * Returns the number of values of an argument at a particular position.
+     * This function is only supported for discrete multivariate arguments.
+     */
+    template <bool B =
+              std::is_convertible<argument_category, discrete_tag>::value &&
+              std::is_same<argument_arity, multivariate_tag>::value>
+    static typename std::enable_if<B, std::size_t>::type
+    num_values(Arg arg, std::size_t pos) {
+      return arg.num_values(pos);
     }
 
-    //! Returns true if the mixed argument is discrete.
-    static bool is_discrete(Arg arg) {
-      return arg.is_discrete();
+    /**
+     * Returns true if the argument is discrete.
+     * This function is only supported for mixed arguments.
+     */
+    template <bool B = std::is_convertible<argument_category, mixed_tag>::value>
+    static typename std::enable_if<B, bool>::type discrete(Arg arg) {
+      return arg.discrete();
     }
 
-    //! Returns true if the mixed argument is continuous.
-    static bool is_continuous(Arg arg) {
-      return arg.is_continuous();
+    /**
+     * Returns true if the argument is continuous.
+     * This function is only supported for mixed arguments.
+     */
+    template <bool B = std::is_convertible<argument_category, mixed_tag>::value>
+    static typename std::enable_if<B, bool>::type continuous(Arg arg) {
+      return arg.continuous();
     }
 
-  }; // struct default_argument_traits<Arg, mixed_argument_tag>
+    /**
+     * Returns the descriptor of the argument.
+     * This function is only supported for arguments with non-void descriptors.
+     */
+    template <bool B = !std::is_void<descriptor>::value>
+    static typename std::enable_if<B, descriptor>::type desc(Arg arg) {
+      return arg.desc();
+    }
 
+    /**
+     * Returns true if this particular argument is indexed.
+     * This function is only supported for indexed arguments.
+     */
+    template <bool B = !std::is_void<index_type>::value &&
+                       std::is_void<instance_type>::value>
+    static typename std::enable_if<B, bool>::type indexed(Arg arg) {
+      return arg.indexed();
+    }
 
-  /**
-   * A class that provides the traits for indexed arguments.
-   */
-  template <typename Arg, typename Index>
-  struct indexed_argument_traits {
-    //! The type that represents the index.
-    typedef Index argument_index;
-
-    //! Returns the index associated with the arguments of this type.
-    static Index index(Arg arg) {
+    /**
+     * Returns the index of the argument.
+     * This function is only supported for indexed arguments.
+     */
+    template <bool B = !std::is_void<index_type>::value &&
+                       std::is_void<instance_type>::value>
+    static typename std::enable_if<B, index_type>::type index(Arg arg) {
       return arg.index();
     }
 
-    //! Returns true if this particular argument is indexed.
-    static bool is_indexed(Arg arg) {
-      return arg.is_indexed;
-    }
-  }; // struct indexed_argument_traits
+  }; // struct argument_traits
 
+  // Derived argument traits
+  //============================================================================
 
   /**
-   * A class that provides the traits for non-indexed arguments.
+   * Evaluates to std::true_type if Arg is an univariate argument.
+   * \see UnivariateArgument
    */
   template <typename Arg>
-  struct indexed_argument_traits<Arg, void> {
-    // This class does not have an index.
-    typedef void argument_index;
-  };
-
+  struct is_univariate
+    : std::is_same<typename argument_traits<Arg>::argument_arity,
+                   univariate_tag> { };
 
   /**
-   * A class that describes all the traits of an argument.
+   * Evaluates to std::true_type if Arg is a multivariate argument.
+   * \see MultivariateArgument
    */
   template <typename Arg>
-  struct argument_traits
-    : default_argument_traits<Arg, typename Arg::argument_category>,
-      indexed_argument_traits<Arg, typename Arg::argument_index> { };
+  struct is_multivariate
+    : std::is_same<typename argument_traits<Arg>::argument_arity,
+                   multivariate_tag> { };
 
+  /**
+   * Evaluates to std::true_type if Arg is a discrete argument.
+   * \see DiscreteArgument
+   */
+  template <typename Arg>
+  struct is_discrete
+    : std::is_convertible<typename argument_traits<Arg>::argument_category,
+                          discrete_tag> { };
+
+  /**
+   * Evaluates to std::true_type if Arg is a continuous argument.
+   * \see ContinuousArgument
+   */
+  template <typename Arg>
+  struct is_continuous
+    : std::is_convertible<typename argument_traits<Arg>::argument_category,
+                          continuous_tag> { };
+
+  /**
+   * Evaluates to std::true_type if Arg is a mixed argument.
+   * \see MixedArgument
+   */
+  template <typename Arg>
+  struct is_mixed
+    : std::is_convertible<typename argument_traits<Arg>::argument_category,
+                          mixed_tag> { };
+
+  /**
+   * Evaluates to std::true_type if Arg is an indexed argument.
+   * \see IndexedArgument
+   */
+  template <typename Arg>
+  struct is_indexed
+    : std::integral_constant<
+        bool,
+        !std::is_void<typename argument_traits<Arg>::index_type>::value &&
+        std::is_void<typename argument_traits<Arg>::instance_type>::value
+      > { };
+
+  /**
+   * Evaluates to std::true_type if Arg is an indexable argument.
+   * \see IndexableArgument
+   */
+  template <typename Arg>
+  struct is_indexable
+    : std::integral_constant<
+        bool,
+        !std::is_void<typename argument_traits<Arg>::index_type>::value &&
+        !std::is_void<typename argument_traits<Arg>::instance_type>::value
+      > { };
+
+  /**
+   * Evaluates to std::true_type if Arg1 is convertible to Arg2. One argument
+   * is convertible to another if the descriptor of the former is convertible
+   * to the descriptor of the latter, and the index_type of the former is
+   * convertible to the index_type of the latter.
+   */
+  template <typename Arg1, typename Arg2>
+  struct is_convertible_argument
+    : std::integral_constant<
+        bool,
+        !std::is_void<typename argument_traits<Arg2>::descriptor>::value
+        &&
+        std::is_convertible<typename argument_traits<Arg1>::descriptor,
+                            typename argument_traits<Arg2>::descriptor>::value
+        &&
+        std::is_convertible<typename argument_traits<Arg1>::index_type,
+                            typename argument_traits<Arg2>::index_type>::value
+      > { };
 
   // Statically-sized argument traits
   //============================================================================
 
   /**
-   * A class that represents a discrete argument with fixed number of values N.
-   * The class inherits the hasher and the printer from vertex_traits.
+   * A class that implements the traits of a univariate discrete argument with
+   * a fixed number of values N. The class uses the hasher and the printer from
+   * vertex_traits. In order to use this implementation, specialize the
+   * argument_traits for Arg, with this class as the base:
+   *
+   * template<> struct argument_traits<your_type>
+   *   : fixed_discrete_traits<your_type, 5> { };
+   *
+   * \see argument_traits
    */
   template <typename Arg, std::size_t N>
   struct fixed_discrete_traits {
 
-    //! The category of the argument.
-    typedef discrete_argument_tag argument_category;
+    //! The arity of the argument.
+    typedef univariate_tag argument_arity;
 
-    //! The index associated with the argument (none).
-    typedef void argument_index;
+    //! The category of the argument.
+    typedef discrete_tag argument_category;
+
+    //! The descriptor of the argument (none).
+    typedef void descriptor;
+
+    //! The index type associated with the argument (none).
+    typedef void index_type;
+
+    //! The instance of the argument (none).
+    typedef void instance_type;
 
     //! The hash function used on the argument.
     typedef typename vertex_traits<Arg>::hasher hasher;
@@ -220,6 +330,11 @@ namespace libgm {
       return true;
     }
 
+    //! Returns the dimensionality of the argument (always 1).
+    static std::size_t num_dimensions(Arg arg) {
+      return 1;
+    }
+
     //! Returns the number of values the argument can take on (fixed to N).
     static std::size_t num_values(Arg arg) {
       return N;
@@ -227,20 +342,35 @@ namespace libgm {
 
   }; // struct fixed_discrete_traits
 
-
   /**
-   * A class that represents a continuous argument with a fixed number
-   * of dimensions N. The class inherits the hasher and the printer
-   * from vertex_traits.
+   * A class that implements the traits of a continuous argument with a fixed
+   * number of dimensions N. When N == 1, the argument is univariate.
+   * With N > 1, the argument is multivariate. The class uses the hasher and
+   * the printer from vertex_traits. In order to use this implementation,
+   * specialize the argument_traits for Arg, with this class as the base:
+   *
+   * template<> struct argument_traits<your_type>
+   *   : fixed_continuous_traits<your_type, 2> { };
+   *
+   * \see argument_traits
    */
-  template <typename Arg, std::size_t N>
+  template <typename Arg, std::size_t N = 1>
   struct fixed_continuous_traits {
 
-    //! The category of the argument.
-    typedef continuous_argument_tag argument_category;
+    //! The arity of the argument.
+    typedef multivariate_tag argument_arity;
 
-    //! The index associated with the argument (none).
-    typedef void argument_index;
+    //! The category of the argument.
+    typedef continuous_tag argument_category;
+
+    //! The descriptor of the argument (none).
+    typedef void descriptor;
+
+    //! The index type associated with the argument (none).
+    typedef void index_type;
+
+    //! The instance of the argument (none).
+    typedef void instance_type;
 
     //! The hash function used on the argument.
     typedef typename vertex_traits<Arg>::hasher hasher;
@@ -258,6 +388,47 @@ namespace libgm {
     //! Returns the number of dimensions of the argument.
     static std::size_t num_dimensions(Arg arg) {
       return N;
+    }
+
+  }; // struct fixed_continuous_traits
+
+  /**
+   * A class that implements the traits of an univariate continuous argument.
+   */
+  template <typename Arg>
+  struct fixed_continuous_traits<Arg, 1> {
+
+    //! The arity of the argument.
+    typedef univariate_tag argument_arity;
+
+    //! The category of the argument.
+    typedef continuous_tag argument_category;
+
+    //! The descriptor of the argument (none).
+    typedef void descriptor;
+
+    //! The index type associated with the argument (none).
+    typedef void index_type;
+
+    //! The instance of the argument (none).
+    typedef void instance_type;
+
+    //! The hash function used on the argument.
+    typedef typename vertex_traits<Arg>::hasher hasher;
+
+    //! Prints the argument to an output stream.
+    static void print(std::ostream& out, Arg arg) {
+      vertex_traits<Arg>::print(out, arg);
+    }
+
+    //! Returns true if two arguments are compatible.
+    static bool compatible(Arg arg1, Arg arg2) {
+      return true;
+    }
+
+    //! Returns the number of dimensions of the argument.
+    static std::size_t num_dimensions(Arg arg) {
+      return 1;
     }
 
   }; // struct fixed_continuous_traits

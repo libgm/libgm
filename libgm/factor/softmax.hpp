@@ -1,15 +1,16 @@
 #ifndef LIBGM_SOFTMAX_HPP
 #define LIBGM_SOFTMAX_HPP
 
+#include <libgm/macros.hpp>
 #include <libgm/argument/argument_traits.hpp>
 #include <libgm/argument/hybrid_assignment.hpp>
 #include <libgm/argument/hybrid_domain.hpp>
-#include <libgm/datastructure/hybrid_vector.hpp>
 #include <libgm/factor/base/factor.hpp>
 #include <libgm/factor/probability_array.hpp>
 #include <libgm/factor/traits.hpp>
 #include <libgm/learning/parameter/factor_mle.hpp>
 #include <libgm/math/constants.hpp>
+#include <libgm/math/eigen/hybrid.hpp>
 #include <libgm/math/likelihood/softmax_ll.hpp>
 #include <libgm/math/likelihood/softmax_mle.hpp>
 #include <libgm/math/param/softmax_param.hpp>
@@ -31,14 +32,13 @@ namespace libgm {
    * \ingroup factor_types
    * \see Factor
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T = double>
   class softmax : public factor {
-    static_assert(std::is_convertible<
-                    typename argument_traits<Var>::argument_category,
-                    mixed_argument_tag
-                  >::value, "Var must be a mixed argument");
+    static_assert(is_mixed<Arg>::value,
+                  "Arg must be mixed argument type, supporting both "
+                  "doiscrete and continuous arguments");
 
-    typedef argument_traits<Var> arg_traits;
+    typedef argument_traits<Arg> arg_traits;
 
     // Public types
     //==========================================================================
@@ -46,22 +46,18 @@ namespace libgm {
     // Factor member types
     typedef T                         real_type;
     typedef T                         result_type;
-    typedef Var                       variable_type;
-    typedef hybrid_domain<Var>        domain_type;
-    typedef hybrid_assignment<T, Var> assignment_type;
+    typedef Arg                       argument_type;
+    typedef hybrid_domain<Arg>        domain_type;
+    typedef hybrid_assignment<Arg, T> assignment_type;
 
     // ParametricFactor member types
-    typedef softmax_param<T> param_type;
-    typedef hybrid_vector<T> index_type;
+    typedef softmax_param<T>        param_type;
+    typedef hybrid_vector<T>        vector_type;
     typedef softmax_distribution<T> distribution_type;
 
     // LearnableFactor member types
     typedef softmax_ll<T>  ll_type;
     typedef softmax_mle<T> mle_type;
-
-    // Types to represent the parameters
-    typedef real_matrix<T> mat_type;
-    typedef real_vector<T> vec_type;
 
     // Constructors and conversion operators
     //==========================================================================
@@ -84,7 +80,7 @@ namespace libgm {
      * Constructs a factor with the given label variable and feature arguments.
      * Allocates the parameters but does not initialize their values.
      */
-    softmax(Var head, const basic_domain<Var>& tail) {
+    softmax(Arg head, const domain<Arg>& tail) {
       reset(head, tail);
     }
 
@@ -122,10 +118,11 @@ namespace libgm {
      */
     void reset(const domain_type& args) {
       if (args_ != args) {
-        assert(args.discrete().size() == 1);
+        assert(args.discrete().size() == 1 &&
+               arg_traits::num_dimensions(args.discrete()[0]) == 1);
         args_ = args;
         param_.resize(arg_traits::num_values(args.discrete()[0]),
-                      num_dimensions(args.continuous()));
+                      args.continuous().num_dimensions());
       }
     }
 
@@ -133,10 +130,10 @@ namespace libgm {
      * Resets the content of this factor to the given head and tail
      * arguments. The parameter values may become invalidated.
      */
-    void reset(Var head, const basic_domain<Var>& tail) {
+    void reset(Arg head, const domain<Arg>& tail) {
       args_.discrete().assign(1, head);
       args_.continuous() = tail;
-      param_.resize(arg_traits::num_values(head), num_dimensions(tail));
+      param_.resize(arg_traits::num_values(head), tail.num_dimensions());
     }
 
     // Accessors and comparison operators
@@ -148,13 +145,13 @@ namespace libgm {
     }
 
     //! Returns the label variable.
-    Var head() const {
+    Arg head() const {
       assert(!args_.empty());
       return args_.discrete()[0];
     }
 
     //! Returns the feature arguments of this factor.
-    const basic_domain<Var>& tail() const {
+    const domain<Arg>& tail() const {
       return args_.continuous();
     }
 
@@ -189,12 +186,12 @@ namespace libgm {
     }
 
     //! Returns the weight matrix.
-    const mat_type& weight() const {
+    const real_matrix<T>& weight() const {
       return param_.weight();
     }
 
     //! Returns the bias vector.
-    const vec_type& bias() const {
+    const real_vector<T>& bias() const {
       return param_.bias();
     }
 
@@ -214,11 +211,10 @@ namespace libgm {
      *        missing features are assumed to be 0.
      */
     T operator()(const assignment_type& a, bool strict = true) const {
-      std::size_t label = a.uint().at(head());
+      std::vector<std::size_t> label = a.uint().values({head()});
+      assert(label.size() == 1);
       if (strict) {
-        vec_type features;
-        extract_features(a.real(), features);
-        return param_(features)[label];
+        return param_(a.real().values(tail()))[label[0]];
       } else {
         assert(false); // not implemented yet
       }
@@ -263,49 +259,6 @@ namespace libgm {
     //==========================================================================
 
     /**
-     * Extracts a dense feature vector from an assignment. All the tail
-     * variables must be present in the assignment.
-     */
-    void extract_features(const real_assignment<T, Var>& a,
-                          vec_type& result) const {
-      result.resize(features());
-      std::size_t row = 0;
-      for (Var v : tail()) {
-        auto it = a.find(v);
-        if (it != a.end()) {
-          result.segment(row, arg_traits::num_dimensions(v)) = it->second;
-          row += arg_traits::num_dimensions(v);
-        } else {
-          std::ostringstream out;
-          out << "The assignment does not contain the tail variable " << v;
-          throw std::invalid_argument(out.str());
-        }
-      }
-    }
-
-#if 0
-    /**
-     * Extracts a sparse vector of features from an assignment. Tail variables
-     * that are missing in the assignment are assumed to have a value of 0.
-     */
-    void extract_features(const real_assignment<T>& a,
-                          sparse_index<T>& result) const {
-      result.clear();
-      result.reserve(num_dimensions(tail()));
-      std::size_t id = 0;
-      for (Var v : tail()) {
-        auto it = a.find(v);
-        if (it != a.end()) {
-          for (std::size_t i = 0; i < v->size(); ++i) {
-            result.emplace_back(id + i, it->second[i]);
-          }
-        }
-        id += v->size();
-      }
-    }
-#endif
-
-    /**
      * Checks if the dimensions of the parameters match this factor's arguments.
      * \throw std::runtime_error if some of the dimensions do not match.
      */
@@ -320,7 +273,7 @@ namespace libgm {
         if (param_.labels() != arg_traits::num_values(head())) {
           throw std::runtime_error("Invalid number of labels");
         }
-        if (param_.features() != num_dimensions(tail())) {
+        if (param_.features() != tail().num_dimensions()) {
           throw std::runtime_error("Invalid number of features");
         }
       }
@@ -337,31 +290,29 @@ namespace libgm {
       return param_.is_finite();
     }
 
+#if 0
     /**
      * Conditions the factor on the given features in the factor's internal
      * ordering of tail variables.
      */
-    probability_array<T, 1, Var>
-    condition(const vec_type& index) const {
-      return probability_array<T, 1, Var>({head()}, param_(index));
+    LIBGM_ENABLE_IF(A = Arg, is_univariate<A>::value, probability_array<Arg, 1, T>))
+    condition(const real_vector<T>& index) const {
+      return probability_array<Arg, 1, T>({head()}, param_(index));
     }
 
-#if 0
     /**
      * Conditions the factor on the assignment to its tail variables.
      * \param strict if true, requires that all the tail arguments are present
      *        in the assignment.
      */
-    probability_array<T, 1, Var>
-    condition(const real_assignment<T, Var>& a, bool strict = true) const {
+    probability_array<Arg, 1, T>
+    condition(const real_assignment<Arg, T>& a, bool strict = true) const {
       if (strict) {
-        vec_type features;
-        extract_features(a, features);
-        return probability_array<T, 1, Var>({head()}, param_(features));
+        real_vector<T> features = a.real().values(tail());
+        return probability_array<Arg, 1, T>({head()}, param_(features));
       } else {
-        sparse_index<T> features;
-        extract_features(a, features);
-        return probability_array<T, 1, Var>({head()}, param_(features));
+        sparse_index<T> features = a.real().sparse_values(tail());
+        return probability_array<Arg, 1, T>({head()}, param_(features));
       }
     }
 
@@ -391,7 +342,7 @@ namespace libgm {
 
     //! Draws a random sample from a conditional distribution.
     template <typename Generator>
-    std::size_t sample(Generator& rng, const vec_type& tail) const {
+    std::size_t sample(Generator& rng, const real_vector<T>& tail) const {
       return param_.sample(rng, tail);
     }
 
@@ -402,7 +353,7 @@ namespace libgm {
      */
     template <typename Generator>
     void sample(Generator& rng, assignment_type& a) const {
-      a.uint()[head()] = param_.sample(rng, extract(a, tail()));
+      a.uint()[head()] = param_.sample(rng, a.real().values(tail()));
     }
 
     // Private members
@@ -420,8 +371,8 @@ namespace libgm {
    * Prints a human-readable representation of the CPD to a stream.
    * \relates softmax
    */
-  template <typename T, typename Var>
-  std::ostream& operator<<(std::ostream& out, const softmax<T, Var>& f) {
+  template <typename Arg, typename T>
+  std::ostream& operator<<(std::ostream& out, const softmax<Arg, T>& f) {
     if (f.empty()) {
       out << "softmax()" << std::endl;
     } else {
@@ -441,11 +392,11 @@ namespace libgm {
    *
    * \tparam T the real type representing the parameters of softmax
    */
-  template <typename T, typename Var>
-  class factor_mle<softmax<T, Var> > {
+  template <typename Arg, typename T>
+  class factor_mle<softmax<Arg, T> > {
   public:
     //! The domain type of the factor.
-    typedef hybrid_domain<Var> domain_type;
+    typedef hybrid_domain<Arg> domain_type;
 
     //! The maximum likelihoo estimator of factor parameters.
     typedef softmax_mle<T> mle_type;
@@ -453,7 +404,7 @@ namespace libgm {
     //! The regularization paramters for the MLE.
     typedef typename mle_type::regul_type regul_type;
 
-    typedef softmax<T, Var> factor_type;
+    typedef softmax<Arg, T> factor_type;
 
     /**
      * Constructs a factor estimator with the specified regularization
@@ -477,7 +428,7 @@ namespace libgm {
      */
     template <typename Dataset>
     factor_type operator()(const Dataset& ds,
-                           Var head, const basic_domain<Var>& tail) const {
+                           Arg head, const domain<Arg>& tail) const {
       domain_type args({head}, tail);
       return factor_type(args, mle_(ds(args), factor_type::param_shape(args)));
     }

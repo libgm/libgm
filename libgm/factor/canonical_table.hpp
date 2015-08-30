@@ -18,7 +18,7 @@
 namespace libgm {
 
   // Forward declaration
-  template <typename T, typename Var> class probability_table;
+  template <typename Arg, typename T> class probability_table;
 
   /**
    * A factor of a categorical probability distribution represented in the
@@ -32,8 +32,8 @@ namespace libgm {
    * \ingroup factor_types
    * \see Factor
    */
-  template <typename T, typename Var>
-  class canonical_table : public table_factor<T, Var> {
+  template <typename Arg, typename T = double>
+  class canonical_table : public table_factor<Arg, T> {
   public:
     // Public types
     //==========================================================================
@@ -41,20 +41,20 @@ namespace libgm {
     // Factor member types
     typedef T                    real_type;
     typedef logarithmic<T>       result_type;
-    typedef Var                  variable_type;
-    typedef basic_domain<Var>    domain_type;
-    typedef uint_assignment<Var> assignment_type;
+    typedef Arg                  argument_type;
+    typedef domain<Arg>          domain_type;
+    typedef uint_assignment<Arg> assignment_type;
 
     // ParametricFactor types
     typedef table<T>     param_type;
-    typedef uint_vector  index_type;
+    typedef uint_vector  vector_type;
     typedef table_distribution<T> distribution_type;
 
     // LearnableDistributionFactor member types
     typedef canonical_table_ll<T> ll_type;
 
     // ExponentialFamilyFactor member types
-    typedef probability_table<T, Var> probability_type;
+    typedef probability_table<Arg, T> probability_type;
 
     // Constructors and conversion operators
     //==========================================================================
@@ -81,11 +81,11 @@ namespace libgm {
 
     //! Creates a factor with the specified arguments and parameters.
     canonical_table(const domain_type& args, const table<T>& param)
-      : table_factor<T, Var>(args, param) { }
+      : table_factor<Arg, T>(args, param) { }
 
     //! Creates a factor with the specified arguments and parameters.
     canonical_table(const domain_type& args, table<T>&& param)
-      : table_factor<T, Var>(args, std::move(param)) { }
+      : table_factor<Arg, T>(args, std::move(param)) { }
 
     //! Creates a factor with the specified arguments and parameters.
     canonical_table(const domain_type& args,
@@ -96,7 +96,7 @@ namespace libgm {
     }
 
     //! Conversion from a probability_table factor.
-    explicit canonical_table(const probability_table<T, Var>& f) {
+    explicit canonical_table(const probability_table<Arg, T>& f) {
       *this = f;
     }
 
@@ -108,7 +108,7 @@ namespace libgm {
     }
 
     //! Assigns a probability table factor to this factor.
-    canonical_table& operator=(const probability_table<T, Var>& f) {
+    canonical_table& operator=(const probability_table<Arg, T>& f) {
       this->reset(f.arguments());
       std::transform(f.begin(), f.end(), this->begin(), logarithm<T>());
       return *this;
@@ -315,14 +315,14 @@ namespace libgm {
     //! Computes the maximum value and stores the corresponding assignment.
     logarithmic<T> maximum(assignment_type& a) const {
       const T* it = std::max_element(this->begin(), this->end());
-      this->assignment(this->param_.index(it), a);
+      a.insert_or_assign(arguments(), this->param_.index(it));
       return logarithmic<T>(*it, log_tag());
     }
 
     //! Computes the minimum value and stores the corresponding assignment.
     logarithmic<T> minimum(assignment_type& a) const {
       const T* it = std::min_element(this->begin(), this->end());
-      this->assignment(this->param_.index(it), a);
+      a.insert_or_assign(arguments(), this->param_.index(it));
       return logarithmic<T>(*it, log_tag());
     }
 
@@ -346,7 +346,7 @@ namespace libgm {
 
     //! Restricts this factor to an assignment.
     void restrict(const assignment_type& a, canonical_table& result) const {
-      table_factor<T, Var>::restrict(a, result);
+      table_factor<Arg, T>::restrict(a, result);
     }
 
     // Sampling
@@ -375,7 +375,7 @@ namespace libgm {
      */
     template <typename Generator>
     void sample(Generator& rng, assignment_type& a) const {
-      this->assignment(sample(rng), a);
+      a.insert_or_assign(arguments(), sample(rng));
     }
 
     /**
@@ -386,8 +386,8 @@ namespace libgm {
     template <typename Generator>
     void sample(Generator& rng, const domain_type& head,
                 assignment_type& a) const {
-      assert(prefix(head, arguments()));
-      this->assignment(sample(rng, extract(a, arguments(), head.size())), a);
+      assert(arguments().prefix(head));
+      a.insert_or_assign(head, sample(rng, a.values(arguments(), head.size())));
     }
 
     // Entropy and divergences
@@ -408,7 +408,7 @@ namespace libgm {
     //! Computes the mutual information between two subsets of this factor's
     //! arguments.
     T mutual_information(const domain_type& a, const domain_type& b) const {
-      return entropy(a) + entropy(b) - entropy(a | b);
+      return entropy(a) + entropy(b) - entropy(a + b);
     }
 
     //! Computes the cross entropy from p to q.
@@ -438,12 +438,6 @@ namespace libgm {
 
   }; // class canonical_table
 
-  /**
-   * A canonical_table factor using double precision.
-   * \relates canonical_table
-   */
-  typedef canonical_table<double, variable> ctable;
-
   // Input / output
   //============================================================================
 
@@ -451,9 +445,9 @@ namespace libgm {
    * Prints a human-readable representatino of the table factor to the stream.
    * \relates canonical_table
    */
-  template <typename T, typename Var>
+  template <typename Arg, typename T>
   std::ostream&
-  operator<<(std::ostream& out, const canonical_table<T, Var>& f) {
+  operator<<(std::ostream& out, const canonical_table<Arg, T>& f) {
     out << "#CT(" << f.arguments() << ")" << std::endl;
     out << f.param();
     return out;
@@ -462,48 +456,48 @@ namespace libgm {
   // Traits
   //============================================================================
 
-  template <typename T, typename Var>
-  struct has_multiplies<canonical_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_multiplies<canonical_table<Arg, T> >
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_multiplies_assign<canonical_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_multiplies_assign<canonical_table<Arg, T> >
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_divides<canonical_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_divides<canonical_table<Arg, T> >
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_divides_assign<canonical_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_divides_assign<canonical_table<Arg, T> >
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_max<canonical_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_max<canonical_table<Arg, T> >
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_min<canonical_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_min<canonical_table<Arg, T> >
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_marginal<canonical_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_marginal<canonical_table<Arg, T> >
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_maximum<canonical_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_maximum<canonical_table<Arg, T> >
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_minimum<canonical_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_minimum<canonical_table<Arg, T> >
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_arg_max<canonical_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_arg_max<canonical_table<Arg, T> >
     : public std::true_type { };
 
-  template <typename T, typename Var>
-  struct has_arg_min<canonical_table<T, Var> >
+  template <typename Arg, typename T>
+  struct has_arg_min<canonical_table<Arg, T> >
     : public std::true_type { };
 
 } // namespace libgm

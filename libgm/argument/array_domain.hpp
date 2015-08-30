@@ -1,6 +1,7 @@
 #ifndef LIBGM_ARRAY_DOMAIN_HPP
 #define LIBGM_ARRAY_DOMAIN_HPP
 
+#include <libgm/argument/argument_cast.hpp>
 #include <libgm/argument/argument_traits.hpp>
 #include <libgm/serialization/array.hpp>
 
@@ -46,26 +47,78 @@ namespace libgm {
       ar >> static_cast<std::array<Arg, N>&>(*this);
     }
 
+    //! Prints the domain to an output stream.
+    friend std::ostream& operator<<(std::ostream& out, const array_domain& a) {
+      out << '[';
+      for (std::size_t i = 0; i < N; ++i) {
+        if (i > 0) { out << ','; }
+        argument_traits<Arg>::print(out, a[i]);
+      }
+      out << ']';
+      return out;
+    }
+
+    // Sequence operations
+    //==========================================================================
+
+    //! Returns true if the given domain is a prefix of this domain.
+    template <std::size_t M>
+    bool prefix(const array_domain<Arg, M>& dom) const {
+      return M <= N && std::equal(dom.begin(), dom.end(), this->begin());
+    }
+
+    //! Returnrs true if the given domain is a suffix of this domain.
+    template <std::size_t M>
+    bool suffix(const array_domain<Arg, M>& dom) const {
+      return M <= N && std::equal(dom.begin(), dom.end(), this->end() - M);
+    }
+
+    // Set operations
+    //==========================================================================
+
     //! Returns the number of times an argument is present in the domain.
     std::size_t count(const Arg& x) const {
       return std::count(this->begin(), this->end(), x);
     }
+
+    // Argument operations
+    //==========================================================================
+
+    //! Returns true if two domains are type-compatible.
+    friend bool compatible(const array_domain& a, const array_domain& b) {
+      for (std::size_t i = 0; i < a.size(); ++i) {
+        if (!argument_traits<Arg>::compatible(a[i], b[i])) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    //! Returns the vector dimensionality for a collection of arguments.
+    std::size_t num_dimensions() const {
+      std::size_t size = 0;
+      for (Arg arg : *this) {
+        size += argument_traits<Arg>::num_dimensions(arg);
+      }
+      return size;
+    }
+
+    //! Returns the number of values for a collection of discrete arguments.
+    template <bool B = is_discrete<Arg>::value>
+    typename std::enable_if<B, std::size_t>::type num_values() const {
+      std::size_t size = 1;
+      for (Arg arg : *this) {
+        std::size_t values = argument_traits<Arg>::num_values(arg);
+        if (std::numeric_limits<std::size_t>::max() / values <= size) {
+          throw std::out_of_range("num_values: possibly overflows std::size_t");
+        }
+        size *= values;
+      }
+      return size;
+    }
+
   }; // class array_domain
 
-  /**
-   * Prints the domain to an output stream.
-   * \relates array_domain
-   */
-  template <typename Arg, std::size_t N>
-  std::ostream& operator<<(std::ostream& out, const array_domain<Arg, N>& a) {
-    out << '[';
-    for (std::size_t i = 0; i < N; ++i) {
-      if (i > 0) { out << ','; }
-      argument_traits<Arg>::print(out, a[i]);
-    }
-    out << ']';
-    return out;
-  }
 
   // Set operations
   //============================================================================
@@ -76,31 +129,10 @@ namespace libgm {
    */
   template <typename Arg, std::size_t M, std::size_t N>
   array_domain<Arg, M+N>
-  operator+(const array_domain<Arg, M>& a, const array_domain<Arg, N>& b) {
+  concat(const array_domain<Arg, M>& a, const array_domain<Arg, N>& b) {
     array_domain<Arg, M+N> r;
     std::copy(a.begin(), a.end(), r.begin());
     std::copy(b.begin(), b.end(), r.begin() + M);
-    return r;
-  }
-
-  /**
-   * Returns the difference of two fixed-size domains.
-   * This operation is valid only if b is a subset of a.
-   * \relates array_domain
-   */
-  template <typename Arg, std::size_t M, std::size_t N>
-  array_domain<Arg, M-N>
-  operator-(const array_domain<Arg, M>& a, const array_domain<Arg, N>& b) {
-    static_assert(M > N, "Arghe first argument must be the larger domain");
-    array_domain<Arg, M-N> r;
-    std::size_t i = 0;
-    for (Arg x : a) {
-      if (!b.count(x)) {
-        assert(i < M-N);
-        r[i++] = x;
-      }
-    }
-    assert(i == M-N);
     return r;
   }
 
@@ -111,9 +143,30 @@ namespace libgm {
    */
   template <typename Arg, std::size_t M, std::size_t N>
   array_domain<Arg, M+N>
-  operator|(const array_domain<Arg, M>& a, const array_domain<Arg, N>& b) {
+  operator+(const array_domain<Arg, M>& a, const array_domain<Arg, N>& b) {
     assert(disjoint(a, b));
-    return a + b;
+    return concat(a, b);
+  }
+
+  /**
+   * Returns the difference of two fixed-size domains.
+   * This operation is valid only if b is a subset of a.
+   * \relates array_domain
+   */
+  template <typename Arg, std::size_t M, std::size_t N>
+  array_domain<Arg, M-N>
+  operator-(const array_domain<Arg, M>& a, const array_domain<Arg, N>& b) {
+    static_assert(M > N, "The first argument must be the larger domain");
+    array_domain<Arg, M-N> r;
+    std::size_t i = 0;
+    for (Arg x : a) {
+      if (!b.count(x)) {
+        assert(i < M-N);
+        r[i++] = x;
+      }
+    }
+    assert(i == M-N);
+    return r;
   }
 
   /**
@@ -276,45 +329,25 @@ namespace libgm {
   //============================================================================
 
   /**
-   * Returns the number of assignments for a collection of finite arguments.
+   * Converts one domain to a domain with another argument type.
+   *
+   * \tparam Target
+   *         The target argument type. Must be convertible from Source using
+   *         argument_cast.
+   * \tparam Source
+   *         The original argument type.
+   * \relates array_domain
    */
-  template <typename Arg, std::size_t N>
-  std::size_t num_values(const array_domain<Arg, N>& dom) {
-    std::size_t size = 1;
-    for (Arg arg : dom) {
-      std::size_t values = argument_traits<Arg>::num_values(arg);
-      if (std::numeric_limits<std::size_t>::max() / values <= size) {
-        throw std::out_of_range("num_values: possibly overflows std::size_t");
-      }
-      size *= values;
-    }
-    return size;
-  }
+  template <typename Target, typename Source, std::size_t N>
+  array_domain<Target, N> argument_cast(const array_domain<Source, N>& dom) {
+    static_assert(is_convertible_argument<Source, Target>::value,
+                  "Source must be argument-convertible to Target");
 
-  /**
-   * Returns the vector dimensionality for a collection of vector arguments.
-   */
-  template <typename Arg, std::size_t N>
-  std::size_t num_dimensions(const array_domain<Arg, N>& dom) {
-    std::size_t size = 0;
-    for (Arg arg : dom) {
-      size += argument_traits<Arg>::num_dimensions(arg);
+    array_domain<Target, N> result;
+    for (std::size_t i = 0; i < N; ++i) {
+      result[i] = argument_cast<Target>(dom[i]);
     }
-    return size;
-  }
-
-  /**
-   * Returns true if two domains are type-compatible.
-   * \relates domain
-   */
-  template <typename Arg, std::size_t N>
-  bool compatible(const array_domain<Arg, N>& a, const array_domain<Arg, N>& b) {
-    for (std::size_t i = 0; i < a.size(); ++i) {
-      if (!argument_traits<Arg>::compatible(a[i], b[i])) {
-        return false;
-      }
-    }
-    return true;
+    return result;
   }
 
 } // namespace libgm

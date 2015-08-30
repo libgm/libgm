@@ -27,9 +27,9 @@ namespace libgm {
     typedef typename factor_mle<F>::regul_type param_type;
 
     // Additional types
-    typedef typename F::variable_type variable_type;
+    typedef typename F::argument_type argument_type;
     typedef typename F::domain_type   domain_type;
-    typedef undirected_edge<variable_type> edge_type;
+    typedef undirected_edge<argument_type> edge_type;
 
     /**
      * Constructs the Chow-Liu learner using the given parameters.
@@ -56,9 +56,9 @@ namespace libgm {
 
       // g will hold factor F and weight (mutual information) for each edge
       // this part could be optimized to eliminate copies
-      undirected_graph<variable_type, void_, std::pair<F, real_type> > g;
-      for (variable_type u : vars) {
-        for (variable_type v : vars) {
+      undirected_graph<argument_type, void_, std::pair<F, real_type> > g;
+      for (argument_type u : vars) {
+        for (argument_type v : vars) {
           if (u < v) {
             F f = mle(ds, {u, v});
             real_type mi = f.mutual_information({u}, {v});

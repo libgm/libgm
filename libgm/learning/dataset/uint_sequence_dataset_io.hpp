@@ -3,6 +3,7 @@
 
 #include <libgm/learning/dataset/text_dataset_format.hpp>
 #include <libgm/learning/dataset/uint_sequence_dataset.hpp>
+#include <libgm/traits/missing.hpp>
 
 #include <fstream>
 #include <iostream>
@@ -21,52 +22,51 @@ namespace libgm {
    *        that are not discrete-valued
    * \relates uint_sequence_dataset
    */
-  template <typename T>
+  template <typename Arg, typename T>
   void load(const std::vector<std::string>& filenames,
-            const text_dataset_format& format,
-            uint_sequence_dataset<T>& ds) {
+            const text_dataset_format<Arg>& format,
+            uint_sequence_dataset<Arg, T>& ds) {
     // initialize the dataset
-    if (!format.all_dprocesses_discrete()) {
+    if (!format.all_sequences_discrete()) {
       throw std::domain_error(
-        "The format contains process(es) that are not discrete-valued"
+        "The format contains sequence(s) that are not discrete-valued"
       );
     }
-    ds.initialize(format.dprocesses, filenames.size());
+    ds.initialize(format.sequences, filenames.size());
 
-    for (std::size_t i = 0; i < filenames.size(); ++i) {
+    for (const std::string& filename : filenames) {
       // open the file
-      std::ifstream in(filenames[i]);
+      std::ifstream in(filename);
       if (!in) {
-        throw std::runtime_error("Cannot open the file " + filenames[i]);
+        throw std::runtime_error("Cannot open the file " + filename);
       }
 
       // read the table line by line, storing the values for each time step
-      std::vector<std::vector<std::size_t> > values; // [t][i]
+      std::vector<std::size_t> values;
       std::string line;
       std::size_t line_number = 0;
+      std::size_t t = 0;
       std::vector<const char*> tokens;
       while (std::getline(in, line)) {
-        if (format.tokenize(ds.arity(), line, line_number, tokens)) {
-          std::vector<std::size_t> val_t(ds.arity());
-          for (std::size_t i = 0; i < val_t.size(); ++i) {
-            const char* token = tokens[i + format.skip_cols];
-            if (token == format.missing) {
-              val_t[i] = -1;
-            } else {
-              val_t[i] = format.dprocesses[i].parse_discrete(token);
+        if (format.tokenize(ds.num_cols(), line, line_number, tokens)) {
+          ++t;
+          std::size_t col = format.skip_cols;
+          for (sequence<Arg> seq : format.sequences) {
+            std::size_t size = seq.num_dimensions();
+            for (std::size_t j = 0; j < size; ++j) {
+              const char* token = tokens[col++];
+              if (token == format.missing) {
+                values.push_back(missing<std::size_t>::value);
+              } else {
+                values.push_back(seq.desc()->parse_discrete(token, j));
+              }
             }
           }
-          values.push_back(std::move(val_t));
         }
       }
 
-      // concatenate the values and store them in the dataset
-      real_matrix<std::size_t> data(ds.arity(), values.size());
-      std::size_t* dest = data.data();
-      for (const std::vector<std::size_t>& val_t : values) {
-        dest = std::copy(val_t.begin(), val_t.end(), dest);
-      }
-      ds.insert(data, T(1));
+      // the values are already in the right format (column-major)
+      ds.insert(Eigen::Map<uint_matrix>(values.data(), ds.num_cols(), t), T(1));
     }
   }
 
@@ -79,14 +79,14 @@ namespace libgm {
    * \throw std::invalid_argument if the filenames and samples do not match
    * \relates uint_sequence_dataset
    */
-  template <typename T>
+  template <typename Arg, typename T>
   void save(const std::vector<std::string>& filenames,
-            const text_dataset_format& format,
-            const uint_sequence_dataset<T>& ds) {
+            const text_dataset_format<Arg>& format,
+            const uint_sequence_dataset<Arg, T>& ds) {
     // Check the arguments
-    if (!format.all_dprocesses_discrete()) {
+    if (!format.all_sequences_discrete()) {
       throw std::domain_error(
-        "The format contains process(es) that are not discrete-valued"
+        "The format contains sequence(s) that are not discrete-valued"
       );
     }
     if (filenames.size() != ds.size()) {
@@ -94,7 +94,7 @@ namespace libgm {
     }
 
     std::size_t row = 0;
-    for (const auto& value : ds(format.dprocesses)) {
+    for (const auto& sample : ds.samples(format.sequences)) {
       // Open the file
       std::ofstream out(filenames[row]);
       if (!out) {
@@ -109,17 +109,21 @@ namespace libgm {
 
       // Output the data
       std::string separator = format.separator.empty() ? " " : format.separator;
-      const real_matrix<std::size_t>& data = value.first;
+      const uint_matrix& data = sample.first;
       for (std::size_t t = 0; t < data.cols(); ++t) {
         for (std::size_t i = 0; i < format.skip_cols; ++i) {
           out << "0" << separator;
         }
-        for (std::size_t i = 0; i < data.rows(); ++i) {
-          if (i > 0) { out << separator; }
-          if (data(i, t) == std::size_t(-1)) {
-            out << format.missing;
-          } else {
-            format.dprocesses[i].print_discrete(out, data(i, t));
+        std::size_t i = 0;
+        for (sequence<Arg> seq : format.sequences) {
+          std::size_t size = seq.num_dimensions();
+          for (std::size_t j = 0; j < size; ++i, ++j) {
+            if (i > 0) { out << separator; }
+            if (ismissing(data(i, t))) {
+              out << format.missing;
+            } else {
+              seq.desc()->print_discrete(out, data(i, t));
+            }
           }
         }
         out << std::endl;

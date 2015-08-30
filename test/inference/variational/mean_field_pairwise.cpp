@@ -14,19 +14,20 @@
 
 #include <random>
 
+typedef std::pair<int, int> grid_vertex;
+
 namespace libgm {
   template <>
-  struct argument_traits<std::pair<int, int> >
-    : fixed_discrete_traits<std::pair<int, int>, 2> { };
+  struct argument_traits<grid_vertex>
+    : fixed_discrete_traits<grid_vertex, 2> { };
 }
 
 using namespace libgm;
 
-typedef std::pair<int, int> grid_vertex;
-typedef canonical_array<double, 1, grid_vertex> carray1_type;
-typedef canonical_array<double, 2, grid_vertex> carray2_type;
-typedef probability_array<double, 1, grid_vertex> parray1_type;
-typedef probability_table<double, grid_vertex> ptable_type;
+typedef canonical_array<grid_vertex, 1> carray1;
+typedef canonical_array<grid_vertex, 2> carray2;
+typedef probability_array<grid_vertex, 1> parray1;
+typedef probability_table<grid_vertex> ptable;
 
 BOOST_AUTO_TEST_CASE(test_convergence) {
   using namespace libgm;
@@ -37,21 +38,21 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
 
   // Create a random grid Markov network
   std::mt19937 rng;
-  pairwise_markov_network<carray1_type, carray2_type> model;
+  pairwise_markov_network<carray1, carray2> model;
   make_grid_graph(m, n, model);
-  model.initialize(bind_marginal(uniform_table_generator<carray1_type>(), rng),
-                   bind_marginal(uniform_table_generator<carray2_type>(), rng));
+  model.initialize(bind_marginal(uniform_table_generator<carray1>(), rng),
+                   bind_marginal(uniform_table_generator<carray2>(), rng));
 
   // run exact inference
-  pairwise_markov_network<ptable_type> converted(model);
-  sum_product_calibrate<ptable_type> sp(converted);
+  pairwise_markov_network<ptable> converted(model);
+  sum_product_calibrate<ptable> sp(converted);
   std::cout << "Tree width of the model: " << sp.jt().tree_width() << std::endl;
   sp.calibrate();
   sp.normalize();
   std::cout << "Finished exact inference" << std::endl;
 
   // run mean field inference
-  mean_field_pairwise<carray1_type, carray2_type> mf(&model);
+  mean_field_pairwise<carray1, carray2> mf(&model);
   double diff;
   for (std::size_t it = 0; it < niters; ++it) {
     diff = mf.iterate();
@@ -62,7 +63,7 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   // compute the KL divergence from the exact to mean field result
   double kl = 0.0;
   for (grid_vertex v : model.vertices()) {
-    kl += kl_divergence(parray1_type(sp.belief({v})), mf.belief(v));
+    kl += kl_divergence(parray1(sp.belief({v})), mf.belief(v));
   }
   kl /= model.num_vertices();
   std::cout << "Average kl = " << kl << std::endl;

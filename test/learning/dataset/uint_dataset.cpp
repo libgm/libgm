@@ -1,31 +1,42 @@
 #define BOOST_TEST_MODULE uint_dataset
 #include <boost/test/unit_test.hpp>
 
-#include <libgm/argument/universe.hpp>
-#include <libgm/factor/probability_table.hpp>
-#include <libgm/factor/random/uniform_table_generator.hpp>
 #include <libgm/learning/dataset/uint_dataset.hpp>
 #include <libgm/learning/dataset/uint_dataset_io.hpp>
+
+#include <libgm/argument/universe.hpp>
+#include <libgm/argument/var.hpp>
+#include <libgm/argument/vec.hpp>
+#include <libgm/factor/probability_table.hpp>
+#include <libgm/factor/random/uniform_table_generator.hpp>
 #include <libgm/learning/parameter/factor_mle.hpp>
 
 namespace libgm {
-  template class basic_dataset<uint_data_traits<double, variable> >;
-  template class basic_dataset<uint_data_traits<float, variable> >;
+  template class basic_dataset<var, uint_vector, double>;
+  template class basic_dataset<vec, uint_vector, double>;
 }
 
 using namespace libgm;
 
 typedef std::pair<uint_vector, double> sample_type;
-typedef std::pair<uint_assignment<>, double> sample_assignment_type;
+// typedef std::pair<uint_assignment<var>, double> sample_assignment_type;
 BOOST_TEST_DONT_PRINT_LOG_VALUE(uint_vector);
 BOOST_TEST_DONT_PRINT_LOG_VALUE(sample_type);
-BOOST_TEST_DONT_PRINT_LOG_VALUE(sample_assignment_type);
+// BOOST_TEST_DONT_PRINT_LOG_VALUE(sample_assignment_type);
+
+domain<var> new_discrete(universe& u, std::size_t count, std::size_t values) {
+  domain<var> dom;
+  for (std::size_t i = 0; i < count; ++i) {
+    dom.push_back(var::discrete(u, "v" + std::to_string(i), values));
+  }
+  return dom;
+}
 
 BOOST_AUTO_TEST_CASE(test_insert) {
   universe u;
-  domain v = u.new_discrete_variables(3, "v", 3);
+  domain<var> v = new_discrete(u, 3, 3);
 
-  uint_dataset<> ds;
+  uint_dataset<var> ds;
   ds.initialize(v);
   BOOST_CHECK(ds.empty());
 
@@ -36,12 +47,11 @@ BOOST_AUTO_TEST_CASE(test_insert) {
   values[2] = 1;
   ds.insert(values, 0.5);
 
-  // insert a finite assignment
-  uint_assignment<> a;
-  a[v[0]] = 1;
-  a[v[1]] = 2;
-  a[v[2]] = 0;
-  ds.insert(a, 0.7);
+  // insert a pair
+  values[0] = 1;
+  values[1] = 2;
+  values[2] = 0;
+  ds.insert(std::make_pair(values, 0.7));
 
   // insert a bunch of empty samples
   ds.insert(10);
@@ -64,22 +74,22 @@ BOOST_AUTO_TEST_CASE(test_insert) {
   BOOST_CHECK_CLOSE(ds.weight(), 11.2, 1e-6);
 
   // value iterator checks
-  uint_dataset<>::const_iterator it, end;
+  uint_dataset<var>::const_iterator it, end;
   const auto& cds = ds;
-  std::tie(it, end) = cds(v);
+  std::tie(it, end) = cds.samples(v);
 
   // check the first sample
   BOOST_CHECK_EQUAL(it->first, uint_vector({2, 0, 1}));
   BOOST_CHECK_EQUAL(it->second, 0.5);
-  BOOST_CHECK_EQUAL(*it, ds[0]);
-  BOOST_CHECK_EQUAL(*it, ds(0, v));
+  BOOST_CHECK_EQUAL(*it, ds.sample(0));
+  BOOST_CHECK_EQUAL(*it, ds.sample(0, v));
   ++it;
 
   // check the second sample
   BOOST_CHECK_EQUAL(it->first, uint_vector({1, 2, 0}));
   BOOST_CHECK_EQUAL(it->second, 0.7);
-  BOOST_CHECK_EQUAL(*it, ds[1]);
-  BOOST_CHECK_EQUAL(*it, ds(1, v));
+  BOOST_CHECK_EQUAL(*it, ds.sample(1));
+  BOOST_CHECK_EQUAL(*it, ds.sample(1, v));
   ++it;
 
   // check the remaining samples
@@ -87,8 +97,8 @@ BOOST_AUTO_TEST_CASE(test_insert) {
   for (std::size_t i = 0; i < 10; ++i) {
     BOOST_CHECK_EQUAL(it->first, rest);
     BOOST_CHECK_EQUAL(it->second, 1.0);
-    BOOST_CHECK_EQUAL(*it, ds[i+2]);
-    BOOST_CHECK_EQUAL(*it, ds(i+2, v));
+    BOOST_CHECK_EQUAL(*it, ds.sample(i+2));
+    BOOST_CHECK_EQUAL(*it, ds.sample(i+2, v));
     ++it;
   }
 
@@ -98,16 +108,16 @@ BOOST_AUTO_TEST_CASE(test_insert) {
 
 BOOST_AUTO_TEST_CASE(test_value_iterators) {
   universe u;
-  domain v = u.new_discrete_variables(3, "v", 3);
+  domain<var> v = new_discrete(u, 3, 3);
 
-  uint_dataset<> ds(v);
+  uint_dataset<var> ds(v);
   ds.insert(1);
 
-  uint_dataset<>::iterator it1, end1;
-  std::tie(it1, end1) = ds(v);
+  uint_dataset<var>::iterator it1, end1;
+  std::tie(it1, end1) = ds.samples(v);
 
-  uint_dataset<>::const_iterator it2 = ds.begin();
-  uint_dataset<>::const_iterator end2 = ds.end();
+  uint_dataset<var>::const_iterator it2 = ds.begin();
+  uint_dataset<var>::const_iterator end2 = ds.end();
 
   BOOST_CHECK(it1 == it2);
   BOOST_CHECK(it2 == it1);
@@ -128,17 +138,18 @@ BOOST_AUTO_TEST_CASE(test_value_iterators) {
   BOOST_CHECK(!it2);
 }
 
+/*
 BOOST_AUTO_TEST_CASE(test_assignment_iterator) {
   universe u;
-  domain v = u.new_discrete_variables(3, "v", 3);
+  domain<var> v = new_discrete(3, 3);
 
-  uint_dataset<> ds(v);
+  uint_dataset<var> ds(v);
 
   // insert 2 samples
   ds.insert(uint_vector{2, 0, 1}, 0.5);
   ds.insert(uint_vector{1, 1, 2}, 0.2);
 
-  uint_dataset<>::assignment_iterator it, end;
+  uint_dataset<var>::assignment_iterator it, end;
   std::tie(it, end) = ds.assignments(v);
 
   // check the first sample
@@ -167,16 +178,17 @@ BOOST_AUTO_TEST_CASE(test_assignment_iterator) {
   BOOST_CHECK(it == end);
   BOOST_CHECK(!it);
 }
+*/
 
 BOOST_AUTO_TEST_CASE(test_weight_iterator) {
   universe u;
-  domain v = u.new_discrete_variables(3, "v", 3);
+  domain<var> v = new_discrete(u, 3, 3);
 
-  uint_dataset<> ds(v);
+  uint_dataset<var> ds(v);
   ds.insert(uint_vector{2, 0, 1}, 0.5);
   ds.insert(uint_vector{1, 1, 2}, 0.2);
 
-  uint_dataset<>::weight_iterator it, end;
+  uint_dataset<var>::weight_iterator it, end;
   std::tie(it, end) = ds.weights();
 
   BOOST_CHECK_EQUAL(*it, 0.5);
@@ -191,15 +203,17 @@ BOOST_AUTO_TEST_CASE(test_weight_iterator) {
 }
 
 struct fixture {
+  typedef probability_table<var> ptable;
+
   universe u;
-  domain v;
-  uint_dataset<> ds;
+  domain<var> v;
+  uint_dataset<var> ds;
   ptable f;
   factor_mle<ptable> mle;
   std::mt19937 rng;
 
   fixture() {
-    v = u.new_discrete_variables(3, "v", 2);
+    v = new_discrete(u, 3, 2);
     ds.initialize(v, 1000);
 
     f = uniform_table_generator<ptable>()(v, rng).normalize();
@@ -215,7 +229,8 @@ BOOST_FIXTURE_TEST_CASE(test_reconstruction, fixture) {
   // matches the factor for every variable or every pair of variables
   for (std::size_t i = 0; i < v.size(); ++i) {
     for (std::size_t j = i; j < v.size(); ++j) {
-      domain dom = domain({v[i], v[j]}).unique();
+      domain<var> dom = { v[i], v[j] };
+      dom.unique();
       double kl = kl_divergence(f.marginal(dom), mle(ds, dom));
       std::cout << dom << ": " << kl << std::endl;
       BOOST_CHECK_SMALL(kl, 1e-2);
@@ -223,21 +238,21 @@ BOOST_FIXTURE_TEST_CASE(test_reconstruction, fixture) {
   }
 
   // fill the content of the dataset using mutable iteration
-  domain v01 = {v[0], v[1]};
-  for (auto& sample : ds(v01)) {
+  domain<var> v01 = {v[0], v[1]};
+  for (auto& sample : ds.samples(v01)) {
     sample.first[0] = 1;
     sample.first[1] = 0;
   }
 
   // verify that we get the mutated version back
-  for (const auto& sample : ds(v01)) {
+  for (const auto& sample : ds.samples(v01)) {
     BOOST_CHECK_EQUAL(sample.first.size(), 2);
     BOOST_CHECK_EQUAL(sample.first[0], 1);
     BOOST_CHECK_EQUAL(sample.first[1], 0);
   }
 
   // verify that the marginal over v[2] is still good
-  domain dom2 = {v[2]};
+  domain<var> dom2 = {v[2]};
   double kl = kl_divergence(f.marginal(dom2), mle(ds, dom2));
   std::cout << "Rest: " << kl << std::endl;
   BOOST_CHECK_SMALL(kl, 1e-2);
@@ -248,7 +263,7 @@ BOOST_FIXTURE_TEST_CASE(test_sample, fixture) {
   ptable g(v, 0.0);
   std::uniform_int_distribution<std::size_t> unif(0, ds.size() - 1);
   for (std::size_t i = 0; i < 500; ++i) {
-    auto sample = ds[unif(rng)];
+    auto sample = ds.sample(unif(rng));
     g.param(sample.first) += sample.second;
   }
   g.normalize();
@@ -272,8 +287,8 @@ BOOST_AUTO_TEST_CASE(test_load) {
   std::string dir = boost::unit_test::framework::master_test_suite().argv[1];
 
   universe u;
-  text_dataset_format format;
-  uint_dataset<> ds;
+  text_dataset_format<var> format;
+  uint_dataset<var> ds;
   format.load_config(dir + "/uint.cfg", u);
   load(dir + "/uint.txt", format, ds);
 

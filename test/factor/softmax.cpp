@@ -3,9 +3,12 @@
 
 #include <libgm/factor/softmax.hpp>
 
+#include <libgm/argument/var.hpp>
+#include <libgm/argument/vec.hpp>
+
 namespace libgm {
-  template class softmax<double, variable>;
-  template class softmax<float, variable>;
+  template class softmax<var>;
+  template class softmax<vec>;
 }
 
 using namespace libgm;

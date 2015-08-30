@@ -36,7 +36,7 @@ namespace libgm {
     // FactorizedInference types
     typedef typename NodeF::real_type       real_type;
     typedef typename NodeF::result_type     result_type;
-    typedef typename NodeF::variable_type   variable_type;
+    typedef typename NodeF::argument_type   argument_type;
     typedef typename NodeF::domain_type     domain_type;
     typedef typename NodeF::assignment_type assignment_type;
     typedef pairwise_markov_network<NodeF, EdgeF> graph_type;

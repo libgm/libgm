@@ -2,15 +2,18 @@
 #include <boost/test/unit_test.hpp>
 
 #include <libgm/argument/universe.hpp>
+#include <libgm/argument/var.hpp>
+#include <libgm/argument/vec.hpp>
 #include <libgm/factor/random/moment_gaussian_generator.hpp>
 
 namespace libgm {
-  template class moment_gaussian_generator<double>;
-  template class moment_gaussian_generator<float>;
+  template class moment_gaussian_generator<var>;
+  template class moment_gaussian_generator<vec>;
 }
 
 using namespace libgm;
 
+typedef moment_gaussian<vec> mgaussian;
 typedef real_vector<double> vec_type;
 typedef real_matrix<double> mat_type;
 
@@ -18,16 +21,16 @@ std::size_t nsamples = 100;
 
 BOOST_AUTO_TEST_CASE(test_all) {
   universe u;
-  variable x1 = u.new_continuous_variable("x1", 1);
-  variable x2 = u.new_continuous_variable("x2", 2);
-  variable y = u.new_continuous_variable("y", 1);
-  domain xs = {x1, x2};
-  domain ys = {y};
-  domain xy = {x1, x2, y};
+  vec x1 = vec::continuous(u, "x1", 1);
+  vec x2 = vec::continuous(u, "x2", 2);
+  vec y = vec::continuous(u, "y");
+  domain<vec> xs = {x1, x2};
+  domain<vec> ys = {y};
+  domain<vec> xy = {x1, x2, y};
 
   std::mt19937 rng;
-  moment_gaussian_generator<double> gen(-0.5, 1.5, 2.0, 0.3, 0);
-  
+  moment_gaussian_generator<vec> gen(-0.5, 1.5, 2.0, 0.3, 0);
+
   // test marginals
   double sum = 0.0;
   for (std::size_t i = 0; i < nsamples; ++i) {
@@ -51,7 +54,7 @@ BOOST_AUTO_TEST_CASE(test_all) {
     }
   }
   BOOST_CHECK_CLOSE_FRACTION(sum / nsamples / 4, 0.5, 0.05);
-  
+
   // test conditionals
   double sum_mean = 0.0;
   double sum_coef = 0.0;

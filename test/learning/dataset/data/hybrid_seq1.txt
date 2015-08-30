@@ -1,0 +1,6 @@
+dummy1
+dummy2
+id1 noun   1 ? en 0.1
+id2 verb   2 ? en 0.2
+id3 adverb 3 5 ?  0.3
+id4 ?      ? 6 sk 0.4

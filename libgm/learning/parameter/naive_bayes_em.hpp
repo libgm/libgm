@@ -33,7 +33,7 @@ namespace libgm {
 
     // Other types
     typedef typename LabelF::variable_type variable_type;
-    typedef std::vector<variable_type>     var_vector_type;
+    typedef std::vector<variable_type>     arg_vector_type;
 
     /**
      * Constructs a naive Bayes learner with given parameters.
@@ -48,7 +48,7 @@ namespace libgm {
     template <typename Dataset>
     model_type& fit(const Dataset& ds,
                     variable_type label,
-                    const var_vector_type& features) {
+                    const arg_vector_type& features) {
       reset(&ds, label, features);
       return fit();
     }
@@ -74,7 +74,7 @@ namespace libgm {
     template <typename Dataset>
     void reset(const Dataset* ds,
                variable_type label,
-               const var_vector_type& features) {
+               const arg_vector_type& features) {
       // initialize the model
       uniform_table_generator<LabelF> prior_gen;
       uniform_table_generator<FeatureF> cpd_gen;
@@ -151,6 +151,7 @@ namespace libgm {
         LabelF prior(label_, result_type(0));
         LabelF ptail;
         for (const auto& p : ds_->assignments(features)) {
+          //a.insert_or_assign(features, p.second);
           model_->restrict(p.first, ptail);
           real_type norm = ptail.marginal();
           bound += p.second * std::log(norm);

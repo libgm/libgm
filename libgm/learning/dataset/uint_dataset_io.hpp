@@ -3,6 +3,7 @@
 
 #include <libgm/learning/dataset/text_dataset_format.hpp>
 #include <libgm/learning/dataset/uint_dataset.hpp>
+#include <libgm/traits/missing.hpp>
 
 #include <fstream>
 #include <iostream>
@@ -17,17 +18,16 @@ namespace libgm {
    * \throw std::domain_error if the format contains non-discrete variables
    * \relates uint_dataset
    */
-  template <typename T>
+  template <typename Arg, typename T>
   void load(const std::string& filename,
-            const text_dataset_format& format,
-            uint_dataset<T>& ds) {
+            const text_dataset_format<Arg>& format,
+            uint_dataset<Arg, T>& ds) {
     if (!format.all_variables_discrete()) {
       throw std::domain_error(
-        "The dataset contains variable(s) that are not discrete"
+        "The dataset contains argument(s) that are not discrete"
       );
     }
-    domain vars = format.variables;
-    ds.initialize(vars);
+    ds.initialize(format.variables);
 
     std::ifstream in(filename);
     if (!in) {
@@ -36,16 +36,19 @@ namespace libgm {
 
     std::string line;
     std::size_t line_number = 0;
-    uint_vector values(vars.size());
+    uint_vector values(ds.num_cols());
     std::vector<const char*> tokens;
     while (std::getline(in, line)) {
-      if (format.tokenize(vars.size(), line, line_number, tokens)) {
-        for (std::size_t i = 0; i < vars.size(); ++i) {
-          const char* token = tokens[i + format.skip_cols];
-          if (token == format.missing) {
-            values[i] = -1;
-          } else {
-            values[i] = vars[i].parse_discrete(token);
+      if (format.tokenize(ds.num_cols(), line, line_number, tokens)) {
+        std::size_t col = format.skip_cols;
+        std::size_t i = 0;
+        for (Arg arg : format.variables) {
+          std::size_t size = arg.num_dimensions();
+          for (std::size_t j = 0; j < size; ++j) {
+            const char* token = tokens[col++];
+            values[i++] = (token == format.missing)
+              ? missing<std::size_t>::value
+              : arg.desc()->parse_discrete(token, j);
           }
         }
         T weight = format.weighted ? parse_string<T>(tokens.back()) : T(1);
@@ -62,16 +65,15 @@ namespace libgm {
    * \throw std::domain_error if the format contains non-discrete variables
    * \relates uint_dataset
    */
-  template <typename T>
+  template <typename Arg, typename T>
   void save(const std::string& filename,
-            const text_dataset_format& format,
-            const uint_dataset<T>& ds) {
+            const text_dataset_format<Arg>& format,
+            const uint_dataset<Arg, T>& ds) {
     if (!format.all_variables_discrete()) {
       throw std::domain_error(
-        "The dataset contains variable(s) that are not discrete"
+        "The dataset contains argument(s) that are not discrete"
       );
     }
-    domain vars = format.variables;
 
     std::ofstream out(filename);
     if (!out) {
@@ -83,20 +85,24 @@ namespace libgm {
     }
 
     std::string separator = format.separator.empty() ? " " : format.separator;
-    for (const auto& p : ds(vars)) {
+    for (const auto& s : ds.samples(format.variables)) {
       for (std::size_t i = 0; i < format.skip_cols; ++i) {
         out << "0" << separator;
       }
-      for (std::size_t i = 0; i < vars.size(); ++i) {
-        if (i > 0) { out << separator; }
-        if (p.first[i] == std::size_t(-1)) {
-          out << format.missing;
-        } else {
-          vars[i].print_discrete(out, p.first[i]);
+      std::size_t i = 0;
+      for (Arg arg : format.variables) {
+        std::size_t size = arg.num_dimensions();
+        for (std::size_t j = 0; j < size; ++i, ++j) {
+          if (i > 0) { out << separator; }
+          if (ismissing(s.first[i])) {
+            out << format.missing;
+          } else {
+            arg.desc()->print_discrete(out, s.first[i]);
+          }
         }
       }
       if (format.weighted) {
-        out << separator << p.second;
+        out << separator << s.second;
       }
       out << std::endl;
     }

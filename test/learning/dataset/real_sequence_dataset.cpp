@@ -1,38 +1,42 @@
 #define BOOST_TEST_MODULE real_sequence_dataset
 #include <boost/test/unit_test.hpp>
 
-#include <libgm/argument/universe.hpp>
 #include <libgm/learning/dataset/real_sequence_dataset.hpp>
 #include <libgm/learning/dataset/real_sequence_dataset_io.hpp>
+
+#include <libgm/argument/universe.hpp>
+#include <libgm/argument/var.hpp>
+#include <libgm/argument/vec.hpp>
 
 #include <random>
 
 namespace libgm {
-  template class basic_sequence_dataset<real_sequence_traits<double, variable> >;
-  template class basic_sequence_dataset<real_sequence_traits<float, variable> >;
+  template class basic_sequence_dataset<var, real_vector<>, real_matrix<>, double>;
+  template class basic_sequence_dataset<vec, real_vector<>, real_matrix<>, double>;
 }
 
 using namespace libgm;
 
-typedef real_matrix<double> data_type;
-typedef std::pair<data_type, double> sample_type;
-typedef std::pair<real_assignment<double>, double> sample_assignment_type;
+typedef std::pair<real_matrix<>, double> sample_type;
+// typedef std::pair<real_assignment<double>, double> sample_assignment_type;
 BOOST_TEST_DONT_PRINT_LOG_VALUE(sample_type);
-BOOST_TEST_DONT_PRINT_LOG_VALUE(sample_assignment_type);
+// BOOST_TEST_DONT_PRINT_LOG_VALUE(sample_assignment_type);
 
 struct fixture {
   universe u;
-  dprocess_domain p;
-  data_type seq0, seq1;
-  real_sequence_dataset<> ds;
+  sequence<vec> a, b;
+  domain<sequence<vec> > ab;
+  real_matrix<> seq0, seq1;
+  real_sequence_dataset<vec> ds;
 
   fixture()
-    : p(2), seq0(3, 2), seq1(3, 1) {
-    p[0] = u.new_continuous_dprocess("a", 1);
-    p[1] = u.new_continuous_dprocess("b", 2);
+    : seq0(3, 2), seq1(3, 1) {
+    a = vec::continuous(u, "a", 1).desc();
+    b = vec::continuous(u, "b", 2).desc();
+    ab = {a, b};
     seq0 << 0, 1, 1, 2, 2, 3;
     seq1 << 1, 2, 3;
-    ds.initialize(p);
+    ds.initialize(ab);
     BOOST_CHECK(ds.empty());
     ds.insert(seq0, 0.5);
     ds.insert(seq1, 1.0);
@@ -53,15 +57,15 @@ BOOST_FIXTURE_TEST_CASE(test_insert, fixture) {
   BOOST_CHECK_CLOSE(ds.weight(), 11.5, 1e-6);
 
   // direct iteration
-  real_sequence_dataset<>::const_iterator it = ds.begin();
-  real_sequence_dataset<>::const_iterator end = ds.end();
+  real_sequence_dataset<vec>::const_iterator it = ds.begin();
+  real_sequence_dataset<vec>::const_iterator end = ds.end();
   BOOST_CHECK_EQUAL(it->first, seq0);
   BOOST_CHECK_EQUAL(it->second, 0.5);
-  BOOST_CHECK_EQUAL(*it, ds[0]);
+  BOOST_CHECK_EQUAL(*it, ds.sample(0));
   ++it;
   BOOST_CHECK_EQUAL(it->first, seq1);
   BOOST_CHECK_EQUAL(it->second, 1.0);
-  BOOST_CHECK_EQUAL(*it, ds[1]);
+  BOOST_CHECK_EQUAL(*it, ds.sample(1));
   ++it;
   for (std::size_t i = 0; i < 10; ++i) {
     BOOST_CHECK_EQUAL(it->first.rows(), 3);
@@ -73,16 +77,15 @@ BOOST_FIXTURE_TEST_CASE(test_insert, fixture) {
 
   // indirect iteration
   // direct iteration
-  dprocess_domain p1 = {p[1]};
   const auto& cds = ds;
-  std::tie(it, end) = cds(p1);
+  std::tie(it, end) = cds.samples({b});
   BOOST_CHECK_EQUAL(it->first, seq0.block(1, 0, 2, 2));
   BOOST_CHECK_EQUAL(it->second, 0.5);
-  BOOST_CHECK_EQUAL(*it, ds(0, p1));
+  BOOST_CHECK_EQUAL(*it, ds.sample(0, {b}));
   ++it;
   BOOST_CHECK_EQUAL(it->first, seq1.block(1, 0, 2, 1));
   BOOST_CHECK_EQUAL(it->second, 1.0);
-  BOOST_CHECK_EQUAL(*it, ds(1, p1));
+  BOOST_CHECK_EQUAL(*it, ds.sample(1, {b}));
   ++it;
   for (std::size_t i = 0; i < 10; ++i) {
     BOOST_CHECK_EQUAL(it->first.rows(), 2);
@@ -94,11 +97,11 @@ BOOST_FIXTURE_TEST_CASE(test_insert, fixture) {
 }
 
 BOOST_FIXTURE_TEST_CASE(test_value_iterators, fixture) {
-  real_sequence_dataset<>::iterator it1, end1;
-  std::tie(it1, end1) = ds(p);
+  real_sequence_dataset<vec>::iterator it1, end1;
+  std::tie(it1, end1) = ds.samples(ab);
 
-  real_sequence_dataset<>::const_iterator it2 = ds.begin();
-  real_sequence_dataset<>::const_iterator end2 = ds.end();
+  real_sequence_dataset<vec>::const_iterator it2 = ds.begin();
+  real_sequence_dataset<vec>::const_iterator end2 = ds.end();
 
   BOOST_CHECK(it1 == it2);
   BOOST_CHECK(it2 == it1);
@@ -124,31 +127,30 @@ BOOST_FIXTURE_TEST_CASE(test_value_iterators, fixture) {
   BOOST_CHECK(!it2);
 }
 
+/*
 BOOST_FIXTURE_TEST_CASE(test_assignment_iterator, fixture) {
-  dprocess_domain p01 = {p[0], p[1]};
-
-  real_sequence_dataset<>::assignment_iterator it, end;
-  std::tie(it, end) = ds.assignments(p);
+  real_sequence_dataset<vec>::assignment_iterator it, end;
+  std::tie(it, end) = ds.assignments(ab);
 
   // check the first sample
   BOOST_CHECK_EQUAL(it->first.size(), 4);
-  BOOST_CHECK_EQUAL(it->first.at(p[0](0)), seq0.block(0, 0, 1, 1));
-  BOOST_CHECK_EQUAL(it->first.at(p[1](0)), seq0.block(1, 0, 2, 1));
-  BOOST_CHECK_EQUAL(it->first.at(p[0](1)), seq0.block(0, 1, 1, 1));
-  BOOST_CHECK_EQUAL(it->first.at(p[1](1)), seq0.block(1, 1, 2, 1));
+  BOOST_CHECK_EQUAL(it->first.at(a(0)), seq0.block(0, 0, 1, 1));
+  BOOST_CHECK_EQUAL(it->first.at(b(0)), seq0.block(1, 0, 2, 1));
+  BOOST_CHECK_EQUAL(it->first.at(a(1)), seq0.block(0, 1, 1, 1));
+  BOOST_CHECK_EQUAL(it->first.at(b(1)), seq0.block(1, 1, 2, 1));
   BOOST_CHECK_EQUAL(it->second, 0.5);
   BOOST_CHECK_EQUAL(*it, ds.assignment(0));
-  BOOST_CHECK_EQUAL(*it, ds.assignment(0, p));
+  BOOST_CHECK_EQUAL(*it, ds.assignment(0, ab));
   BOOST_CHECK(it);
   ++it;
 
   // check the second sample
   BOOST_CHECK_EQUAL(it->first.size(), 2);
-  BOOST_CHECK_EQUAL(it->first.at(p[0](0)), seq1.block(0, 0, 1, 1));
-  BOOST_CHECK_EQUAL(it->first.at(p[1](0)), seq1.block(1, 0, 2, 1));
+  BOOST_CHECK_EQUAL(it->first.at(a(0)), seq1.block(0, 0, 1, 1));
+  BOOST_CHECK_EQUAL(it->first.at(b(0)), seq1.block(1, 0, 2, 1));
   BOOST_CHECK_EQUAL(it->second, 1.0);
   BOOST_CHECK_EQUAL(*it, ds.assignment(1));
-  BOOST_CHECK_EQUAL(*it, ds.assignment(1, p));
+  BOOST_CHECK_EQUAL(*it, ds.assignment(1, ab));
   BOOST_CHECK(it);
   ++it;
 
@@ -156,9 +158,10 @@ BOOST_FIXTURE_TEST_CASE(test_assignment_iterator, fixture) {
   BOOST_CHECK(it == end);
   BOOST_CHECK(!it);
 }
+*/
 
 BOOST_FIXTURE_TEST_CASE(test_weight_iterator, fixture) {
-  real_sequence_dataset<>::weight_iterator it, end;
+  real_sequence_dataset<vec>::weight_iterator it, end;
   std::tie(it, end) = ds.weights();
 
   // check the first sample
@@ -180,7 +183,7 @@ BOOST_FIXTURE_TEST_CASE(test_weight_iterator, fixture) {
 
 BOOST_FIXTURE_TEST_CASE(test_mutation, fixture) {
   // replace the values for process 1 with all-zeros
-  for (auto& s : ds({p[1]})) {
+  for (auto& s : ds.samples({b})) {
     s.first.row(0).fill(0.1);
     s.second = 0.3;
   }
@@ -188,10 +191,10 @@ BOOST_FIXTURE_TEST_CASE(test_mutation, fixture) {
   // check if we have stored the values
   seq0.row(1).fill(0.1);
   seq1.row(1).fill(0.1);
-  BOOST_CHECK_EQUAL(ds[0].first, seq0);
-  BOOST_CHECK_EQUAL(ds[0].second, 0.3);
-  BOOST_CHECK_EQUAL(ds[1].first, seq1);
-  BOOST_CHECK_EQUAL(ds[1].second, 0.3);
+  BOOST_CHECK_EQUAL(ds.sample(0).first, seq0);
+  BOOST_CHECK_EQUAL(ds.sample(0).second, 0.3);
+  BOOST_CHECK_EQUAL(ds.sample(1).first, seq1);
+  BOOST_CHECK_EQUAL(ds.sample(1).second, 0.3);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_shuffle, fixture) {
@@ -203,12 +206,12 @@ BOOST_FIXTURE_TEST_CASE(test_shuffle, fixture) {
   std::size_t nshuffles = 500;
   for (std::size_t i = 0; i < nshuffles; ++i) {
     ds.shuffle(rng);
-    if (ds.size() == 2 && ds.arguments() == p) {
-      if (ds[0].first.cols() == 2 && ds[0].first == seq0 &&
-          ds[1].first.cols() == 1 && ds[1].first == seq1) {
+    if (ds.size() == 2 && ds.arguments() == ab) {
+      if (ds.sample(0).first.cols() == 2 && ds.sample(0).first == seq0 &&
+          ds.sample(1).first.cols() == 1 && ds.sample(1).first == seq1) {
         ++norig;
-      } else if (ds[0].first.cols() == 1 && ds[0].first == seq1 &&
-                 ds[1].first.cols() == 2 && ds[1].first == seq0) {
+      } else if (ds.sample(0).first.cols() == 1 && ds.sample(0).first == seq1 &&
+                 ds.sample(1).first.cols() == 2 && ds.sample(1).first == seq0) {
         ++nswap;
       } else {
         ++nbad;
@@ -229,20 +232,20 @@ BOOST_AUTO_TEST_CASE(test_load) {
 
   // load the data
   universe u;
-  text_dataset_format format;
-  real_sequence_dataset<> ds;
+  text_dataset_format<vec> format;
+  real_sequence_dataset<vec> ds;
   format.load_config(dir + "/real_seq.cfg", u);
   load({dir + "/real_seq0.txt", dir + "/real_seq1.txt"}, format, ds);
 
   // check the sequences
-  data_type seq0(3, 3), seq1(3, 2);
+  real_matrix<> seq0(3, 3), seq1(3, 2);
   seq0 << 0.1, 0.2, 0.1, 0.2, 0.3, 0.4, 1.0, 0.9, 0.8;
   seq1 << -0.1, -0.2, -0.2, -0.3, 0.8, 0.9;
   BOOST_CHECK_EQUAL(ds.size(), 2);
-  BOOST_CHECK_EQUAL(ds[0].first, seq0);
-  BOOST_CHECK_EQUAL(ds[0].second, 1.0);
-  BOOST_CHECK_EQUAL(ds[1].first, seq1);
-  BOOST_CHECK_EQUAL(ds[1].second, 1.0);
+  BOOST_CHECK_EQUAL(ds.sample(0).first, seq0);
+  BOOST_CHECK_EQUAL(ds.sample(0).second, 1.0);
+  BOOST_CHECK_EQUAL(ds.sample(1).first, seq1);
+  BOOST_CHECK_EQUAL(ds.sample(1).second, 1.0);
 
   save({"real_seq0.tmp", "real_seq1.tmp"}, format, ds);
 }

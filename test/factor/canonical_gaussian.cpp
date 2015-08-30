@@ -4,28 +4,31 @@
 #include <libgm/factor/canonical_gaussian.hpp>
 
 #include <libgm/argument/universe.hpp>
+#include <libgm/argument/var.hpp>
+#include <libgm/argument/vec.hpp>
 #include <libgm/factor/moment_gaussian.hpp>
 
 #include "predicates.hpp"
 #include "../math/eigen/helpers.hpp"
 
 namespace libgm {
-  template class canonical_gaussian<double, variable>;
-  template class canonical_gaussian<float, variable>;
-  template class canonical_gaussian_param<double>;
-  template class canonical_gaussian_param<float>;
+  template class canonical_gaussian<var>;
+  template class canonical_gaussian<vec>;
+  template class canonical_gaussian_param<>;
 }
 
 using namespace libgm;
 
+typedef moment_gaussian<vec> mgaussian;
+typedef canonical_gaussian<vec> cgaussian;
 typedef canonical_gaussian_param<double> param_type;
-typedef real_vector<double> vec_type;
-typedef real_matrix<double> mat_type;
+typedef real_vector<> vec_type;
+typedef real_matrix<> mat_type;
 
 boost::test_tools::predicate_result
 cg_properties(const cgaussian& f,
-              const domain& vars) {
-  std::size_t n = num_dimensions(vars);
+              const domain<vec>& vars) {
+  std::size_t n = vars.num_dimensions();
 
   if (f.empty() && !vars.empty()) {
     boost::test_tools::predicate_result result(false);
@@ -80,8 +83,8 @@ cg_params(const cgaussian& f,
 
 BOOST_AUTO_TEST_CASE(test_constructors) {
   universe u;
-  variable x = u.new_continuous_variable("x", 2);
-  variable y = u.new_continuous_variable("y", 1);
+  vec x = vec::continuous(u, "x", 2);
+  vec y = vec::continuous(u, "y", 1);
 
   cgaussian a;
   BOOST_CHECK(a.empty());
@@ -115,8 +118,8 @@ BOOST_AUTO_TEST_CASE(test_constructors) {
 
 BOOST_AUTO_TEST_CASE(test_assignment_swap) {
   universe u;
-  variable x = u.new_continuous_variable("x", 2);
-  variable y = u.new_continuous_variable("y", 1);
+  vec x = vec::continuous(u, "x", 2);
+  vec y = vec::continuous(u, "y", 1);
 
   cgaussian f;
   f = logd(2.0);
@@ -149,20 +152,20 @@ BOOST_AUTO_TEST_CASE(test_assignment_swap) {
 
 BOOST_AUTO_TEST_CASE(test_indexing) {
   universe u;
-  variable x = u.new_continuous_variable("x", 2);
-  variable y = u.new_continuous_variable("y", 1);
+  vec x = vec::continuous(u, "x", 2);
+  vec y = vec::continuous(u, "y", 1);
 
   cgaussian f({x, y}, vec3(2, 1, 0), 2*mat_type::Identity(3, 3), 0.5);
-  vec_type vec = vec3(0.5, -2, 0);
-  BOOST_CHECK_CLOSE(f.log(vec), -0.5*8.5 + 2*0.5 - 1*2 + 0.5, 1e-8);
+  vec_type val = vec3(0.5, -2, 0);
+  BOOST_CHECK_CLOSE(f.log(val), -0.5*8.5 + 2*0.5 - 1*2 + 0.5, 1e-8);
 
-  real_assignment<double> a;
+  real_assignment<vec> a;
   f.assignment(vec3(3, 2, 1), a);
   BOOST_CHECK_EQUAL(a[x], vec2(3, 2));
   BOOST_CHECK_EQUAL(a[y], vec1(1));
 
-  variable v = u.new_continuous_variable("v", 2);
-  variable w = u.new_continuous_variable("w", 1);
+  vec v = vec::continuous(u, "v", 2);
+  vec w = vec::continuous(u, "w", 1);
   f.subst_args({{x, v}, {y, w}});
   BOOST_CHECK(cg_properties(f, {v, w}));
 }
@@ -170,8 +173,8 @@ BOOST_AUTO_TEST_CASE(test_indexing) {
 
 BOOST_AUTO_TEST_CASE(test_operators) {
   universe u;
-  variable x = u.new_continuous_variable("x", 2);
-  variable y = u.new_continuous_variable("y", 1);
+  vec x = vec::continuous(u, "x", 2);
+  vec y = vec::continuous(u, "y", 1);
 
   vec_type eta = vec3(2, 0.5, 0.2);
   mat_type lambda = mat33(2, 1, 1, 1, 2, 1, 1, 1, 2);
@@ -244,14 +247,13 @@ BOOST_AUTO_TEST_CASE(test_operators) {
 
 BOOST_AUTO_TEST_CASE(test_collapse) {
   universe u;
-  variable x = u.new_continuous_variable("x", 1);
-  variable y = u.new_continuous_variable("y", 1);
-  variable z = u.new_continuous_variable("z", 1);
+  vec x = vec::continuous(u, "x", 1);
+  vec y = vec::continuous(u, "y", 1);
+  vec z = vec::continuous(u, "z", 1);
 
   vec_type eta = vec3(2, 0.5, 0.2);
   mat_type lambda = mat33(2, 1, 1, 1, 2, 1, 1, 1, 2);
   cgaussian f({x, y, z}, eta, lambda, 2.0);
-
 
   // test all marginal
   cgaussian h = f;
@@ -261,24 +263,23 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
 
   // test block marginal
   h = f.marginal({x, y});
-  matrix_index ind(0, 2);
-  mat_type lamxy = submat(lambda.inverse().eval(), ind, ind).plain().inverse();
-  vec_type etaxy = lamxy * subvec((lambda.inverse() * eta).eval(), ind).plain();
+  mat_type lamxy = lambda.inverse().eval().block(0, 0, 2, 2).inverse();
+  vec_type etaxy = lamxy * (lambda.inverse() * eta).segment(0, 2);
   double cxy = 2.0 + 0.5*(std::log(pi<double>()) + 0.02);
   BOOST_CHECK(cg_properties(h, {x, y}));
   BOOST_CHECK(cg_params(h, etaxy, lamxy, cxy));
 
   // test plain marginal
   h = f.marginal({z, x});
-  ind = {2, 0};
-  mat_type lamzx = submat(lambda.inverse().eval(), ind, ind).plain().inverse();
-  vec_type etazx = lamzx * subvec((lambda.inverse() * eta).eval(), ind).plain();
+  std::vector<std::size_t> ind = {2, 0};
+  mat_type lamzx = submat(lambda.inverse().eval(), ind, ind).ref().inverse();
+  vec_type etazx = lamzx * subvec((lambda.inverse() * eta).eval(), ind).ref();
   double czx = 2.0 + 0.5*(std::log(pi<double>()) + 0.125);
   BOOST_CHECK(cg_properties(h, {z, x}));
   BOOST_CHECK(cg_params(h, etazx, lamzx, czx));
 
   // test maximum assignment
-  real_assignment<double> a;
+  real_assignment<vec> a;
   logd max = f.maximum(a);
   vec_type mean = lambda.inverse() * eta;
   BOOST_CHECK_CLOSE(a[x][0], mean[0], 1e-8);
@@ -290,16 +291,16 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
 
 BOOST_AUTO_TEST_CASE(test_restrict) {
   universe u;
-  variable x = u.new_continuous_variable("x", 1);
-  variable y = u.new_continuous_variable("y", 1);
-  variable z = u.new_continuous_variable("z", 1);
+  vec x = vec::continuous(u, "x", 1);
+  vec y = vec::continuous(u, "y", 1);
+  vec z = vec::continuous(u, "z", 1);
 
   vec_type eta = vec3(2, 0.5, 0.2);
   mat_type lambda = mat33(2, 1, 1, 1, 3, 1, 1, 1, 4);
   cgaussian f({x, y, z}, eta, lambda, 2.0);
 
   // test block restrict (z) = (1.5)
-  real_assignment<double> a;
+  real_assignment<vec> a;
   a[z] = vec1(1.5);
   cgaussian h = f.restrict(a);
   BOOST_CHECK(cg_properties(h, {x, y}));
@@ -323,9 +324,9 @@ BOOST_AUTO_TEST_CASE(test_restrict) {
 
 BOOST_AUTO_TEST_CASE(test_entropy) {
   universe u;
-  variable x = u.new_continuous_variable("x", 1);
-  variable y = u.new_continuous_variable("y", 1);
-  variable z = u.new_continuous_variable("z", 1);
+  vec x = vec::continuous(u, "x", 1);
+  vec y = vec::continuous(u, "y", 1);
+  vec z = vec::continuous(u, "z", 1);
 
   vec_type eta = vec3(2, 0.5, 0.2);
   mat_type lambda = mat33(2, 1, 1, 1, 3, 1, 1, 1, 4);

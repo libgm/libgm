@@ -14,7 +14,7 @@ namespace libgm {
     bool,
     std::is_same<typename F::real_type, typename G::real_type>::value &&
     std::is_same<typename F::result_type, typename G::result_type>::value &&
-    std::is_same<typename F::variable_type, typename G::variable_type>::value &&
+    std::is_same<typename F::argument_type, typename G::argument_type>::value &&
     std::is_same<typename F::assignment_type, typename G::assignment_type>::value
   > { };
 

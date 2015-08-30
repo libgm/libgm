@@ -190,11 +190,11 @@ namespace libgm {
     }
 
     //! Reorders the parameter according to the given index.
-    canonical_gaussian_param reorder(const matrix_index& map) const {
+    canonical_gaussian_param reorder(const std::vector<std::size_t>& map) const {
       assert(size() == map.size());
       canonical_gaussian_param result;
-      set(result.eta, subvec(eta, map));
-      set(result.lambda, submat(lambda, map, map));
+      subvec(eta, map).eval_to(result.eta);
+      submat(lambda, map, map).eval_to(result.lambda);
       result.lm = lm;
       return result;
     }
@@ -346,7 +346,7 @@ namespace libgm {
      * Constructs the operation for joining with a factor.
      * \param f_map mapping of f's indices to those of the result.
      */
-    canonical_gaussian_join_inplace(matrix_index&& f_map)
+    canonical_gaussian_join_inplace(std::vector<std::size_t>&& f_map)
       : f_map(std::move(f_map)) { }
 
     //! Joins the result in-place with a Gaussian.
@@ -372,7 +372,7 @@ namespace libgm {
       result.lm += x;
     }
 
-    matrix_index f_map;
+    std::vector<std::size_t> f_map;
   };
 
   /**
@@ -386,25 +386,26 @@ namespace libgm {
      * Constructs the operation.
      * \param f_map mapping of f's indices to those of the result
      * \param g_map mapping of g's indices to those of the result
+     * \param ndims the number of dimensions of the result
      */
-    canonical_gaussian_join(matrix_index&& f_map,
-                            matrix_index&& g_map,
-                            std::size_t size)
+    canonical_gaussian_join(std::vector<std::size_t>&& f_map,
+                            std::vector<std::size_t>&& g_map,
+                            std::size_t ndims)
       : f_op(std::move(f_map)),
         g_op(std::move(g_map)),
-        size(size) { }
+        ndims(ndims) { }
 
     //! Performs the join operation
     void operator()(const param_type& f, const param_type& g,
                     param_type& h) const {
-      h.zero(size);
+      h.zero(ndims);
       f_op(h, f);
       g_op(h, g);
     }
 
     canonical_gaussian_join_inplace<T, libgm::plus_assign<> > f_op;
     canonical_gaussian_join_inplace<T, Update> g_op;
-    std::size_t size;
+    std::size_t ndims;
   };
 
   // Aggregate operations
@@ -422,16 +423,17 @@ namespace libgm {
      * \param x the retained indices in f
      * \param y the eliminated indices in f
      */
-    canonical_gaussian_maximum(matrix_index&& x, matrix_index&& y)
+    canonical_gaussian_maximum(std::vector<std::size_t>&& x,
+                               std::vector<std::size_t>&& y)
       : x(std::move(x)), y(std::move(y)) { }
 
     //! Performs the maximization operation on f, storing the result in h.
     void operator()(const param_type& f, param_type& h) {
       // Compute sol_yx = lam_yy^{-1} * lam_yx and sol_y = lam_yy^{-1} eta_y
       // using the Cholesky decomposition
-      set(lam_yy, submat(f.lambda, y, y));
-      set(sol_yx, submat(f.lambda, y, x));
-      set(sol_y, subvec(f.eta, y));
+      submat(f.lambda, y, y).eval_to(lam_yy);
+      submat(f.lambda, y, x).eval_to(sol_yx);
+      subvec(f.eta, y).eval_to(sol_y);
       chol_yy.compute(lam_yy);
       if (chol_yy.info() != Eigen::Success) {
         throw numerical_error(
@@ -442,27 +444,15 @@ namespace libgm {
       chol_yy.solveInPlace(sol_y);
 
       // Compute the marginal parameters
-      set(h.eta, subvec(f.eta, x));
-      set(h.lambda, submat(f.lambda, x, x));
-      if (y.contiguous()) {
-        auto eta_y = subvec(f.eta, y).block(); // Eigen::Block
-        h.eta.noalias() -= sol_yx.transpose() * eta_y;
-        h.lm = f.lm + T(0.5) * sol_y.dot(eta_y);
-      } else {
-        auto eta_y = subvec(f.eta, y).plain(); // Eigen::Matrix
-        h.eta.noalias() -= sol_yx.transpose() * eta_y;
-        h.lm = f.lm + T(0.5) * sol_y.dot(eta_y);
-      }
-      submatrix<const real_matrix<T>> lam_xy(f.lambda, x, y);
-      if (lam_xy.contiguous()) {
-        h.lambda.noalias() -= lam_xy.block() * sol_yx;
-      } else {
-        h.lambda.noalias() -= lam_xy.plain() * sol_yx;
-      }
+      subvec(f.eta, x).eval_to(h.eta);
+      h.eta.noalias() -= sol_yx.transpose() * subvec(f.eta, y).ref();
+      submat(f.lambda, x, x).eval_to(h.lambda);
+      h.lambda.noalias() -= submat(f.lambda, x, y).ref() * sol_yx;
+      h.lm = f.lm + T(0.5) * subvec(f.eta, y).dot(sol_y);
     }
 
-    matrix_index x;
-    matrix_index y;
+    std::vector<std::size_t> x;
+    std::vector<std::size_t> y;
 
     Eigen::LLT<real_matrix<T>> chol_yy;
     real_matrix<T> lam_yy;
@@ -482,7 +472,8 @@ namespace libgm {
      * \param x the retained indices in f
      * \param y the eliminated indices in f
      */
-    canonical_gaussian_marginal(matrix_index&& x, matrix_index&& y)
+    canonical_gaussian_marginal(std::vector<std::size_t>&& x,
+                                std::vector<std::size_t>&& y)
       : maximum_op(std::move(x), std::move(y)) { }
 
     //! Performs the marginalization operation on f, storing the result in h.
@@ -504,8 +495,6 @@ namespace libgm {
   template <typename T>
   struct canonical_gaussian_restrict {
     typedef canonical_gaussian_param<T> param_type;
-    typedef real_vector<T> vec_type;
-    typedef real_matrix<T> mat_type;
 
     /**
      * Constructs a restrict operator.
@@ -513,35 +502,24 @@ namespace libgm {
      * \param y the restricted indices in f
      * \param vec_y the assignment to the restricted arguments
      */
-    canonical_gaussian_restrict(matrix_index&& x,
-                                matrix_index&& y,
-                                vec_type&& vec_y)
+    canonical_gaussian_restrict(std::vector<std::size_t>&& x,
+                                std::vector<std::size_t>&& y,
+                                real_vector<T>&& vec_y)
       : x(std::move(x)), y(std::move(y)) {
       vec_y.swap(this->vec_y);
     }
 
     //! Performs the restrict operation on f, storing the result in h.
     void operator()(const param_type& f, param_type& h) const {
-      subvector<const vec_type> eta_y(f.eta, y);
-      submatrix<const mat_type> lam_xy(f.lambda, x, y);
-      submatrix<const mat_type> lam_yy(f.lambda, y, y);
-      set(h.eta, subvec(f.eta, x));
-      set(h.lambda, submat(f.lambda, x, x));
-      h.lm = f.lm + eta_y.dot(vec_y);
-      if (lam_xy.contiguous()) {
-        h.eta.noalias() -= lam_xy.block() * vec_y;
-      } else {
-        h.eta.noalias() -= lam_xy.plain() * vec_y;
-      }
-      if (lam_yy.contiguous()) {
-        h.lm -= 0.5 * vec_y.transpose() * lam_yy.block() * vec_y;
-      } else {
-        h.lm -= 0.5 * vec_y.transpose() * lam_yy.plain() * vec_y;
-      }
+      subvec(f.eta, x).eval_to(h.eta);
+      submat(f.lambda, x, x).eval_to(h.lambda);
+      h.eta.noalias() -= submat(f.lambda, x, y).ref() * vec_y;
+      h.lm = f.lm + subvec(f.eta, y).dot(vec_y)
+        - 0.5 * vec_y.transpose() * submat(f.lambda, y, y).ref() * vec_y;
     }
 
-    matrix_index x;
-    matrix_index y;
+    std::vector<std::size_t> x;
+    std::vector<std::size_t> y;
     real_vector<T> vec_y;
   };
 
@@ -560,9 +538,9 @@ namespace libgm {
      * \param h_map the mapping from the retained indices to the result
      * \param vec_y the vector of restricted values
      */
-    canonical_gaussian_restrict_join(matrix_index&& x,
-                                     matrix_index&& y,
-                                     matrix_index&& h_map,
+    canonical_gaussian_restrict_join(std::vector<std::size_t>&& x,
+                                     std::vector<std::size_t>&& y,
+                                     std::vector<std::size_t>&& h_map,
                                      real_vector<T>&& vec_y)
       : restrict_op(std::move(x), std::move(y), std::move(vec_y)),
         h_map(std::move(h_map)) { }
@@ -577,7 +555,7 @@ namespace libgm {
     }
 
     canonical_gaussian_restrict<T> restrict_op;
-    matrix_index h_map;
+    std::vector<std::size_t> h_map;
     param_type tmp;
   };
 

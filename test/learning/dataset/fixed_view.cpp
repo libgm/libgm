@@ -4,48 +4,49 @@
 #include <libgm/learning/dataset/fixed_view.hpp>
 
 #include <libgm/argument/universe.hpp>
-#include <libgm/learning/dataset/uint_sequence_dataset.hpp>
+#include <libgm/argument/var.hpp>
+#include <libgm/argument/vec.hpp>
+#include <libgm/learning/dataset/hybrid_sequence_dataset.hpp>
 #include <libgm/learning/dataset/real_sequence_dataset.hpp>
+#include <libgm/learning/dataset/uint_sequence_dataset.hpp>
 #include <libgm/learning/dataset/slice_view.hpp>
 
 #include "../../math/eigen/helpers.hpp"
 
 namespace libgm {
-  template class fixed_view<uint_sequence_dataset<> >;
-  template class fixed_view<real_sequence_dataset<> >;
-  template class fixed_view<slice_view<uint_sequence_dataset<> > >;
-  template class fixed_view<slice_view<real_sequence_dataset<> > >;
+  template class fixed_view<uint_sequence_dataset<var> >;
+  template class fixed_view<real_sequence_dataset<vec> >;
+  template class fixed_view<hybrid_sequence_dataset<var> >;
+  template class fixed_view<slice_view<uint_sequence_dataset<var> > >;
 }
 
 using namespace libgm;
 
 BOOST_TEST_DONT_PRINT_LOG_VALUE(uint_vector);
-BOOST_TEST_DONT_PRINT_LOG_VALUE(uint_assignment<>);
-BOOST_TEST_DONT_PRINT_LOG_VALUE(real_assignment<>);
 
-// Finite fixed views
+// Univariate discrete fixed views
 //============================================================================
 
-struct finite_fixture {
+struct var_fixture {
   universe u;
-  dprocess a;
-  dprocess b;
-  variable a0;
-  variable a1;
-  variable b0;
-  uint_sequence_dataset<> ds;
-  typedef fixed_view<uint_sequence_dataset<> > view_type;
+  sequence<var> a;
+  sequence<var> b;
+  var a0;
+  var a1;
+  var b0;
+  uint_sequence_dataset<var> ds;
+  typedef fixed_view<uint_sequence_dataset<var> > view_type;
 
-  finite_fixture() {
-    a = u.new_discrete_dprocess("a", 5);
-    b = u.new_discrete_dprocess("b", 5);
+  var_fixture() {
+    a = var::discrete(u, "a", 5).desc();
+    b = var::discrete(u, "b", 5).desc();
     a0 = a(0);
     a1 = a(1);
     b0 = b(0);
 
     ds.initialize({a, b});
 
-    real_matrix<std::size_t> values;
+    uint_matrix values;
     values.resize(2, 3);
     values << 0, 1, 2, 3, 4, 1;
     ds.insert(values, 1.0);
@@ -63,10 +64,10 @@ struct finite_fixture {
   }
 };
 
-BOOST_FIXTURE_TEST_CASE(test_accessors, finite_fixture) {
+BOOST_FIXTURE_TEST_CASE(test_accessors, var_fixture) {
   // view over a single step
   view_type view1(&ds, 1, 1);
-  domain args = { a(0), b(0) };
+  domain<var> args = { a(0), b(0) };
   BOOST_CHECK_EQUAL(view1.arguments(), args);
   BOOST_CHECK_EQUAL(view1.arity(), 2);
   BOOST_CHECK_EQUAL(view1.size(), 2);
@@ -93,7 +94,7 @@ BOOST_FIXTURE_TEST_CASE(test_accessors, finite_fixture) {
   BOOST_CHECK_EQUAL(view3.weight(), 0.0);
 }
 
-BOOST_FIXTURE_TEST_CASE(test_const_iterator, finite_fixture) {
+BOOST_FIXTURE_TEST_CASE(test_const_iterator, var_fixture) {
   // view over a single step, iterate over all variables
   view_type view1(&ds, 1, 1);
   view_type::const_iterator it = view1.begin();
@@ -116,7 +117,7 @@ BOOST_FIXTURE_TEST_CASE(test_const_iterator, finite_fixture) {
 
   // view over two steps, iterate over a subset of variables
   view_type view2(&ds, 1, 2);
-  std::tie(it, end) = view2({ a1, a0, b0 });
+  std::tie(it, end) = view2.samples({ a1, a0, b0 });
 
   BOOST_CHECK_EQUAL(it->first, uint_vector({2, 1, 4}));
   BOOST_CHECK_EQUAL(it->second, 1.0);
@@ -128,7 +129,8 @@ BOOST_FIXTURE_TEST_CASE(test_const_iterator, finite_fixture) {
   BOOST_CHECK(it == end);
 }
 
-BOOST_FIXTURE_TEST_CASE(test_assignment_iterator, finite_fixture) {
+/*
+BOOST_FIXTURE_TEST_CASE(test_assignment_iterator, var_fixture) {
   // view over a single step, iterate over all variables
   view_type view1(&ds, 1, 1);
   view_type::assignment_iterator it, end;
@@ -169,8 +171,9 @@ BOOST_FIXTURE_TEST_CASE(test_assignment_iterator, finite_fixture) {
   BOOST_CHECK(!it);
   BOOST_CHECK(it == end);
 }
+*/
 
-BOOST_FIXTURE_TEST_CASE(test_weight_iterator, finite_fixture) {
+BOOST_FIXTURE_TEST_CASE(test_weight_iterator, var_fixture) {
   // view over a single step
   view_type view1(&ds, 1, 1);
   view_type::weight_iterator it, end;
@@ -190,50 +193,50 @@ BOOST_FIXTURE_TEST_CASE(test_weight_iterator, finite_fixture) {
   BOOST_CHECK(!it);
 }
 
-BOOST_FIXTURE_TEST_CASE(test_finite_access, finite_fixture) {
+BOOST_FIXTURE_TEST_CASE(test_finite_access, var_fixture) {
   // view over a single step, access all variables
   view_type view1(&ds, 1, 1);
-  BOOST_CHECK_EQUAL(view1[0].first, uint_vector({1, 4}));
-  BOOST_CHECK_EQUAL(view1[1].first, uint_vector({3, 0}));
-  BOOST_CHECK_EQUAL(view1[0].second, 1.0);
-  BOOST_CHECK_EQUAL(view1[1].second, 3.0);
-  BOOST_CHECK_EQUAL(view1.assignment(1).first,
-                    uint_assignment<>({{a0, 3}, {b0, 0}}));
-  BOOST_CHECK_EQUAL(view1.assignment(1).second, 3.0);
+  BOOST_CHECK_EQUAL(view1.sample(0).first, uint_vector({1, 4}));
+  BOOST_CHECK_EQUAL(view1.sample(1).first, uint_vector({3, 0}));
+  BOOST_CHECK_EQUAL(view1.sample(0).second, 1.0);
+  BOOST_CHECK_EQUAL(view1.sample(1).second, 3.0);
+//   BOOST_CHECK_EQUAL(view1.assignment(1).first,
+//                     uint_assignment<var>({{a0, 3}, {b0, 0}}));
+//   BOOST_CHECK_EQUAL(view1.assignment(1).second, 3.0);
 
   // view over two steps, access a subset of variables
   view_type view2(&ds, 1, 2);
-  domain dom = {a1, b0};
-  BOOST_CHECK_EQUAL(view2(0, dom).first, uint_vector({2, 4}));
-  BOOST_CHECK_EQUAL(view2(0, dom).second, 1.0);
-  BOOST_CHECK_EQUAL(view2.assignment(0, dom).first,
-                    uint_assignment<>({{a1, 2}, {b0, 4}}));
-  BOOST_CHECK_EQUAL(view2.assignment(0, dom).second, 1.0);
+  domain<var> dom = {a1, b0};
+  BOOST_CHECK_EQUAL(view2.sample(0, dom).first, uint_vector({2, 4}));
+  BOOST_CHECK_EQUAL(view2.sample(0, dom).second, 1.0);
+//   BOOST_CHECK_EQUAL(view2.assignment(0, dom).first,
+//                     uint_assignment<var>({{a1, 2}, {b0, 4}}));
+//   BOOST_CHECK_EQUAL(view2.assignment(0, dom).second, 1.0);
 }
 
-// Vector fixed views
+// Continuous multivariate fixed views
 //============================================================================
 
-struct vector_fixture {
+struct vec_fixture {
   universe u;
-  dprocess a;
-  dprocess b;
-  variable a0;
-  variable a1;
-  variable b0;
-  real_sequence_dataset<> ds;
-  typedef fixed_view<real_sequence_dataset<> > view_type;
+  sequence<vec> a;
+  sequence<vec> b;
+  vec a0;
+  vec a1;
+  vec b0;
+  real_sequence_dataset<vec> ds;
+  typedef fixed_view<real_sequence_dataset<vec> > view_type;
 
-  vector_fixture() {
-    a = u.new_continuous_dprocess("a", 1);
-    b = u.new_continuous_dprocess("b", 2);
+  vec_fixture() {
+    a = vec::continuous(u, "a", 1).desc();
+    b = vec::continuous(u, "b", 2).desc();
     a0 = a(0);
     a1 = a(1);
     b0 = b(0);
 
     ds.initialize({a, b});
 
-    real_matrix<double> values;
+    real_matrix<> values;
     values.resize(3, 3);
     values << 0, 1, 2, 3, 4, 1, 6, 7, 8;
     ds.insert(values, 1.0);
@@ -251,23 +254,23 @@ struct vector_fixture {
   }
 };
 
-BOOST_FIXTURE_TEST_CASE(test_vector_access, vector_fixture) {
+BOOST_FIXTURE_TEST_CASE(test_vector_access, vec_fixture) {
   // view over a single step, access all variables
   view_type view1(&ds, 1, 1);
-  BOOST_CHECK_EQUAL(view1[0].first, vec3(1, 4, 7));
-  BOOST_CHECK_EQUAL(view1[1].first, vec3(3, 0, 9));
-  BOOST_CHECK_EQUAL(view1[0].second, 1.0);
-  BOOST_CHECK_EQUAL(view1[1].second, 3.0);
-  BOOST_CHECK_EQUAL(view1.assignment(1).first,
-                    real_assignment<>({{a0, vec1(3)}, {b0, vec2(0, 9)}}));
-  BOOST_CHECK_EQUAL(view1.assignment(1).second, 3.0);
+  BOOST_CHECK_EQUAL(view1.sample(0).first, vec3(1, 4, 7));
+  BOOST_CHECK_EQUAL(view1.sample(1).first, vec3(3, 0, 9));
+  BOOST_CHECK_EQUAL(view1.sample(0).second, 1.0);
+  BOOST_CHECK_EQUAL(view1.sample(1).second, 3.0);
+//   BOOST_CHECK_EQUAL(view1.assignment(1).first,
+//                     real_assignment<vec>({{a0, vec1(3)}, {b0, vec2(0, 9)}}));
+//   BOOST_CHECK_EQUAL(view1.assignment(1).second, 3.0);
 
   // view over two steps, access a subset of variables
   view_type view2(&ds, 1, 2);
-  domain dom = {a1, b0};
-  BOOST_CHECK_EQUAL(view2(0, dom).first, vec3(2, 4, 7));
-  BOOST_CHECK_EQUAL(view2(0, dom).second, 1.0);
-  BOOST_CHECK_EQUAL(view2.assignment(0, dom).first,
-                    real_assignment<>({{a1, vec1(2)}, {b0, vec2(4, 7)}}));
-  BOOST_CHECK_EQUAL(view2.assignment(0, dom).second, 1.0);
+  domain<vec> dom = {a1, b0};
+  BOOST_CHECK_EQUAL(view2.sample(0, dom).first, vec3(2, 4, 7));
+  BOOST_CHECK_EQUAL(view2.sample(0, dom).second, 1.0);
+//   BOOST_CHECK_EQUAL(view2.assignment(0, dom).first,
+//                     real_assignment<vec>({{a1, vec1(2)}, {b0, vec2(4, 7)}}));
+//   BOOST_CHECK_EQUAL(view2.assignment(0, dom).second, 1.0);
 }

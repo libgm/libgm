@@ -15,15 +15,15 @@
 namespace libgm {
 
   /**
-   * A Bayesian network with CPDs for each variable.
+   * A Bayesian network with CPDs for each argument.
    *
    * \ingroup model
    */
   template <typename F>
   class bayesian_network
-    : public directed_graph<typename F::variable_type, F> {
+    : public directed_graph<typename F::argument_type, F> {
 
-    typedef directed_graph<typename F::variable_type, F> base;
+    typedef directed_graph<typename F::argument_type, F> base;
 
     // Public type declarations
     //==========================================================================
@@ -31,7 +31,7 @@ namespace libgm {
     // FactorizedModel types
     typedef typename F::real_type       real_type;
     typedef logarithmic<real_type>      result_type;
-    typedef typename F::variable_type   variable_type;
+    typedef typename F::argument_type   argument_type;
     typedef typename F::domain_type     domain_type;
     typedef typename F::assignment_type assignment_type;
     typedef F                           value_type;
@@ -53,10 +53,10 @@ namespace libgm {
     //! Default constructor. Creates an empty Bayesian network.
     bayesian_network() { }
 
-    //! Constructs a Bayesian network with the given variables and no edges.
-    explicit bayesian_network(const domain_type& variables) {
-      for (variable_type v : variables) {
-        this->add_vertex(v);
+    //! Constructs a Bayesian network with the given arguments and no edges.
+    explicit bayesian_network(const domain_type& args) {
+      for (argument_type arg : args) {
+        this->add_vertex(arg);
       }
     }
 
@@ -68,9 +68,9 @@ namespace libgm {
       return this->vertices();
     }
 
-    //! Returns the arguments of the factor associated with a variable.
-    const domain_type& arguments(variable_type v) const {
-      return (*this)[v].arguments();
+    //! Returns the arguments of the factor associated with an argument.
+    const domain_type& arguments(argument_type arg) const {
+      return (*this)[arg].arguments();
     }
 
     //! Returns the iterator to the first factor.
@@ -132,7 +132,7 @@ namespace libgm {
     /**
      * Computes a minimal Markov graph capturing dependencies in this model.
      */
-    void markov_graph(undirected_graph<variable_type>& mg) const {
+    void markov_graph(undirected_graph<argument_type>& mg) const {
       for (vertex_type v : this->vertices()) {
         mg.add_vertex(v);
         make_clique(mg, arguments(v));
@@ -163,13 +163,13 @@ namespace libgm {
      * Note: It is the responsibility of the caller to ensure that the
      * graph remains a DAG.
      */
-    void add_factor(variable_type v, const F& f) {
+    void add_factor(argument_type v, const F& f) {
       if (this->contains(v)) {
         this->remove_vertex(v);
       }
       assert(f.arguments().count(v));
       this->add_vertex(v, f);
-      for (variable_type u : f.arguments()) {
+      for (argument_type u : f.arguments()) {
         if (u != v) {
           this->add_edge(u, v);
         }
@@ -184,12 +184,12 @@ namespace libgm {
     result_type condition(const assignment_type& a) {
       // condition each factor, collecting the vertices from the assignment
       real_type ll = 0;
-      std::vector<variable_type> removed;
-      for (variable_type v : this->vertices()) {
+      std::vector<argument_type> removed;
+      for (argument_type v : this->vertices()) {
         F& factor = (*this)[v];
         // count the number of arguments restricted
         std::size_t n = 0;
-        for (variable_type u : factor.arguments()) {
+        for (argument_type u : factor.arguments()) {
           n += a.count(u);
         }
         if (n == 0) { // nothing to do
@@ -205,7 +205,7 @@ namespace libgm {
       }
 
       // remove the vertices (this will drop the edges as well)
-      for (variable_type v : removed) {
+      for (argument_type v : removed) {
         this->remove_vertex(v);
       }
       return result_type(ll, log_tag());
@@ -220,7 +220,7 @@ namespace boost {
   //! A traits class that lets bayesian_network work in BGL algorithms
   template <typename F>
   struct graph_traits< libgm::bayesian_network<F> >
-    : public graph_traits<libgm::directed_graph<typename F::variable_type, F> >
+    : public graph_traits<libgm::directed_graph<typename F::argument_type, F> >
   { };
 
 } // namespace boost

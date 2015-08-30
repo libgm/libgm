@@ -4,6 +4,7 @@
 #include <libgm/inference/variational/mean_field_bipartite.hpp>
 
 #include <libgm/argument/universe.hpp>
+#include <libgm/argument/var.hpp>
 #include <libgm/factor/canonical_array.hpp>
 #include <libgm/factor/probability_array.hpp>
 #include <libgm/factor/probability_table.hpp>
@@ -17,9 +18,15 @@
 
 using namespace libgm;
 
-typedef variable vertex_type;
+typedef var vertex_type;
 BOOST_STRONG_TYPEDEF(vertex_type, vertex1);
 BOOST_STRONG_TYPEDEF(vertex_type, vertex2);
+
+typedef canonical_array<var, 1> carray1;
+typedef canonical_array<var, 2> carray2;
+typedef probability_array<var, 1> parray1;
+typedef probability_array<var, 2> parray2;
+typedef probability_table<var> ptable;
 
 namespace std {
   template<>
@@ -53,8 +60,8 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
 
   // node potentials
   for (std::size_t i = 0; i < nvertices; ++i) {
-    vertex1 v1(u.new_discrete_variable("x" + std::to_string(i), 2));
-    vertex2 v2(u.new_discrete_variable("y" + std::to_string(i), 2));
+    vertex1 v1(var::discrete(u, "x" + std::to_string(i), 2));
+    vertex2 v2(var::discrete(u, "y" + std::to_string(i), 2));
     model.add_vertex(v1, node_gen({v1.t}, rng));
     model.add_vertex(v2, node_gen({v2.t}, rng));
     factors.emplace_back(model[v1]);

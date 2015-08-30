@@ -1,8 +1,8 @@
 #ifndef LIBGM_SOFTMAX_PARAM_HPP
 #define LIBGM_SOFTMAX_PARAM_HPP
 
-#include <libgm/datastructure/hybrid_vector.hpp>
 #include <libgm/functional/arithmetic.hpp>
+#include <libgm/math/eigen/hybrid.hpp>
 #include <libgm/math/eigen/real.hpp>
 #include <libgm/serialization/eigen.hpp>
 

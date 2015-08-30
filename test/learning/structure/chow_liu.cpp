@@ -4,6 +4,7 @@
 #include <libgm/learning/structure/chow_liu.hpp>
 
 #include <libgm/argument/universe.hpp>
+#include <libgm/argument/var.hpp>
 #include <libgm/factor/canonical_table.hpp>
 #include <libgm/factor/probability_table.hpp>
 #include <libgm/factor/random/uniform_table_generator.hpp>
@@ -31,16 +32,19 @@ following structure:
 
 */
 
-// int main(int argc, char** argv) {
+using namespace libgm;
+
+typedef probability_table<var> ptable;
+typedef canonical_table<var> ctable;
 
 BOOST_AUTO_TEST_CASE(test_simple) {
-  using namespace libgm;
-  using namespace std;
-
   std::size_t nsamples = 10000;
 
   universe u;
-  domain v = u.new_discrete_variables(6, "v", 3);
+  domain<var> v;
+  for (std::size_t i = 0; i < 6; ++i) {
+    v.push_back(var::discrete(u, "v", 3));
+  }
 
   // generate a random Bayesian network with the given structure
   bayesian_network<ptable> bn;
@@ -56,11 +60,11 @@ BOOST_AUTO_TEST_CASE(test_simple) {
   //cout << bn << endl;
 
   // generate a dataset
-  uint_dataset<> data(v, nsamples);
-  uint_assignment<> a;
+  uint_dataset<var> data(v, nsamples);
+  uint_assignment<var> a;
   for (std::size_t i = 0; i < nsamples; ++i) {
     bn.sample(rng, a);
-    data.insert(a, 1.0);
+    data.insert(a.values(v), 1.0);
   }
 
   // learn the model
@@ -73,24 +77,24 @@ BOOST_AUTO_TEST_CASE(test_simple) {
   }
 
   // verify the cliques
-  std::unordered_set<domain> cliques;
+  std::unordered_set<domain<var> > cliques;
   for (libgm::id_t v : dm.vertices()) {
-    const domain& clique = dm.clique(v);
+    const domain<var>& clique = dm.clique(v);
     cliques.emplace(clique);
     std::cout << clique << std::endl;
   }
 
   BOOST_CHECK(cliques.size() == 5);
-  BOOST_CHECK(cliques.count(domain({v[0], v[1]}).unique()));
-  BOOST_CHECK(cliques.count(domain({v[1], v[2]}).unique()));
-  BOOST_CHECK(cliques.count(domain({v[1], v[3]}).unique()));
-  BOOST_CHECK(cliques.count(domain({v[3], v[4]}).unique()));
-  BOOST_CHECK(cliques.count(domain({v[3], v[5]}).unique()));
+  BOOST_CHECK(cliques.count(domain<var>({v[0], v[1]}).unique()));
+  BOOST_CHECK(cliques.count(domain<var>({v[1], v[2]}).unique()));
+  BOOST_CHECK(cliques.count(domain<var>({v[1], v[3]}).unique()));
+  BOOST_CHECK(cliques.count(domain<var>({v[3], v[4]}).unique()));
+  BOOST_CHECK(cliques.count(domain<var>({v[3], v[5]}).unique()));
 
   // TODO: flatten, relative entropy for decomposable
   ptable p = prod_all(bn).normalize().marginal(v);
   ptable q = prod_all(dm).normalize().marginal(v);
   double kl = kl_divergence(p, q);
-  cout << "KL divergence: " << kl << endl;
+  std::cout << "KL divergence: " << kl << std::endl;
   BOOST_CHECK_SMALL(kl, 0.01);
 }

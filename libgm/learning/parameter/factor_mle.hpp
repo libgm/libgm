@@ -39,7 +39,7 @@ namespace libgm {
      */
     template <typename Dataset>
     F operator()(const Dataset& ds, const domain_type& args) {
-      return F(args, mle_(ds(args), F::param_shape(args)));
+      return F(args, mle_(ds.samples(args), F::param_shape(args)));
     }
 
     /**
