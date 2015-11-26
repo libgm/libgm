@@ -3,9 +3,14 @@
 
 #include <libgm/datastructure/uint_vector.hpp>
 #include <libgm/datastructure/uint_vector_iterator.hpp>
+#include <libgm/functional/algorithm.hpp>
 #include <libgm/functional/arithmetic.hpp>
+#include <libgm/functional/iterator.hpp>
+#include <libgm/functional/nth_value.hpp>
+#include <libgm/functional/tuple.hpp>
 #include <libgm/range/iterator_range.hpp>
 #include <libgm/serialization/vector.hpp>
+#include <libgm/traits/missing.hpp>
 
 #include <algorithm>
 #include <functional>
@@ -170,7 +175,7 @@ namespace libgm {
       : inc_(a_shape.size() + 1, 0) {
       assert(b_offset.size() == b_map.size());
       for (std::size_t i = 0; i < b_map.size(); ++i) {
-        if (b_map[i] != std::numeric_limits<std::size_t>::max()) {
+        if (b_map[i] != missing<std::size_t>::value) {
           inc_[b_map[i]] = b_offset.multiplier(i);
         }
       }
@@ -469,6 +474,13 @@ namespace libgm {
     }
 
     /**
+     * Convenience function that does not do anything.
+     */
+    table<T>& transform(identity) {
+      return *this;
+    }
+
+    /**
      * Transforms the content of this table by applying a binary operation
      * to the elements of this table and the given table. The two tables
      * must have the same shapes.
@@ -496,7 +508,7 @@ namespace libgm {
      * operation and accumulates the result.
      */
     template <typename R, typename TransOp, typename AccuOp>
-    R transform_accumulate(R init,  TransOp trans_op, AccuOp accu_op) const {
+    R transform_accumulate(R init, TransOp trans_op, AccuOp accu_op) const {
       R result(init);
       for (std::size_t i = 0; i < size(); ++i) {
         result = accu_op(result, trans_op(data_[i]));
@@ -693,6 +705,99 @@ namespace libgm {
     }
   }
 
+  /**
+   * Performs a transform operation on one or more tables, storing the result
+   * to another table. The input tables must have the same shapes.
+   *
+   * \tparam T the value type of the resulting table
+   * \tparam Op the transform operation that returns value convertible to T
+   */
+  template <typename T, typename Op>
+  class table_transform {
+  public:
+    table_transform(table<T>& result, Op op)
+      : result_(result), op_(op) { }
+
+    template <typename... Ts>
+    void operator()(const table<Ts>&... input) const {
+      std::tuple<const Ts*...> src(input.data()...);
+      std::size_t size = nth_value<0>(input...).size();
+      result_.reset(nth_value<0>(input...).shape());
+      T* dest = result_.data();
+      for (std::size_t i = 0; i < size; ++i) {
+        *dest++ = tuple_apply(op_, tuple_transform(dereference(), src));
+        tuple_transform(preincrement(), src);
+      }
+    }
+
+  private:
+    table<T>& result_;
+    Op op_;
+  };
+
+  /**
+   * Performs a transform operation on one or more tables and combines the
+   * result of this operation elementwise with a result table.
+   *
+   * \tparam T the value type of the result table
+   * \tparam TransOp the transform operation that returns value convertible to T
+   * \tapram Combine the combination operation
+   */
+  template <typename T, typename TransOp, typename Combine>
+  class table_transform_combine {
+  public:
+    table_transform_combine(table<T>& result, TransOp op)
+      : result_(result), op_(op) { }
+
+    template <typename... Ts>
+    void operator()(const table<Ts>&... input) const {
+      assert(result_.shape() == nth_value<0>(input...).shape());
+      std::tuple<const Ts*...> src(input.data()...);
+      T* r = result_.data();
+      std::size_t size = result_.size();
+      for (std::size_t i = 0; i < size; ++i) {
+        *r = combine_(*r, tuple_apply(op_, tuple_transform(dereference(), src)));
+        ++r;
+        tuple_transform(preincrement(), src);
+      }
+    }
+
+  private:
+    table<T>& result_;
+    TransOp op_;
+    Combine combine_;
+  };
+
+  /**
+   * Follows a transform on one or more tables and accumulates the result.
+   *
+   * \tparam T the type representing the result
+   * \tparam AggOp a binary operation that accumulates the result
+   * \tparam TransOp the transform operation
+   */
+  template <typename T, typename TransOp, typename AggOp>
+  class table_transform_accumulate {
+  public:
+    table_transform_accumulate(T init, TransOp trans_op, AggOp agg_op)
+      : init_(init), trans_op_(trans_op), agg_op_(agg_op) { }
+
+    template <typename... Ts>
+    T operator()(const table<Ts>&... input) const {
+      std::tuple<const Ts*...> ptr(input.data()...);
+      std::size_t size = nth_value<0>(input...).size();
+      T r = init_;
+      for (std::size_t i = 0; i < size; ++i) {
+        r = agg_op_(r, tuple_apply(trans_op_, tuple_transform(dereference(), ptr)));
+        tuple_transform(preincrement(), ptr);
+      }
+      return r;
+    }
+
+  private:
+    T init_;
+    TransOp trans_op_;
+    AggOp agg_op_;
+  };
 
   /**
    * Performs a join operation on two tables, storing the result to a
@@ -841,6 +946,89 @@ namespace libgm {
     Op op_;
 
   }; // class table_join_inplace
+
+
+  /**
+   * Performs a join operation on two tables, accumulating the resulting
+   * (ficticious) table. Each dimension of an input must correspond to exactly
+   * one dimension of the result; this mapping is specified by the x_map and
+   * y_map indices, where dimension i of x corresponds to the dimension
+   * x_map[i] of the result (and similarly for y).
+   *
+   * The constructor of this class sets up the internal members.
+   * To invoke the join operation, use operator().
+   *
+   * \tparam T the value type of the left table and result
+   * \tparam U the value type of the right table
+   * \tparam AggOp a binary operation compatible with T(const&, const T&)
+   * \tparam JoinOp a binary operation compatible with T(const T&, const U&)
+   */
+  template <typename T, typename U, typename JoinOp, typename AggOp>
+  class table_join_accumulate {
+  public:
+    //! Sets up the internal members of the join operation
+    table_join_accumulate(T init,
+                          const table<T>& x,
+                          const table<U>& y,
+                          const uint_vector& x_map,
+                          const uint_vector& y_map,
+                          const uint_vector& r_shape,
+                          JoinOp join_op,
+                          AggOp agg_op)
+      : result_(init),
+        shape_(r_shape),
+        x_(x.data()),
+        y_(y.data()),
+        x_inc_(r_shape, x.offset(), x_map),
+        y_inc_(r_shape, y.offset(), y_map),
+        join_op_(join_op),
+        agg_op_(agg_op) { }
+
+    //! Performs the join operation, automatically selecting the best method.
+    T operator()() {
+      invoke_loop_template(*this, shape_.size());
+      return result_;
+    }
+
+    //! Performs the join operation for a fixed arity of the result.
+    template <int D>
+    void loop(int_<D>) {
+      for (std::size_t i = shape_[D-1]; i; --i) {
+        loop(int_<D-1>());
+        x_ += x_inc_[D-1];
+        y_ += y_inc_[D-1];
+      }
+    }
+
+    //! Performs the join operation for a nullary result (the base case).
+    void loop(int_<0>) {
+      result_ = agg_op_(result_, join_op_(*x_, *y_));
+    };
+
+    //! Performs the join operation for an arbitrary result (slow).
+    void loop() {
+      x_inc_.partial_sum();
+      y_inc_.partial_sum();
+      uint_vector_iterator it(&shape_), end(shape_.size());
+      while (it != end) {
+        result_ = agg_op_(result_, join_op_(*x_, *y_));
+        ++it;
+        x_ += x_inc_[it.digit()];
+        y_ += y_inc_[it.digit()];
+      }
+    }
+
+  private:
+    T result_;
+    const uint_vector& shape_;
+    const T* x_;
+    const U* y_;
+    table_increment x_inc_;
+    table_increment y_inc_;
+    JoinOp join_op_;
+    AggOp agg_op_;
+
+  }; // class table_join_accumulate
 
 
   /**
@@ -1015,9 +1203,9 @@ namespace libgm {
    * restricted columns are equal to some index. The restricted columns,
    * as well as the mapping from the input table to the result table,
    * are specified using the x_map index. If x_map[i] is equal to
-   * std::numeric_limits<std::size_t>::max(), then dimension i of x is
-   * restricted; otherwise, dimension i of x corresponds to dimension
-   * x_map[i] of the result. The argument first specifies the linear
+   * missing<std::size_t>::value, then dimension i of x is restricted
+   * (i.e., missing in the output). Otherwise, dimension i of x corresponds to
+   * dimension x_map[i] of the result. The argument first specifies the linear
    * index (in the input table x) that corresponds to the first copied
    * value (i.e., value where all non-restricted columns are 0).
    *
@@ -1085,9 +1273,9 @@ namespace libgm {
    * the result table using the given binary operation. The restricted
    * columns, as well as the mapping from the input table to the result
    * table, are specified using the x_map index. If x_map[i] is equal to
-   * std::numeric_limits<std::size_t>::max(), then dimension i of x is
-   * restricted; otherwise, dimension i of x corresponds to dimension
-   * x_map[i] of the result. The argument first specifies the linear
+   * mising<std::size_t>::value, then dimension i of x is restricted
+   * (i.e., missing in the output). Otherwise, dimension i of x corresponds to
+   * dimension x_map[i] of the result. The argument first specifies the linear
    * index (in the input table x) that corresponds to the first copied
    * value (i.e., value where all non-restricted columns are 0).
    *

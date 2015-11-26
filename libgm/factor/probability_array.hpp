@@ -6,7 +6,7 @@
 #include <libgm/functional/algorithm.hpp>
 #include <libgm/functional/arithmetic.hpp>
 #include <libgm/functional/assign.hpp>
-#include <libgm/functional/eigen.hpp>
+#include <libgm/functional/member.hpp>
 #include <libgm/functional/entropy.hpp>
 #include <libgm/math/likelihood/probability_array_ll.hpp>
 #include <libgm/math/likelihood/probability_array_mle.hpp>
@@ -327,7 +327,7 @@ namespace libgm {
     template <bool B = (N == 2)>
     typename std::enable_if<B, probability_array<Arg, 1, T> >::type
     marginal(const unary_domain_type& retain) const {
-      return aggregate<probability_array<Arg, 1, T>>(*this, retain, sum_op());
+      return aggregate<probability_array<Arg, 1, T>>(*this, retain, member_sum());
     }
 
     /**
@@ -372,7 +372,7 @@ namespace libgm {
     typename std::enable_if<B, probability_array<Arg, 1, T> >::type
     maximum(const unary_domain_type& retain) const {
       return aggregate<probability_array<Arg, 1, T>>(*this, retain,
-                                                     max_coeff_op());
+                                                     member_maxCoeff());
     }
 
     /**
@@ -383,7 +383,7 @@ namespace libgm {
     typename std::enable_if<B, probability_array<Arg, 1, T> >::type
     minimum(const unary_domain_type& retain) const {
       return aggregate<probability_array<Arg, 1, T>>(*this, retain,
-                                                     min_coeff_op());
+                                                     member_minCoeff());
     }
 
     /**
@@ -404,7 +404,7 @@ namespace libgm {
     typename std::enable_if<B>::type
     marginal(const unary_domain_type& retain,
              probability_array<Arg, 1, T>& result) const {
-      aggregate(*this, retain, result, sum_op());
+      aggregate(*this, retain, result, member_sum());
     }
 
     /**
@@ -415,7 +415,7 @@ namespace libgm {
     typename std::enable_if<B>::type
     maximum(const unary_domain_type& retain,
             probability_array<Arg, 1, T>& result) const {
-      aggregate(*this, retain, result, max_coeff_op());
+      aggregate(*this, retain, result, member_maxCoeff());
     }
 
     /**
@@ -426,7 +426,7 @@ namespace libgm {
     typename std::enable_if<B>::type
     minimum(const unary_domain_type& retain,
             probability_array<Arg, 1, T>& result) const {
-      aggregate(*this, retain, result, min_coeff_op());
+      aggregate(*this, retain, result, member_minCoeff());
     }
 
     //! Returns the normalization constant of the factor.

@@ -8,10 +8,10 @@
 #include <libgm/graph/vertex_traits.hpp>
 #include <libgm/serialization/iarchive.hpp>
 #include <libgm/serialization/oarchive.hpp>
-#include <libgm/traits/at_type.hpp>
 #include <libgm/traits/count_types.hpp>
 #include <libgm/traits/find_type.hpp>
 #include <libgm/traits/static_max.hpp>
+#include <libgm/traits/nth_type.hpp>
 
 #include <algorithm>
 #include <array>
@@ -117,16 +117,16 @@ namespace libgm {
 
     //! Returns the value in the union with the given index.
     template <std::size_t I>
-    typename at_type<I, Types...>::type& get() {
+    typename nth_type<I, Types...>::type& get() {
       assert(which() == I);
-      return *static_cast<typename at_type<I, Types...>::type*>(data());
+      return *static_cast<typename nth_type<I, Types...>::type*>(data());
     }
 
     //! Returns the value in the union with the given index.
     template <std::size_t I>
-    const typename at_type<I, Types...>::type& get() const {
+    const typename nth_type<I, Types...>::type& get() const {
       assert(which() == I);
-      return *static_cast<const typename at_type<I, Types...>::type*>(data());
+      return *static_cast<const typename nth_type<I, Types...>::type*>(data());
     }
 
     //! Returns the value in the union with the given type.

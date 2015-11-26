@@ -14,6 +14,9 @@ namespace libgm {
 typedef libgm::array_domain<int, 1> domain1;
 typedef libgm::array_domain<int, 2> domain2;
 typedef libgm::array_domain<int, 3> domain3;
+typedef std::array<std::size_t, 2> size_array2;
+
+BOOST_TEST_DONT_PRINT_LOG_VALUE(size_array2);
 
 BOOST_AUTO_TEST_CASE(test_constructors) {
   domain2 a = {0, 0};
@@ -54,7 +57,7 @@ BOOST_AUTO_TEST_CASE(test_operations) {
   BOOST_CHECK(subset(d, a));
   BOOST_CHECK(superset(a, b));
   BOOST_CHECK(superset(a, d));
-  BOOST_CHECK_EQUAL(a.num_values(), 25);
+  BOOST_CHECK_EQUAL(a.num_values(), size_array2({5, 5}));
   BOOST_CHECK_EQUAL(a.num_dimensions(), 2);
 }
 

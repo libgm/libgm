@@ -1,8 +1,8 @@
 #ifndef LIBGM_LOGARITHMIC_HPP
 #define LIBGM_LOGARITHMIC_HPP
 
-#include <libgm/math/log_tag.hpp>
 #include <libgm/math/numerical_error.hpp>
+#include <libgm/math/tags.hpp>
 #include <libgm/serialization/serialize.hpp>
 
 #include <algorithm>

@@ -1,6 +1,6 @@
-subdirs(random)
+subdirs(experimental random)
 
-add_executable(array_factor array_factor.cpp)
+#add_executable(array_factor array_factor.cpp)
 add_executable(canonical_array canonical_array.cpp)
 add_executable(canonical_table canonical_table.cpp)
 add_executable(canonical_gaussian canonical_gaussian.cpp)
@@ -10,7 +10,7 @@ add_executable(probability_array probability_array.cpp)
 add_executable(probability_table probability_table.cpp)
 add_executable(softmax softmax.cpp)
 
-add_test(array_factor array_factor)
+#add_test(array_factor array_factor)
 add_test(canonical_array canonical_array)
 add_test(canonical_table canonical_table)
 add_test(canonical_gaussian canonical_gaussian)

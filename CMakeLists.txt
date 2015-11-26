@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 2.8.3)
 
 enable_testing()
 
-subdirs(test)
+subdirs(test timing)
 
 if (MSVC)
   add_definitions(-D_SCL_SECURE_NO_WARNINGS) # disable checked_iterator warnings
@@ -42,10 +42,10 @@ link_libraries(${Boost_LIBRARIES})
 
 # Flags for the debug and release mode
 if(CMAKE_COMPILER_IS_GNUCXX)
-  set(CMAKE_CXX_FLAGS "-g -std=c++11")
+  set(CMAKE_CXX_FLAGS "-g -std=c++14")
   link_libraries(pthread)
 elseif(MSVC)
   set(CMAKE_CXX_FLAGS "/EHsc /bigobj")
 else()
-  set(CMAKE_CXX_FLAGS "-g -std=c++11")
+  set(CMAKE_CXX_FLAGS "-g -std=c++14")
 endif()

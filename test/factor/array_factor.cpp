@@ -6,7 +6,7 @@
 #include <libgm/factor/base/array_factor.hpp>
 #include <libgm/functional/arithmetic.hpp>
 #include <libgm/functional/assign.hpp>
-#include <libgm/functional/eigen.hpp>
+#include <libgm/functional/member.hpp>
 
 namespace libgm {
   template class array_factor<var, 1, double>;
@@ -119,11 +119,11 @@ BOOST_AUTO_TEST_CASE(test_aggregate) {
   iarray2 fxy({x, y}, {-1, -2, -3, 4, 5, 6});
 
   iarray1 hx;
-  aggregate(fxy, unary_domain{x}, hx, sum_op());
+  aggregate(fxy, unary_domain{x}, hx, member_sum());
   BOOST_CHECK_EQUAL(hx, iarray1({x}, {1, 8}));
 
   iarray1 hy;
-  aggregate(fxy, unary_domain{y}, hy, sum_op());
+  aggregate(fxy, unary_domain{y}, hy, member_sum());
   BOOST_CHECK_EQUAL(hy, iarray1({y}, {-3, 1, 11}));
 }
 

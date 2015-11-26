@@ -301,7 +301,7 @@ namespace libgm {
     //! Raises the probability_table factor by an exponent.
     friend probability_table
     pow(const probability_table& f, T x) {
-      return transform<probability_table>(f, exponentiated<T>(x));
+      return transform<probability_table>(f, power<T>(x));
     }
 
     //! Element-wise maximum of two factors.
@@ -463,7 +463,8 @@ namespace libgm {
 
     //! Computes the entropy for the distribution represented by this factor.
     T entropy() const {
-      return this->param_.transform_accumulate(T(0), entropy_op<T>(),
+      return this->param_.transform_accumulate(T(0),
+                                               entropy_op<T>(),
                                                std::plus<T>());
     }
 

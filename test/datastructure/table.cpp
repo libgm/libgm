@@ -74,8 +74,8 @@ BOOST_AUTO_TEST_CASE(test_sequential) {
   // Transform-accumulate
   std::iota(x.begin(), x.end(), 2);
   std::size_t sum = x.transform_accumulate(0,
-                                      libgm::incremented_by<int>(3),
-                                      std::plus<int>());
+                                           libgm::incremented_by<int>(3),
+                                           std::plus<int>());
   BOOST_CHECK_EQUAL(sum, 26);
 
   // Restrict
@@ -176,16 +176,16 @@ BOOST_AUTO_TEST_CASE(test_join) {
 
   // Compute the sums with nested loops
   int_table nested({m, n, o});
-  table_join<int,int,std::plus<int> >(nested, x, y, x_map, y_map, op)();
+  table_join<int, int, std::plus<int> >(nested, x, y, x_map, y_map, op)();
   BOOST_CHECK(std::equal(nested.begin(), nested.end(), sum_xy));
-  table_join_inplace<int,int,std::plus<int> >(nested, z, z_map, op)();
+  table_join_inplace<int, int, std::plus<int> >(nested, z, z_map, op)();
   BOOST_CHECK(std::equal(nested.begin(), nested.end(), sum_xyz));
 
   // Compute the sums with flat loop
   int_table flat({m, n, o});
-  table_join<int,int,std::plus<int> >(flat, x, y, x_map, y_map, op).loop();
+  table_join<int, int, std::plus<int> >(flat, x, y, x_map, y_map, op).loop();
   BOOST_CHECK(std::equal(flat.begin(), flat.end(), sum_xy));
-  table_join_inplace<int,int,std::plus<int> >(flat, z, z_map, op).loop();
+  table_join_inplace<int, int, std::plus<int> >(flat, z, z_map, op).loop();
   BOOST_CHECK(std::equal(flat.begin(), flat.end(), sum_xyz));
 }
 
@@ -226,13 +226,13 @@ BOOST_AUTO_TEST_CASE(test_aggregate) {
   // Performs the aggregate with nested loops
   int_table nested({o, m});
   nested.fill(0);
-  table_aggregate<int,int,std::plus<int> >(nested, x, dim_map, op)();
+  table_aggregate<int, int, std::plus<int> >(nested, x, dim_map, op)();
   BOOST_CHECK(std::equal(nested.begin(), nested.end(), sum));
 
   // Performs the aggregate with flat loop
   int_table flat({o, m});
   flat.fill(0);
-  table_aggregate<int,int,std::plus<int> >(flat, x, dim_map, op).loop();
+  table_aggregate<int, int, std::plus<int> >(flat, x, dim_map, op).loop();
   BOOST_CHECK(std::equal(flat.begin(), flat.end(), sum));
 }
 
@@ -281,14 +281,14 @@ BOOST_AUTO_TEST_CASE(test_join_aggregate) {
   // Compute the aggregates with nested loops
   int_table nested({o, m});
   nested.fill(0);
-  table_join_aggregate<int,std::multiplies<int>,std::plus<int> >
+  table_join_aggregate<int, std::multiplies<int>, std::plus<int> >
     (nested, x, y, r_map, x_map, y_map, z_shape, join_op, agg_op)();
   BOOST_CHECK(std::equal(nested.begin(), nested.end(), sum));
 
   // Compute the sums with flat loop
   int_table flat({o, m});
   flat.fill(0);
-  table_join_aggregate<int,std::multiplies<int>,std::plus<int> >
+  table_join_aggregate<int, std::multiplies<int>, std::plus<int> >
     (flat, x, y, r_map, x_map, y_map, z_shape, join_op, agg_op).loop();
   BOOST_CHECK(std::equal(flat.begin(), flat.end(), sum));
 }
@@ -376,11 +376,11 @@ BOOST_AUTO_TEST_CASE(test_restrict_join) {
 
   // Performs the restrict-join operation using nested loops
   int_table nested = y;
-  table_restrict_join<int,int,std::plus<int> >(nested, x, x_map, 2, op)();
+  table_restrict_join<int, int, std::plus<int> >(nested, x, x_map, 2, op)();
   BOOST_CHECK(std::equal(nested.begin(), nested.end(), result));
 
   // Performs the restrict-join operation using flat loop
   int_table flat = y;
-  table_restrict_join<int,int,std::plus<int> >(flat, x, x_map, 2, op)();
+  table_restrict_join<int, int, std::plus<int> >(flat, x, x_map, 2, op)();
   BOOST_CHECK(std::equal(flat.begin(), flat.end(), result));
 }

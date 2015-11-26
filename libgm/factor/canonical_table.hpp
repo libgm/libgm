@@ -279,7 +279,7 @@ namespace libgm {
     //! Computes the marginal of the factor over a subset of variables.
     void marginal(const domain_type& retain, canonical_table& result) const {
       T offset = maximum().lv;
-      this->aggregate(retain, T(0), plus_exp<T>(-offset), result);
+      this->aggregate(retain, T(0), plus_exponent<T>(-offset), result);
       for (T& x : result.param_) { x = std::log(x) + offset; }
     }
 
@@ -296,7 +296,7 @@ namespace libgm {
     //! Returns the normalization constant of the factor.
     logarithmic<T> marginal() const {
       T offset = maximum().lv;
-      T sum = this->param_.accumulate(T(0), plus_exp<T>(-offset));
+      T sum = this->param_.accumulate(T(0), plus_exponent<T>(-offset));
       return logarithmic<T>(std::log(sum) + offset, log_tag());
     }
 

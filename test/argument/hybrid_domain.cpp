@@ -5,6 +5,7 @@
 #include <libgm/argument/universe.hpp>
 #include <libgm/argument/var.hpp>
 #include <libgm/argument/vec.hpp>
+#include <libgm/datastructure/uint_vector.hpp>
 
 namespace libgm {
   template class hybrid_domain<var>;
@@ -12,6 +13,8 @@ namespace libgm {
 }
 
 using namespace libgm;
+
+BOOST_TEST_DONT_PRINT_LOG_VALUE(uint_vector);
 
 typedef hybrid_domain<var> domain_type;
 
@@ -88,6 +91,6 @@ BOOST_AUTO_TEST_CASE(test_operators) {
   BOOST_CHECK(superset(d, domain_type({y, x})));
   BOOST_CHECK(!superset(domain_type({x, q}), d));
   BOOST_CHECK(compatible(domain_type({x, y, z}), domain_type({y, q, r})));
-  BOOST_CHECK_EQUAL(d.num_values(), 6);
+  BOOST_CHECK_EQUAL(d.num_values(), uint_vector({2, 3}));
   BOOST_CHECK_EQUAL(d.num_dimensions(), 4);
 }

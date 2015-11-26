@@ -8,6 +8,7 @@
 #include <libgm/functional/utility.hpp>
 #include <libgm/range/iterator_range.hpp>
 #include <libgm/serialization/vector.hpp>
+#include <libgm/traits/missing.hpp>
 
 #include <algorithm>
 #include <array>
@@ -20,6 +21,10 @@
 #include <vector>
 
 namespace libgm {
+
+  // Forward declarations
+  template <typename Arg> class unary_domain;
+  template <typename Arg> class binary_domain;
 
   /**
    * A domain that holds the arguments in an std::vector.
@@ -67,6 +72,30 @@ namespace libgm {
     explicit domain(const iterator_range<Iterator>& range)
       : std::vector<Arg>(range.begin(), range.end()) { }
 
+    //! Conversion from a unary domain.
+    domain(const unary_domain<Arg>& dom)
+      : std::vector<Arg>({dom.x()}) { }
+
+    //! Conversion from a binary domain.
+    domain(const binary_domain<Arg>& dom)
+      : std::vector<Arg>({dom.x(), dom.y()}) { }
+
+    //! Conversion to a unary domain. Throws std::invalid_argument if not unary.
+    unary_domain<Arg> unary() const {
+      if (this->size() != 1) {
+        throw std::invalid_argument("The domain is not unary");
+      }
+      return { this->front() };
+    }
+
+    //! Conversion to a binary domain. Throws std::invalid_argument if not binary.
+    binary_domain<Arg> binary() const {
+      if (this->size() != 2) {
+        throw std::invalid_argument("The domain is not binary");
+      }
+      return { this->front(), this->back() };
+    }
+
     //! Saves the domain to an archive.
     void save(oarchive& ar) const {
       ar.serialize_range(this->begin(), this->end());
@@ -96,6 +125,18 @@ namespace libgm {
 
     // Sequence operations
     //==========================================================================
+
+    //! Returns a prefix of this domain.
+    domain prefix(std::size_t n) const {
+      assert(n <= this->size());
+      return domain(this->begin(), this->begin() + n);
+    }
+
+    //! Returns a suffix of this domain.
+    domain suffix(std::size_t n) const {
+      assert(n <= this->size());
+      return domain(this->end() - n, this->end());
+    }
 
     //! Returns true if the given domain is a prefix of this domain.
     bool prefix(const domain& dom) const {
@@ -248,10 +289,9 @@ namespace libgm {
     }
 
     /**
-     * Returns the overall dimensionality for a collection of univariate
-     * arguments. This is simply the cardinality of the domain for univariate
-     * arguments and the the sum of argument dimensionalities for multivariate
-     * arguments.
+     * Returns the overall dimensionality for a collection of arguments.
+     * This is simply the cardinality of the domain for univariate arguments
+     * and the the sum of argument dimensionalities for multivariate arguments.
      */
     std::size_t num_dimensions(std::size_t start = 0) const {
       assert(start <= this->size());
@@ -267,24 +307,38 @@ namespace libgm {
     }
 
     /**
-     * Returns the number of values for a collection of discrete arguments.
-     * This is equal to to the product of the numbers of values of the argument.
+     * Returns the vector specifying the number of values for a collection of
+     * discrete arguments. The result first contains the number of values for
+     * the first argument in this domain, then the numebr of values for the
+     * second argument, etc. The resulting vector is guaranteed to have exactly
+     * num_dimensions() elements.
      *
      * This function is supported only when Arg is discrete.
      *
-     * \throw std::out_of_range in case of possible overflow
+     * \fn index_type num_values() const
      */
-    template <bool B = is_discrete<Arg>::value>
-    typename std::enable_if<B, std::size_t>::type num_values() const {
-      std::size_t size = 1;
-      for (Arg arg : *this) {
-        std::size_t values = argument_traits<Arg>::num_values(arg);
-        if (std::numeric_limits<std::size_t>::max() / values <= size) {
-          throw std::out_of_range("num_values: possibly overflows std::size_t");
-        }
-        size *= values;
+    LIBGM_ENABLE_IF(A = Arg, is_discrete<A>::value && is_univariate<A>::value,
+                    index_type)
+    num_values() const {
+      index_type result(this->size());
+      for (std::size_t i = 0; i < result.size(); ++i) {
+        result[i] = argument_traits<Arg>::num_values((*this)[i]);
       }
-      return size;
+      return result;
+    }
+
+    LIBGM_ENABLE_IF(A = Arg, is_discrete<A>::value && is_multivariate<A>::value,
+                    index_type)
+    num_values() const {
+      index_type result(this->num_dimensions());
+      index_type::iterator dest = result.begin();
+      for (Arg arg : *this) {
+        std::size_t n = argument_traits<Arg>::num_dimensions(arg);
+        for (std::size_t pos = 0; pos < n; ++pos) {
+          *dest++ = argument_traits<Arg>::num_values(arg, pos);
+        }
+      }
+      return result;
     }
 
     /**
@@ -362,7 +416,7 @@ namespace libgm {
     }
 
     /**
-     * Computes the the linear indices of the arguments in this domain
+     * Computes the the indices of the arguments in this domain
      * given the starting position in the given map.
      *
      * \tparam Map A map object with keys Arg and values std::size_t
@@ -384,6 +438,64 @@ namespace libgm {
         dest += n;
       }
       return result;
+    }
+
+    /**
+     * Computes the indices of the arguments in this domain in the specified
+     * domain. More precisely, it returns an index vector v s.t. v[i] is the
+     * index of (*this)[i] in args. If strict is true, all arguments of this
+     * domain must be present in the specified domain. If strict is false,
+     * the missing arguments will be assigned a missing<std::size_t> value.
+     *
+     * When using this function in table factor operations, always call the
+     * index() on the domain of the factor whose elements will be iterated
+     * over in a non-linear fashion. The specified args are the arguments
+     * of the table that is iterated over in a linear fashion.
+     *
+     * \fn index_type index(const domain_type& args, bool strict=true) const
+     */
+    LIBGM_ENABLE_IF(A = Arg, is_univariate<A>::value, index_type)
+    index(const domain& args, bool strict = true) const {
+      index_type index(this->size(), missing<std::size_t>::value);
+      for(std::size_t i = 0; i < index.size(); i++) {
+        auto it = std::find(args.begin(), args.end(), (*this)[i]);
+        if (it != args.end()) {
+          index[i] = it - args.begin();
+        } else if (strict) {
+          std::ostringstream out;
+          out << "domain::index: cannot find argument ";
+          argument_traits<Arg>::print(out, (*this)[i]);
+          throw std::invalid_argument(out.str());
+        }
+      }
+      return index;
+    }
+
+    LIBGM_ENABLE_IF(A = Arg, is_multivariate<A>::value, index_type)
+    index(const domain& args, bool strict = true) const {
+      // compute the first dimension of each argument in args
+      std::vector<std::size_t> dim(args.size());
+      for (std::size_t i = 1; i < args.size(); ++i) {
+        dim[i] = dim[i-1] + argument_traits<Arg>::num_dimensions(args[i-1]);
+      }
+
+      // extract the dimensions for the arguments in this factor
+      index_type index(num_dimensions(), missing<std::size_t>::value);
+      index_type::iterator dest = index.begin();
+      for (Arg arg : *this) {
+        auto it = std::find(args.begin(), args.end(), arg);
+        std::size_t n = argument_traits<Arg>::num_dimensions(arg);
+        if (it != args.end()) {
+          std::iota(dest, dest + n, dim[it - args.begin()]);
+        } else if (strict) {
+          std::ostringstream out;
+          out << "domain::index: cannot find argument ";
+          argument_traits<Arg>::print(out, arg);
+          throw std::invalid_argument(out.str());
+        }
+        dest += n;
+      }
+      return index;
     }
 
   }; // class domain

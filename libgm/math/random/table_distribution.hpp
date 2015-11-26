@@ -3,7 +3,7 @@
 
 #include <libgm/datastructure/table.hpp>
 #include <libgm/functional/arithmetic.hpp>
-#include <libgm/math/log_tag.hpp>
+#include <libgm/math/tags.hpp>
 
 #include <algorithm>
 #include <numeric>

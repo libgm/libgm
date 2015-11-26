@@ -48,7 +48,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_all, F, factor_types) {
       sum += x;
     }
   }
-  sum /= nsamples * xy.num_values();
+  sum /= nsamples * x.num_values() * y.num_values();
   BOOST_CHECK_CLOSE_FRACTION(sum, (lower + upper) / 2, 0.05);
 
   /*

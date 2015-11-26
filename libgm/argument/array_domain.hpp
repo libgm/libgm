@@ -105,16 +105,13 @@ namespace libgm {
 
     //! Returns the number of values for a collection of discrete arguments.
     template <bool B = is_discrete<Arg>::value>
-    typename std::enable_if<B, std::size_t>::type num_values() const {
-      std::size_t size = 1;
-      for (Arg arg : *this) {
-        std::size_t values = argument_traits<Arg>::num_values(arg);
-        if (std::numeric_limits<std::size_t>::max() / values <= size) {
-          throw std::out_of_range("num_values: possibly overflows std::size_t");
-        }
-        size *= values;
+    typename std::enable_if<B, std::array<std::size_t, N> >::type
+    num_values() const {
+      std::array<std::size_t, N> result;
+      for (std::size_t i = 0; i < N; ++i) {
+        result[i] = argument_traits<Arg>::num_values((*this)[i]);
       }
-      return size;
+      return result;
     }
 
   }; // class array_domain

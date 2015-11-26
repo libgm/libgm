@@ -12,7 +12,9 @@
 template <typename F>
 boost::test_tools::predicate_result
 table_properties(const F& f, const typename F::domain_type& vars) {
-  std::size_t n = vars.num_values();
+  auto val = libgm::domain<libgm::var>(vars).num_values();
+  std::size_t n =
+    std::accumulate(val.begin(), val.end(), 1, std::multiplies<std::size_t>());
 
   if (f.empty()) {
     boost::test_tools::predicate_result result(false);

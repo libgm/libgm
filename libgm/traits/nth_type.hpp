@@ -1,5 +1,5 @@
-#ifndef LIBGM_AT_TYPE_HPP
-#define LIBGM_AT_TYPE_HPP
+#ifndef LIBGM_NTH_TYPE_HPP
+#define LIBGM_NTH_TYPE_HPP
 
 #include <cstddef>
 
@@ -12,7 +12,7 @@ namespace libgm {
    * \tparam Types a variable-length list of types
    */
   template <std::size_t I, typename... Types>
-  struct at_type {
+  struct nth_type {
     static_assert(sizeof...(Types) == -1,
                   "The index is greater than the number of template arguments");
   };
@@ -21,7 +21,7 @@ namespace libgm {
    * A class that retrieves a type with the given index (base case).
    */
   template <typename Head, typename... Rest>
-  struct at_type<0, Head, Rest...> {
+  struct nth_type<0, Head, Rest...> {
     typedef Head type;
   };
 
@@ -29,8 +29,20 @@ namespace libgm {
    * A class that retrieves a type with the given index (recursive case).
    */
   template <std::size_t I, typename Head, typename... Rest>
-  struct at_type<I, Head, Rest...>
-    : at_type<I-1, Rest...> { };
+  struct nth_type<I, Head, Rest...>
+    : nth_type<I-1, Rest...> { };
+
+  /**
+   * A special case when I = -1.
+   */
+  template <typename... Rest>
+  struct nth_type<std::size_t(-1), Rest...> { };
+
+  /**
+   * Shortcut notation for typename nth_type<T>::type.
+   */
+  template <std::size_t I, typename... Types>
+  using nth_type_t = typename nth_type<I, Types...>::type;
 
 } // namespace libgm
 

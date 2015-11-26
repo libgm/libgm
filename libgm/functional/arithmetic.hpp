@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <type_traits>
+#include <utility>
 
 namespace libgm {
 
@@ -25,9 +27,10 @@ namespace libgm {
    */
   template <>
   struct plus<void> {
-    template <typename T, typename U>
-    auto operator()(const T& x, const U& y) const -> decltype(x + y) {
-      return x + y;
+    template <typename X, typename Y>
+    auto operator()(X&& x, Y&& y) const
+      -> decltype(std::forward<X>(x) + std::forward<Y>(y)) {
+      return std::forward<X>(x) + std::forward<Y>(y);
     }
   };
 
@@ -46,9 +49,10 @@ namespace libgm {
    */
   template <>
   struct minus<void> {
-    template <typename T, typename U>
-    auto operator()(const T& x, const U& y) const -> decltype(x - y) {
-      return x - y;
+    template <typename X, typename Y>
+    auto operator()(X&& x, Y&& y) const
+      -> decltype(std::forward<X>(x) - std::forward<Y>(y)) {
+      return std::forward<X>(x) - std::forward<Y>(y);
     }
   };
 
@@ -67,9 +71,10 @@ namespace libgm {
    */
   template <>
   struct multiplies<void> {
-    template <typename T, typename U>
-    auto operator()(const T& x, const U& y) const -> decltype(x * y) {
-      return x * y;
+    template <typename X, typename Y>
+    auto operator()(X&& x, Y&& y) const ->
+      decltype(std::forward<X>(x) * std::forward<Y>(y)) {
+      return std::forward<X>(x) * std::forward<Y>(y);
     }
   };
 
@@ -88,9 +93,21 @@ namespace libgm {
    */
   template <>
   struct divides<void> {
-    template <typename T, typename U>
-    auto operator()(const T& x, const U& y) const -> decltype(x / y) {
-      return x / y;
+    template <typename X, typename Y>
+    auto operator()(X&& x, Y&& y) const ->
+      decltype(std::forward<X>(x) / std::forward<Y>(y)) {
+      return std::forward<X>(x) / std::forward<Y>(y);
+    }
+  };
+
+  /**
+   * A binary operator that computes the ratio of two values
+   * with \f$0 / 0 = 0\f$.
+   */
+  template <typename T>
+  struct safe_divides {
+    T operator()(const T& x, const T& y) const {
+      return (x == T(0)) ? T(0) : (x / y);
     }
   };
 
@@ -109,9 +126,10 @@ namespace libgm {
    */
   template <>
   struct modulus<void> {
-    template <typename T, typename U>
-    auto operator()(const T& x, const U& y) const -> decltype(x % y) {
-      return x % y;
+    template <typename X, typename Y>
+    auto operator()(X&& x, Y&& y) const
+      -> decltype(std::forward<X>(x) % std::forward<Y>(y)) {
+      return std::forward<X>(x) % std::forward<Y>(y);
     }
   };
 
@@ -136,19 +154,10 @@ namespace libgm {
   struct weighted_plus {
     T a, b;
     weighted_plus(const T& a, const T& b) : a(a), b(b) { }
-    T operator()(const T& x, const T& y) const {
-      return a * x + b * y;
-    }
-  };
-
-  /**
-   * A binary operator that computes the ratio of two values
-   * with \f$0 / 0 = 0\f$.
-   */
-  template <typename T>
-  struct safe_divides {
-    T operator()(const T& x, const T& y) const {
-      return (x == T(0)) ? T(0) : (x / y);
+    template <typename X, typename Y>
+    auto operator()(X&& x, Y&& y) const
+      -> decltype(T() * std::forward<X>(x) + T() * std::forward<Y>(y)) {
+      return a * std::forward<X>(x) + b * std::forward<Y>(y);
     }
   };
 
@@ -157,9 +166,9 @@ namespace libgm {
    * exponent of another one, offset by a given fixed value.
    */
   template <typename T>
-  struct plus_exp {
+  struct plus_exponent {
     T offset;
-    explicit plus_exp(const T& offset) : offset(offset) { }
+    plus_exponent(T offset = T(0)) : offset(offset) { }
     T operator()(const T& x, const T& y) const {
       return x + std::exp(y + offset);
     }
@@ -169,7 +178,7 @@ namespace libgm {
    * A binary operator that computes the log of the sum of the
    * exponents of two values.
    */
-  template <typename T>
+  template <typename T = void>
   struct log_plus_exp {
     T operator()(const T& x, const T& y) const {
       if (x == -std::numeric_limits<T>::infinity()) { return y; }
@@ -177,6 +186,20 @@ namespace libgm {
       T a, b;
       std::tie(a, b) = std::minmax(x, y);
       return std::log1p(std::exp(a - b)) + b;
+    }
+  };
+
+  /**
+   * A binary operator that computes the log of the sum of the
+   * exponents of two values.
+   */
+  template <>
+  struct log_plus_exp<void> {
+    template <typename X, typename Y>
+    auto operator()(X&& x, Y&& y) const {
+      auto min = std::forward<X>(x).min(std::forward<Y>(y));
+      auto max = std::forward<X>(x).max(std::forward<Y>(y));
+      return log(1 + exp(min - max)) + max;
     }
   };
 
@@ -196,95 +219,163 @@ namespace libgm {
   //========================================================================
 
   /**
-   * A unary operator that computes the sum of the argument and
-   * a fixed value.
+   * A unary operator that computes the sum of the argument and a fixed scalar.
    */
   template <typename T>
   struct incremented_by {
     T a;
-    explicit incremented_by(const T& a) : a(a) { }
-    T operator()(const T& x) const { return x + a; }
+    incremented_by(const T& a) : a(a) { }
+
+    template <typename X>
+    auto operator()(X&& x) const -> decltype(std::forward<X>(x) + T()) {
+      return std::forward<X>(x) + a;
+    }
   };
 
   /**
-   * A unary operator that computes the difference of the argument and
-   * a fixed value.
+   * A unary operator that computes the difference of the argument and a fixed
+   * scalar.
    */
   template <typename T>
   struct decremented_by {
     T a;
-    explicit decremented_by(const T& a) : a(a) { }
-    T operator()(const T& x) const { return x - a; }
+    decremented_by(const T& a) : a(a) { }
+
+    template <typename X>
+    auto operator()(X&& x) const -> decltype(std::forward<X>(x) - T()) {
+      return std::forward<X>(x) - a;
+    }
   };
 
   /**
-   * A unary operator that comptues the difference between a fixed value
+   * A unary operator that comptues the difference between a fixed scalar
    * and the argument.
    */
   template <typename T>
   struct subtracted_from {
     T a;
-    explicit subtracted_from(const T& a) : a(a) { }
-    T operator()(const T& x) const { return a - x; }
+    subtracted_from(const T& a) : a(a) { }
+
+    template <typename X>
+    auto operator()(X&& x) const -> decltype(T() - std::forward<X>(x)) {
+      return a - std::forward<X>(x);
+    }
   };
 
   /**
    * A unary operator that computes the product of the argument and
-   * a fixed value.
+   * a fixed scalar.
    */
   template <typename T>
   struct multiplied_by {
     T a;
-    explicit multiplied_by(const T& a) : a(a) { }
-    T operator()(const T& x) const { return x * a; }
+    multiplied_by(const T& a) : a(a) { }
+
+    template <typename X>
+    auto operator()(X&& x) const -> decltype(std::forward<X>(x) * T()) {
+      return std::forward<X>(x) * a;
+    }
   };
 
   /**
    * A unary operator that computes the ratio of the argument and
-   * a fixed value.
+   * a fixed scalar.
    */
   template <typename T>
   struct divided_by {
     T a;
-    explicit divided_by(const T& a) : a(a) { }
-    T operator()(const T& x) const { return x / a; }
+    divided_by(const T& a) : a(a) { }
+
+    template <typename X>
+    auto operator()(X&& x) const -> decltype(std::forward<X>(x) / T()) {
+      return std::forward<X>(x) / a;
+    }
   };
 
   /**
-   * A unary operator that computes the ratio of the fixed value
+   * A unary operator that computes the ratio of the fixed scalar
    * and the argument.
    */
   template <typename T>
   struct dividing {
     T a;
-    explicit dividing(const T& a) : a(a) { }
-    T operator()(const T& x) const { return a / x; }
+    dividing(const T& a) : a(a) { }
+
+    template <typename X>
+    auto operator()(X&& x) const -> decltype(T() / std::forward<X>(x)) {
+      return a / std::forward<X>(x);
+    }
   };
 
   /**
    * A unary operator that computes the value raised to a fixed exponent.
    */
   template <typename T>
-  struct exponentiated {
+  struct power {
     T a;
-    explicit exponentiated(const T& a) : a(a) { }
-    T operator()(const T& x) const { return std::pow(x, a); }
+    power(const T& a) : a(a) { }
+
+    //! Overload for built-in types.
+    template <typename X>
+    typename std::enable_if<std::is_floating_point<X>::value, X>::type
+    operator()(const X& x) const { return std::pow(x, a); }
+
+    //! Overload for custom types.
+    template <typename X>
+    auto operator()(X&& x) const ->
+      typename std::enable_if<!std::is_floating_point<X>::value,
+                              decltype(pow(x, T()))>::type {
+      return pow(x, a);
+    }
   };
 
   /**
    * A unary operator that computes the log of its argument.
    */
-  template <typename T>
+  template <typename T = void>
   struct logarithm {
     T operator()(const T& x) const { return std::log(x); }
   };
 
   /**
+   * Specialization of the logarithm class to custom types.
+   */
+  template <>
+  struct logarithm<void> {
+    template <typename X>
+    auto operator()(X&& x) const -> decltype(log(std::forward<X>(x))) {
+      return log(x);
+    }
+  };
+
+  /**
    * A unary operator that computes the exponent of its argument.
    */
-  template <typename T>
+  template <typename T = void>
   struct exponent {
     T operator()(const T& x) const { return std::exp(x); }
+  };
+
+  /**
+   * Specialization of the exponent class to custom types.
+   */
+  template <>
+  struct exponent<void> {
+    template <typename X>
+    auto operator()(X&& x) const -> decltype(exp(std::forward<X>(x))) {
+      return exp(x);
+    }
+  };
+
+  /**
+   * A unary operator that computes the log of its arguments and
+   * increments the result by a fixed offset.
+   */
+  template <typename T>
+  struct increment_logarithm {
+    T offset;
+    increment_logarithm(T offset) : offset(offset) { }
+    T operator()(const T& x) const { return std::log(x) + offset; }
   };
 
   /**

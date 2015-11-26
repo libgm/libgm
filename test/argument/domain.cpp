@@ -2,9 +2,12 @@
 #include <boost/test/unit_test.hpp>
 
 #include <libgm/argument/domain.hpp>
+
+#include <libgm/argument/binary_domain.hpp>
 #include <libgm/argument/sequence.hpp>
 #include <libgm/argument/var.hpp>
 #include <libgm/argument/vec.hpp>
+#include <libgm/argument/unary_domain.hpp>
 #include <libgm/argument/universe.hpp>
 #include <libgm/datastructure/uint_vector.hpp>
 
@@ -16,6 +19,8 @@ namespace libgm {
 }
 
 using namespace libgm;
+
+BOOST_TEST_DONT_PRINT_LOG_VALUE(uint_vector);
 
 BOOST_AUTO_TEST_CASE(test_constructors) {
   universe u;
@@ -118,7 +123,7 @@ BOOST_AUTO_TEST_CASE(test_num_univariate) {
   v.push_back(var::discrete(u, "i", 10));
   v.push_back(var::discrete(u, "j", 11));
 
-  BOOST_CHECK_EQUAL(v.num_values(), 39916800);
+  BOOST_CHECK_EQUAL(v.num_values(), uint_vector({2,3,4,5,6,7,8,9,10,11}));
   BOOST_CHECK_EQUAL(v.num_dimensions(), 10);
 
   v.clear();
@@ -126,7 +131,7 @@ BOOST_AUTO_TEST_CASE(test_num_univariate) {
   v.push_back(var::discrete(u, "l", 1000000));
   v.push_back(var::discrete(u, "m", 1000000));
   v.push_back(var::discrete(u, "n", 1000000));
-  BOOST_CHECK_THROW(v.num_values(), std::out_of_range);
+  BOOST_CHECK_EQUAL(v.num_values(), uint_vector(4, 1000000));
   BOOST_CHECK_EQUAL(v.num_dimensions(), 4);
 }
 
@@ -139,12 +144,12 @@ BOOST_AUTO_TEST_CASE(test_num_multivariate) {
   v.push_back(vec::discrete(u, "f", {7, 8, 9, 10}));
   v.push_back(vec::discrete(u, "j", 11));
 
-  BOOST_CHECK_EQUAL(v.num_values(), 39916800);
+  BOOST_CHECK_EQUAL(v.num_values(), uint_vector({2,3,4,5,6,7,8,9,10,11}));
   BOOST_CHECK_EQUAL(v.num_dimensions(), 10);
 
   v.clear();
   v.push_back(vec::discrete(u, "k", {1000000, 1000000}));
   v.push_back(vec::discrete(u, "m", {1000000, 1000000}));
-  BOOST_CHECK_THROW(v.num_values(), std::out_of_range);
+  BOOST_CHECK_EQUAL(v.num_values(), uint_vector(4, 1000000));
   BOOST_CHECK_EQUAL(v.num_dimensions(), 4);
 }

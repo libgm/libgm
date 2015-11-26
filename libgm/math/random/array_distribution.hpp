@@ -2,7 +2,7 @@
 #define LIBGM_ARRAY_DISTRIBUTION_HPP
 
 #include <libgm/datastructure/uint_vector.hpp>
-#include <libgm/math/log_tag.hpp>
+#include <libgm/math/tags.hpp>
 
 #include <numeric>
 #include <random>

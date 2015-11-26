@@ -9,6 +9,34 @@ namespace libgm {
   //! @{
 
   template <typename F>
+  struct is_primitive
+    : std::is_lvalue_reference<decltype(std::declval<F>().param())> { };
+
+  template <typename F>
+  using argument_t = typename std::decay_t<F>::argument_type;
+
+  template <typename F>
+  using domain_t = typename std::decay_t<F>::domain_type;
+
+  template <typename F>
+  using assignment_t = typename std::decay_t<F>::assignment_type;
+
+  template <typename F>
+  using real_t = typename std::decay_t<F>::real_type;
+
+  template <typename F>
+  using result_t = typename std::decay_t<F>::result_type;
+
+  template <typename F>
+  using param_t = typename std::decay_t<F>::param_type;
+
+  template <typename F>
+  using factor_t = typename std::decay_t<F>::factor_type;
+
+  template <typename F>
+  using space_t = typename std::decay_t<F>::space_type;
+
+  template <typename F>
   struct has_plus : public std::false_type { };
 
   template <typename F>

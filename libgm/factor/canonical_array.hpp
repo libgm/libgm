@@ -5,7 +5,7 @@
 #include <libgm/functional/algorithm.hpp>
 #include <libgm/functional/arithmetic.hpp>
 #include <libgm/functional/assign.hpp>
-#include <libgm/functional/eigen.hpp>
+#include <libgm/functional/member.hpp>
 #include <libgm/functional/entropy.hpp>
 #include <libgm/math/constants.hpp>
 #include <libgm/math/likelihood/canonical_array_ll.hpp>
@@ -272,7 +272,7 @@ namespace libgm {
     typename std::enable_if<B, canonical_array<Arg, 1, T> >::type
     maximum(const unary_domain_type& retain) const {
       return aggregate<canonical_array<Arg, 1, T>>(*this, retain,
-                                                   max_coeff_op());
+                                                   member_maxCoeff());
     }
 
     /**
@@ -283,7 +283,7 @@ namespace libgm {
     typename std::enable_if<B, canonical_array<Arg, 1, T> >::type
     minimum(const unary_domain_type& retain) const {
       return aggregate<canonical_array<Arg, 1, T>>(*this, retain,
-                                                   min_coeff_op());
+                                                   member_minCoeff());
     }
 
     /**
@@ -317,7 +317,7 @@ namespace libgm {
     typename std::enable_if<B>::type
     maximum(const unary_domain_type& retain,
             canonical_array<Arg, 1, T>& result) const {
-      aggregate(*this, retain, result, max_coeff_op());
+      aggregate(*this, retain, result, member_maxCoeff());
     }
 
     /**
@@ -328,14 +328,14 @@ namespace libgm {
     typename std::enable_if<B>::type
     minimum(const unary_domain_type& retain,
             canonical_array<Arg, 1, T>& result) const {
-      aggregate(*this, retain, result, min_coeff_op());
+      aggregate(*this, retain, result, member_minCoeff());
     }
 
     //! Returns the normalization constant of the factor.
     logarithmic<T> marginal() const {
       T max = this->param_.maxCoeff();
       T sum = std::accumulate(this->begin(), this->end(), T(0),
-                              plus_exp<T>(-max));
+                              plus_exponent<T>(-max));
       return logarithmic<T>(std::log(sum) + max, log_tag());
       // std::log(exp(param()-max).sum())+max is slow (at least on LLVM 3.5)
     }

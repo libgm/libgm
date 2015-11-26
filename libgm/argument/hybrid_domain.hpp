@@ -350,9 +350,8 @@ namespace libgm {
 
     /**
      * Returns the number of values for the discrete arguments of this domain.
-     * \throw std::out_of_range in case of possible overflow
      */
-    std::size_t num_values() const {
+    std::vector<std::size_t> num_values() const {
       return discrete_.num_values();
     }
 

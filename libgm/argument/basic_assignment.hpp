@@ -96,7 +96,7 @@ namespace libgm {
     }
 
     /**
-     * Returns the discrete values in this assignment for a subset of arguments
+     * Returns the values in this assignment for a subset of arguments
      * in the order specified by the given domain.
      */
     Vector values(const domain<Arg>& args, std::size_t start = 0) const {
@@ -127,7 +127,7 @@ namespace libgm {
     /**
      * Inserts the keys drawn from a domain and the corresponding values
      * drawn from a dense vector. If a key already exists, its value is
-     * is overwritten, similarly to std::unordered_map::insert_or_assign.
+     * overwritten, similarly to std::unordered_map::insert_or_assign.
      *
      * \return the number of values inserted
      */
@@ -137,6 +137,26 @@ namespace libgm {
       for (std::size_t i = 0; i < args.size(); ++i) {
         ninserted += 1 - this->count(args[i]);
         (*this)[args[i]] = values[i];
+      }
+      return ninserted;
+    }
+
+    /**
+     * Inserts the keys drawn from a domain and the corresponding values
+     * stored as a linear index. If a key already exists, its value is
+     * overwritten, similarly to std::unordered_map::insert_or_assign.
+     * This function is only supported for discrete arguments.
+     *
+     * \return the number of values inserted
+     */
+    template <bool B = is_discrete<Arg>::value, typename = std::enable_if_t<B> >
+    std::size_t insert_or_assign(const domain<Arg>& args, std::size_t index) {
+      std::size_t ninserted = 0;
+      for (std::size_t i = 0; i < args.size(); ++i) {
+        ninserted += 1 - this->count(args[i]);
+        std::size_t cardinality = argument_traits<Arg>::num_values(args[i]);
+        (*this)[args[i]] = index % cardinality;
+        index /= cardinality;
       }
       return ninserted;
     }
@@ -155,6 +175,30 @@ namespace libgm {
      */
     friend bool disjoint(const domain<Arg>& args, const basic_assignment& a) {
       return std::none_of(args.begin(), args.end(), count_in(a));
+    }
+
+    /**
+     * Returns the linear index corresponding to this assignment in a table
+     * with the specified arguments. If strict is true, each argument* must be
+     * present in this assignment. If strict is false, the missing arguments
+     * are assumed to be 0.
+     */
+    std::size_t linear_index(const domain<Arg>& args, bool strict = true) const{
+      std::size_t result = 0;
+      std::size_t multiplier = 1;
+      for (Arg arg : args) {
+        auto it = this->find(arg);
+        if (it != this->end()) {
+          result += multiplier * it->second;
+        } else if (strict) {
+          std::ostringstream out;
+          out << "basic_assignment::linear_index: missing argument ";
+          argument_traits<Arg>::print(out, arg);
+          throw std::invalid_argument(out.str());
+        }
+        multiplier *= argument_traits<Arg>::num_values(arg);
+      }
+      return result;
     }
 
     /**
@@ -238,7 +282,7 @@ namespace libgm {
     }
 
     /**
-     * Returns the discrete values in this assignment for a subset of arguments
+     * Returns the values in this assignment for a subset of arguments
      * in the order specified by the given domain.
      */
     Vector values(const domain<Arg>& args, std::size_t start = 0) const {
@@ -280,7 +324,7 @@ namespace libgm {
     /**
      * Inserts the keys drawn from a domain and the corresponding values
      * concatenated in a dense vector. If a key already exists, its value is
-     * is overwritten, similarly to std::unordereed_map::insert_or_assign.
+     * overwritten, similarly to std::unordereed_map::insert_or_assign.
      *
      * \return the number of values inserted
      */
@@ -300,6 +344,31 @@ namespace libgm {
     }
 
     /**
+     * Inserts the keys drawn from a domain and the corresponding values
+     * stored as a linear index. If a key already exists, its value is
+     * overwritten, similarly to std::unordered_map::insert_or_assign.
+     * This function is only supported for discrete arguments.
+     *
+     * \return the number of values inserted
+     */
+    template <bool B = is_discrete<Arg>::value, typename = std::enable_if_t<B> >
+    std::size_t insert_or_assign(const domain<Arg>& args, std::size_t index) {
+      std::size_t ninserted = 0;
+      for (Arg arg : args) {
+        std::size_t n = argument_traits<Arg>::num_dimensions(arg);
+        auto result = this->emplace(arg, Vector());
+        ninserted += result.second;
+        result.first->second.resize(n);
+        for (std::size_t i =0 ; i < n; ++i) {
+          std::size_t cardinality = argument_traits<Arg>::num_values(arg, i);
+          result.first->second[i] = index % cardinality;
+          index /= cardinality;
+        }
+      }
+      return ninserted;
+    }
+
+    /**
      * Returns true if all the arguments in the given domain are present in
      * the given assignment.
      */
@@ -313,6 +382,36 @@ namespace libgm {
      */
     friend bool disjoint(const domain<Arg>& args, const basic_assignment& a) {
       return std::none_of(args.begin(), args.end(), count_in(a));
+    }
+
+    /**
+     * Returns the linear index corresponding to this assignment in a table
+     * with the specified arguments. If strict is true, each argument* must be
+     * present in this assignment. If strict is false, the missing arguments
+     * are assumed to be 0.
+     */
+    std::size_t linear_index(const domain<Arg>& args, bool strict = true) const{
+      std::size_t result = 0;
+      std::size_t multiplier = 1;
+      for (Arg arg : args) {
+        auto it = this->find(arg);
+        if (it != this->end()) {
+          std::size_t n = argument_traits<Arg>::num_dimensions(arg);
+          assert(it->second.size() == n);
+          for (std::size_t pos = 0; pos < n; ++pos) {
+            result += multiplier * it->second[pos];
+            multiplier *= argument_traits<Arg>::num_values(arg, pos);
+          }
+        } else if (strict) {
+          std::ostringstream out;
+          out << "basic_assignment::linear_index: missing argument ";
+          argument_traits<Arg>::print(out, arg);
+          throw std::invalid_argument(out.str());
+        } else {
+          multiplier *= argument_traits<Arg>::num_values(arg);
+        }
+      }
+      return result;
     }
 
     /**
