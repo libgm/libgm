@@ -48,7 +48,6 @@ namespace libgm {
                                typename vector_value<Vector>::type,
                                typename argument_traits<Arg>::hasher> base;
   public:
-
     //! The type of values stored in the map.
     typedef typename base::value_type value_type;
 

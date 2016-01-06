@@ -28,6 +28,8 @@ namespace libgm {
     typedef typename std::remove_const<Matrix>::type plain_type;
     typedef typename Matrix::Scalar scalar_type;
 
+    const static bool is_mutable = !std::is_const<Matrix>::value;
+
     //! Constructs a submatrix with the given row and column indices.
     submatrix(Matrix& mat,
               const std::vector<std::size_t>& rows,
@@ -73,8 +75,7 @@ namespace libgm {
     }
 
     //! Returns the pointer to the beginning of the given column.
-    auto colptr(std::size_t i) const
-      -> decltype(static_cast<Matrix*>(nullptr)->data()) {
+    auto colptr(std::size_t i) const {
       return mat_.data() + mat_.rows() * (col_all_ ? i : cols_[i]);
     }
 
@@ -94,31 +95,49 @@ namespace libgm {
       update(result, *this, assign<>());
     }
 
-    //! Performs element-wise addition.
+    //! Adds a submatrix to a dense matrix element-wise.
     friend plain_type& operator+=(plain_type& result, const submatrix& a) {
       return update(result, a, plus_assign<>());
     }
 
-    //! Performs element-wise subtraction.
+    //! Subtracts a submatrix from a dense matrix element-wise.
     friend plain_type& operator-=(plain_type& result, const submatrix& a) {
       return update(result, a, minus_assign<>());
     }
 
-    //! Sets the contents of the submatrix to the given dense matrix.
-    template <bool B = !std::is_const<Matrix>::value>
-    typename std::enable_if<B, submatrix&>::type operator=(const Matrix& a) {
+    //! Assigns the elements of a matrix to this submatrix.
+    template <bool B = is_mutable, typename = std::enable_if_t<B> >
+    submatrix& operator=(const Matrix& a) {
       return update(*this, a, assign<>());
     }
 
-    //! Performs element-wise addition.
-    template <bool B = !std::is_const<Matrix>::value>
-    typename std::enable_if<B, submatrix&>::type operator+=(const Matrix& a) {
+    //! Adds a matrix to this submatrix element-wise.
+    template <bool B = is_mutable, typename = std::enable_if_t<B> >
+    submatrix& operator+=(const Matrix& a) {
       return update(*this, a, plus_assign<>());
     }
 
-    //! Performs element-wise subtraction.
-    template <bool B = !std::is_const<Matrix>::value>
-    typename std::enable_if<B, submatrix&>::type operator-=(const Matrix& a) {
+    //! Subtracts a matrix from this submatrix element-wise.
+    template <bool B = is_mutable, typename = std::enable_if_t<B> >
+    submatrix& operator-=(const Matrix& a) {
+      return update(*this, a, minus_assign<>());
+    }
+
+    //! Assigns the elements of another submatrix to this submatrix.
+    template <bool B = is_mutable, typename = std::enable_if_t<B> >
+    submatrix& operator=(const submatrix<const Matrix>& a) {
+      return update(*this, a, assign<>());
+    }
+
+    //! Adds another submatrix to this submatrix element-wise.
+    template <bool B = is_mutable, typename = std::enable_if_t<B> >
+    submatrix& operator+=(const submatrix<const Matrix>& a) {
+      return update(*this, a, plus_assign<>());
+    }
+
+    //! Subtracts another submatrix from this submatrix element-wise.
+    template <bool B = is_mutable, typename = std::enable_if_t<B> >
+    submatrix& operator-=(const submatrix<const Matrix>& a) {
       return update(*this, a, minus_assign<>());
     }
 
@@ -198,6 +217,38 @@ namespace libgm {
       return result;
     }
 
+    /**
+     * Updates the submatrix result by applying the mutation operation to the
+     * coefficients of result and the coefficients of another submatrix a.
+     * Assumes no aliasing.
+     */
+    template <typename Op>
+    friend submatrix&
+    update(submatrix& result, const submatrix<const Matrix>& a, Op op) {
+      assert(result.rows() == a.rows());
+      assert(result.cols() == a.cols());
+      if (result.contiguous() && a.contiguous()) {
+        op(result.block(), a.block());
+      } else if (result.row_contiguous() && a.row_contiguous()) {
+        for (std::size_t j = 0; j < a.cols(); ++j) {
+          const scalar_type* src = a.colptr(j) + a.rows_[0];
+          scalar_type* dest = result.colptr(j) + result.rows_[0];
+          for (std::size_t i = 0; i < a.rows(); ++i) {
+            op(*dest++, *src++);
+          }
+        }
+      } else {
+        for (std::size_t j = 0; j < a.cols(); ++j) {
+          const scalar_type* src = a.colptr(j);
+          scalar_type* dest = result.colptr(j);
+          for (std::size_t i = 0; i < a.rows(); ++i) {
+            op(dest[result.rows_[i]], src[a.rows_[i]]);
+          }
+        }
+      }
+      return result;
+    }
+
     //! The underlying matrix.
     Matrix& mat_;
 
@@ -218,6 +269,8 @@ namespace libgm {
 
     //! The evaluated matrix used by ref().
     plain_type plain_;
+
+    template <typename Mat> friend class submatrix;
   };
 
   /**

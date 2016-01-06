@@ -600,7 +600,7 @@ namespace libgm {
   operator*(const probability_array<Arg, M, T>& f,
             const probability_array<Arg, N, T>& g) {
     typedef probability_array<Arg, static_max<M, N>::value, T> result_type;
-    return join<result_type>(f, g, libgm::multiplies<>());
+    return join<result_type>(f, g, std::multiplies<>());
   }
 
   /**
@@ -615,7 +615,7 @@ namespace libgm {
   operator/(const probability_array<Arg, M, T>& f,
             const probability_array<Arg, N, T>& g) {
     typedef probability_array<Arg, static_max<M, N>::value, T> result_type;
-    return join<result_type>(f, g, libgm::divides<>()).clear_nan();
+    return join<result_type>(f, g, std::divides<>()).clear_nan();
   }
 
 } // namespace libgm

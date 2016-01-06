@@ -39,7 +39,7 @@ namespace libgm { namespace experimental {
   template <typename Space, typename Arg, typename RealType> class table_map;
 
 
-  // The base class
+  // Base class
   //============================================================================
 
   /**
@@ -49,10 +49,10 @@ namespace libgm { namespace experimental {
    *         The argument type. Must model the DiscreteArgument and
    *         the UnivariateArgument concepts.
    * \tparam RealType
-   *         A real type.
+   *         The real type representing the parameters.
    * \tparam Derived
    *         The expression type that derives from this base class.
-   *         At the minimum, the type must implement the following functions:
+   *         The type must implement the following functions:
    *         arguments(), param(), alias(), eval_to().
    */
   template <typename Arg, typename RealType, typename Derived>
@@ -72,6 +72,8 @@ namespace libgm { namespace experimental {
     typedef uint_assignment<Arg>  assignment_type;
     typedef RealType              real_type;
     typedef logarithmic<RealType> result_type;
+
+    typedef logarithmic_matrix<Arg, RealType> factor_type;
 
     // ParametricFactor member types
     typedef real_matrix<RealType> param_type;
@@ -772,14 +774,14 @@ namespace libgm { namespace experimental {
 
     /**
      * Checks if the vector length matches the factor argument.
-     * \throw std::runtime_error if some of the dimensions do not match
+     * \throw std::logic_error if some of the dimensions do not match
      */
     void check_param() const {
       if (param_.rows() != argument_traits<Arg>::num_values(args_.x())) {
-        throw std::runtime_error("Invalid number of rows");
+        throw std::logic_error("Invalid number of rows");
       }
       if (param_.cols() != argument_traits<Arg>::num_values(args_.y())) {
-        throw std::runtime_error("Invalid number of columns");
+        throw std::logic_error("Invalid number of columns");
       }
     }
 

@@ -29,6 +29,8 @@ namespace libgm {
     typedef typename Vector::Scalar scalar_type;
     typedef decltype(Vector().data()) pointer;
 
+    const static bool is_mutable = !std::is_const<Vector>::value;
+
     //! Constructs a subvector for the given raw array.
     subvector(pointer data, std::size_t size,
               const std::vector<std::size_t>& rows)
@@ -81,32 +83,50 @@ namespace libgm {
       }
     }
 
-    //! Performs element-wise addition.
+    //! Adds a subvector to a dense vector element-wise.
     friend plain_type& operator+=(plain_type& result, const subvector& a) {
       return update(result, a, plus_assign<>());
     }
 
-    //! Performs element-wise subtraction.
+    //! Subtracts a subvector from a dense vector element-wise.
     friend plain_type& operator-=(plain_type& result, const subvector& a) {
       return update(result, a, minus_assign<>());
     }
 
-    //! Sets the contents of the subvector to the given dense vector.
-    template <bool B = !std::is_const<Vector>::value>
-    typename std::enable_if<B, subvector&>::type operator=(const Vector& a) {
-      return update(*this, a, assign<>());
+    //! Assigns the elements of a vector to this subvector.
+    template <bool B = is_mutable, typename = std::enable_if_t<B> >
+    subvector& operator=(const Vector& x) {
+      return update(*this, x, assign<>());
     }
 
-    //! Performs element-wise addition.
-    template <bool B = !std::is_const<Vector>::value>
-    typename std::enable_if<B, subvector&>::type operator+=(const Vector& a) {
-      return update(*this, a, plus_assign<>());
+    //! Adds a vector to this subvector element-wise.
+    template <bool B = is_mutable, typename = std::enable_if_t<B> >
+    subvector& operator+=(const Vector& x) {
+      return update(*this, x, plus_assign<>());
     }
 
-    //! Performs element-wise subtraction.
-    template <bool B = !std::is_const<Vector>::value>
-    typename std::enable_if<B, subvector&>::type operator-=(const Vector& a) {
-      return update(*this, a, minus_assign<>());
+    //! Subtracts a vector from this subvector element-wise.
+    template <bool B = is_mutable, typename = std::enable_if_t<B> >
+    subvector& operator-=(const Vector& x) {
+      return update(*this, x, minus_assign<>());
+    }
+
+    //! Assigns the elements of another subvector to this subvector.
+    template <bool B = is_mutable, typename = std::enable_if_t<B> >
+    subvector& operator=(const subvector<const Vector>& x) {
+      return update(*this, x, assign<>());
+    }
+
+    //! Adds another subvector to this subvector element-wise.
+    template <bool B = is_mutable, typename = std::enable_if_t<B> >
+    subvector& operator+=(const subvector<const Vector>& x) {
+      return update(*this, x, plus_assign<>());
+    }
+
+    //! Subtracts another subvector from this subvector element-wise.
+    template <bool B = is_mutable, typename = std::enable_if_t<B> >
+    subvector& operator-=(const subvector<const Vector>& x) {
+      return update(*this, x, minus_assign<>());
     }
 
     //! Computes a dot product with a plain object.
@@ -140,15 +160,15 @@ namespace libgm {
      * Assumes no aliasing.
      */
     template <typename Op>
-    friend plain_type& update(plain_type& result, const subvector& a, Op op) {
-      assert(result.rows() == a.rows());
+    friend plain_type& update(plain_type& result, const subvector& x, Op op) {
+      assert(result.rows() == x.rows());
 
-      if (a.contiguous()) {
-        op(result, a.map());
+      if (x.contiguous()) {
+        op(result, x.map());
       } else {
         scalar_type* dest = result.data();
         for (std::size_t i = 0; i < result.rows(); ++i) {
-          op(*dest++, a.data_[a.rows_[i]]);
+          op(*dest++, x.data_[x.rows_[i]]);
         }
       }
       return result;
@@ -160,14 +180,33 @@ namespace libgm {
      * Assumes no aliasing.
      */
     template <typename Op>
-    friend subvector& update(subvector& result, const Vector& a, Op op) {
-      assert(result.rows() == a.rows());
+    friend subvector& update(subvector& result, const Vector& x, Op op) {
+      assert(result.rows() == x.rows());
       if (result.contiguous()) {
-        op(result.map(), a);
+        op(result.map(), x);
       } else {
-        const scalar_type* src = a.data();
-        for (std::size_t i = 0; i < a.rows(); ++i) {
+        const scalar_type* src = x.data();
+        for (std::size_t i = 0; i < x.rows(); ++i) {
           op(result.data_[result.rows_[i]], *src++);
+        }
+      }
+      return result;
+    }
+
+    /**
+     * Updates a subvector result by applying the mutation operation to the
+     * coefficients of the result and the coefficients of a subvector x.
+     * Assumes no aliasing.
+     */
+    template <typename Op>
+    friend subvector&
+    update(subvector& result, const subvector<const Vector>& x, Op op) {
+      assert(result.rows() == x.rows());
+      if (result.contiguous() && x.contiguous()) {
+        op(result.map(), x.map());
+      } else {
+        for (std::size_t i = 0; i < x.rows(); ++i) {
+          op(result.data_[result.rows_[i]], x.data_[x.rows_[i]]);
         }
       }
       return result;
@@ -184,6 +223,8 @@ namespace libgm {
 
     //! The evaluated vector used by ref().
     plain_type plain_;
+
+    template <typename Vec> friend class subvector;
 
   }; // class subvector
 

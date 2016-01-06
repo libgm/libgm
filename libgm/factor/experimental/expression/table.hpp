@@ -180,7 +180,7 @@ namespace libgm { namespace experimental {
   }; // class table_transform
 
   /**
-   * Constructs a table_transform object, deducing its type
+   * Constructs a table_transform object, deducing its type.
    *
    * \relates table_transform
    */
@@ -382,7 +382,7 @@ namespace libgm { namespace experimental {
 
   /**
    * Joins two tables with identical Space, Arg, and RealType.
-   * The pointers serve as tags to allow us simultaneously dispatch
+   * The pointers serve as tags to allow us to simultaneously dispatch
    * all possible combinations of lvalues and rvalues F and G.
    *
    * \relates table_join
@@ -406,11 +406,11 @@ namespace libgm { namespace experimental {
   template <typename JoinOp, typename F>
   inline auto
   make_table_conditional(F&& f, const domain_t<F>& tail, JoinOp join_op) {
-    auto&& joint = std::forward<F>(f).eval();
-    using joint_type = remove_rvalue_reference_t<decltype(joint)>;
-    return table_join<space_t<F>, JoinOp, joint_type, factor_t<F> >(
-      join_op, std::forward<joint_type>(joint), joint.marginal(tail).eval(),
-      f.arguments() - tail + tail,
+    auto&& feval = std::forward<F>(f).eval();
+    using feval_type = remove_rvalue_reference_t<decltype(feval)>;
+    return table_join<space_t<F>, JoinOp, feval_type, factor_t<F> >(
+      join_op, std::forward<feval_type>(feval), feval.marginal(tail).eval(),
+      feval.arguments() - tail + tail,
       false /* not a direct join */
     );
   }
@@ -791,7 +791,7 @@ namespace libgm { namespace experimental {
       if (f_.arguments().prefix(args_)) {
         result.restrict(f_.param(), start_);
       } else {
-        uint_vector map = f_.arguments().index(args_, false /*not strict*/);
+        uint_vector map = f_.arguments().index(args_, false /* not strict */);
         libgm::table_restrict<real_type>(result, f_.param(), map, start_)();
       }
       result.transform(trans_op_);

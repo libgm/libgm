@@ -9,21 +9,47 @@ namespace libgm {
 }
 
 #define LIBGM_TRANSFORM_LEFT(function, factor, scalar, op)              \
-  friend auto function(const factor##_base<Arg, RealType, Derived>& f, scalar x) { \
+  friend auto function(const factor##_base<Arg, RealType, Derived>& f,  \
+                       scalar x) {                                      \
     return f.derived().transform(op);                                   \
   }                                                                     \
                                                                         \
-  friend auto function(factor##_base<Arg, RealType, Derived>&& f, scalar x) {  \
+  friend auto function(factor##_base<Arg, RealType, Derived>&& f,       \
+                       scalar x) {                                      \
     return std::move(f).derived().transform(op);                        \
   }
 
 #define LIBGM_TRANSFORM_RIGHT(function, factor, scalar, op)             \
-  friend auto function(scalar x, const factor##_base<Arg, RealType, Derived>& f) { \
+  friend auto function(scalar x,                                        \
+                       const factor##_base<Arg, RealType, Derived>& f) { \
     return f.derived().transform(op);                                   \
   }                                                                     \
                                                                         \
-  friend auto function(scalar x, factor##_base<Arg, RealType, Derived>&& f) {  \
+  friend auto function(scalar x,                                        \
+                       factor##_base<Arg, RealType, Derived>&& f) {     \
     return std::move(f).derived().transform(op);                        \
+  }
+
+#define LIBGM_TRANSFORM_LEFT2(function, factor, scalar, op1, op2)       \
+  friend auto function(const factor##_base<Arg, RealType, Derived>& f,  \
+                       scalar x) {                                      \
+    return f.derived().transform(op1, op2);                             \
+  }                                                                     \
+                                                                        \
+  friend auto function(factor##_base<Arg, RealType, Derived>&& f,       \
+                       scalar x) {                                      \
+    return std::move(f).derived().transform(op1, op2);                  \
+  }
+
+#define LIBGM_TRANSFORM_RIGHT2(function, factor, scalar, op1, op2)      \
+  friend auto function(scalar x,                                        \
+                       const factor##_base<Arg, RealType, Derived>& f) { \
+    return f.derived().transform(op1, op2);                             \
+  }                                                                     \
+                                                                        \
+  friend auto function(scalar x,                                        \
+                       factor##_base<Arg, RealType, Derived>&& f) {     \
+    return std::move(f).derived().transform(op1, op2);                  \
   }
 
 #define LIBGM_TRANSFORM(function, factor, op)                           \

@@ -73,6 +73,8 @@ namespace libgm { namespace experimental {
     typedef RealType             real_type;
     typedef RealType             result_type;
 
+    typedef probability_matrix<Arg, RealType> factor_type;
+
     // ParametricFactor member types
     typedef real_matrix<RealType> param_type;
     typedef uint_vector           vector_type;
@@ -783,14 +785,14 @@ namespace libgm { namespace experimental {
 
     /**
      * Checks if the vector length matches the factor argument.
-     * \throw std::runtime_error if some of the dimensions do not match
+     * \throw std::logic_error if some of the dimensions do not match
      */
     void check_param() const {
       if (param_.rows() != argument_traits<Arg>::num_values(args_.x())) {
-        throw std::runtime_error("Invalid number of rows");
+        throw std::logic_error("Invalid number of rows");
       }
       if (param_.cols() != argument_traits<Arg>::num_values(args_.y())) {
-        throw std::runtime_error("Invalid number of columns");
+        throw std::logic_error("Invalid number of columns");
       }
     }
 

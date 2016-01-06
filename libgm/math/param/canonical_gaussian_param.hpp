@@ -28,9 +28,27 @@ namespace libgm {
    */
   template <typename T = double>
   struct canonical_gaussian_param {
-    // Underlying representation
+    // Public types
+    //--------------------------------------------------------------------------
+    //! The dense matrix type storing the information matrix.
     typedef real_matrix<T> mat_type;
+
+    //! The dense vector type storing the information vector.
     typedef real_vector<T> vec_type;
+
+    //! A vector of indices to a subset of parameters.
+    typedef std::vector<std::size_t> index_type;
+
+    //! The struct storing the temporaries for collapse computations.
+    struct collapse_workspace {
+      Eigen::LLT<mat_type> chol_yy;
+      mat_type lam_yy;
+      mat_type sol_yx;
+      vec_type sol_y;
+    };
+
+    // The parameters
+    //--------------------------------------------------------------------------
 
     //! The information vector.
     vec_type eta;
@@ -42,7 +60,7 @@ namespace libgm {
     T lm;
 
     // Constructors and initialization
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     //! Constructs an empty canonical Gaussian with given log-multiplier.
     canonical_gaussian_param(T lm = T(0))
@@ -98,7 +116,7 @@ namespace libgm {
 
     // Conversion from a moment Gaussian.
     canonical_gaussian_param& operator=(const moment_gaussian_param<T>& mg) {
-      Eigen::LLT<mat_type>chol(mg.cov);
+      Eigen::LLT<mat_type> chol(mg.cov);
       if (chol.info() != Eigen::Success) {
         throw numerical_error(
           "canonical_gaussian: Cannot invert the covariance matrix. "
@@ -154,13 +172,11 @@ namespace libgm {
       lm = T(0);
     }
 
-    // Accessors and function evaluation
-    //==========================================================================
-
-    //! Returns the size of the parameter struct.
-    std::size_t size() const {
-      assert(eta.rows() == lambda.rows() && eta.rows() == lambda.cols());
-      return eta.rows();
+    //! Fills the pre-allocated parameters with 0.
+    void zero() {
+      eta.fill(T(0));
+      lambda.fill(T(0));
+      lm = T(0);
     }
 
     //! Throws an exception if the information vector and matrix do not match.
@@ -177,6 +193,19 @@ namespace libgm {
       }
     }
 
+    //! Throws an exception if the vector and matrix dimensions are invalid.
+    void check_size(std::size_t n) const {
+      if (lambda.rows() != lambda.cols()) {
+        throw std::logic_error("The information matrix is not square.");
+      }
+      if (lambda.rows() != n) {
+        throw std::logic_error("Invalid size of the information matrix.");
+      }
+      if (eta.rows() != n) {
+        throw std::logic_error("Invalid size of the information vector.");
+      }
+    }
+
     //! Returns true if the two parameter structs are identical.
     friend bool operator==(const canonical_gaussian_param& f,
                            const canonical_gaussian_param& g) {
@@ -189,14 +218,13 @@ namespace libgm {
       return !(f == g);
     }
 
-    //! Reorders the parameter according to the given index.
-    canonical_gaussian_param reorder(const std::vector<std::size_t>& map) const {
-      assert(size() == map.size());
-      canonical_gaussian_param result;
-      subvec(eta, map).eval_to(result.eta);
-      submat(lambda, map, map).eval_to(result.lambda);
-      result.lm = lm;
-      return result;
+    // Accessors and function evaluation
+    //--------------------------------------------------------------------------
+
+    //! Returns the dimensionality of the Gaussian.
+    std::size_t size() const {
+      assert(eta.rows() == lambda.rows() && eta.rows() == lambda.cols());
+      return eta.rows();
     }
 
     //! Returns the log-value for the given vector.
@@ -205,8 +233,8 @@ namespace libgm {
     }
 
     /**
-     * Returns the normalization constant of the underlying factor assuming
-     * that the parameters represent a marginal distribution.
+     * Returns the normalization constant (in the log space) of a marginal
+     * distribution represtend by this parameter struct.
      */
     T marginal() const {
       Eigen::LLT<mat_type> chol(lambda);
@@ -217,8 +245,8 @@ namespace libgm {
     }
 
     /**
-     * Returns the maximum value attained by the underlying factor assuming
-     * that the parameters represent a marginal distribution.
+     * Returns the maximum value (in the log space) attained by a marginal
+     * distribution represtend by this parameter struct.
      */
     T maximum() const {
       vec_type vec;
@@ -226,9 +254,9 @@ namespace libgm {
     }
 
     /**
-     * Returns the maximum value attained by the underlying factor and
-     * the corresponding assignment, assuming that the parameters represent
-     * a marginal distribution.
+     * Returns the maximum value (in the log space) attained by a marginal
+     * distribution represtend by this parameter struct and stores the
+     * corresponding assignment to a vector.
      */
     T maximum(vec_type& vec) const {
       Eigen::LLT<mat_type> chol(lambda);
@@ -243,8 +271,8 @@ namespace libgm {
     }
 
     /**
-     * Returns the entropy for the distribution represented by this Gaussian.
-     * The Gaussian must be normalizable.
+     * Returns the entropy for the marginal distribution represented by these
+     * parameters.
      */
     T entropy() const {
       Eigen::LLT<mat_type> chol(lambda);
@@ -252,7 +280,7 @@ namespace libgm {
     }
 
     /**
-     * Returns the Kullback-Liebler divergnece from p to q.
+     * Returns the Kullback-Leibler divergnece from p to q.
      */
     friend T kl_divergence(const canonical_gaussian_param& p,
                            const canonical_gaussian_param& q) {
@@ -269,14 +297,237 @@ namespace libgm {
     }
 
     /**
-     * Returns the max difference between the parameters eta and lambda
-     * of two distributions.
+     * Returns the maximum difference between the parameters eta and lambda
+     * of two factors.
      */
     friend T max_diff(const canonical_gaussian_param& f,
                       const canonical_gaussian_param& g) {
-      T de = (f.eta - g.eta).array().abs().maxCoeff();
-      T dl = (f.lambda - g.lambda).array().abs().maxCoeff();
-      return std::max(de, dl);
+      T deta = (f.eta - g.eta).array().abs().maxCoeff();
+      T dlam = (f.lambda - g.lambda).array().abs().maxCoeff();
+      return std::max(deta, dlam);
+    }
+
+    // Factor operations
+    //--------------------------------------------------------------------------
+
+    /**
+     * Multiplies each parameter by a constant in-place.
+     */
+    canonical_gaussian_param& operator*=(T x) {
+      eta *= x;
+      lambda *= x;
+      lm *= x;
+      return *this;
+    }
+
+    /**
+     * Updates the result with the parameters in this struct.
+     */
+    template <typename UpdateOp>
+    void update(UpdateOp update_op,
+                const index_type& idx,
+                canonical_gaussian_param& result) const {
+      update_op(subvec(result.eta, idx), eta);
+      update_op(submat(result.lambda, idx, idx), lambda);
+      update_op(result.lm, lm);
+    }
+
+    /**
+     * Transforms the parameters by a unary function in-place.
+     */
+    template <typename VectorOp, typename ScalarOp>
+    void transform(VectorOp vector_op, ScalarOp scalar_op) {
+      vector_op.update(eta);
+      vector_op.update(lambda);
+      scalar_op.update(lm);
+    }
+
+    /**
+     * Transforms the parameters by a unary function and stores the result
+     * to the output parameter struct.
+     */
+    template <typename VectorOp, typename ScalarOp>
+    void transform(VectorOp vector_op,
+                   ScalarOp scalar_op,
+                   canonical_gaussian_param& result) const {
+      result.eta    = vector_op(eta);
+      result.lambda = vector_op(lambda);
+      result.lm     = scalar_op(lm);
+    }
+
+    /**
+     * Transforms the parameters by a unary function and updates the result
+     * at the specified indices.
+     */
+    template <typename VectorOp, typename ScalarOp, typename UpdateOp>
+    void transform_update(VectorOp vector_op,
+                          ScalarOp scalar_op,
+                          UpdateOp update_op,
+                          const index_type& idx,
+                          canonical_gaussian_param& result) const {
+      update_op(subvec(result.eta, idx), vector_op(eta).eval());
+      update_op(submat(result.lambda, idx, idx), vector_op(lambda).eval());
+      update_op(result.lm, scalar_op(lm));
+    }
+
+    /**
+     * Computes an integral or a maximum of the function represented by these
+     * parameters over a subset of dimensions, storing the result to an output
+     * variable.
+     *
+     * \param x        the indices of the retained dimensions
+     * \param y        the indices of the eliminated dimensions
+     * \param marginal if true, will compute the marginal (false maximum)
+     * \param ws       the workspace for storing the temporaries
+     * \param result   the output of the operation
+     */
+    void collapse(const index_type& x,
+                  const index_type& y,
+                  bool marginal,
+                  collapse_workspace& ws,
+                  canonical_gaussian_param& result) const {
+      assert(size() == x.size() + y.size());
+
+      // compute sol_yx = lam_yy^{-1} * lam_yx and sol_y = lam_yy^{-1} eta_y
+      // using the Cholesky decomposition
+      submat(lambda, y, y).eval_to(ws.lam_yy);
+      submat(lambda, y, x).eval_to(ws.sol_yx);
+      subvec(eta, y).eval_to(ws.sol_y);
+      ws.chol_yy.compute(ws.lam_yy);
+      if (ws.chol_yy.info() != Eigen::Success) {
+        throw numerical_error(
+          "canonical_gaussian collapse: Cholesky decomposition failed"
+        );
+      }
+      ws.chol_yy.solveInPlace(ws.sol_yx);
+      ws.chol_yy.solveInPlace(ws.sol_y);
+
+      // store the aggregate parameters
+      subvec(eta, x).eval_to(result.eta);
+      submat(lambda, x, x).eval_to(result.lambda);
+      result.eta.noalias() -= ws.sol_yx.transpose() * subvec(eta, y).ref();
+      result.lambda.noalias() -= submat(lambda, x, y).ref() * ws.sol_yx;
+      result.lm = lm + T(0.5) * subvec(eta, y).dot(ws.sol_y);
+
+      // adjust the log-likelihood if computing the marginal
+      if (marginal) {
+        result.lm += T(0.5) * std::log(two_pi<T>()) * y.size();
+        result.lm -= T(0.5) * logdet(ws.chol_yy);
+      }
+    }
+
+    /**
+     * Computes the conditional of the marginal distribution represented by
+     * these parameters, storing the result to an output variable.
+     *
+     * \param idx    the indices of the (head, tail) dimensions in the input
+     * \param n      the dimensionality of tail
+     * \param ws     the workspace for computing the aggregate
+     * \param result the output of the operation
+     */
+    void conditional(const index_type& idx,
+                     std::size_t n,
+                     collapse_workspace& ws,
+                     canonical_gaussian_param& result) const {
+      assert(size() == idx.size() && n <= idx.size());
+      std::size_t m = idx.size() - n; // dimensionality of head
+      subvec(eta, idx).eval_to(result.eta);
+      submat(lambda, idx, idx).eval_to(result.lambda);
+
+      // compute sol_yx = lam_yy^{-1} * lam_yx and sol_y = lam_yy^{-1} eta_y
+      // using the Cholesky decomposition, where y are the head dimensions, and
+      // x are the tail dimensions
+      ws.lam_yy = result.lambda.block(0, 0, m, m);
+      ws.sol_yx = result.lambda.block(0, m, m, n);
+      ws.sol_y = result.eta.segment(0, m);
+      ws.chol_yy.compute(ws.lam_yy);
+      if (ws.chol_yy.info() != Eigen::Success) {
+        throw numerical_error(
+          "canonical_gaussian collapse: Cholesky decomposition failed"
+        );
+      }
+      ws.chol_yy.solveInPlace(ws.sol_yx);
+      ws.chol_yy.solveInPlace(ws.sol_y);
+
+      // compute the tail parameters
+      result.eta.segment(m, n).noalias()
+        = ws.sol_yx.transpose() * result.eta.segment(0, m);
+      result.lambda.block(m, m, n, n).noalias()
+        = result.lambda.block(m, 0, n, m) * ws.sol_yx;
+      result.lm
+        = T(0.5) * (logdet(ws.chol_yy) - std::log(two_pi<T>()) * m
+                    - result.eta.segment(0, m).dot(ws.sol_y));
+    }
+
+    /**
+     * Computes the restriction of the function represented by these parameters
+     * to a subset of dimensions.
+     *
+     * \param x      the indices of the retained dimensions
+     * \param y      the indices of the eliminated dimensions
+     * \param vec_y  the assignment to the eliminated dimensions
+     * \param result the output of the operation
+     */
+    void restrict(const index_type& x,
+                  const index_type& y,
+                  const vec_type& vec_y,
+                  canonical_gaussian_param& result) const {
+      subvec(eta, x).eval_to(result.eta);
+      submat(lambda, x, x).eval_to(result.lambda);
+      result.eta.noalias() -= submat(lambda, x, y).ref() * vec_y;
+      result.lm = lm + subvec(eta, y).dot(vec_y)
+        - 0.5 * vec_y.transpose() * submat(lambda, y, y).ref() * vec_y;
+    }
+
+    /**
+     * Computes the restriction of the function represented by these parameters
+     * to a subset of dimensions, updating the output with the result.
+     *
+     * \param x         the indices of the retained dimensions
+     * \param y         the indices of the eliminated dimensions
+     * \param vec       the assignment to the eliminated dimensions
+     * \param update_op the update operation such as plus_assign<>
+     * \param idx       the indices of the retained dimensions in the result
+     * \param result    the output of the operation
+     */
+    template <typename UpdateOp>
+    void restrict_update(const index_type& x,
+                         const index_type& y,
+                         const vec_type& vec,
+                         UpdateOp update_op,
+                         const index_type& idx,
+                         canonical_gaussian_param& result) const {
+      assert(idx.size() == x.size());
+      update_op(subvec(result.eta, idx), subvec(eta, x));
+      update_op(subvec(result.eta, idx), vec_type(-submat(lambda, x, y).ref() * vec));
+      update_op(submat(result.lambda, idx, idx), submat(lambda, x, x));
+      result.lm += lm + subvec(eta, y).dot(vec)
+        - 0.5 * vec.transpose() * submat(lambda, y, y).ref() * vec;
+    }
+
+    /**
+     * Returns the parameter reordered according to the given index.
+     */
+    canonical_gaussian_param reorder(const std::vector<std::size_t>& map) const {
+      assert(size() == map.size());
+      canonical_gaussian_param result;
+      subvec(eta, map).eval_to(result.eta);
+      submat(lambda, map, map).eval_to(result.lambda);
+      result.lm = lm;
+      return result;
+    }
+
+    /**
+     * Returns (1-a) * x + a * y.
+     */
+    friend canonical_gaussian_param
+    weighted_sum(const canonical_gaussian_param& x,
+                 const canonical_gaussian_param& y, T a) {
+      canonical_gaussian_param result;
+      result.eta = (1-a) * x.eta + a * y.eta;
+      result.lambda = (1-a) * x.lambda + a * y.lambda;
+      result.lm = (1-a) * x.lm + a * y.lm;
+      return result;
     }
 
 #if 0
@@ -289,28 +540,6 @@ namespace libgm {
      */
     bool enforce_psd(const vec& mean);
 #endif
-
-    // Vector operations
-    //==========================================================================
-
-    //! Multiplies the parameters by a constant.
-    canonical_gaussian_param& operator*=(T x) {
-      eta *= x;
-      lambda *= x;
-      lm *= x;
-      return *this;
-    }
-
-    //! Returns (1-a) * x + a * y.
-    friend canonical_gaussian_param
-    weighted_sum(const canonical_gaussian_param& x,
-                 const canonical_gaussian_param& y, T a) {
-      canonical_gaussian_param result;
-      result.eta = (1-a) * x.eta + a * y.eta;
-      result.lambda = (1-a) * x.lambda + a * y.lambda;
-      result.lm = (1-a) * x.lm + a * y.lm;
-      return result;
-    }
 
   }; // struct canonical_gaussian_param
 

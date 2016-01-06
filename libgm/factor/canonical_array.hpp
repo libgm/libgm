@@ -533,7 +533,7 @@ namespace libgm {
   operator*(const canonical_array<Arg, M, T>& f,
             const canonical_array<Arg, N, T>& g) {
     typedef canonical_array<Arg, static_max<M, N>::value, T> result_type;
-    return join<result_type>(f, g, libgm::plus<>());
+    return join<result_type>(f, g, std::plus<>());
   }
 
   /**
@@ -548,7 +548,7 @@ namespace libgm {
   operator/(const canonical_array<Arg, M, T>& f,
             const canonical_array<Arg, N, T>& g) {
     typedef canonical_array<Arg, static_max<M, N>::value, T> result_type;
-    return join<result_type>(f, g, libgm::minus<>());
+    return join<result_type>(f, g, std::minus<>());
   }
 
 } // namespace libgm

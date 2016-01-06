@@ -4,8 +4,6 @@
 #include <libgm/functional/algorithm.hpp>
 #include <libgm/functional/invoke.hpp>
 #include <libgm/functional/nth_value.hpp>
-//#include <libgm/traits/nth_type.hpp>
-#include <libgm/traits/result_of_invoke.hpp>
 #include <libgm/traits/static_range.hpp>
 
 #include <type_traits>
@@ -20,7 +18,7 @@ namespace libgm {
    * \tparam Inner a type representing the inner function g.
    */
   template <typename Outer, typename Inner>
-  struct composed {
+  struct composed : default_update<composed<Outer, Inner> > {
     composed(Outer f, Inner g)
       : f(f), g(g) { }
 

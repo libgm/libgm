@@ -761,14 +761,14 @@ namespace libgm { namespace experimental {
 
     /**
      * Checks if the shape of the table matches this factor's argument vector.
-     * \throw std::runtime_error if some of the dimensions do not match
+     * \throw std::logic_error if some of the dimensions do not match
      */
     void check_param() const {
       if (param_.arity() != args_.num_dimensions()) {
-        throw std::runtime_error("Invalid table arity");
+        throw std::logic_error("Invalid table arity");
       }
       if (param_.shape() != args_.num_values()) {
-        throw std::runtime_error("Invalid table shape");
+        throw std::logic_error("Invalid table shape");
       }
     }
 
