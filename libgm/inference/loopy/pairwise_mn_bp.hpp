@@ -1,10 +1,10 @@
 #ifndef LIBGM_PAIRWISE_MN_BP_HPP
 #define LIBGM_PAIRWISE_MN_BP_HPP
 
+#include <libgm/factor/traits.hpp>
 #include <libgm/datastructure/mutable_queue.hpp>
 #include <libgm/factor/util/diff_fn.hpp>
 #include <libgm/model/pairwise_markov_network.hpp>
-#include <libgm/traits/pairwise_compatible.hpp>
 
 #include <algorithm>
 #include <random>
@@ -27,7 +27,7 @@ namespace libgm {
    */
   template <typename NodeF, typename EdgeF = NodeF>
   class pairwise_mn_bp {
-    static_assert(pairwise_compatible<NodeF, EdgeF>::value,
+    static_assert(are_pairwise_compatible<NodeF, EdgeF>::value,
                   "The node and edge factors are not pairwise compatible");
 
     // Public types

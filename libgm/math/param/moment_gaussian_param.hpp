@@ -50,6 +50,9 @@ namespace libgm {
     //! A vector of indices to a subset of parameters.
     typedef std::vector<std::size_t> index_type;
 
+    //! The type storing the parameters.
+    typedef T value_type;
+
     //! The struct storing the temporaries for conditioning computation.
     struct conditional_workspace {
       Eigen::LLT<mat_type> chol_yy;
@@ -354,7 +357,7 @@ namespace libgm {
     /**
      * Draws a random sample from a marginal distribution.
      * This is only recommended for drawing a single sample. For multiple
-     * samples, use gaussian_distribution.
+     * samples, use multivariate_normal_distribution.
      */
     template <typename Generator>
     vec_type sample(Generator& rng) const {
@@ -364,7 +367,7 @@ namespace libgm {
     /**
      * Draws a random sample from a conditional distribution.
      * This is only recommended for drawing a single sample. For multiple
-     * samples, use gaussian_distribution.
+     * samples, use multivariate_normal_distribution.
      */
     template <typename Generator>
     vec_type sample(Generator& rng, const vec_type& tail) const {

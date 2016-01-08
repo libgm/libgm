@@ -698,42 +698,6 @@ namespace libgm {
              a.values(y) };
   }
 
-  // Traits
-  //============================================================================
-
-  //! \addtogroup factor_traits
-  //! @{
-
-  template <typename Arg, typename T>
-  struct has_multiplies<canonical_gaussian<Arg, T>>
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_multiplies_assign<canonical_gaussian<Arg, T>>
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_divides<canonical_gaussian<Arg, T>>
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_divides_assign<canonical_gaussian<Arg, T>>
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_marginal<canonical_gaussian<Arg, T>>
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_maximum<canonical_gaussian<Arg, T>>
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_arg_max<canonical_gaussian<Arg, T>>
-    : public std::true_type { };
-
-  //! @}
-
 } // namespace libgm
 
 #endif

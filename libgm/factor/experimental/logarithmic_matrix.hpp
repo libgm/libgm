@@ -1,6 +1,7 @@
 #ifndef LIBGM_EXPERIMENTAL_LOGARITHMIC_MATRIX_HPP
 #define LIBGM_EXPERIMENTAL_LOGARITHMIC_MATRIX_HPP
 
+#include <libgm/enable_if.hpp>
 #include <libgm/argument/argument_traits.hpp>
 #include <libgm/argument/binary_domain.hpp>
 #include <libgm/argument/uint_assignment.hpp>
@@ -19,9 +20,8 @@
 #include <libgm/math/eigen/real.hpp>
 #include <libgm/math/logarithmic.hpp>
 #include <libgm/serialization/eigen.hpp>
-//#include <libgm/math/likelihood/logarithmic_matrix_ll.hpp>
-//#include <libgm/math/likelihood/logarithmic_matrix_mle.hpp>
-//#include <libgm/math/random/vector_distribution.hpp>
+#include <libgm/math/likelihood/logarithmic_matrix_ll.hpp>
+#include <libgm/math/random/bivariate_categorical_distribution.hpp>
 
 #include <iostream>
 #include <numeric>
@@ -58,6 +58,7 @@ namespace libgm { namespace experimental {
   template <typename Arg, typename RealType, typename Derived>
   class matrix_base<log_tag, Arg, RealType, Derived> {
   public:
+
     static_assert(is_discrete<Arg>::value,
                   "logarithmic_matrix requires Arg to be discrete");
     static_assert(is_univariate<Arg>::value,
@@ -78,7 +79,7 @@ namespace libgm { namespace experimental {
     // ParametricFactor member types
     typedef real_matrix<RealType> param_type;
     typedef uint_vector           vector_type;
-    // typedef vector_distribution<RealType> distribution_type;
+    typedef bivariate_categorical_distribution<RealType> distribution_type;
 
     // Matrix specific declarations
     typedef log_tag space_type;
@@ -379,18 +380,18 @@ namespace libgm { namespace experimental {
     LIBGM_MATRIX_AGGREGATE(minimum, member_minCoeff())
 
     /**
+     * If this expression represents p(head \cup tail), returns a
+     * logarithmic_matrix expression representing p(head | tail).
+     */
+    // LIBGM_MATRIX_CONDITIONAL(std::minus<>())
+
+    /**
      * Returns a logarithmic_vector expression representing the restriction
      * of this expression to an assignment.
      *
      * \throw invalid_argument if a does not restrict precisely one argument
      */
     LIBGM_MATRIX_RESTRICT()
-
-    /**
-     * If this expression represents p(head \cup tail), returns a
-     * logarithmic_matrix expression representing p(head | tail).
-     */
-    // LIBGM_MATRIX_CONDITIONAL(std::minus<>())
 
     /**
      * Computes the normalization constant of this expression.
@@ -463,6 +464,69 @@ namespace libgm { namespace experimental {
 
     auto probability() && {
       return std::move(derived()).template transform<prob_tag>(exponent<>());
+    }
+
+#if 0
+    /**
+     * Returns a logarithmic_table expression equivalent to this expression.
+     */
+    LIBGM_ENABLE_IF(is_primitive<Derived>::value)
+    logarithmic_table_map<Arg, RealType> table() const {
+      return { derived().arguments(), derived().param().data() };
+    }
+#endif
+
+    // Sampling
+    //--------------------------------------------------------------------------
+
+    /**
+     * Returns a categorical distribution represented by this expression.
+     */
+    bivariate_categorical_distribution<RealType> distribution() const {
+      return { derived().param(), log_tag() };
+    }
+
+    /**
+     * Draws a random sample from a marginal distribution represented by this
+     * expression.
+     */
+    template <typename Generator>
+    std::pair<std::size_t, std::size_t> sample(Generator& rng) const {
+      return distribution()(rng);
+    }
+
+    /**
+     * Draws a random sample from a conditional distribution represented by
+     * this expression.
+     *
+     * This is not very efficient at the moment.
+     */
+    template <typename Generator>
+    std::size_t sample(Generator& rng, std::size_t tail) const {
+      return distribution()(rng, tail);
+    }
+
+    /**
+     * Draws a random sample from a marginal distribution represented by this
+     * expression, storing the result in an assignment.
+     */
+    template <typename Generator>
+    void sample(Generator& rng, uint_assignment<Arg>& a) const {
+      std::tie(a[x()], a[y()]) = sample(rng);
+    }
+
+    /**
+     * Draws a random sample from a conditional distribution represented by this
+     * expression, loading the tail index from and storing the result into an
+     * assignment.
+     *
+     * \param head the assumed head (must be a prefix of the arguments)
+     */
+    template <typename Generator>
+    void sample(Generator& rng, const unary_domain<Arg>& head,
+                uint_assignment<Arg>& a) const {
+      assert(derived().arguments().prefix(head));
+      a[x()] = sample(rng, a.at(y()));
     }
 
     // Entropy and divergences
@@ -575,6 +639,82 @@ namespace libgm { namespace experimental {
                                   libgm::maximum<RealType>());
     }
 
+    // Mutations
+    //--------------------------------------------------------------------------
+
+    /**
+     * Multiplies this expression by a constant.
+     * Only supported when this expression is mutable (e.g., a factor).
+     */
+    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
+    Derived& operator*=(logarithmic<RealType> x) {
+      derived().param().array() += x.lv;
+      return derived();
+    }
+
+    /**
+     * Divides this expression by a constant.
+     * Only supported when this expression is mutable (e.g., a factor).
+     */
+    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
+    Derived& operator/=(logarithmic<RealType> x) {
+      derived().param().array() -= x.lv;
+      return derived();
+    }
+
+    /**
+     * Multiplies a logarithmic_vector expression into this expression.
+     * Only supported when this expression is mutable (e.g., a factor).
+     */
+    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
+    Derived& operator*=(const logarithmic_vector_base<Arg, RealType, Other>& f){
+      f.derived().join_inplace(plus_assign<>(),
+                               derived().arguments(), derived().param());
+      return derived();
+    }
+
+    /**
+     * Multiplies a logarithmic_matrix expression into this expression.
+     * Only supported when this expression is mutable (e.g., a factor).
+     */
+    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
+    Derived& operator*=(const logarithmic_matrix_base<Arg, RealType, Other>& f){
+      f.derived().join_inplace(plus_assign<>(),
+                               derived().arguments(), derived().param());
+      return derived();
+    }
+
+    /**
+     * Divides a logarithmic_vector expression into this expression.
+     * Only supported when this expression is mutable (e.g., a factor).
+     */
+    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
+    Derived& operator/=(const logarithmic_vector_base<Arg, RealType, Other>& f){
+      f.derived().join_inplace(minus_assign<>(),
+                               derived().arguments(), derived().param());
+      return derived();
+    }
+
+    /**
+     * Divides a logarithmic_matrix expression into this expression.
+     * Only supported when this expression is mutable (e.g., a factor).
+     */
+    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
+    Derived& operator/=(const logarithmic_matrix_base<Arg, RealType, Other>& f){
+      f.derived().join_inplace(minus_assign<>(),
+                               derived().arguments(), derived().param());
+      return derived();
+    }
+
+    /**
+     * Divides this expression by its norm inplace.
+     * Only supported when this expression is mutable (e.g., a factor).
+     */
+    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
+    void normalize() {
+      *this /= marginal();
+    }
+
     // Expression evaluations
     //--------------------------------------------------------------------------
 
@@ -677,8 +817,10 @@ namespace libgm { namespace experimental {
     //--------------------------------------------------------------------------
 
     // LearnableDistributionFactor member types
-    // typedef logarithmic_matrix_ll<RealType>  ll_type;
-    // typedef logarithmic_matrix_mle<RealType> mle_type;
+    typedef logarithmic_matrix_ll<RealType>  ll_type;
+
+    template <typename Derived>
+    using base = logarithmic_matrix_base<Arg, RealType, Derived>;
 
     // Constructors and conversion operators
     //--------------------------------------------------------------------------
@@ -734,9 +876,7 @@ namespace libgm { namespace experimental {
     logarithmic_matrix&
     operator=(const logarithmic_matrix_base<Arg, RealType, Derived>& f) {
       if (f.derived().alias(param_)) {
-        real_matrix<RealType> tmp;
-        f.derived().eval_to(tmp);
-        param_.swap(tmp);
+        param_.swap(f.derived().param());
       } else {
         f.derived().eval_to(param_);
       }
@@ -783,6 +923,18 @@ namespace libgm { namespace experimental {
       if (param_.cols() != argument_traits<Arg>::num_values(args_.y())) {
         throw std::logic_error("Invalid number of columns");
       }
+    }
+
+    //! Substitutes the arguments of the factor according to a map.
+    template <typename Map>
+    void subst_args(const Map& map) {
+      args_.substitute(map);
+    }
+
+    //! Returns the shape of the matrix corresponding to a domain.
+    static std::pair<std::size_t, std::size_t>
+    param_shape(const binary_domain<Arg>& dom) {
+      return dom.num_values();
     }
 
     // Accessors
@@ -877,19 +1029,6 @@ namespace libgm { namespace experimental {
       return param_(row, col);
     }
 
-    // Conversions
-    //--------------------------------------------------------------------------
-
-#if 0
-    /**
-     * Returns a logarithmic_table expression equivalent to this expression.
-     */
-    logarithmic_table_map<Arg, RealType>
-    table() const {
-      return { derived().arguments(), derived().param().data() };
-    }
-#endif
-
     // Evaluation
     //--------------------------------------------------------------------------
 
@@ -912,64 +1051,6 @@ namespace libgm { namespace experimental {
       return std::move(*this);
     }
 
-    // Factor mutations
-    //--------------------------------------------------------------------------
-
-    //! Multiplies this factor by a constant.
-    logarithmic_matrix& operator*=(logarithmic<RealType> x) {
-      param_.array() += x.lv;
-      return *this;
-    }
-
-    //! Divides this factor by a constant.
-    logarithmic_matrix& operator/=(logarithmic<RealType> x) {
-      param_.array() -= x.lv;
-      return *this;
-    }
-
-    //! Multiplies a logarithmic_vector expression into this factor.
-    template <typename Derived>
-    logarithmic_matrix&
-    operator*=(const logarithmic_vector_base<Arg, RealType, Derived>& f) {
-      f.derived().join_inplace(plus_assign<>(), args_, param_);
-      return *this;
-    }
-
-    //! Multiplies a logarithmic_matrix expression into this factor.
-    template <typename Derived>
-    logarithmic_matrix&
-    operator*=(const logarithmic_matrix_base<Arg, RealType, Derived>& f) {
-      f.derived().join_inplace(plus_assign<>(), args_, param_);
-      return *this;
-    }
-
-    //! Divides a logarithmic_vector expression into this factor.
-    template <typename Derived>
-    logarithmic_matrix&
-    operator/=(const logarithmic_vector_base<Arg, RealType, Derived>& f) {
-      f.derived().join_inplace(minus_assign<>(), args_, param_);
-      return *this;
-    }
-
-    //! Divides a logarithmic_matrix expression into this factor.
-    template <typename Derived>
-    logarithmic_matrix&
-    operator/=(const logarithmic_matrix_base<Arg, RealType, Derived>& f) {
-      f.derived().join_inplace(minus_assign<>(), args_, param_);
-      return *this;
-    }
-
-    //! Divides this factor by its norm inplace.
-    void normalize() {
-      *this /= this->marginal();
-    }
-
-    //! Substitutes the arguments of the factor according to a map.
-    template <typename Map>
-    void subst_args(const Map& map) {
-      args_.substitute(map);
-    }
-
   private:
     //! The argument of the factor.
     binary_domain<Arg> args_;
@@ -978,6 +1059,12 @@ namespace libgm { namespace experimental {
     real_matrix<RealType> param_;
 
   }; // class logarithmic_matrix
+
+  template <typename Arg, typename RealType>
+  struct is_primitive<logarithmic_matrix<Arg, RealType> > : std::true_type { };
+
+  template <typename Arg, typename RealType>
+  struct is_mutable<logarithmic_matrix<Arg, RealType> > : std::true_type { };
 
 } } // namespace libgm::experimental
 

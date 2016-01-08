@@ -1,17 +1,17 @@
-#define BOOST_TEST_MODULE gaussian_distribution
+#define BOOST_TEST_MODULE multivariate_normal_distribution
 #include <boost/test/unit_test.hpp>
 
-#include <libgm/math/random/gaussian_distribution.hpp>
+#include <libgm/math/random/multivariate_normal_distribution.hpp>
 
 namespace libgm {
-  template class gaussian_distribution<double>;
-  template class gaussian_distribution<float>;
+  template class multivariate_normal_distribution<double>;
+  template class multivariate_normal_distribution<float>;
 }
 
 using namespace libgm;
 
 typedef moment_gaussian_param<double> param_type;
-typedef gaussian_distribution<double> distribution_type;
+typedef multivariate_normal_distribution<double> distribution_type;
 
 std::size_t nsamples = 10000;
 double tol = 0.05;

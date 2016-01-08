@@ -1,7 +1,7 @@
 #ifndef LIBGM_MOMENT_GAUSSIAN_HPP
 #define LIBGM_MOMENT_GAUSSIAN_HPP
 
-#include <libgm/macros.hpp>
+#include <libgm/enable_if.hpp>
 #include <libgm/argument/real_assignment.hpp>
 #include <libgm/factor/base/gaussian_factor.hpp>
 #include <libgm/factor/traits.hpp>
@@ -9,7 +9,7 @@
 #include <libgm/math/eigen/real.hpp>
 #include <libgm/math/likelihood/moment_gaussian_mle.hpp>
 #include <libgm/math/param/moment_gaussian_param.hpp>
-#include <libgm/math/random/gaussian_distribution.hpp>
+#include <libgm/math/random/multivariate_normal_distribution.hpp>
 
 namespace libgm {
 
@@ -43,7 +43,7 @@ namespace libgm {
     typedef moment_gaussian_param<T> param_type;
     typedef real_vector<T>           vector_type;
     typedef std::vector<std::size_t> index_type;
-    typedef gaussian_distribution<T> distribution_type;
+    typedef multivariate_normal_distribution<T> distribution_type;
 
     // LearnableDistributionFactor member types
     typedef moment_gaussian_mle<T> mle_type;
@@ -296,14 +296,14 @@ namespace libgm {
     }
 
     //! Returns the mean for a single argument. Supported for univariate Arg.
-    LIBGM_ENABLE_IF(A = Arg, is_univariate<A>::value, T)
-    mean(Arg v) const {
+    LIBGM_ENABLE_IF(is_univariate<Arg>::value)
+    T mean(Arg v) const {
       return param_.mean[this->start_.at(v)];
     }
 
     //! Returns variance for a single argument. Supported for univariate Arg.
-    LIBGM_ENABLE_IF(A = Arg, is_univariate<A>::value, T)
-    variance(Arg v) const {
+    LIBGM_ENABLE_IF(is_univariate<Arg>::value)
+    T variance(Arg v) const {
       std::size_t i = this->start_.at(v);
       return param_.cov(i, i);
     }
@@ -312,9 +312,8 @@ namespace libgm {
      * Returns the mean vector for a single argument.
      * Supported for multivariate Arg.
      */
-    LIBGM_ENABLE_IF(A = Arg, is_multivariate<A>::value,
-                    Eigen::VectorBlock<const real_vector<T> >)
-    mean(Arg v) const {
+    LIBGM_ENABLE_IF(is_multivariate<Arg>::value)
+    Eigen::VectorBlock<const real_vector<T> > mean(Arg v) const {
       return param_.mean.segment(this->start_.at(v),
                                  arg_traits::num_dimensions(v));
     }
@@ -323,9 +322,8 @@ namespace libgm {
      * Returns the covariance matrix for a single argument.
      * Supported for multivariate Arg.
      */
-    LIBGM_ENABLE_IF(A = Arg, is_multivariate<A>::value,
-                    Eigen::Block<const real_matrix<T> >)
-    covariance(Arg v) const {
+    LIBGM_ENABLE_IF(is_multivariate<Arg>::value)
+    Eigen::Block<const real_matrix<T> > covariance(Arg v) const {
       std::size_t i = this->start_.at(v);
       std::size_t n = arg_traits::num_dimensions(v);
       return param_.cov.block(i, i, n, n);
@@ -576,8 +574,8 @@ namespace libgm {
     //==========================================================================
 
     //! Returns the distribution with the parameters of this factor.
-    gaussian_distribution<T> distribution() const {
-      return gaussian_distribution<T>(param_);
+    multivariate_normal_distribution<T> distribution() const {
+      return multivariate_normal_distribution<T>(param_);
     }
 
     //! Draws a random sample from a marginal distribution.
@@ -843,38 +841,6 @@ namespace libgm {
       );
     }
   }
-
-  // Traits
-  //============================================================================
-
-  //! \addtogroup factor_traits
-  //! @{
-
-  template <typename Arg, typename T>
-  struct has_multiplies<moment_gaussian<Arg, T>>
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_multiplies_assign<moment_gaussian<Arg, T>>
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_divides_assign<moment_gaussian<Arg, T>>
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_marginal<moment_gaussian<Arg, T>>
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_maximum<moment_gaussian<Arg, T>>
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_arg_max<moment_gaussian<Arg, T>>
-    : public std::true_type { };
-
-  //! @}
 
 } // namespace libgm
 

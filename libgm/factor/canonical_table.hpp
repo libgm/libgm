@@ -9,7 +9,7 @@
 #include <libgm/math/constants.hpp>
 #include <libgm/math/likelihood/canonical_table_ll.hpp>
 #include <libgm/math/logarithmic.hpp>
-#include <libgm/math/random/table_distribution.hpp>
+#include <libgm/math/random/multivariate_categorical_distribution.hpp>
 
 #include <cmath>
 #include <initializer_list>
@@ -48,7 +48,7 @@ namespace libgm {
     // ParametricFactor types
     typedef table<T>     param_type;
     typedef uint_vector  vector_type;
-    typedef table_distribution<T> distribution_type;
+    typedef multivariate_categorical_distribution<T> distribution_type;
 
     // LearnableDistributionFactor member types
     typedef canonical_table_ll<T> ll_type;
@@ -353,8 +353,8 @@ namespace libgm {
     //==========================================================================
 
     //! Returns the distribution with the parameters of this factor.
-    table_distribution<T> distribution() const {
-      return table_distribution<T>(this->param_, log_tag());
+    multivariate_categorical_distribution<T> distribution() const {
+      return { this->param_, log_tag() };
     }
 
     //! Draws a random sample from a marginal distribution.
@@ -452,53 +452,6 @@ namespace libgm {
     out << f.param();
     return out;
   }
-
-  // Traits
-  //============================================================================
-
-  template <typename Arg, typename T>
-  struct has_multiplies<canonical_table<Arg, T> >
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_multiplies_assign<canonical_table<Arg, T> >
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_divides<canonical_table<Arg, T> >
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_divides_assign<canonical_table<Arg, T> >
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_max<canonical_table<Arg, T> >
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_min<canonical_table<Arg, T> >
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_marginal<canonical_table<Arg, T> >
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_maximum<canonical_table<Arg, T> >
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_minimum<canonical_table<Arg, T> >
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_arg_max<canonical_table<Arg, T> >
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_arg_min<canonical_table<Arg, T> >
-    : public std::true_type { };
 
 } // namespace libgm
 

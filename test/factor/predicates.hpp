@@ -4,8 +4,6 @@
 #include <fstream>
 #include <cstdio>
 
-#include <libgm/factor/canonical_gaussian.hpp>
-
 #include "../predicates.hpp"
 
 // Checks the basic properties of finite table (and matrix) factors
@@ -40,43 +38,6 @@ table_properties(const F& f, const typename F::domain_type& vars) {
     return result;
   }
   return true;
-}
-
-// Verifies that two factors are close enough
-template <typename F>
-boost::test_tools::predicate_result
-are_close(const F& a, const F& b, typename F::result_type eps) {
-  typename F::result_type norma = a.marginal();
-  typename F::result_type normb = b.marginal();
-  if (a.arguments() == b.arguments() &&
-      max_diff(a, b) < eps &&
-      (norma > normb ? norma - normb : normb - norma) < eps) {
-     return true;
-  } else {
-    boost::test_tools::predicate_result result(false);
-    result.message() << "the two factors differ [\n"
-                     << a << "!=" << b << "]";
-    return result;
-  }
-}
-
-template <typename T, typename Var>
-boost::test_tools::predicate_result
-are_close(const libgm::canonical_gaussian<T, Var>& a,
-          const libgm::canonical_gaussian<T, Var>& b,
-          T eps) {
-  T multa = a.log_multiplier();
-  T multb = b.log_multiplier();
-  if (a.arguments() == b.arguments() &&
-      max_diff(a, b) < eps &&
-      std::abs(multa - multb) < eps) {
-     return true;
-  } else {
-    boost::test_tools::predicate_result result(false);
-    result.message() << "the two factors differ [\n"
-                     << a << "!=" << b << "]";
-    return result;
-  }
 }
 
 #endif

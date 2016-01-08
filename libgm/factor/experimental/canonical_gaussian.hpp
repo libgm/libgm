@@ -4,9 +4,9 @@
 #include <libgm/argument/domain.hpp>
 #include <libgm/argument/real_assignment.hpp>
 #include <libgm/datastructure/vector_map.hpp>
+#include <libgm/factor/traits.hpp>
 #include <libgm/factor/experimental/expression/common.hpp>
 #include <libgm/factor/experimental/expression/canonical_gaussian.hpp>
-#include <libgm/factor/traits.hpp>
 #include <libgm/math/eigen/real.hpp>
 #include <libgm/math/logarithmic.hpp>
 #include <libgm/math/param/canonical_gaussian_param.hpp>
@@ -33,10 +33,11 @@ namespace libgm { namespace experimental {
    */
   template <typename Arg, typename RealType, typename Derived>
   class canonical_gaussian_base {
-  public:
+
     static_assert(is_continuous<Arg>::value,
                   "canonical_gaussian requires Arg to be continuous");
 
+  public:
     // Public types
     //--------------------------------------------------------------------------
 
@@ -428,20 +429,54 @@ namespace libgm { namespace experimental {
       return max_diff(f.derived().param(), g.derived().param());
     }
 
-#if 0
+    // Factor mutations
+    //--------------------------------------------------------------------------
+
     /**
-     * Checks if two factors have the same (sequence of) arguments.
-     * \throw std::invalid_argument if the arguments do not match
+     * Multiplies this expression by a constant in-place.
      */
-    friend void check_same_arguments(const canonical_gaussian& f,
-                                     const canonical_gaussian& g) {
-      if (f.arguments() != g.arguments()) {
-        throw std::invalid_argument(
-          "canonical_gaussian: incompatible arguments"
-        );
-      }
+    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
+    Derived& operator*=(logarithmic<RealType> x) {
+      derived().param().lm += x.lv;
+      return derived();
     }
-#endif
+
+    /**
+     * Divides this expression by a constant in-place.
+     */
+    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
+    Derived& operator/=(logarithmic<RealType> x) {
+      derived().param().lm -= x.lv;
+      return derived();
+    }
+
+    /**
+     * Multiplies another expression into this expression.
+     */
+    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
+    Derived& operator*=(const canonical_gaussian_base<Arg, RealType, Other>& f){
+      f.derived().join_inplace(plus_assign<>(),
+                               derived().start(), derived().param());
+      return derived();
+    }
+
+    /**
+     * Divides another expression into this epxression.
+     */
+    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
+    Derived& operator/=(const canonical_gaussian_base<Arg, RealType, Other>& f){
+      f.derived().join_inplace(minus_assign<>(),
+                               derived().start(), derived().param());
+      return derived();
+    }
+
+    /**
+     * Normalizes this expression in-place.
+     */
+    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
+    void normalize() {
+      derived().param().lm -= derived().param().marginal();
+    }
 
     // Expression evaluation
     //--------------------------------------------------------------------------
@@ -459,10 +494,18 @@ namespace libgm { namespace experimental {
       return result;
     }
 
+    /**
+     * Joins the parameters of this expression into the result, assuming
+     * the mapping of arguments to dimensions given by the start map.
+     * This function may be overriden by an expression to provide an optimized
+     * implementation.
+     */
     template <typename UpdateOp>
-    void join_inplace(UpdateOp update_op, factor_type& result) const {
-      auto idx = derived().arguments().index(result.start());
-      derived().param().update(update_op, idx, result.param());
+    void join_inplace(UpdateOp update_op,
+                      const vector_map<Arg, std::size_t>& start,
+                      param_type& result) const {
+      auto idx = derived().arguments().index(start);
+      derived().param().update(update_op, idx, result);
     }
 
   }; // class canonical_gaussian_base
@@ -591,6 +634,23 @@ namespace libgm { namespace experimental {
       }
     }
 
+    /**
+     * Substitutes the arguments in-place according to the given map.
+     */
+    template <typename Map>
+    void subst_args(const Map& map) {
+      args_.substitute(map);
+      start_.subst_keys(map);
+    }
+
+    /**
+     * Returns the dimensionality of the parameters for the given
+     * argument set.
+     */
+    static std::size_t param_shape(const domain<Arg>& dom) {
+      return dom.num_dimensions();
+    }
+
     // Accessors
     //--------------------------------------------------------------------------
 
@@ -642,51 +702,6 @@ namespace libgm { namespace experimental {
       return param_.lambda.block(i, i, n, n);
     }
 
-    // Factor mutations
-    //--------------------------------------------------------------------------
-
-    //! Multiplies this factor by a constant in-place.
-    canonical_gaussian& operator*=(logarithmic<RealType> x) {
-      param_.lm += x.lv;
-      return *this;
-    }
-
-    //! Divides this factor by a constant in-place.
-    canonical_gaussian& operator/=(logarithmic<RealType> x) {
-      param_.lm -= x.lv;
-      return *this;
-    }
-
-    //! Multiplies this factor by another one in-place.
-    template <typename Derived>
-    canonical_gaussian&
-    operator*=(const canonical_gaussian_base<Arg, RealType, Derived>& f) {
-      f.derived().join_inplace(plus_assign<>(), *this);
-      return *this;
-    }
-
-    //! Divides this factor by another one in-place.
-    template <typename Derived>
-    canonical_gaussian&
-    operator/=(const canonical_gaussian_base<Arg, RealType, Derived>& f) {
-      f.derived().join_inplace(minus_assign<>(), *this);
-      return *this;
-    }
-
-    //! Normalizes the factor in-place.
-    void normalize() {
-      param_.lm -= param_.marginal();
-    }
-
-    /**
-     * Substitutes the arguments in-place according to the given map.
-     */
-    template <typename Map>
-    void subst_args(const Map& map) {
-      args_.substitute(map);
-      start_.subst_keys(map);
-    }
-
     // Factor evaluation
     //--------------------------------------------------------------------------
 
@@ -718,39 +733,11 @@ namespace libgm { namespace experimental {
 
   }; // class canonical_gaussian
 
-
-  // Traits
-  //----------------------------------------------------------------------------
-
-    /*
   template <typename Arg, typename RealType>
-  struct has_multiplies<canonical_gaussian<Arg, RealType>>
-    : public std::true_type { };
+  struct is_primitive<canonical_gaussian<Arg, RealType> > : std::true_type { };
 
   template <typename Arg, typename RealType>
-  struct has_multiplies_assign<canonical_gaussian<Arg, RealType>>
-    : public std::true_type { };
-
-  template <typename Arg, typename RealType>
-  struct has_divides<canonical_gaussian<Arg, RealType>>
-    : public std::true_type { };
-
-  template <typename Arg, typename RealType>
-  struct has_divides_assign<canonical_gaussian<Arg, RealType>>
-    : public std::true_type { };
-
-  template <typename Arg, typename RealType>
-  struct has_marginal<canonical_gaussian<Arg, RealType>>
-    : public std::true_type { };
-
-  template <typename Arg, typename RealType>
-  struct has_maximum<canonical_gaussian<Arg, RealType>>
-    : public std::true_type { };
-
-  template <typename Arg, typename RealType>
-  struct has_arg_max<canonical_gaussian<Arg, RealType>>
-    : public std::true_type { };
-    */
+  struct is_mutable<canonical_gaussian<Arg, RealType> > : std::true_type { };
 
 } }  // namespace libgm::experimental
 

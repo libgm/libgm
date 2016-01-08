@@ -1,9 +1,9 @@
 #ifndef LIBGM_MEAN_FIELD_PAIRWISE_HPP
 #define LIBGM_MEAN_FIELD_PAIRWISE_HPP
 
+#include <libgm/factor/traits.hpp>
 #include <libgm/argument/argument_traits.hpp>
 #include <libgm/model/pairwise_markov_network.hpp>
-#include <libgm/traits/pairwise_compatible.hpp>
 
 #include <functional>
 #include <unordered_map>
@@ -26,7 +26,7 @@ namespace libgm {
    */
   template <typename NodeF, typename EdgeF = NodeF>
   class mean_field_pairwise {
-    static_assert(pairwise_compatible<NodeF, EdgeF>::value,
+    static_assert(are_pairwise_compatible<NodeF, EdgeF>::value,
                   "The node and edge factors are not pairwise compatible");
 
     // Public types

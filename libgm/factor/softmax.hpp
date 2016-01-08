@@ -1,7 +1,7 @@
 #ifndef LIBGM_SOFTMAX_HPP
 #define LIBGM_SOFTMAX_HPP
 
-#include <libgm/macros.hpp>
+#include <libgm/enable_if.hpp>
 #include <libgm/argument/argument_traits.hpp>
 #include <libgm/argument/hybrid_assignment.hpp>
 #include <libgm/argument/hybrid_domain.hpp>
@@ -295,8 +295,8 @@ namespace libgm {
      * Conditions the factor on the given features in the factor's internal
      * ordering of tail variables.
      */
-    LIBGM_ENABLE_IF(A = Arg, is_univariate<A>::value, probability_array<Arg, 1, T>))
-    condition(const real_vector<T>& index) const {
+    LIBGM_ENABLE_IF(is_univariate<Arg>::value)
+    probability_array<Arg, 1, T> condition(const real_vector<T>& index) const {
       return probability_array<Arg, 1, T>({head()}, param_(index));
     }
 

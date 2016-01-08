@@ -47,9 +47,10 @@ namespace libgm { namespace experimental {
         canonical_gaussian_transform<VectorOp, ScalarOp, F> > {
   public:
     // shortcuts
-    using domain_type = domain_t<F>;
-    using param_type  = canonical_gaussian_param<real_t<F> >;
-    using factor_type = canonical_gaussian<argument_t<F>, real_t<F> >;
+    using argument_type = argument_t<F>;
+    using domain_type   = domain_t<F>;
+    using param_type    = canonical_gaussian_param<real_t<F> >;
+    using factor_type   = canonical_gaussian<argument_type, real_t<F> >;
 
     canonical_gaussian_transform(VectorOp vector_op, ScalarOp scalar_op, F&& f)
       : vector_op_(vector_op), scalar_op_(scalar_op), f_(std::forward<F>(f)) { }
@@ -101,10 +102,12 @@ namespace libgm { namespace experimental {
     }
 
     template <typename UpdateOp>
-    void join_inplace(UpdateOp update_op, factor_type& result) const {
-      std::vector<std::size_t> idx = f_.arguments().index(result.start());
+    void join_inplace(UpdateOp update_op,
+                      const vector_map<argument_type, std::size_t>& start,
+                      param_type& result) const {
+      std::vector<std::size_t> idx = f_.arguments().index(start);
       f_.param().transform_update(vector_op_, scalar_op_, update_op, idx,
-                                  result.param());
+                                  result);
     }
 
   private:
@@ -187,9 +190,10 @@ namespace libgm { namespace experimental {
 
   public:
     // Shortcuts
-    using domain_type = domain_t<F>;
-    using param_type  = canonical_gaussian_param<real_t<F> >;
-    using factor_type = canonical_gaussian<argument_t<F>, real_t<F> >;
+    using argument_type = argument_t<F>;
+    using domain_type   = domain_t<F>;
+    using param_type    = canonical_gaussian_param<real_t<F> >;
+    using factor_type   = canonical_gaussian<argument_type, real_t<F> >;
 
     //! Constructs a canonical_gaussian_join
     canonical_gaussian_join(AssignOp assign_op, F&& f, G&& g)
@@ -215,14 +219,16 @@ namespace libgm { namespace experimental {
     void eval_to(factor_type& result) const {
       result.reset(args_);
       result.param().zero();
-      f_.join_inplace(assign<>(), result);
-      g_.join_inplace(assign_op_, result);
+      f_.join_inplace(assign<>(), result.start(), result.param());
+      g_.join_inplace(assign_op_, result.start(), result.param());
     }
 
     template <typename UpdateOp>
-    void join_inplace(UpdateOp update_op, factor_type& result) const {
-      f_.join_inplace(update_op, result);
-      g_.join_inplace(compose(update_op, assign_op_), result);
+    void join_inplace(UpdateOp update_op,
+                      const vector_map<argument_type, std::size_t>& start,
+                      param_type& result) const {
+      f_.join_inplace(update_op, start, result);
+      g_.join_inplace(compose(update_op, assign_op_), start, result);
     }
 
   private:
@@ -285,9 +291,10 @@ namespace libgm { namespace experimental {
 
   public:
     // Shortcuts
-    using domain_type = domain_t<F>;
-    using param_type  = canonical_gaussian_param<real_t<F> >;
-    using factor_type = canonical_gaussian<argument_t<F>, real_t<F> >;
+    using argument_type = argument_t<F>;
+    using domain_type   = domain_t<F>;
+    using param_type    = canonical_gaussian_param<real_t<F> >;
+    using factor_type   = canonical_gaussian<argument_type, real_t<F> >;
 
     //! Constructs the collapse of a factor of a subset of arguments.
     canonical_gaussian_collapse(F&& f,
@@ -352,9 +359,10 @@ namespace libgm { namespace experimental {
         canonical_gaussian_conditional<F> > {
   public:
     // Shortcuts
-    using domain_type = domain_t<F>;
-    using param_type  = canonical_gaussian_param<real_t<F> >;
-    using factor_type = canonical_gaussian<argument_t<F>, real_t<F> >;
+    using argument_type = argument_t<F>;
+    using domain_type   = domain_t<F>;
+    using param_type    = canonical_gaussian_param<real_t<F> >;
+    using factor_type   = canonical_gaussian<argument_type, real_t<F> >;
 
     canonical_gaussian_conditional(F&& f, const domain_type& tail)
       : f_(std::forward<F>(f)),
@@ -414,9 +422,10 @@ namespace libgm { namespace experimental {
         canonical_gaussian_restrict<F> > {
   public:
     // Shortcuts
-    using domain_type = domain_t<F>;
-    using param_type  = canonical_gaussian_param<real_t<F> >;
-    using factor_type = canonical_gaussian<argument_t<F>, real_t<F> >;
+    using argument_type = argument_t<F>;
+    using domain_type   = domain_t<F>;
+    using param_type    = canonical_gaussian_param<real_t<F> >;
+    using factor_type   = canonical_gaussian<argument_type, real_t<F> >;
 
     canonical_gaussian_restrict(F&& f, const assignment_t<F>& a)
       : f_(std::forward<F>(f)) {
@@ -451,10 +460,12 @@ namespace libgm { namespace experimental {
     }
 
     template <typename UpdateOp>
-    void join_inplace(UpdateOp update_op, factor_type& result) const {
-      std::vector<std::size_t> idx = args_.index(result.start());
+    void join_inplace(UpdateOp update_op,
+                      const vector_map<argument_type, std::size_t>& start,
+                      param_type& result) const {
+      std::vector<std::size_t> idx = args_.index(start);
       f_.param().restrict_update(retain_, restrict_, values_, update_op, idx,
-                                 result.param());
+                                 result);
     }
 
   private:
@@ -488,9 +499,10 @@ namespace libgm { namespace experimental {
 
   public:
     // Shortcuts
+    using argument_type = argument_t<F>;
     using domain_type   = domain_t<F>;
     using param_type    = moment_gaussian_param<real_t<F> >;
-    using factor_type   = moment_gaussian<argument_t<F>, real_t<F> >;
+    using factor_type   = moment_gaussian<argument_type, real_t<F> >;
 
     explicit canonical_to_moment_gaussian(F&& f)
       : f_(std::forward<F>(f)) { }

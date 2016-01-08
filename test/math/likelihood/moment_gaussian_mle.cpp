@@ -5,7 +5,7 @@
 
 #include <libgm/math/likelihood/moment_gaussian_ll.hpp>
 #include <libgm/math/likelihood/range_ll.hpp>
-#include <libgm/math/random/gaussian_distribution.hpp>
+#include <libgm/math/random/multivariate_normal_distribution.hpp>
 
 #include <random>
 #include <vector>
@@ -30,7 +30,7 @@ BOOST_AUTO_TEST_CASE(test_mle) {
 
   // generate a few samples
   std::mt19937 rng;
-  gaussian_distribution<> dist(param);
+  multivariate_normal_distribution<> dist(param);
   std::vector<std::pair<vec_type, double>> samples;
   samples.reserve(nsamples);
   for (std::size_t i = 0; i < nsamples; ++i) {

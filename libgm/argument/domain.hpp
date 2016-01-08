@@ -1,9 +1,10 @@
 #ifndef LIBGM_DOMAIN_HPP
 #define LIBGM_DOMAIN_HPP
 
-#include <libgm/macros.hpp>
+#include <libgm/enable_if.hpp>
 #include <libgm/argument/argument_cast.hpp>
 #include <libgm/argument/argument_traits.hpp>
+#include <libgm/datastructure/uint_vector.hpp>
 #include <libgm/functional/hash.hpp>
 #include <libgm/functional/utility.hpp>
 #include <libgm/range/iterator_range.hpp>
@@ -23,8 +24,87 @@
 namespace libgm {
 
   // Forward declarations
+  template <typename Arg> class domain;
   template <typename Arg> class unary_domain;
   template <typename Arg> class binary_domain;
+
+  namespace detail {
+
+    //! Implements domain::num_values for univariate argument types.
+    template <typename Arg>
+    inline uint_vector num_values(const domain<Arg>& dom, univariate_tag) {
+      uint_vector result(dom.size());
+      for (std::size_t i = 0; i < result.size(); ++i) {
+        result[i] = argument_traits<Arg>::num_values(dom[i]);
+      }
+      return result;
+    }
+
+    //! Implements domain::num_values for multivariate argument types.
+    template <typename Arg>
+    inline uint_vector num_values(const domain<Arg>& dom, multivariate_tag) {
+      uint_vector result(dom.num_dimensions());
+      auto dest = result.begin();
+      for (Arg arg : dom) {
+        std::size_t n = argument_traits<Arg>::num_dimensions(arg);
+        for (std::size_t pos = 0; pos < n; ++pos) {
+          *dest++ = argument_traits<Arg>::num_values(arg, pos);
+        }
+      }
+      return result;
+    }
+
+    //! Implements domain::index for univariate argument types.
+    template <typename Arg>
+    uint_vector index(const domain<Arg>& dom, const domain<Arg>& args,
+                      bool strict,
+                      univariate_tag) {
+      uint_vector index(dom.size(), missing<std::size_t>::value);
+      for(std::size_t i = 0; i < index.size(); i++) {
+        auto it = std::find(args.begin(), args.end(), dom[i]);
+        if (it != args.end()) {
+          index[i] = it - args.begin();
+        } else if (strict) {
+          std::ostringstream out;
+          out << "domain::index: cannot find argument ";
+          argument_traits<Arg>::print(out, dom[i]);
+          throw std::invalid_argument(out.str());
+        }
+      }
+      return index;
+    }
+
+    //! Implements domain::index for multivariate argument types.
+    template <typename Arg>
+    uint_vector index(const domain<Arg>& dom, const domain<Arg>& args,
+                      bool strict,
+                      multivariate_tag) {
+      // compute the first dimension of each argument in args
+      uint_vector dim(args.size());
+      for (std::size_t i = 1; i < args.size(); ++i) {
+        dim[i] = dim[i-1] + argument_traits<Arg>::num_dimensions(args[i-1]);
+      }
+
+      // extract the dimensions for the arguments in this factor
+      uint_vector index(dom.num_dimensions(), missing<std::size_t>::value);
+      auto dest = index.begin();
+      for (Arg arg : dom) {
+        auto it = std::find(args.begin(), args.end(), arg);
+        std::size_t n = argument_traits<Arg>::num_dimensions(arg);
+        if (it != args.end()) {
+          std::iota(dest, dest + n, dim[it - args.begin()]);
+        } else if (strict) {
+          std::ostringstream out;
+          out << "domain::index: cannot find argument ";
+          argument_traits<Arg>::print(out, arg);
+          throw std::invalid_argument(out.str());
+        }
+        dest += n;
+      }
+      return index;
+    }
+
+  } // namespace detail
 
   /**
    * A domain that holds the arguments in an std::vector.
@@ -37,10 +117,11 @@ namespace libgm {
 
     // Domain concept
     typedef Arg key_type;
-    typedef std::vector<std::size_t> index_type;
+    typedef uint_vector index_type;
 
     // Helper types
     typedef typename argument_traits<Arg>::instance_type instance_type;
+    typedef typename argument_traits<Arg>::argument_arity argument_arity;
 
     //! Default constructor. Creates an empty domain.
     domain() { }
@@ -314,37 +395,17 @@ namespace libgm {
      * num_dimensions() elements.
      *
      * This function is supported only when Arg is discrete.
-     *
-     * \fn index_type num_values() const
      */
-    LIBGM_ENABLE_IF(A = Arg, is_discrete<A>::value && is_univariate<A>::value,
-                    index_type)
-    num_values() const {
-      index_type result(this->size());
-      for (std::size_t i = 0; i < result.size(); ++i) {
-        result[i] = argument_traits<Arg>::num_values((*this)[i]);
-      }
-      return result;
-    }
-
-    LIBGM_ENABLE_IF(A = Arg, is_discrete<A>::value && is_multivariate<A>::value,
-                    index_type)
-    num_values() const {
-      index_type result(this->num_dimensions());
-      index_type::iterator dest = result.begin();
-      for (Arg arg : *this) {
-        std::size_t n = argument_traits<Arg>::num_dimensions(arg);
-        for (std::size_t pos = 0; pos < n; ++pos) {
-          *dest++ = argument_traits<Arg>::num_values(arg, pos);
-        }
-      }
-      return result;
+    LIBGM_ENABLE_IF(is_discrete<Arg>::value)
+    index_type num_values() const {
+      return detail::num_values(*this, argument_arity());
     }
 
     /**
      * Returns the instances of an indexable argument for one index.
      */
-    LIBGM_ENABLE_IF(A = Arg, is_indexable<A>::value, domain<instance_type>)
+    LIBGM_ENABLE_IF_D(is_indexable<A>::value, typename A = Arg)
+    domain<instance_type>
     operator()(typename argument_traits<A>::index_type index) const {
       domain<instance_type> result;
       result.reserve(this->size());
@@ -359,7 +420,8 @@ namespace libgm {
      * The instances are returned in the order given by all the instance for
      * the first index first, then all the instances for the second index, etc.
      */
-    LIBGM_ENABLE_IF(A = Arg, is_indexable<A>::value, domain<instance_type>)
+    LIBGM_ENABLE_IF_D(is_indexable<A>::value, typename A = Arg)
+    domain<instance_type>
     operator()(const std::vector<typename argument_traits<A>::index_type>&
                  indices) const {
       domain<instance_type> result;
@@ -451,51 +513,9 @@ namespace libgm {
      * index() on the domain of the factor whose elements will be iterated
      * over in a non-linear fashion. The specified args are the arguments
      * of the table that is iterated over in a linear fashion.
-     *
-     * \fn index_type index(const domain_type& args, bool strict=true) const
      */
-    LIBGM_ENABLE_IF(A = Arg, is_univariate<A>::value, index_type)
-    index(const domain& args, bool strict = true) const {
-      index_type index(this->size(), missing<std::size_t>::value);
-      for(std::size_t i = 0; i < index.size(); i++) {
-        auto it = std::find(args.begin(), args.end(), (*this)[i]);
-        if (it != args.end()) {
-          index[i] = it - args.begin();
-        } else if (strict) {
-          std::ostringstream out;
-          out << "domain::index: cannot find argument ";
-          argument_traits<Arg>::print(out, (*this)[i]);
-          throw std::invalid_argument(out.str());
-        }
-      }
-      return index;
-    }
-
-    LIBGM_ENABLE_IF(A = Arg, is_multivariate<A>::value, index_type)
-    index(const domain& args, bool strict = true) const {
-      // compute the first dimension of each argument in args
-      std::vector<std::size_t> dim(args.size());
-      for (std::size_t i = 1; i < args.size(); ++i) {
-        dim[i] = dim[i-1] + argument_traits<Arg>::num_dimensions(args[i-1]);
-      }
-
-      // extract the dimensions for the arguments in this factor
-      index_type index(num_dimensions(), missing<std::size_t>::value);
-      index_type::iterator dest = index.begin();
-      for (Arg arg : *this) {
-        auto it = std::find(args.begin(), args.end(), arg);
-        std::size_t n = argument_traits<Arg>::num_dimensions(arg);
-        if (it != args.end()) {
-          std::iota(dest, dest + n, dim[it - args.begin()]);
-        } else if (strict) {
-          std::ostringstream out;
-          out << "domain::index: cannot find argument ";
-          argument_traits<Arg>::print(out, arg);
-          throw std::invalid_argument(out.str());
-        }
-        dest += n;
-      }
-      return index;
+    index_type index(const domain& args, bool strict = true) const {
+      return detail::index(*this, args, strict, argument_arity());
     }
 
   }; // class domain

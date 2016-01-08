@@ -115,7 +115,7 @@ namespace libgm {
   template <typename T>
   struct incremented_by {
     T a;
-    incremented_by(const T& a) : a(a) { }
+    incremented_by(T a) : a(a) { }
 
     template <typename X>
     decltype(auto) operator()(X&& x) const {
@@ -135,7 +135,7 @@ namespace libgm {
   template <typename T>
   struct decremented_by {
     T a;
-    decremented_by(const T& a) : a(a) { }
+    decremented_by(T a) : a(a) { }
 
     template <typename X>
     decltype(auto) operator()(X&& x) const {
@@ -155,7 +155,7 @@ namespace libgm {
   template <typename T>
   struct subtracted_from : default_update<subtracted_from<T> > {
     T a;
-    subtracted_from(const T& a) : a(a) { }
+    subtracted_from(T a) : a(a) { }
 
     template <typename X>
     decltype(auto) operator()(X&& x) const {
@@ -170,7 +170,7 @@ namespace libgm {
   template <typename T>
   struct multiplied_by {
     T a;
-    multiplied_by(const T& a) : a(a) { }
+    multiplied_by(T a) : a(a) { }
 
     template <typename X>
     decltype(auto) operator()(X&& x) const {
@@ -190,7 +190,7 @@ namespace libgm {
   template <typename T>
   struct divided_by {
     T a;
-    divided_by(const T& a) : a(a) { }
+    divided_by(T a) : a(a) { }
 
     template <typename X>
     decltype(auto) operator()(X&& x) const {
@@ -210,7 +210,7 @@ namespace libgm {
   template <typename T>
   struct dividing : default_update<dividing<T> > {
     T a;
-    dividing(const T& a) : a(a) { }
+    dividing(T a) : a(a) { }
 
     template <typename X>
     decltype(auto) operator()(X&& x) const {
@@ -224,7 +224,7 @@ namespace libgm {
   template <typename T>
   struct power : default_update<power<T> > {
     T a;
-    power(const T& a) : a(a) { }
+    power(T a) : a(a) { }
 
     template <typename X>
     decltype(auto) operator()(X&& x) const {

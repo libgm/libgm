@@ -1,7 +1,7 @@
-#define BOOST_TEST_MODULE table_distribution
+#define BOOST_TEST_MODULE multivariate_categorical_distribution
 #include <boost/test/unit_test.hpp>
 
-#include <libgm/math/random/table_distribution.hpp>
+#include <libgm/math/random/multivariate_categorical_distribution.hpp>
 #include <libgm/functional/algorithm.hpp>
 #include <libgm/functional/arithmetic.hpp>
 
@@ -9,14 +9,14 @@
 #include <numeric>
 
 namespace libgm {
-  template class table_distribution<double>;
-  template class table_distribution<float>;
+  template class multivariate_categorical_distribution<double>;
+  template class multivariate_categorical_distribution<float>;
 }
 
 using namespace libgm;
 
 typedef table<double> table_type;
-typedef table_distribution<double> dist_type;
+typedef multivariate_categorical_distribution<> dist_type;
 
 std::size_t nsamples = 10000;
 double tol = 0.02;

@@ -9,7 +9,7 @@
 #include <libgm/math/constants.hpp>
 #include <libgm/math/likelihood/probability_table_ll.hpp>
 #include <libgm/math/likelihood/probability_table_mle.hpp>
-#include <libgm/math/random/table_distribution.hpp>
+#include <libgm/math/random/multivariate_categorical_distribution.hpp>
 
 #include <initializer_list>
 #include <iostream>
@@ -52,7 +52,7 @@ namespace libgm {
     // ParametricFactor types
     typedef table<T>    param_type;
     typedef uint_vector vector_type;
-    typedef table_distribution<T> distribution_type;
+    typedef multivariate_categorical_distribution<T> distribution_type;
 
     // LearnableDistributionFactor types
     typedef probability_table_ll<T>  ll_type;
@@ -421,8 +421,8 @@ namespace libgm {
     //==========================================================================
 
     //! Returns the distribution with the parameters of this factor.
-    table_distribution<T> distribution() const {
-      return table_distribution<T>(this->param_);
+    multivariate_categorical_distribution<T> distribution() const {
+      return multivariate_categorical_distribution<T>(this->param_);
     }
 
     //! Draws a random sample from a marginal distribution.
@@ -523,53 +523,6 @@ namespace libgm {
     out << f.param();
     return out;
   }
-
-  // Traits
-  //============================================================================
-
-  template <typename Arg, typename T>
-  struct has_multiplies<probability_table<Arg, T> >
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_multiplies_assign<probability_table<Arg, T> >
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_divides<probability_table<Arg, T> >
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_divides_assign<probability_table<Arg, T> >
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_max<probability_table<Arg, T> >
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_min<probability_table<Arg, T> >
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_marginal<probability_table<Arg, T> >
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_maximum<probability_table<Arg, T> >
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_minimum<probability_table<Arg, T> >
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_arg_max<probability_table<Arg, T> >
-    : public std::true_type { };
-
-  template <typename Arg, typename T>
-  struct has_arg_min<probability_table<Arg, T> >
-    : public std::true_type { };
 
 } // namespace libgm
 

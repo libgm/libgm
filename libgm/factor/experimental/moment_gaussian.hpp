@@ -1,17 +1,19 @@
 #ifndef LIBGM_EXPERIMENTAL_MOMENT_GAUSSIAN_HPP
 #define LIBGM_EXPERIMENTAL_MOMENT_GAUSSIAN_HPP
 
+#include <libgm/enable_if.hpp>
 #include <libgm/argument/domain.hpp>
 #include <libgm/argument/real_assignment.hpp>
 #include <libgm/datastructure/vector_map.hpp>
+#include <libgm/factor/traits.hpp>
 #include <libgm/factor/experimental/expression/common.hpp>
 #include <libgm/factor/experimental/expression/moment_gaussian.hpp>
-#include <libgm/factor/traits.hpp>
 #include <libgm/math/eigen/real.hpp>
 #include <libgm/math/logarithmic.hpp>
+#include <libgm/math/likelihood/moment_gaussian_ll.hpp>
 #include <libgm/math/likelihood/moment_gaussian_mle.hpp>
 #include <libgm/math/param/moment_gaussian_param.hpp>
-#include <libgm/math/random/gaussian_distribution.hpp>
+#include <libgm/math/random/multivariate_normal_distribution.hpp>
 
 namespace libgm { namespace experimental {
 
@@ -35,10 +37,11 @@ namespace libgm { namespace experimental {
    */
   template <typename Arg, typename RealType, typename Derived>
   class moment_gaussian_base {
-  public:
+
     static_assert(is_continuous<Arg>::value,
                   "moment_gaussian requires Arg to be continuous");
 
+  public:
     // Public types
     //--------------------------------------------------------------------------
 
@@ -57,6 +60,8 @@ namespace libgm { namespace experimental {
     // ExponentialFamilyFactor member types
     typedef moment_gaussian<Arg, RealType> factor_type;
     typedef moment_gaussian<Arg, RealType> probability_factor_type;
+
+    typedef multivariate_normal_distribution<RealType> distribution_type;
 
     // Constructors
     //--------------------------------------------------------------------------
@@ -379,10 +384,10 @@ namespace libgm { namespace experimental {
     //--------------------------------------------------------------------------
 
     /**
-     * Returns a gaussian_distribution represented by this expression.
+     * Returns a multivariate_normal_distribution represented by this expression.
      */
-    gaussian_distribution<RealType> distribution() const {
-      return gaussian_distribution<RealType>(derived().param());
+    multivariate_normal_distribution<RealType> distribution() const {
+      return multivariate_normal_distribution<RealType>(derived().param());
     }
 
     /**
@@ -488,6 +493,48 @@ namespace libgm { namespace experimental {
       return max_diff(f.derived().param(), g.derived().param());
     }
 
+    // Mutations
+    //--------------------------------------------------------------------------
+
+    /**
+     * Multiplies this expression by a constant in-place.
+     * Only supported when this expression is mutable (e.g., a factor).
+     */
+    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
+    Derived& operator*=(logarithmic<RealType> x) {
+      derived().param().lm += x.lv;
+      return derived();
+    }
+
+    /**
+     * Divides this expression by a constant in-place.
+     * Only supported when this expression is mutable (e.g., a factor).
+     */
+    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
+    Derived& operator/=(logarithmic<RealType> x) {
+      derived().param().lm -= x.lv;
+      return derived();
+    }
+
+    /**
+     * Multiplies this expression by another one in-place.
+     * Only supported when this expression is mutable (e.g., a factor).
+     */
+    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
+    Derived& operator*=(const moment_gaussian_base<Arg, RealType, Other>& f) {
+      f.derived().multiply_inplace(derived().start(), derived().param());
+      return derived();
+    }
+
+    /**
+     * Normalizes this expression in-place.
+     * Only supported when this expression is mutable (e.g., a factor).
+     */
+    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
+    void normalize() {
+      derived().param().lm = RealType(0);
+    }
+
     // Expression evaluation
     //--------------------------------------------------------------------------
 
@@ -506,14 +553,15 @@ namespace libgm { namespace experimental {
     }
 
     /**
-     * Multiplies this factor into the given factor (default implementation).
+     * Multiplies this expression into the given factor (base implementation).
      */
-    void multiply_inplace(factor_type& result) const {
-      if (subset(derived().arguments(), result.arguments())) {
-        result = result * derived();
+    void multiply_inplace(const vector_map<Arg, std::size_t>& start,
+                          param_type& result) const {
+      if (empty()) {
+        result.lm += derived().param().lm;
       } else {
         throw std::invalid_argument(
-          "operator*= must not extend the arguments of the target"
+          "operator*= must not change the arguments of the target"
         );
       }
     }
@@ -553,9 +601,14 @@ namespace libgm { namespace experimental {
   public:
     // LearnableDistributionFactor member types
     typedef moment_gaussian_mle<RealType> mle_type;
+    typedef moment_gaussian_ll<RealType> ll_type;
 
     //! Parameter struct (same as moment_gaussian_base::param_type).
     typedef moment_gaussian_param<RealType> param_type;
+
+    //! The base template.
+    template <typename Derived>
+    using base = moment_gaussian_base<Arg, RealType, Derived>;
 
     // Constructors and conversion operators
     //--------------------------------------------------------------------------
@@ -708,6 +761,25 @@ namespace libgm { namespace experimental {
       }
     }
 
+    /**
+     * Substitutes the arguments in-place according to the given map.
+     */
+    template <typename Map>
+    void subst_args(const Map& map) {
+      head_.substitute(map);
+      tail_.substitute(map);
+      args_.substitute(map);
+      start_.subst_keys(map);
+    }
+
+    /**
+     * Returns the dimensionality of the parameters for the given
+     * argument set.
+     */
+    static std::size_t param_shape(const domain<Arg>& dom) {
+      return dom.num_dimensions();
+    }
+
     // Accessors
     //--------------------------------------------------------------------------
 
@@ -762,74 +834,31 @@ namespace libgm { namespace experimental {
     }
 
     //! Returns the mean for a single univariate argument.
-    template <typename A = Arg,
-              typename = std::enable_if_t<is_univariate<A>::value> >
+    LIBGM_ENABLE_IF(is_univariate<Arg>::value)
     RealType mean(Arg arg) const {
       return param_.mean(start_.at(arg));
     }
 
     //! Returns the mean vector for a single multivariate argument.
-    template <typename A = Arg,
-              typename = std::enable_if_t<is_multivariate<A>::value> >
+    LIBGM_ENABLE_IF(is_multivariate<Arg>::value)
     Eigen::VectorBlock<const real_vector<RealType> > mean(Arg arg) const {
       std::size_t n = argument_traits<Arg>::num_dimensions(arg);
       return param_.mean.segment(start_.at(arg), n);
     }
 
     //! Returns the variance for a single univariate argument.
-    template <typename A = Arg,
-              typename = std::enable_if_t<is_univariate<A>::value> >
+    LIBGM_ENABLE_IF(is_univariate<Arg>::value)
     RealType variance(Arg arg) const {
       std::size_t i = start_.at(arg);
       return param_.cov(i, i);
     }
 
     //! Returns the covariance block for a single multivariate argument.
-    template <typename A = Arg,
-              typename = std::enable_if_t<is_multivariate<A>::value> >
+    LIBGM_ENABLE_IF(is_multivariate<Arg>::value)
     Eigen::Block<const real_matrix<RealType> > covariance(Arg arg) const {
       std::size_t i = start_.at(arg);
       std::size_t n = argument_traits<Arg>::num_dimensions(arg);
       return param_.cov.block(i, i, n, n);
-    }
-
-    // Factor mutations
-    //--------------------------------------------------------------------------
-
-    //! Multiplies this factor by a constant in-place.
-    moment_gaussian& operator*=(logarithmic<RealType> x) {
-      param_.lm += x.lv;
-      return *this;
-    }
-
-    //! Divides this factor by a constant in-place.
-    moment_gaussian& operator/=(logarithmic<RealType> x) {
-      param_.lm -= x.lv;
-      return *this;
-    }
-
-    //! Multiplies this factor by another one in-place.
-    template <typename Derived>
-    moment_gaussian&
-    operator*=(const moment_gaussian_base<Arg, RealType, Derived>& f) {
-      f.derived().multiply_inplace(*this);
-      return *this;
-    }
-
-    //! Normalizes the factor in-place.
-    void normalize() {
-      param_.lm = RealType(0);
-    }
-
-    /**
-     * Substitutes the arguments in-place according to the given map.
-     */
-    template <typename Map>
-    void subst_args(const Map& map) {
-      head_.substitute(map);
-      tail_.substitute(map);
-      args_.substitute(map);
-      start_.subst_keys(map);
     }
 
     // Factor evaluation
@@ -874,40 +903,12 @@ namespace libgm { namespace experimental {
 
   }; // class moment_gaussian
 
-
-  // Traits
-  //----------------------------------------------------------------------------
-
-    /*
   template <typename Arg, typename RealType>
-  struct has_multiplies<moment_gaussian<Arg, RealType>>
-    : public std::true_type { };
+  struct is_primitive<moment_gaussian<Arg, RealType> > : std::true_type { };
 
   template <typename Arg, typename RealType>
-  struct has_multiplies_assign<moment_gaussian<Arg, RealType>>
-    : public std::true_type { };
+  struct is_mutable<moment_gaussian<Arg, RealType> > : std::true_type { };
 
-  template <typename Arg, typename RealType>
-  struct has_divides<moment_gaussian<Arg, RealType>>
-    : public std::true_type { };
-
-  template <typename Arg, typename RealType>
-  struct has_divides_assign<moment_gaussian<Arg, RealType>>
-    : public std::true_type { };
-
-  template <typename Arg, typename RealType>
-  struct has_marginal<moment_gaussian<Arg, RealType>>
-    : public std::true_type { };
-
-  template <typename Arg, typename RealType>
-  struct has_maximum<moment_gaussian<Arg, RealType>>
-    : public std::true_type { };
-
-  template <typename Arg, typename RealType>
-  struct has_arg_max<moment_gaussian<Arg, RealType>>
-    : public std::true_type { };
-    */
-
-} }  // namespace libgm::experimental
+} } // namespace libgm::experimental
 
 #endif

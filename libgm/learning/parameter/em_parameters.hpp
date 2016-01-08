@@ -1,5 +1,5 @@
 #ifndef LIBGM_EM_PARAMETERS_HPP
-#defien LIBGM_EM_PARAMETERS_HPP
+#define LIBGM_EM_PARAMETERS_HPP
 
 namespace libgm {
 
@@ -24,7 +24,9 @@ namespace libgm {
         tol(tol),
         verbose(verbose),
         seed(seed) { }
+
   }; // struct em_parameters
 
 } // namespace libgm
 
+#endif

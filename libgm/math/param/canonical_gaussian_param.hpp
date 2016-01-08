@@ -39,6 +39,9 @@ namespace libgm {
     //! A vector of indices to a subset of parameters.
     typedef std::vector<std::size_t> index_type;
 
+    //! The type storing the parameters.
+    typedef T value_type;
+
     //! The struct storing the temporaries for collapse computations.
     struct collapse_workspace {
       Eigen::LLT<mat_type> chol_yy;

@@ -15,7 +15,7 @@ namespace libgm {
    * specified in moment form.
    */
   template <typename T = double>
-  class gaussian_distribution {
+  class multivariate_normal_distribution {
     typedef real_matrix<T> mat_type;
     typedef real_vector<T> vec_type;
 
@@ -33,12 +33,12 @@ namespace libgm {
      * Constructs a marginal or conditional distribution
      * with given moment Gaussian parameters.
      */
-    explicit gaussian_distribution(const moment_gaussian_param<T>& param)
+    explicit multivariate_normal_distribution(const moment_gaussian_param<T>& param)
       : mean_(param.mean), coef_(param.coef) {
       Eigen::LLT<mat_type> chol(param.cov);
       if (chol.info() != Eigen::Success) {
         throw numerical_error(
-          "gaussian_distribution: Cannot compute the Cholesky decomposition"
+          "multivariate_normal_distribution: Cannot compute the Cholesky decomposition"
         );
       }
       mult_ = chol.matrixL();
@@ -68,7 +68,7 @@ namespace libgm {
     mat_type mult_;
     mat_type coef_;
 
-  }; // class gaussian_distribution
+  }; // class multivariate_normal_distribution
 
 } // namespace libgm
 

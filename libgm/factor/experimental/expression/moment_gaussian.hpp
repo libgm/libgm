@@ -44,9 +44,10 @@ namespace libgm { namespace experimental {
         moment_gaussian_transform<ScalarOp, F> > {
   public:
     // shortcuts
-    using domain_type = domain_t<F>;
-    using param_type  = moment_gaussian_param<real_t<F> >;
-    using factor_type = moment_gaussian<argument_t<F>, real_t<F> >;
+    using argument_type = argument_t<F>;
+    using domain_type   = domain_t<F>;
+    using param_type    = moment_gaussian_param<real_t<F> >;
+    using factor_type   = moment_gaussian<argument_type, real_t<F> >;
 
     moment_gaussian_transform(ScalarOp scalar_op, F&& f)
       : scalar_op_(scalar_op), f_(std::forward<F>(f)) { }
@@ -106,9 +107,10 @@ namespace libgm { namespace experimental {
       scalar_op_.update(result.param().lm);
     }
 
-    void multiply_inplace(factor_type& result) const {
-      f_.multiply_inplace(result);
-      scalar_op_.update(result.param().lm);
+    void multiply_inplace(const vector_map<argument_type, std::size_t>& start,
+                          param_type& result) const {
+      f_.multiply_inplace(start, result);
+      scalar_op_.update(result.lm);
       // works b/c scalar_op_ is associative with addition
     }
 
@@ -132,7 +134,7 @@ namespace libgm { namespace experimental {
     return { scalar_op, std::forward<F>(f) };
   }
 
-  // Multiplication
+  // Multiplication expression
   //============================================================================
 
   /**
@@ -157,9 +159,10 @@ namespace libgm { namespace experimental {
 
   public:
     // Shortcuts
-    using domain_type = domain_t<F>;
-    using param_type  = moment_gaussian_param<real_t<F> >;
-    using factor_type = moment_gaussian<argument_t<F>, real_t<F> >;
+    using argument_type = argument_t<F>;
+    using domain_type   = domain_t<F>;
+    using param_type    = moment_gaussian_param<real_t<F> >;
+    using factor_type   = moment_gaussian<argument_type, real_t<F> >;
 
     //! Constructs a moment_gaussian_join
     moment_gaussian_multiply(F&& f, G&& g)
@@ -292,9 +295,10 @@ namespace libgm { namespace experimental {
 
   public:
     // Shortcuts
-    using domain_type = domain_t<F>;
-    using param_type  = moment_gaussian_param<real_t<F> >;
-    using factor_type = moment_gaussian<argument_t<F>, real_t<F> >;
+    using argument_type = argument_t<F>;
+    using domain_type   = domain_t<F>;
+    using param_type    = moment_gaussian_param<real_t<F> >;
+    using factor_type   = moment_gaussian<argument_type, real_t<F> >;
 
     //! Constructs the collapse of a factor of a subset of arguments.
     moment_gaussian_collapse(F&& f, const domain_type& retain, bool marginal)
@@ -395,9 +399,10 @@ namespace libgm { namespace experimental {
         moment_gaussian_conditional<F> > {
   public:
     // Shortcuts
-    using domain_type = domain_t<F>;
-    using param_type  = moment_gaussian_param<real_t<F> >;
-    using factor_type = moment_gaussian<argument_t<F>, real_t<F> >;
+    using argument_type = argument_t<F>;
+    using domain_type   = domain_t<F>;
+    using param_type    = moment_gaussian_param<real_t<F> >;
+    using factor_type   = moment_gaussian<argument_type, real_t<F> >;
 
     moment_gaussian_conditional(F&& f, const domain_type& tail)
       : f_(std::forward<F>(f)),
@@ -481,9 +486,10 @@ namespace libgm { namespace experimental {
         moment_gaussian_restrict<F> > {
   public:
     // Shortcuts
-    using domain_type = domain_t<F>;
-    using param_type  = moment_gaussian_param<real_t<F> >;
-    using factor_type = moment_gaussian<argument_t<F>, real_t<F> >;
+    using argument_type = argument_t<F>;
+    using domain_type   = domain_t<F>;
+    using param_type    = moment_gaussian_param<real_t<F> >;
+    using factor_type   = moment_gaussian<argument_type, real_t<F> >;
 
     moment_gaussian_restrict(F&& f, const assignment_t<F>& a)
       : f_(std::forward<F>(f)) {
@@ -592,9 +598,10 @@ namespace libgm { namespace experimental {
 
   public:
     // Shortcuts
-    using domain_type = domain_t<F>;
-    using param_type  = canonical_gaussian_param<real_t<F> >;
-    using factor_type = canonical_gaussian<argument_t<F>, real_t<F> >;
+    using argument_type = argument_t<F>;
+    using domain_type   = domain_t<F>;
+    using param_type    = canonical_gaussian_param<real_t<F> >;
+    using factor_type   = canonical_gaussian<argument_type, real_t<F> >;
 
     explicit moment_to_canonical_gaussian(F&& f)
       : f_(std::forward<F>(f)) { }

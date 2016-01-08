@@ -32,7 +32,7 @@ namespace libgm {
       psum_.reserve(param.size());
       for (const auto& p : param) {
         base_.emplace_back(p);
-        psum_.emplace_back(p.weight());
+        psum_.emplace_back(std::exp(p.marginal()));
       }
       std::partial_sum(psum_.begin(), psum_.end(), psum_.begin());
     }
@@ -42,7 +42,7 @@ namespace libgm {
      */
     template <typename Generator>
     result_type operator()(Generator& rng) const {
-      real_type p = std::uniform_real_distribution()(rng);
+      real_type p = std::uniform_real_distribution<real_type>()(rng);
       std::size_t i =
         std::upper_bound(psum_.begin(), psum_.end(), p) - psum_.begin();
       if (i < psum_.size()) {

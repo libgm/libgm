@@ -1,9 +1,9 @@
 #ifndef LIBGM_MEAN_FIELD_BIPARTITE_HPP
 #define LIBGM_MEAN_FIELD_BIPARTITE_HPP
 
+#include <libgm/factor/traits.hpp>
 #include <libgm/graph/bipartite_graph.hpp>
 #include <libgm/parallel/vector_processor.hpp>
-#include <libgm/traits/pairwise_compatible.hpp>
 
 #include <functional>
 #include <numeric>
@@ -28,7 +28,7 @@ namespace libgm {
             typename NodeF,
             typename EdgeF = NodeF>
   class mean_field_bipartite {
-    static_assert(pairwise_compatible<NodeF, EdgeF>::value,
+    static_assert(are_pairwise_compatible<NodeF, EdgeF>::value,
                   "The node & edge factor types are not pairwise compatible");
     // Public types
     //==========================================================================

@@ -1,9 +1,11 @@
 #ifndef LIBGM_EXPERIMENTAL_PROBABILITY_VECTOR_HPP
 #define LIBGM_EXPERIMENTAL_PROBABILITY_VECTOR_HPP
 
+#include <libgm/enable_if.hpp>
 #include <libgm/argument/argument_traits.hpp>
 #include <libgm/argument/uint_assignment.hpp>
 #include <libgm/argument/unary_domain.hpp>
+#include <libgm/factor/traits.hpp>
 #include <libgm/factor/experimental/expression/common.hpp>
 #include <libgm/factor/experimental/expression/vector.hpp>
 #include <libgm/functional/algorithm.hpp>
@@ -15,9 +17,9 @@
 #include <libgm/math/eigen/real.hpp>
 #include <libgm/math/tags.hpp>
 #include <libgm/serialization/eigen.hpp>
-//#include <libgm/math/likelihood/probability_vector_ll.hpp>
-//#include <libgm/math/likelihood/probability_vector_mle.hpp>
-//#include <libgm/math/random/vector_distribution.hpp>
+#include <libgm/math/likelihood/probability_vector_ll.hpp>
+#include <libgm/math/likelihood/probability_vector_mle.hpp>
+#include <libgm/math/random/categorical_distribution.hpp>
 
 #include <iostream>
 #include <numeric>
@@ -52,6 +54,7 @@ namespace libgm { namespace experimental {
    */
   template <typename Arg, typename RealType, typename Derived>
   class vector_base<prob_tag, Arg, RealType, Derived> {
+
     static_assert(is_discrete<Arg>::value,
                   "probability_vector requires Arg to be discrete");
     static_assert(is_univariate<Arg>::value,
@@ -71,9 +74,9 @@ namespace libgm { namespace experimental {
     typedef probability_vector<Arg, RealType> factor_type;
 
     // ParametricFactor member types
-    typedef real_vector<RealType>  param_type;
-    typedef uint_vector            vector_type;
-    // typedef vector_distribution<RealType> distribution_type;
+    typedef real_vector<RealType> param_type;
+    typedef uint_vector           vector_type;
+    typedef categorical_distribution<RealType> distribution_type;
 
     // Vector-specific types
     typedef prob_tag space_type;
@@ -396,6 +399,44 @@ namespace libgm { namespace experimental {
       return std::move(derived()).template transform<log_tag>(logarithm<>());
     }
 
+#if 0
+    /**
+     * Returns a probability_table expression equivalent to this expression.
+     */
+    LIBGM_ENABLE_IF(is_primitive<Derived>::value)
+    probability_table_map<Arg, RealType> table() const {
+      return { derived().arguments(), derived().arguments().data() };
+    }
+#endif
+
+    // Sampling
+    //--------------------------------------------------------------------------
+
+    /**
+     * Returns a categorical distribution represented by this expression.
+     */
+    categorical_distribution<RealType> distribution() const {
+      return categorical_distribution<RealType>(derived().param());
+    }
+
+    /**
+     * Draws a random sample from a marginal distribution represented by this
+     * expression.
+     */
+    template <typename Generator>
+    std::size_t sample(Generator& rng) const {
+      return distribution()(rng);
+    }
+
+    /**
+     * Draws a random sample from a marginal distribution represented by this
+     * expression, storing the result in an assignment.
+     */
+    template <typename Generator>
+    void sample(Generator& rng, uint_assignment<Arg>& a) const {
+      a[x()] = sample(rng);
+    }
+
     // Entropy and divergences
     //--------------------------------------------------------------------------
 
@@ -473,6 +514,102 @@ namespace libgm { namespace experimental {
       return transform_accumulate(p, q,
                                   abs_difference<RealType>(),
                                   libgm::maximum<RealType>());
+    }
+
+    // Mutations
+    //--------------------------------------------------------------------------
+
+    /**
+     * Increments this expression by a constant.
+     * Only supported when this expression is mutable (e.g., a factor).
+     */
+    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
+    Derived& operator+=(RealType x) {
+      derived().param().array() += x;
+      return derived();
+    }
+
+    /**
+     * Decrements this expression by a constant.
+     * Only supported when this expression is mutable (e.g., a factor).
+     */
+    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
+    Derived& operator-=(RealType x) {
+      derived().param().array() -= x;
+      return derived();
+    }
+
+    /**
+     * Multiplies this expression by a constant.
+     * Only supported when this expression is mutable (e.g., a factor).
+     */
+    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
+    Derived& operator*=(RealType x) {
+      derived().param() *= x;
+      return derived();
+    }
+
+    /**
+     * Divides this expression by a constant.
+     * Only supported when this expression is mutable (e.g., a factor).
+     */
+    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
+    Derived& operator/=(RealType x) {
+      derived().param() /= x;
+      return derived();
+    }
+
+    /**
+     * Adds an expression to this expression element-wise.
+     * Only supported when this expression is mutable (e.g., a factor).
+     */
+    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
+    Derived& operator+=(const probability_vector_base<Arg, RealType, Other>& f){
+      assert(derived().arguments() == f.derived().arguments());
+      f.derived().transform_inplace(plus_assign<>(), derived().param());
+      return derived();
+    }
+
+    /**
+     * Subtracts an expression from this expression element-wise.
+     * Only supported when this expression is mutable (e.g., a factor).
+     */
+    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
+    Derived& operator-=(const probability_vector_base<Arg, RealType, Other>& f){
+      assert(derived().arguments() == f.derived().arguments());
+      f.derived().transform_inplace(minus_assign<>(), derived().param());
+      return derived();
+    }
+
+    /**
+     * Multiplies an expression into this expression.
+     * Only supported when this expression is mutable (e.g., a factor).
+     */
+    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
+    Derived& operator*=(const probability_vector_base<Arg, RealType, Other>& f){
+      assert(derived().arguments() == f.derived().arguments());
+      f.derived().transform_inplace(multiplies_assign<>(), derived().param());
+      return derived();
+    }
+
+    /**
+     * Divides an expression into this expression.
+     * Only supported when this expression is mutable (e.g., a factor).
+     */
+    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
+    Derived& operator/=(const probability_vector_base<Arg, RealType, Other>& f){
+      assert(derived().arguments() == f.derived().arguments());
+      f.derived().transform_inplace(divides_assign<>(), derived().param());
+      return derived();
+    }
+
+    /**
+     * Divides this expression by its norm inplace.
+     * Only supported when this expression is mutable (e.g., a factor).
+     */
+    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
+    void normalize() {
+      *this /= marginal();
     }
 
     // Expression evaluations
@@ -577,8 +714,11 @@ namespace libgm { namespace experimental {
     //--------------------------------------------------------------------------
 
     // LearnableDistributionFactor member types
-    // typedef probability_vector_ll<RealType>  ll_type;
-    // typedef probability_vector_mle<RealType> mle_type;
+    typedef probability_vector_ll<RealType>  ll_type;
+    typedef probability_vector_mle<RealType> mle_type;
+
+    template <typename Derived>
+    using base = probability_vector_base<Arg, RealType, Derived>;
 
     // Constructors and conversion operators
     //--------------------------------------------------------------------------
@@ -633,9 +773,7 @@ namespace libgm { namespace experimental {
     probability_vector&
     operator=(const probability_vector_base<Arg, RealType, Derived>& f) {
       if (f.derived().alias(param_)) {
-        real_vector<RealType> tmp;
-        f.derived().eval_to(tmp);
-        param_.swap(tmp);
+        param_.swap(f.derived().param());
       } else {
         f.derived().eval_to(param_);
       }
@@ -678,6 +816,17 @@ namespace libgm { namespace experimental {
       if (param_.rows() != argument_traits<Arg>::num_values(args_.x())) {
         throw std::logic_error("Invalid number of rows");
       }
+    }
+
+    //! Substitutes the arguments of the factor according to a map.
+    template <typename Map>
+    void subst_args(const Map& map) {
+      args_.substitute(map);
+    }
+
+    //! Returns the length of the vector corresponding to a domain.
+    static std::size_t param_shape(const unary_domain<Arg>& dom) {
+      return dom.num_values();
     }
 
     // Accessors
@@ -772,6 +921,9 @@ namespace libgm { namespace experimental {
       return param_[row];
     }
 
+    // Evaluation
+    //--------------------------------------------------------------------------
+
     /**
      * Returns true if evaluating this expression to the specified parameter
      * table requires a temporary. This is false for the probability_vector
@@ -780,22 +932,6 @@ namespace libgm { namespace experimental {
     bool alias(const real_vector<RealType>& param) const {
       return false;
     }
-
-    // Conversions
-    //--------------------------------------------------------------------------
-
-#if 0
-    /**
-     * Returns a probability_table expression equivalent to this expression.
-     */
-    probability_table_map<Arg, RealType>
-    table() const {
-      return { args_, param_.data() };
-    }
-#endif
-
-    // Factor operations
-    //--------------------------------------------------------------------------
 
     //! Returns this probability_vector (a noop).
     const probability_vector& eval() const& {
@@ -807,80 +943,6 @@ namespace libgm { namespace experimental {
       return std::move(*this);
     }
 
-    // Factor mutations
-    //--------------------------------------------------------------------------
-
-    //! Increments this factor by a constant.
-    probability_vector& operator+=(RealType x) {
-      param_.array() += x;
-      return *this;
-    }
-
-    //! Decrements this factor by a constant.
-    probability_vector& operator-=(RealType x) {
-      param_.array() -= x;
-      return *this;
-    }
-
-    //! Multiplies this factor by a constant.
-    probability_vector& operator*=(RealType x) {
-      param_ *= x;
-      return *this;
-    }
-
-    //! Divides this factor by a constant.
-    probability_vector& operator/=(RealType x) {
-      param_ /= x;
-      return *this;
-    }
-
-    //! Adds an expression to this factor element-wise.
-    template <typename Derived>
-    probability_vector&
-    operator+=(const probability_vector_base<Arg, RealType, Derived>& f) {
-      assert(args_ == f.derived().arguments());
-      f.derived().transform_inplace(plus_assign<>(), param_);
-      return *this;
-    }
-
-    //! Subtracts an expression from this factor element-wise.
-    template <typename Derived>
-    probability_vector&
-    operator-=(const probability_vector_base<Arg, RealType, Derived>& f) {
-      assert(args_ == f.derived().arguments());
-      f.derived().transform_inplace(minus_assign<>(), param_);
-      return *this;
-    }
-
-    //! Multiplies an expression into this factor.
-    template <typename Derived>
-    probability_vector&
-    operator*=(const probability_vector_base<Arg, RealType, Derived>& f) {
-      assert(args_ == f.derived().arguments());
-      f.derived().transform_inplace(multiplies_assign<>(), param_);
-      return *this;
-    }
-
-    //! Divides an expression into this factor.
-    template <typename Derived>
-    probability_vector&
-    operator/=(const probability_vector_base<Arg, RealType, Derived>& f) {
-      assert(args_ == f.derived().arguments());
-      f.derived().transform_inplace(divides_assign<>(), param_);
-      return *this;
-    }
-
-    //! Divides this factor by its norm inplace.
-    void normalize() {
-      *this /= this->marginal();
-    }
-
-    //! Substitutes the arguments of the factor according to a map.
-    template <typename Map>
-    void subst_args(const Map& map) {
-      args_.substitute(map);
-    }
-
   private:
     //! The argument of the factor.
     unary_domain<Arg> args_;
@@ -889,6 +951,12 @@ namespace libgm { namespace experimental {
     real_vector<RealType> param_;
 
   }; // class probability_vector
+
+  template <typename Arg, typename RealType>
+  struct is_primitive<probability_vector<Arg, RealType> > : std::true_type { };
+
+  template <typename Arg, typename RealType>
+  struct is_mutable<probability_vector<Arg, RealType> > : std::true_type { };
 
 } } // namespace libgm::experimental
 

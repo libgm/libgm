@@ -1,11 +1,11 @@
 #ifndef LIBGM_NAIVE_BAYES_HPP
 #define LIBGM_NAIVE_BAYES_HPP
 
+#include <libgm/argument/traits.hpp>
 #include <libgm/math/likelihood/range_ll.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
 #include <libgm/range/iterator_range.hpp>
 #include <libgm/range/joined.hpp>
-#include <libgm/traits/pairwise_compatible.hpp>
 
 #include <unordered_map>
 
@@ -21,7 +21,7 @@ namespace libgm {
   template <typename LabelF, typename FeatureF = LabelF>
   class naive_bayes {
   public:
-    static_assert(pairwise_compatible<LabelF, FeatureF>::value,
+    static_assert(are_pairwise_compatible<LabelF, FeatureF>::value,
                   "The prior and feature factors are not pairwise compatible.");
 
     typedef std::unordered_map<argument_type, F> feature_map;

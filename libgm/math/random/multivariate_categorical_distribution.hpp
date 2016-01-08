@@ -1,5 +1,5 @@
-#ifndef LIBGM_TABLE_DISTRIBUTION_HPP
-#define LIBGM_TABLE_DISTRIBUTION_HPP
+#ifndef LIBGM_MULTIVARIATE_CATEGORICAL_DISTRIBUTION_HPP
+#define LIBGM_MULTIVARIATE_CATEGORICAL_DISTRIBUTION_HPP
 
 #include <libgm/datastructure/table.hpp>
 #include <libgm/functional/arithmetic.hpp>
@@ -17,7 +17,7 @@ namespace libgm {
    * whose probabilities are represented by a table.
    */
   template <typename T = double>
-  class table_distribution {
+  class multivariate_categorical_distribution {
   public:
 
     //! The type representing the parameters of the distribution.
@@ -30,13 +30,13 @@ namespace libgm {
     typedef uint_vector tail_type;
 
     //! Constructor for a distribution in the probability space.
-    explicit table_distribution(const table<T>& p)
+    explicit multivariate_categorical_distribution(const table<T>& p)
       : psum_(p) {
       std::partial_sum(psum_.begin(), psum_.end(), psum_.begin());
     }
 
     //! Constructor for a distribution in the log space.
-    table_distribution(const table<T>& lp, log_tag)
+    multivariate_categorical_distribution(const table<T>& lp, log_tag)
       : psum_(lp.shape()) {
       std::transform(lp.begin(), lp.end(), psum_.begin(), exponent<T>());
       std::partial_sum(psum_.begin(), psum_.end(), psum_.begin());
@@ -77,7 +77,7 @@ namespace libgm {
     //! The table of partial sums of probabilities.
     table<T> psum_;
 
-  }; // class table_distribution
+  }; // class multivariate_categorical_distribution
 
 } // namespace libgm
 

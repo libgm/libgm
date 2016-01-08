@@ -1,7 +1,7 @@
 #ifndef LIBGM_HYBRID_DOMAIN_HPP
 #define LIBGM_HYBRID_DOMAIN_HPP
 
-#include <libgm/macros.hpp>
+#include <libgm/enable_if.hpp>
 #include <libgm/argument/argument_cast.hpp>
 #include <libgm/argument/argument_traits.hpp>
 #include <libgm/argument/domain.hpp>
@@ -358,7 +358,8 @@ namespace libgm {
     /**
      * Returns the instances (arguments) of a field for one index.
      */
-    LIBGM_ENABLE_IF(A=Arg, is_indexable<A>::value, hybrid_domain<instance_type>)
+    LIBGM_ENABLE_IF_D(is_indexable<A>::value, typename A = Arg)
+    hybrid_domain<instance_type>
     operator()(typename argument_traits<A>::index_type index) const {
       return hybrid_domain<instance_type>(discrete()(index),
                                           continuous()(index));
@@ -369,7 +370,8 @@ namespace libgm {
      * The instances are returned in the order given by all the instance for
      * the first index first, then all the instances for the second index, etc.
      */
-    LIBGM_ENABLE_IF(A=Arg, is_indexable<A>::value, hybrid_domain<instance_type>)
+    LIBGM_ENABLE_IF_D(is_indexable<A>::value, typename A = Arg)
+    hybrid_domain<instance_type>
     operator()(const std::vector<typename argument_traits<A>::index_type>&
                  indices) const {
       return hybrid_domain<instance_type>(discrete()(indices),

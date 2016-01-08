@@ -309,7 +309,7 @@ namespace libgm { namespace experimental {
 
     bool alias(const param_type& result) const {
       return (!is_primitive<F>::value && f_.alias(result))
-        || (!direct_ && g_.alias(result));
+          || (!direct_ && g_.alias(result));
     }
 
     template <bool P = is_primitive<F>::value>
@@ -324,7 +324,7 @@ namespace libgm { namespace experimental {
     template <bool P = is_primitive<F>::value>
     std::enable_if_t<!P, void> eval_to(param_type& result) const {
       f_.eval_to(result);
-      // use a non-updating version of the operator for now
+      // TODO: use a non-updating version of the operator for now
       if (direct_) {
         result = join_op_(result.array(), g_.param().array());
       } else {

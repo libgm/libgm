@@ -21,3 +21,4 @@ add_test(logarithmic_matrix_experimental logarithmic_matrix_experimental)
 
 add_test(moment_gaussian_experimental moment_gaussian_experimental)
 add_test(canonical_gaussian_experimental canonical_gaussian_experimental)
+

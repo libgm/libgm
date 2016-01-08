@@ -1,13 +1,20 @@
-add_executable(canonical_array_ll canonical_array_ll.cpp)
+add_executable(logarithmic_vector_ll logarithmic_vector_ll.cpp)
+add_executable(probability_vector_ll probability_vector_ll.cpp)
+add_executable(probability_vector_mle probability_vector_mle.cpp)
+
+add_executable(logarithmic_matrix_ll logarithmic_matrix_ll.cpp)
+add_executable(probability_matrix_ll probability_matrix_ll.cpp)
+add_executable(probability_matrix_mle probability_matrix_mle.cpp)
+
 add_executable(canonical_table_ll canonical_table_ll.cpp)
-add_executable(moment_gaussian_mle moment_gaussian_mle.cpp)
-add_executable(probability_array_ll probability_array_ll.cpp)
 add_executable(probability_table_ll probability_table_ll.cpp)
-add_executable(probability_array_mle probability_array_mle.cpp)
 add_executable(probability_table_mle probability_table_mle.cpp)
+
+add_executable(moment_gaussian_mle moment_gaussian_mle.cpp)
 add_executable(softmax_mle softmax_mle.cpp)
 
-add_test(moment_gaussian_mle moment_gaussian_mle)
-add_test(probability_array_mle probability_array_mle)
+add_test(probability_vector_mle probability_vector_mle)
+add_test(probability_matrix_mle probability_matrix_mle)
 add_test(probability_table_mle probability_table_mle)
+add_test(moment_gaussian_mle moment_gaussian_mle)
 add_test(softmax_mle softmax_mle)

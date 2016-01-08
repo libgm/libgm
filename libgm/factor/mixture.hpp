@@ -388,7 +388,7 @@ namespace libgm {
 
     //! Returns the distribution with the parameters of this factor.
     distribution_type  distribution() const {
-      return gaussian_distribution<T>(param_);
+      return multivariate_normal_distribution<T>(param_);
 
     // Private data members
     //==========================================================================
@@ -440,29 +440,6 @@ namespace libgm {
     }
     return moment_gaussian(args, mean, cov, norm);
   }
-
-  // Traits
-  //============================================================================
-
-  //! \addtogroup factor_traits
-  //! @{
-
-  template <typename F>
-  struct has_multiplies<mixture<F> > : public has_multiplies_assign<F> { };
-
-  template <typename F>
-  struct has_multiplies_assign<mixture<F> > : public has_multiplies_assign<F> { };
-
-  template <typename F>
-  struct has_divides<mixture<F> > : public has_divides_assign<F> { };
-
-  template <typename F>
-  struct has_divides_assign<mixture<F> > : public has_divides_assign<F> { };
-
-  template <typename F>
-  struct has_marginal<mixture<F > > : public boost::true_type { };
-
-  //! @}
 
 } // namespace libgm
 

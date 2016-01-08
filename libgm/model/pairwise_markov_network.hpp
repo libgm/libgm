@@ -1,13 +1,13 @@
 #ifndef LIBGM_PAIRWISE_MARKOV_NETWORK_HPP
 #define LIBGM_PAIRWISE_MARKOV_NETWORK_HPP
 
+#include <libgm/factor/traits.hpp>
 #include <libgm/graph/property_fn.hpp>
 #include <libgm/graph/undirected_graph.hpp>
 #include <libgm/iterator/join_iterator.hpp>
 #include <libgm/math/logarithmic.hpp>
 #include <libgm/range/transformed.hpp>
 #include <libgm/traits/is_range.hpp>
-#include <libgm/traits/pairwise_compatible.hpp>
 
 namespace libgm {
 
@@ -23,7 +23,7 @@ namespace libgm {
   template <typename NodeF, typename EdgeF = NodeF>
   class pairwise_markov_network
     : public undirected_graph<typename NodeF::argument_type, NodeF, EdgeF> {
-    static_assert(pairwise_compatible<NodeF, EdgeF>::value,
+    static_assert(are_pairwise_compatible<NodeF, EdgeF>::value,
                   "The node and edge factors are not pairwise compatible");
 
     typedef undirected_graph<typename NodeF::argument_type, NodeF, EdgeF> base;

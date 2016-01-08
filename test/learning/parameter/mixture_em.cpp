@@ -5,7 +5,7 @@
 
 #include <libgm/argument/universe.hpp>
 #include <libgm/argument/vec.hpp>
-#include <libgm/factor/moment_gaussian.hpp>
+#include <libgm/factor/experimental/moment_gaussian.hpp>
 #include <libgm/learning/dataset/real_dataset.hpp>
 
 #include <algorithm>
@@ -14,50 +14,53 @@
 #include <utility>
 
 namespace libgm {
-  template class mixture_em<moment_gaussian<vec> >;
+  template class mixture_em<experimental::moment_gaussian<vec> >;
 }
 
 using namespace libgm;
-typedef moment_gaussian<vec> mgaussian;
+typedef experimental::moment_gaussian<vec> mgaussian;
 
 BOOST_AUTO_TEST_CASE(test_convergence) {
   using namespace libgm;
   using namespace std;
 
   std::size_t k = 3;
-  std::size_t nsamples = 2000;
+  std::size_t nsamples = 5000;
   std::size_t niters = 50;
 
   universe u;
   vec x = vec::continuous(u, "x", 2);
 
   // construct the ground truth
-  mixture<mgaussian> truth(k, {x});
+  experimental::mixture<mgaussian> truth({x}, k);
   truth.param(0).mean << -2, 0;
   truth.param(1).mean << 2, -2;
   truth.param(2).mean << 2, 2;
   truth.param(0).cov << 1, 0.5, 0.5, 1;
   truth.param(1).cov << 1, 0.2, 0.2, 1;
   truth.param(2).cov << 1, -0.2, -0.2, 1;
-  auto sample = original.distribution();
+  truth.normalize();
+  auto sample = truth.distribution();
 
   // generate some data
-  vector_dataset<vec> data({x}, nsamples);
+  real_dataset<vec> data({x}, nsamples);
   std::mt19937 rng;
   for (std::size_t i = 0; i < nsamples; ++i) {
     data.insert(sample(rng), 1.0);
   }
 
   // learn the model
-  mixture_em<mgaussian> learner(em_parameters<>().verbose(true).seed(123));
-  mixture<mgaussian> estimate = learner.fit(data, k, {x});
+  em_parameters<> param;
+  param.verbose = true;
+  mixture_em<mgaussian> learner(param);
+  experimental::mixture<mgaussian> estimate = learner.fit(data, {x}, k);
 
   // retrieve the indices in the canonical order
   std::vector<std::size_t> indices = {0, 1, 2};
   std::sort(indices.begin(), indices.end(), [&](std::size_t i, std::size_t j) {
       const real_vector<>& mi = estimate.param(i).mean;
       const real_vector<>& mj = estimate.param(j).mean;
-      return std::pair(mi[0], mi[1]) < std::pair(mj[0], mj[1]);
+      return std::make_pair(mi[0], mi[1]) < std::make_pair(mj[0], mj[1]);
     });
 
   // compute the KL divergence for each component

@@ -210,7 +210,7 @@ namespace libgm {
      *
      * \fn std::size_t index(const assignment_type& a, bool strict = true) const
      */
-    LIBGM_ENABLE_IF(A = Arg, is_univariate<A>::value, std::size_t)
+    LIBGM_ENABLE_IF_OLD(A = Arg, is_univariate<A>::value, std::size_t)
     index(const assignment_type& a, bool strict = true) const {
       std::size_t result = 0;
       for (std::size_t i = 0; i < finite_args_.size(); ++i) {
@@ -228,7 +228,7 @@ namespace libgm {
       return result;
     }
 
-    LIBGM_ENABLE_IF(A = Arg, is_multivariate<A>::value, std::size_t)
+    LIBGM_ENABLE_IF_OLD(A = Arg, is_multivariate<A>::value, std::size_t)
     index(const assignment_type& a, bool strict = true) const {
       std::size_t result = 0;
       std::size_t i = 0;
@@ -267,7 +267,7 @@ namespace libgm {
      *
      * \fn uint_vector dim_map(const domain_type& args, bool strict=true) const
      */
-    LIBGM_ENABLE_IF(A = Arg, is_univariate<A>::value, uint_vector)
+    LIBGM_ENABLE_IF_OLD(A = Arg, is_univariate<A>::value, uint_vector)
     dim_map(const domain_type& args, bool strict = true) const {
       uint_vector map(param_.arity(), std::numeric_limits<std::size_t>::max());
       for(std::size_t i = 0; i < map.size(); i++) {
@@ -284,7 +284,7 @@ namespace libgm {
       return map;
     }
 
-    LIBGM_ENABLE_IF(A = Arg, is_multivariate<A>::value, uint_vector)
+    LIBGM_ENABLE_IF_OLD(A = Arg, is_multivariate<A>::value, uint_vector)
     dim_map(const domain_type& args, bool strict = true) const {
       // compute the first dimension of each argument in args
       std::vector<std::size_t> dim(args.size());
@@ -333,7 +333,7 @@ namespace libgm {
      * Checks if the shape of the table matches this factor's argument vector.
      * \throw std::runtime_error if some of the dimensions do not match
      */
-    LIBGM_ENABLE_IF(A = Arg, is_univariate<A>::value, void)
+    LIBGM_ENABLE_IF_OLD(A = Arg, is_univariate<A>::value, void)
     check_param() const {
       if (param_.arity() != finite_args_.num_dimensions()) {
         throw std::runtime_error("Invalid table arity");
@@ -345,7 +345,7 @@ namespace libgm {
       }
     }
 
-    LIBGM_ENABLE_IF(A = Arg, is_multivariate<A>::value, void)
+    LIBGM_ENABLE_IF_OLD(A = Arg, is_multivariate<A>::value, void)
     check_param() const {
       if (param_.arity() != finite_args_.num_dimensions()) {
         throw std::runtime_error("Invalid table arity");
