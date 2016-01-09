@@ -82,29 +82,6 @@ namespace libgm {
       assert(weight_.rows() == bias_.rows());
     }
 
-    //! Copy constructor.
-    softmax_param(const softmax_param& other) = default;
-
-    //! Move constructor.
-    softmax_param(softmax_param&& other) {
-      swap(*this, other);
-    }
-
-    //! Assignment operator.
-    softmax_param& operator=(const softmax_param& other) {
-      if (this != &other) {
-        weight_ = other.weight_;
-        bias_ = other.bias_;
-      }
-      return *this;
-    }
-
-    //! Move assignment operator.
-    softmax_param& operator=(softmax_param&& other) {
-      swap(*this, other);
-      return *this;
-    }
-
     //! Swaps the content of two softmax functions.
     friend void swap(softmax_param& f, softmax_param& g) {
       f.weight_.swap(g.weight_);

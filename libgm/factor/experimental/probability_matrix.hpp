@@ -475,7 +475,7 @@ namespace libgm { namespace experimental {
       return derived().template transform<log_tag>(logarithm<>());
     }
 
-    auto logarithmic() const&& {
+    auto logarithmic() && {
       return std::move(derived()).template transform<log_tag>(logarithm<>());
     }
 
@@ -905,8 +905,7 @@ namespace libgm { namespace experimental {
     //! Constructs a factor with the given argument and parameters.
     probability_matrix(const binary_domain<Arg>& args,
                        real_matrix<RealType>&& param)
-      : args_(args) {
-      param_.swap(param);
+      : args_(args), param_(std::move(param)) {
       check_param();
     }
 
@@ -931,7 +930,7 @@ namespace libgm { namespace experimental {
     probability_matrix&
     operator=(const probability_matrix_base<Arg, RealType, Derived>& f) {
       if (f.derived().alias(param_)) {
-        param_.swap(f.derived().param());
+        param_ = f.derived().param();
       } else {
         f.derived().eval_to(param_);
       }

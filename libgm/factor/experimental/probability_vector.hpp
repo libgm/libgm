@@ -747,8 +747,7 @@ namespace libgm { namespace experimental {
     //! Constructs a factor with the given argument and parameters.
     probability_vector(const unary_domain<Arg>& args,
                        real_vector<RealType>&& param)
-      : args_(args) {
-      param_.swap(param);
+      : args_(args), param_(std::move(param)) {
       check_param();
     }
 
@@ -773,7 +772,7 @@ namespace libgm { namespace experimental {
     probability_vector&
     operator=(const probability_vector_base<Arg, RealType, Derived>& f) {
       if (f.derived().alias(param_)) {
-        param_.swap(f.derived().param());
+        param_ = f.derived().param();
       } else {
         f.derived().eval_to(param_);
       }

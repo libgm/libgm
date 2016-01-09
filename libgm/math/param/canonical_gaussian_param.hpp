@@ -88,33 +88,9 @@ namespace libgm {
                              T lm)
       : eta(eta), lambda(lambda), lm(lm) { }
 
-    //! Copy constructor.
-    canonical_gaussian_param(const canonical_gaussian_param& other) = default;
-
-    //! Move constructor.
-    canonical_gaussian_param(canonical_gaussian_param&& other) {
-      swap(*this, other);
-    }
-
     //! Conversion from a moment Gaussian.
     canonical_gaussian_param(const moment_gaussian_param<T>& cg) {
       *this = cg;
-    }
-
-    //! Assignment operator.
-    canonical_gaussian_param& operator=(const canonical_gaussian_param& other) {
-      if (this != &other) {
-        eta = other.eta;
-        lambda = other.lambda;
-        lm = other.lm;
-      }
-      return *this;
-    }
-
-    //! Move assignment operator.
-    canonical_gaussian_param& operator=(canonical_gaussian_param&& other) {
-      swap(*this, other);
-      return *this;
     }
 
     // Conversion from a moment Gaussian.

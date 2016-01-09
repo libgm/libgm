@@ -91,13 +91,13 @@ namespace libgm {
     }
 
     //! Returns true if the two hybrid indices are equal
-    friend bool operator==(const hybrid_vector& a, const hybrid_vector& b) {
-      return a.uint() == b.uint() && a.real() == b.real();
+    bool operator==(const hybrid_vector& b) const {
+      return uint() == b.uint() && real() == b.real();
     }
 
     //! Returns true if the two hybrid indices are not equal.
-    friend bool operator!=(const hybrid_vector& a, const hybrid_vector& b) {
-      return !(a == b);
+    bool operator!=(const hybrid_vector& b) const {
+      return !(*this == b);
     }
 
     //! Prints a hybrid vector to an output stream.
@@ -175,13 +175,13 @@ namespace libgm {
     }
 
     //! Returns true if the two hybrid indices are equal
-    friend bool operator==(const hybrid_matrix& a, const hybrid_matrix& b) {
-      return a.uint() == b.uint() && a.real() == b.real();
+    bool operator==(const hybrid_matrix& b) const {
+      return uint() == b.uint() && real() == b.real();
     }
 
     //! Returns true if the two hybrid indices are not equal.
-    friend bool operator!=(const hybrid_matrix& a, const hybrid_matrix& b) {
-      return !(a == b);
+    bool operator!=(const hybrid_matrix& b) const {
+      return !(*this == b);
     }
 
     //! Prints a hybrid matrix to an output stream.

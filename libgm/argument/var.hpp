@@ -9,6 +9,7 @@
 #include <libgm/serialization/vector.hpp>
 #include <libgm/parser/string_functions.hpp>
 
+#include <algorithm>
 #include <iostream>
 #include <stdexcept>
 #include <sstream>

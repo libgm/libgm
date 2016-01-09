@@ -12,10 +12,8 @@ if [ ! -d $debugdir ]; then
 fi
 
 cd $reldir
-cmake -D CMAKE_BUILD_TYPE=Release ../.
+cmake -D CMAKE_BUILD_TYPE=RelWithDebInfo ../.
 cd ..
 
 cd $debugdir
 cmake -D CMAKE_BUILD_TYPE=Debug ../.
-
-

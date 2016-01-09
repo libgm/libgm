@@ -33,12 +33,6 @@ namespace libgm {
     : nth_type<I-1, Rest...> { };
 
   /**
-   * A special case when I = -1.
-   */
-  template <typename... Rest>
-  struct nth_type<std::size_t(-1), Rest...> { };
-
-  /**
    * Shortcut notation for typename nth_type<T>::type.
    */
   template <std::size_t I, typename... Types>

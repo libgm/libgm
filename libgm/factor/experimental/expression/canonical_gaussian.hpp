@@ -434,7 +434,7 @@ namespace libgm { namespace experimental {
       auto&& start = f_.start();
       retain_ = args_.index(start);
       restrict_ = restricted.index(start);
-      values_.swap(a.values(restricted));
+      values_ = a.values(restricted);
     }
 
     const domain_type& arguments() const {

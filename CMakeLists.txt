@@ -42,10 +42,10 @@ link_libraries(${Boost_LIBRARIES})
 
 # Flags for the debug and release mode
 if(CMAKE_COMPILER_IS_GNUCXX)
-  set(CMAKE_CXX_FLAGS "-g -std=c++14")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
   link_libraries(pthread)
 elseif(MSVC)
-  set(CMAKE_CXX_FLAGS "/EHsc /bigobj")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /bigobj")
 else()
-  set(CMAKE_CXX_FLAGS "-g -std=c++14")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 endif()

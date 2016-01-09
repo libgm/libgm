@@ -113,34 +113,9 @@ namespace libgm {
       check();
     }
 
-    //! Copy constructor.
-    moment_gaussian_param(const moment_gaussian_param& other) = default;
-
-    //! Move constructor.
-    moment_gaussian_param(moment_gaussian_param&& other) {
-      swap(*this, other);
-    }
-
     // Conversion from a canonical Gaussian representing a marginal distribution
     explicit moment_gaussian_param(const canonical_gaussian_param<T>& cg) {
       *this = cg;
-    }
-
-    //! Assignment operator.
-    moment_gaussian_param& operator=(const moment_gaussian_param& other) {
-      if (this != &other) {
-        mean = other.mean;
-        cov = other.cov;
-        coef = other.coef;
-        lm = other.lm;
-      }
-      return *this;
-    }
-
-    //! Move assignment operator.
-    moment_gaussian_param& operator=(moment_gaussian_param&& other) {
-      swap(*this, other);
-      return *this;
     }
 
     //! Conversion from a canonical Gaussian.

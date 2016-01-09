@@ -485,10 +485,10 @@ namespace libgm {
     auto a = f.param().matrix(); // matrix
     auto b = g.param().matrix(); // vector
     if (f.y() == g.x()) {
-      return Result({f.x()}, a * b);
+      return Result({f.x()}, (a * b).array());
     }
     if (f.x() == g.x()) {
-      return Result({f.y()}, a.transpose() * b);
+      return Result({f.y()}, (a.transpose() * b).array());
     }
     throw std::invalid_argument(
       "array_factor expectation: f does not contain the argument of g"

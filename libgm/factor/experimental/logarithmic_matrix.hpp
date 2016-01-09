@@ -850,8 +850,7 @@ namespace libgm { namespace experimental {
     //! Constructs a factor with the given argument and parameters.
     logarithmic_matrix(const binary_domain<Arg>& args,
                        real_matrix<RealType>&& param)
-      : args_(args) {
-      param_.swap(param);
+      : args_(args), param_(std::move(param)) {
       check_param();
     }
 
@@ -876,7 +875,7 @@ namespace libgm { namespace experimental {
     logarithmic_matrix&
     operator=(const logarithmic_matrix_base<Arg, RealType, Derived>& f) {
       if (f.derived().alias(param_)) {
-        param_.swap(f.derived().param());
+        param_ = f.derived().param();
       } else {
         f.derived().eval_to(param_);
       }
