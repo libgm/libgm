@@ -169,17 +169,17 @@ namespace libgm {
         op(result, a.block());
       } else if (a.row_contiguous()) {
         scalar_type* dest = result.data();
-        for (std::size_t j = 0; j < result.cols(); ++j) {
+        for (std::ptrdiff_t j = 0; j < result.cols(); ++j) {
           const scalar_type* src = a.colptr(j) + a.rows_[0];
-          for (std::size_t i = 0; i < result.rows(); ++i) {
+          for (std::ptrdiff_t i = 0; i < result.rows(); ++i) {
             op(*dest++, *src++);
           }
         }
       } else {
         scalar_type* dest = result.data();
-        for (std::size_t j = 0; j < result.cols(); ++j) {
+        for (std::ptrdiff_t j = 0; j < result.cols(); ++j) {
           const scalar_type* src = a.colptr(j);
-          for (std::size_t i = 0; i < result.rows(); ++i) {
+          for (std::ptrdiff_t i = 0; i < result.rows(); ++i) {
             op(*dest++, src[a.rows_[i]]);
           }
         }
@@ -201,17 +201,17 @@ namespace libgm {
         op(result.block(), a);
       } else if (result.row_contiguous()) {
         const scalar_type* src = a.data();
-        for (std::size_t j = 0; j < a.cols(); ++j) {
+        for (std::ptrdiff_t j = 0; j < a.cols(); ++j) {
           scalar_type* dest = result.colptr(j) + result.rows_[0];
-          for (std::size_t i = 0; i < a.rows(); ++i) {
+          for (std::ptrdiff_t i = 0; i < a.rows(); ++i) {
             op(*dest++, *src++);
           }
         }
       } else {
         const scalar_type* src = a.data();
-        for (std::size_t j = 0; j < a.cols(); ++j) {
+        for (std::ptrdiff_t j = 0; j < a.cols(); ++j) {
           scalar_type* dest = result.colptr(j);
-          for (std::size_t i = 0; i < a.rows(); ++i) {
+          for (std::ptrdiff_t i = 0; i < a.rows(); ++i) {
             op(dest[result.rows_[i]], *src++);
           }
         }

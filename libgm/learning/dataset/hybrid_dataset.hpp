@@ -233,7 +233,7 @@ namespace libgm {
       check_initialized();
       assert(inserted_ <= allocated_);
       if (inserted_ == allocated_) {
-        reallocate(1.5 * allocated_ + 1);
+        reallocate(allocated_ + allocated_ / 2 + 1);
       }
 
       assert(values.uint().size() == uint_cols());
@@ -242,7 +242,7 @@ namespace libgm {
       }
 
       assert(values.real().size() == real_cols());
-      for (std::size_t i = 0; i < values.real().size(); ++i) {
+      for (std::ptrdiff_t i = 0; i < values.real().size(); ++i) {
         rcolptr_[i][inserted_] = values.real()[i];
       }
 

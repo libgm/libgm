@@ -22,7 +22,7 @@ sample(const softmax_distribution<double>& d,
   for (std::size_t i = 0; i < nsamples; ++i) {
     ++result[d(rng, tail)];
   }
-  result /= nsamples;
+  result /= double(nsamples);
   return result;
 }
 

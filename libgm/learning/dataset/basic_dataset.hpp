@@ -209,11 +209,11 @@ namespace libgm {
       check_initialized();
       assert(inserted_ <= allocated_);
       if (inserted_ == allocated_) {
-        reallocate(1.5 * allocated_ + 1);
+        reallocate(allocated_ + allocated_ / 2 + 1);
       }
 
       assert(values.size() == num_cols());
-      for (std::size_t i = 0; i < values.size(); ++i) {
+      for (std::size_t i = 0; i < num_cols(); ++i) {
         colptr_[i][inserted_] = values[i];
       }
       weight_[inserted_] = weight;

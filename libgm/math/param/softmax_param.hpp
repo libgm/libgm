@@ -198,7 +198,7 @@ namespace libgm {
     vec_type operator()(const std::vector<std::size_t>& x) const {
       vec_type y = bias_;
       for (std::size_t i : x) {
-        assert(i < weight_.cols());
+        assert(i < std::size_t(weight_.cols()));
         y += weight_.col(i);
       }
       y = (y.array() - y.maxCoeff()).exp();
@@ -243,7 +243,7 @@ namespace libgm {
                        const Eigen::EigenBase<Derived>& x) const {
       vec_type p = operator()(x);
       T val = std::uniform_real_distribution<T>()(rng);
-      for (std::size_t i = 0; i < p.size(); ++i) {
+      for (std::size_t i = 0; i < labels(); ++i) {
         if (val <= p[i]) {
           return i;
         } else {

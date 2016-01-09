@@ -14,7 +14,7 @@
 namespace libgm {
   template class canonical_gaussian<var>;
   template class canonical_gaussian<vec>;
-  template class canonical_gaussian_param<>;
+  template struct canonical_gaussian_param<>;
 }
 
 using namespace libgm;

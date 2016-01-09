@@ -7,8 +7,8 @@ namespace libgm {
   template <>
   struct argument_traits<int> : fixed_discrete_traits<int, 5> { };
 
-  template class array_domain<int, 2>;
-  template class array_domain<int, 9>;
+  template struct array_domain<int, 2>;
+  template struct array_domain<int, 9>;
 }
 
 typedef libgm::array_domain<int, 1> domain1;

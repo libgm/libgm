@@ -40,7 +40,8 @@ namespace libgm {
     std::size_t operator()(Generator& rng) const {
       const T* begin = psum_.data();
       T p = std::uniform_real_distribution<T>()(rng);
-      std::size_t i  = std::upper_bound(begin, begin + psum_.size(), p) - begin;
+      std::ptrdiff_t i
+        = std::upper_bound(begin, begin + psum_.size(), p) - begin;
       if (i < psum_.size()) {
         return i;
       } else {

@@ -768,6 +768,8 @@ namespace libgm {
           ++vit_;
         } else if (remaining_ > 0) {
           ++eit_;
+        } else {
+          throw std::logic_error("Attempt to iterate past end");
         }
         --remaining_;
         if (remaining_ > 0 && remaining_ <= dm_->num_edges()) {
@@ -795,7 +797,7 @@ namespace libgm {
       const decomposable* dm_; //!< decomposable model iterated over
       vertex_iterator vit_;    //!< current vertex iterator.
       edge_iterator eit_;      //!< current edge iterator.
-      std::ptrdiff_t remaining_;    //!< number of factors left (incl. current one)
+      std::size_t remaining_;  //!< number of factors left (incl. current one)
       F inv_potential_;        //!< temporary holding the inverted potential
 
     }; // class potential_iterator

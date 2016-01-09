@@ -44,7 +44,8 @@ namespace libgm {
     std::pair<std::size_t, std::size_t> operator()(Generator& rng) const {
       const T* begin = psum_.data();
       T p = std::uniform_real_distribution<T>()(rng);
-      std::size_t i = std::upper_bound(begin, begin + psum_.size(), p) - begin;
+      std::ptrdiff_t i =
+        std::upper_bound(begin, begin + psum_.size(), p) - begin;
       if (i < psum_.size()) {
         return { i % psum_.rows(), i / psum_.rows() };
       } else {
@@ -58,7 +59,8 @@ namespace libgm {
       const T* begin = psum_.data() + tail * psum_.rows();
       T p = std::uniform_real_distribution<T>()(rng);
       if (tail > 0) { p += *(begin-1); }
-      std::size_t i = std::upper_bound(begin, begin + psum_.rows(), p) - begin;
+      std::ptrdiff_t i =
+        std::upper_bound(begin, begin + psum_.rows(), p) - begin;
       if (i < psum_.rows()) {
         return i;
       } else {

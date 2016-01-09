@@ -163,7 +163,7 @@ namespace libgm {
       }
       try {
         pseudo_message(u, v) = m0.marginal(sep).normalize();
-      } catch(std::invalid_argument& e) {
+      } catch (std::invalid_argument&) {
         std::ostringstream out;
         out << "Encountered invalid argument" << std::endl;
         out << "c_r = " << graph_.counting(u) << std::endl;
@@ -177,7 +177,7 @@ namespace libgm {
           if (w != v) out << message(w, u);
         }
         throw std::runtime_error(out.str());
-      } catch(invalid_operation& exc) {
+      } catch (invalid_operation&) {
         std::cerr << ".";
         pseudo_message(u, v) = F(sep, result_type(1));
       }

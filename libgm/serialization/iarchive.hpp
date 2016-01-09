@@ -116,7 +116,11 @@ namespace libgm {
       }
     }
 
-    LIBGM_DESERIALIZE_CHAR(bool)
+    iarchive& operator>>(bool& x) {
+      x = deserialize_char() != char(0);
+      return *this;
+    }
+
     LIBGM_DESERIALIZE_CHAR(char)
     LIBGM_DESERIALIZE_CHAR(unsigned char);
 

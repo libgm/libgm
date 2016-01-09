@@ -59,7 +59,9 @@ namespace libgm {
     vec_type operator()(Generator& rng, const vec_type& tail) const {
       vec_type z(mean_.size());
       std::normal_distribution<T> normal;
-      for (std::size_t i = 0; i < mean_.size(); ++i) { z[i] = normal(rng); }
+      for (std::ptrdiff_t i = 0; i < mean_.size(); ++i) {
+        z[i] = normal(rng);
+      }
       return mean_ + mult_ * z + coef_ * tail;
     }
 

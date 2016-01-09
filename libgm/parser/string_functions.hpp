@@ -183,7 +183,7 @@ namespace libgm {
    */
   inline bool parse_string(const char* s, float& val) {
     char* end;
-    val = std::strtod(s, &end);
+    val = std::strtof(s, &end);
     return *s && *end == 0;
   }
 

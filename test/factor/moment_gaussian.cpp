@@ -14,7 +14,7 @@
 namespace libgm {
   template class moment_gaussian<var>;
   template class moment_gaussian<vec>;
-  template class moment_gaussian_param<>;
+  template struct moment_gaussian_param<>;
 }
 
 using namespace libgm;

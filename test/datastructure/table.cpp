@@ -19,7 +19,7 @@ typedef table<int> int_table;
 BOOST_AUTO_TEST_CASE(test_accessors) {
   const std::size_t n = 10;
   const std::size_t d = 3;
-  const std::size_t m = pow(d, n);
+  const std::size_t m = std::size_t(pow(d, n));
 
   // Constructor
   int_table x(uint_vector(n, d));

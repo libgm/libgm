@@ -9,8 +9,8 @@
 #include <string>
 
 namespace libgm {
-  template class logarithmic<double>;
-  template class logarithmic<float>;
+  template struct logarithmic<double>;
+  template struct logarithmic<float>;
 }
 
 BOOST_AUTO_TEST_CASE(test_operations) {

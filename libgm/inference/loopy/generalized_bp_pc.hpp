@@ -180,7 +180,7 @@ namespace libgm {
       }
       try {
         new_msg = new_msg.marginal(graph_.cluster(e.target())).normalize();
-      } catch(invalid_operation& exc) {
+      } catch (invalid_operation&) {
         std::cerr << ".";
         new_msg = F(graph_.cluster(e.target()), result_type(1));
       }

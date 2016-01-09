@@ -398,7 +398,7 @@ namespace libgm {
     real_type residual(const edge_type& e) const override {
       try {
         return q_.get(e.pair());
-      } catch(std::out_of_range& exc) {
+      } catch (std::out_of_range&) {
         return real_type(0);
       }
     }

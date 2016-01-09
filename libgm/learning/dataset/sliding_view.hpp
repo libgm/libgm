@@ -63,7 +63,7 @@ namespace libgm {
       std::size_t size = 0;
       cumsize_.reserve(dataset->size());
       for (const auto& value : *dataset) {
-        if (value.first.cols() >= length) {
+        if (std::size_t(value.first.cols()) >= length) {
           size += value.first.cols() - length + 1;
         }
         cumsize_.push_back(size);
@@ -249,7 +249,7 @@ namespace libgm {
     private:
       //! Searches for the next valid sequence and loads the data
       void load() {
-        while (it_ && it_->first.cols() < time_ + length_) {
+        while (it_ && std::size_t(it_->first.cols()) < time_ + length_) {
           ++it_;
           time_ = 0;
         }
@@ -331,7 +331,7 @@ namespace libgm {
     private:
       //! Searches for the next valid sequence and loads the data
       void load() {
-        while (it_ && it_->first.cols() < time_ + length_) {
+        while (it_ && std::size_t(it_->first.cols()) < time_ + length_) {
           ++it_;
           time_ = 0;
         }

@@ -263,14 +263,11 @@ namespace libgm {
 
   protected:
 
-    //! The storage type of the index map
-    typedef std::vector<int> index_map_type;
-
     //! The heap used to store the elements. The first element is unused.
     std::vector<heap_element> heap;
 
     //! The map used to map from items to indexes in the heap.
-    index_map_type index_map;
+    std::vector<std::size_t> index_map;
 
     //! Returns the index of the left child of the supplied index.
     std::size_t left(std::size_t i) const {

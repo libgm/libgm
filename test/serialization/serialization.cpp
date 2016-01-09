@@ -23,7 +23,7 @@ BOOST_AUTO_TEST_CASE(basic_datatypes) {
   int t4          = 18345;
   long t5         = 30921233;
   long long t6    = (long long)(t5)*100;
-  float t7        = 10.35;
+  float t7        = 10.35f;
   double t8       = 3.14156;
   const char* t9  = "hello world";
   const char* t10 = "blue";
@@ -144,11 +144,11 @@ BOOST_AUTO_TEST_CASE(vector_of_classes) {
   // create a vector of test classes
   std::vector<test_class> vt;
   vt.resize(10);
-  for (std::size_t i = 0; i < 10; ++i) {
+  for (int i = 0; i < 10; ++i) {
     vt[i].i = i;
-    vt[i].j = i*21;
+    vt[i].j = i * 21;
     vt[i].k.resize(10);
-    vt[i].k[i] = i*51;
+    vt[i].k[i] = i * 51;
   }
 
   // serialize

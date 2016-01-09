@@ -216,7 +216,7 @@ namespace libgm {
       if (strict) {
         return param_(a.real().values(tail()))[label[0]];
       } else {
-        assert(false); // not implemented yet
+        throw std::runtime_error("Not implemented yet");
       }
     }
 

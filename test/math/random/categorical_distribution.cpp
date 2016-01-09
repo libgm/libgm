@@ -21,7 +21,7 @@ double marginal_diff(const dist_type& d, const real_vector<>& v) {
   for (std::size_t i = 0; i < nsamples; ++i) {
     ++estimate[d(rng)];
   }
-  estimate /= nsamples;
+  estimate /= double(nsamples);
   return (estimate - v).array().abs().maxCoeff();
 }
 

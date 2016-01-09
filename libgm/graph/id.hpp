@@ -28,7 +28,7 @@ namespace libgm {
     explicit id_t(std::size_t val) : val(val) { }
 
     //! Returns true if the identifier is not 0.
-    explicit operator bool() const { return val; }
+    explicit operator bool() const { return val != 0; }
 
     //! Saves the ID to an archive.
     void save(oarchive& ar) const { ar << val; }
@@ -58,7 +58,7 @@ namespace libgm {
     friend bool operator>=(id_t x, id_t y) { return x.val >= y.val; }
 
     //! Computes the hash value of an ID.
-    friend bool hash_value(id_t id) { return id.val; }
+    friend std::size_t hash_value(id_t id) { return id.val; }
 
     //! Prints the ID to an output stream
     friend std::ostream&

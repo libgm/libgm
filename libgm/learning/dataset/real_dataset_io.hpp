@@ -91,7 +91,7 @@ namespace libgm {
       for (std::size_t i = 0; i < format.skip_cols; ++i) {
         out << "0" << separator;
       }
-      for (std::size_t i = 0; i < s.first.size(); ++i) {
+      for (std::ptrdiff_t i = 0; i < s.first.size(); ++i) {
         if (i > 0) { out << separator; }
         if (ismissing(s.first[i])) {
           out << format.missing;

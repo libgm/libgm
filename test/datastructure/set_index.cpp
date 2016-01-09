@@ -29,7 +29,7 @@ struct fixture {
       for (std::size_t j = 0; j < size; j++) {
         list.push_back(rng() % 20);
       }
-      index.insert(i, list);
+      index.insert(int(i), list);
       lists.push_back(list);
       sets.emplace_back(list.begin(), list.end());
     }

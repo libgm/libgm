@@ -18,7 +18,8 @@ namespace libgm {
    * \ingroup factor_random
    */
   template <typename Generator>
-  struct alternating_generator {
+  class alternating_generator {
+  public:
     // RandomFactorGenerator typedefs
     typedef typename Generator::domain_type domain_type;
     typedef typename Generator::result_type result_type;
@@ -54,7 +55,7 @@ namespace libgm {
     alternating_generator(const Generator& def_gen,
                           const Generator& alt_gen,
                           std::size_t period = 2)
-      : def_gen(def_gen), alt_gen(alt_gen), period(period), count(0) {
+      : def_gen_(def_gen), alt_gen_(alt_gen), period_(period), count_(0) {
       assert(period > 0);
     }
 
@@ -63,28 +64,28 @@ namespace libgm {
     alternating_generator(const gen_param_type& def_param,
                           const gen_param_type& alt_param,
                           std::size_t period = 2)
-      : def_gen(def_param), alt_gen(alt_param), period(period), count(0) {
+      : def_gen_(def_param), alt_gen_(alt_param), period_(period), count_(0) {
       assert(period > 0);
     }
 
     //! Constructs an alternating generator using the parameter set.
     explicit alternating_generator(const param_type& params)
-      : def_gen(params.def_param),
-        alt_gen(params.alt_param),
-        period(params.period),
-        count(0) {
-      assert(period > 0);
+      : def_gen_(params.def_param),
+        alt_gen_(params.alt_param),
+        period_(params.period),
+        count_(0) {
+      assert(period_ > 0);
     }
 
     //! Generate a marginal distribution p(args) using the stored parameters
     template <typename RandomNumberGenerator>
     result_type operator()(const domain_type& args,
                            RandomNumberGenerator& rng) {
-      ++count;
-      if (count % period == 0) {
-        return alt_gen(args, rng);
+      ++count_;
+      if (count_ % period_ == 0) {
+        return alt_gen_(args, rng);
       } else {
-        return def_gen(args, rng);
+        return def_gen_(args, rng);
       }
     }
 
@@ -94,31 +95,31 @@ namespace libgm {
     result_type operator()(const domain_type& head,
                            const domain_type& tail,
                            RandomNumberGenerator& rng) {
-      ++count;
-      if (count % period == 0) {
-        return alt_gen(head, tail, rng);
+      ++count_;
+      if (count_ % period_ == 0) {
+        return alt_gen_(head, tail, rng);
       } else {
-        return def_gen(head, tail, rng);
+        return def_gen_(head, tail, rng);
       }
     }
 
     //! Returns the parameter set associated with this generator
     param_type param() const {
-      return param_type(def_gen.param(), alt_gen.param(), period);
+      return param_type(def_gen_.param(), alt_gen_.param(), period_);
     }
 
     //! Sets the parameter set associated with this generator
     void param(const param_type& params) {
       assert(params.period > 0);
-      period = params.period;
-      def_gen.param(params.def_param);
-      alt_gen.param(params.alt_param);
+      period_ = params.period;
+      def_gen_.param(params.def_param);
+      alt_gen_.param(params.alt_param);
     }
 
   private:
-    Generator def_gen, alt_gen;
-    std::size_t period;
-    std::size_t count;  // counter of how many factors have been generated
+    Generator def_gen_, alt_gen_;
+    std::size_t period_;
+    std::size_t count_;  // counter of how many factors have been generated
 
   }; // class alternating_generator
 

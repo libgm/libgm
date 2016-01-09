@@ -61,7 +61,7 @@ namespace libgm {
       // compute the mapping from relative to absolute rows in the base
       std::size_t row = 0;
       for (const auto& value : *dataset) {
-        if (value.first.cols() >= first + length) {
+        if (std::size_t(value.first.cols()) >= first + length) {
           rows_.push_back(row);
         }
         ++row;
@@ -252,7 +252,7 @@ namespace libgm {
     private:
       //! Loads the sequence unless we reach the end.
       void load() {
-        while (it_ && it_->first.cols() < first_ + length_) {
+        while (it_ && std::size_t(it_->first.cols()) < first_ + length_) {
           ++it_;
         }
         if (it_) {
@@ -331,7 +331,7 @@ namespace libgm {
     private:
       //! Loads the sequence unless we reach the end.
       void load() {
-        while (it_ && it_->first.cols() < last_) {
+        while (it_ && std::size_t(it_->first.cols()) < last_) {
           ++it_;
         }
       }

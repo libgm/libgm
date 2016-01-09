@@ -354,7 +354,9 @@ namespace libgm {
       }
       vec_type z(mean.size());
       std::normal_distribution<T> normal;
-      for (std::size_t i = 0; i < z.size(); ++i) { z[i] = normal(rng); }
+      for (std::ptrdiff_t i = 0; i < z.size(); ++i) {
+        z[i] = normal(rng);
+      }
       return mean + chol.matrixL() * z + coef * tail;
     }
 

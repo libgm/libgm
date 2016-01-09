@@ -32,8 +32,8 @@ BOOST_AUTO_TEST_CASE(test_marginal) {
     mean += sample;
     cov += sample * sample.transpose();
   }
-  mean /= nsamples;
-  cov /= nsamples;
+  mean /= double(nsamples);
+  cov /= double(nsamples);
   cov -= mean * mean.transpose();
   BOOST_CHECK_SMALL((param.mean - mean).cwiseAbs().maxCoeff(), tol);
   BOOST_CHECK_SMALL((param.cov - cov).cwiseAbs().maxCoeff(), tol);

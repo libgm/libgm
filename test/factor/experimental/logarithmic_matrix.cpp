@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE(test_constructors) {
   lmatrix d({x, y}, {1, 2, 3, 4, 5, 6});
   BOOST_CHECK(table_properties(d, {x, y}));
   for (std::size_t i = 0; i < 6; ++i) {
-    BOOST_CHECK_CLOSE(d[i], i+1, 1e-8);
+    BOOST_CHECK_CLOSE(d[i], i + 1.0, 1e-8);
   }
 }
 

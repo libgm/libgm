@@ -8,7 +8,8 @@ namespace libgm {
    * on factor types.
    */
   template <typename F>
-  struct commutative_semiring {
+  class commutative_semiring {
+  public:
     typedef typename F::domain_type domain_type;
 
     //! destructor
@@ -38,7 +39,8 @@ namespace libgm {
    * \relates commutative_semiring
    */
   template <typename F>
-  struct sum_product : public commutative_semiring<F> {
+  class sum_product : public commutative_semiring<F> {
+  public:
     typedef typename F::domain_type domain_type;
 
     F collapse(const F& x, const domain_type& retain) const override {
@@ -61,7 +63,8 @@ namespace libgm {
    * \relates commutative_semiring
    */
   template <typename F>
-  struct max_product : public commutative_semiring<F> {
+  class max_product : public commutative_semiring<F> {
+  public:
     typedef typename F::domain_type domain_type;
 
     F collapse(const F& x, const domain_type& retain) const override {
@@ -84,7 +87,8 @@ namespace libgm {
    * \relates commutative_semiring
    */
   template <typename F>
-  struct min_sum : public commutative_semiring<F> {
+  class min_sum : public commutative_semiring<F> {
+  public:
     typedef typename F::domain_type domain_type;
 
     F collapse(const F& x, const domain_type& retain) const override {
@@ -107,7 +111,8 @@ namespace libgm {
    * \relates commutative_semiring
    */
   template <typename F>
-  struct max_sum : public commutative_semiring<F> {
+  class max_sum : public commutative_semiring<F> {
+  public:
     typedef typename F::domain_type domain_type;
 
     F collapse(const F& x, const domain_type& retain) const override {

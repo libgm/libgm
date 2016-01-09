@@ -10,8 +10,8 @@
 #include <vector>
 
 namespace libgm {
-  template class text_dataset_format<var>;
-  template class text_dataset_format<vec>;
+  template struct text_dataset_format<var>;
+  template struct text_dataset_format<vec>;
 }
 
 using namespace libgm;

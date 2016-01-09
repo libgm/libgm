@@ -16,7 +16,7 @@
 namespace libgm {
 
   // Forward declaration
-  template <typename T> class moment_gaussian_param;
+  template <typename T> struct moment_gaussian_param;
 
   /**
    * The parameters of a Gaussian factor in the canonical parameterization.

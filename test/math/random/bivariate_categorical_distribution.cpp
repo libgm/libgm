@@ -22,19 +22,19 @@ double marginal_diff(const dist_type& d, const real_matrix<>& a) {
     std::pair<std::size_t, std::size_t> sample = d(rng);
     ++estimate(sample.first, sample.second);
   }
-  estimate /= nsamples;
+  estimate /= double(nsamples);
   return (estimate - a).array().abs().maxCoeff();
 }
 
 double conditional_diff(const dist_type& d, const real_matrix<>& a) {
   std::mt19937 rng;
   real_matrix<> estimate = real_matrix<>::Zero(a.rows(), a.cols());
-  for (std::size_t tail = 0; tail < a.cols(); ++tail) {
+  for (std::ptrdiff_t tail = 0; tail < a.cols(); ++tail) {
     for (std::size_t i = 0; i < nsamples; ++i) {
       ++estimate(d(rng, tail), tail);
     }
   }
-  estimate /= nsamples;
+  estimate /= double(nsamples);
   return (estimate - a).array().abs().maxCoeff();
 }
 

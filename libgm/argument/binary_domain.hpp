@@ -137,8 +137,8 @@ namespace libgm {
     template <typename Set>
     void partition(const Set& set,
                    unary_domain<Arg>& present, unary_domain<Arg>& absent) const {
-      bool x_present = set.count(x_);
-      bool y_present = set.count(y_);
+      bool x_present = set.count(x_) != 0;
+      bool y_present = set.count(y_) != 0;
       if (x_present && !y_present) {
         present = x_;
         absent  = y_;
@@ -225,7 +225,7 @@ namespace libgm {
      * in the binary domain.
      */
     friend bool subset(const unary_domain<Arg>& a, const binary_domain& b) {
-      return b.count(a.x());
+      return b.count(a.x()) != 0;
     }
 
     /**
@@ -233,7 +233,7 @@ namespace libgm {
      * in the binary domain.
      */
     friend bool superset(const binary_domain& a, const unary_domain<Arg>& b) {
-      return a.count(b.x());
+      return a.count(b.x()) != 0;
     }
 
     // Argument operations

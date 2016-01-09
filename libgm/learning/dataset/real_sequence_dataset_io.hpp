@@ -109,11 +109,11 @@ namespace libgm {
       // Output the data
       std::string separator = format.separator.empty() ? " " : format.separator;
       const real_matrix<T>& data = sample.first;
-      for (std::size_t t = 0; t < data.cols(); ++t) {
+      for (std::ptrdiff_t t = 0; t < data.cols(); ++t) {
         for (std::size_t i = 0; i < format.skip_cols; ++i) {
           out << "0" << separator;
         }
-        for (std::size_t i = 0; i < data.rows(); ++i) {
+        for (std::ptrdiff_t i = 0; i < data.rows(); ++i) {
           if (i > 0) { out << separator; }
           if (ismissing(data(i, t))) {
             out << format.missing;

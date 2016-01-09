@@ -136,7 +136,7 @@ namespace libgm {
       } else {
         assert(rows() == other.rows());
         scalar_type result(0);
-        for (std::size_t i = 0; i < other.rows(); ++i) {
+        for (std::ptrdiff_t i = 0; i < other.rows(); ++i) {
           result += data_[rows_[i]] * other[i];
         }
         return result;
@@ -168,7 +168,7 @@ namespace libgm {
         op(result, x.map());
       } else {
         scalar_type* dest = result.data();
-        for (std::size_t i = 0; i < result.rows(); ++i) {
+        for (std::ptrdiff_t i = 0; i < result.rows(); ++i) {
           op(*dest++, x.data_[x.rows_[i]]);
         }
       }
@@ -188,7 +188,7 @@ namespace libgm {
         op(result.map(), x);
       } else {
         const scalar_type* src = x.data();
-        for (std::size_t i = 0; i < x.rows(); ++i) {
+        for (std::ptrdiff_t i = 0; i < x.rows(); ++i) {
           op(result.data_[result.rows_[i]], *src++);
         }
       }

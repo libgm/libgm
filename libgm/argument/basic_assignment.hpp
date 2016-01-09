@@ -1,6 +1,7 @@
 #ifndef LIBGM_BASIC_ASSIGNMENT_HPP
 #define LIBGM_BASIC_ASSIGNMENT_HPP
 
+#include <libgm/enable_if.hpp>
 #include <libgm/argument/argument_traits.hpp>
 #include <libgm/argument/domain.hpp>
 #include <libgm/functional/utility.hpp>
@@ -181,7 +182,10 @@ namespace libgm {
      * with the specified arguments. If strict is true, each argument* must be
      * present in this assignment. If strict is false, the missing arguments
      * are assumed to be 0.
+     *
+     * Only supported when Arg is discrete.
      */
+    LIBGM_ENABLE_IF(is_discrete<Arg>::value)
     std::size_t linear_index(const domain<Arg>& args, bool strict = true) const{
       std::size_t result = 0;
       std::size_t multiplier = 1;
@@ -388,7 +392,10 @@ namespace libgm {
      * with the specified arguments. If strict is true, each argument* must be
      * present in this assignment. If strict is false, the missing arguments
      * are assumed to be 0.
+     *
+     * Only supported when Arg is discrete.
      */
+    LIBGM_ENABLE_IF(is_discrete<Arg>::value)
     std::size_t linear_index(const domain<Arg>& args, bool strict = true) const{
       std::size_t result = 0;
       std::size_t multiplier = 1;

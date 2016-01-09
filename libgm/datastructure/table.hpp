@@ -120,7 +120,7 @@ namespace libgm {
     uint_vector finite(std::size_t offset) const {
       uint_vector ind(multiplier_.size());
       // must use int here to avoid wrap-around
-      for(int i = multiplier_.size() - 1; i >= 0; --i) {
+      for(std::ptrdiff_t i = multiplier_.size() - 1; i >= 0; --i) {
         ind[i] = offset / multiplier_[i];
         offset = offset % multiplier_[i];
       }
@@ -135,7 +135,7 @@ namespace libgm {
      */
     uint_vector finite(std::size_t offset, std::size_t n) const {
       uint_vector ind(n);
-      for (int i = n - 1; i >= 0; --i) {
+      for (std::ptrdiff_t i = n - 1; i >= 0; --i) {
         ind[i] = offset / multiplier_[i];
         offset = offset % multiplier_[i];
       }
