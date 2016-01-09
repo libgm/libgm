@@ -27,7 +27,7 @@ namespace libgm {
   public:
     typedef typename std::remove_const<Vector>::type plain_type;
     typedef typename Vector::Scalar scalar_type;
-    typedef decltype(Vector().data()) pointer;
+    typedef decltype(std::declval<Vector>().data()) pointer;
 
     const static bool is_mutable = !std::is_const<Vector>::value;
 
@@ -72,7 +72,7 @@ namespace libgm {
     //! Extracts a plain object represented by this subvector.
     void eval_to(plain_type& result) const {
       result.resize(rows());
-      update(result, *this, assign<>());
+      update_plain(result, assign<>());
     }
 
     //! Extracts an std::vector represented by this subvector.
@@ -85,48 +85,48 @@ namespace libgm {
 
     //! Adds a subvector to a dense vector element-wise.
     friend plain_type& operator+=(plain_type& result, const subvector& a) {
-      return update(result, a, plus_assign<>());
+      return a.update_plain(result, plus_assign<>());
     }
 
     //! Subtracts a subvector from a dense vector element-wise.
     friend plain_type& operator-=(plain_type& result, const subvector& a) {
-      return update(result, a, minus_assign<>());
+      return a.update_plain(result, minus_assign<>());
     }
 
     //! Assigns the elements of a vector to this subvector.
     template <bool B = is_mutable, typename = std::enable_if_t<B> >
     subvector& operator=(const Vector& x) {
-      return update(*this, x, assign<>());
+      return update(x, assign<>());
     }
 
     //! Adds a vector to this subvector element-wise.
     template <bool B = is_mutable, typename = std::enable_if_t<B> >
     subvector& operator+=(const Vector& x) {
-      return update(*this, x, plus_assign<>());
+      return update(x, plus_assign<>());
     }
 
     //! Subtracts a vector from this subvector element-wise.
     template <bool B = is_mutable, typename = std::enable_if_t<B> >
     subvector& operator-=(const Vector& x) {
-      return update(*this, x, minus_assign<>());
+      return update(x, minus_assign<>());
     }
 
     //! Assigns the elements of another subvector to this subvector.
     template <bool B = is_mutable, typename = std::enable_if_t<B> >
     subvector& operator=(const subvector<const Vector>& x) {
-      return update(*this, x, assign<>());
+      return update(x, assign<>());
     }
 
     //! Adds another subvector to this subvector element-wise.
     template <bool B = is_mutable, typename = std::enable_if_t<B> >
     subvector& operator+=(const subvector<const Vector>& x) {
-      return update(*this, x, plus_assign<>());
+      return update(x, plus_assign<>());
     }
 
     //! Subtracts another subvector from this subvector element-wise.
     template <bool B = is_mutable, typename = std::enable_if_t<B> >
     subvector& operator-=(const subvector<const Vector>& x) {
-      return update(*this, x, minus_assign<>());
+      return update(x, minus_assign<>());
     }
 
     //! Computes a dot product with a plain object.
@@ -160,7 +160,8 @@ namespace libgm {
      * Assumes no aliasing.
      */
     template <typename Op>
-    friend plain_type& update(plain_type& result, const subvector& x, Op op) {
+    plain_type& update_plain(plain_type& result, Op op) const {
+      const subvector& x = *this;
       assert(result.rows() == x.rows());
 
       if (x.contiguous()) {
@@ -180,7 +181,8 @@ namespace libgm {
      * Assumes no aliasing.
      */
     template <typename Op>
-    friend subvector& update(subvector& result, const Vector& x, Op op) {
+    subvector& update(const Vector& x, Op op) {
+      subvector& result = *this;
       assert(result.rows() == x.rows());
       if (result.contiguous()) {
         op(result.map(), x);
@@ -199,8 +201,8 @@ namespace libgm {
      * Assumes no aliasing.
      */
     template <typename Op>
-    friend subvector&
-    update(subvector& result, const subvector<const Vector>& x, Op op) {
+    subvector& update(const subvector<const Vector>& x, Op op) {
+      subvector& result = *this;
       assert(result.rows() == x.rows());
       if (result.contiguous() && x.contiguous()) {
         op(result.map(), x.map());

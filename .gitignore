@@ -28,6 +28,7 @@
 *.app
 
 # Build directories
+build/
 debug/
 release/
 vc14/

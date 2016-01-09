@@ -219,13 +219,6 @@ namespace libgm { namespace experimental {
       return componentwise(f, f.restrict(a));
     }
 
-    /**
-     * Projects the mixture to a single component.
-     */
-    friend F kl_project(const mixture& m) {
-      return F(m.args_, kl_project(m.param_));
-    }
-
     // Sampling
     //--------------------------------------------------------------------------
 
@@ -320,6 +313,16 @@ namespace libgm { namespace experimental {
     std::vector<param_type> param_;
 
   }; // class mixture
+
+
+  /**
+   * Projects the mixture to a single component.
+   * \relates mixture
+   */
+  template <typename F>
+  F kl_project(const mixture<F>& m) {
+    return F(m.arguments(), kl_project(m.param()));
+  }
 
 } } // namespace libgm::experimental
 

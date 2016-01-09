@@ -37,7 +37,7 @@ BOOST_AUTO_TEST_CASE(test_all) {
   BOOST_CHECK_EQUAL(a.size(), 4);
   BOOST_CHECK(!a.empty());
   BOOST_CHECK(a == a);
-  BOOST_CHECK(a != uint_assignment<var>({{z, 1}, {w, 2}}));
+  BOOST_CHECK(a != hybrid_assignment<var>(a.uint()));
 
   // UnorderedAssociativeContainer
   BOOST_CHECK_EQUAL(a.count(x), 1);

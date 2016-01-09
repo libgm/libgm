@@ -92,53 +92,53 @@ namespace libgm {
     //! Extracts a plain object represented by this submatrix.
     void eval_to(plain_type& result) const {
       result.resize(rows(), cols());
-      update(result, *this, assign<>());
+      update_plain(result, assign<>());
     }
 
     //! Adds a submatrix to a dense matrix element-wise.
     friend plain_type& operator+=(plain_type& result, const submatrix& a) {
-      return update(result, a, plus_assign<>());
+      return a.update_plain(result, plus_assign<>());
     }
 
     //! Subtracts a submatrix from a dense matrix element-wise.
     friend plain_type& operator-=(plain_type& result, const submatrix& a) {
-      return update(result, a, minus_assign<>());
+      return a.update_plain(result, minus_assign<>());
     }
 
     //! Assigns the elements of a matrix to this submatrix.
     template <bool B = is_mutable, typename = std::enable_if_t<B> >
     submatrix& operator=(const Matrix& a) {
-      return update(*this, a, assign<>());
+      return update(a, assign<>());
     }
 
     //! Adds a matrix to this submatrix element-wise.
     template <bool B = is_mutable, typename = std::enable_if_t<B> >
     submatrix& operator+=(const Matrix& a) {
-      return update(*this, a, plus_assign<>());
+      return update(a, plus_assign<>());
     }
 
     //! Subtracts a matrix from this submatrix element-wise.
     template <bool B = is_mutable, typename = std::enable_if_t<B> >
     submatrix& operator-=(const Matrix& a) {
-      return update(*this, a, minus_assign<>());
+      return update(a, minus_assign<>());
     }
 
     //! Assigns the elements of another submatrix to this submatrix.
     template <bool B = is_mutable, typename = std::enable_if_t<B> >
     submatrix& operator=(const submatrix<const Matrix>& a) {
-      return update(*this, a, assign<>());
+      return update(a, assign<>());
     }
 
     //! Adds another submatrix to this submatrix element-wise.
     template <bool B = is_mutable, typename = std::enable_if_t<B> >
     submatrix& operator+=(const submatrix<const Matrix>& a) {
-      return update(*this, a, plus_assign<>());
+      return update(a, plus_assign<>());
     }
 
     //! Subtracts another submatrix from this submatrix element-wise.
     template <bool B = is_mutable, typename = std::enable_if_t<B> >
     submatrix& operator-=(const submatrix<const Matrix>& a) {
-      return update(*this, a, minus_assign<>());
+      return update(a, minus_assign<>());
     }
 
   private:
@@ -160,7 +160,8 @@ namespace libgm {
      * Assumes no aliasing.
      */
     template <typename Op>
-    friend plain_type& update(plain_type& result, const submatrix& a, Op op) {
+    plain_type& update_plain(plain_type& result, Op op) const {
+      const submatrix& a = *this;
       assert(result.rows() == a.rows());
       assert(result.cols() == a.cols());
 
@@ -187,12 +188,13 @@ namespace libgm {
     }
 
     /**
-     * Updates the submatrix result by applying the mutation operation to the
+     * Updates this submatrix by applying the mutation operation to the
      * coefficients of result and the coefficients of a dense matrix a.
      * Assumes no aliasing.
      */
     template <typename Op>
-    friend submatrix& update(submatrix& result, const plain_type& a, Op op) {
+    submatrix& update(const plain_type& a, Op op) {
+      submatrix& result = *this;
       assert(result.rows() == a.rows());
       assert(result.cols() == a.cols());
       if (result.contiguous()) {
@@ -218,13 +220,13 @@ namespace libgm {
     }
 
     /**
-     * Updates the submatrix result by applying the mutation operation to the
+     * Updates this submatrix by applying the mutation operation to the
      * coefficients of result and the coefficients of another submatrix a.
      * Assumes no aliasing.
      */
     template <typename Op>
-    friend submatrix&
-    update(submatrix& result, const submatrix<const Matrix>& a, Op op) {
+    submatrix& update(const submatrix<const Matrix>& a, Op op) {
+      submatrix& result = *this;
       assert(result.rows() == a.rows());
       assert(result.cols() == a.cols());
       if (result.contiguous() && a.contiguous()) {

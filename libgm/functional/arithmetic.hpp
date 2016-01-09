@@ -47,7 +47,7 @@ namespace libgm {
     T a, b;
     weighted_plus(const T& a, const T& b) : a(a), b(b) { }
     template <typename X, typename Y>
-    decltype(auto) operator()(X&& x, Y&& y) const {
+    auto operator()(X&& x, Y&& y) const {
       return a * std::forward<X>(x) + b * std::forward<Y>(y);
     }
   };
@@ -87,7 +87,7 @@ namespace libgm {
   template <>
   struct log_plus_exp<void> {
     template <typename X, typename Y>
-    decltype(auto) operator()(X&& x, Y&& y) const {
+    auto operator()(X&& x, Y&& y) const {
       auto min = std::forward<X>(x).min(std::forward<Y>(y));
       auto max = std::forward<X>(x).max(std::forward<Y>(y));
       return log(1 + exp(min - max)) + max;
@@ -118,7 +118,7 @@ namespace libgm {
     incremented_by(T a) : a(a) { }
 
     template <typename X>
-    decltype(auto) operator()(X&& x) const {
+    auto operator()(X&& x) const {
       return std::forward<X>(x) + a;
     }
 
@@ -138,7 +138,7 @@ namespace libgm {
     decremented_by(T a) : a(a) { }
 
     template <typename X>
-    decltype(auto) operator()(X&& x) const {
+    auto operator()(X&& x) const {
       return std::forward<X>(x) - a;
     }
 
@@ -158,7 +158,7 @@ namespace libgm {
     subtracted_from(T a) : a(a) { }
 
     template <typename X>
-    decltype(auto) operator()(X&& x) const {
+    auto operator()(X&& x) const {
       return a - std::forward<X>(x);
     }
   };
@@ -173,7 +173,7 @@ namespace libgm {
     multiplied_by(T a) : a(a) { }
 
     template <typename X>
-    decltype(auto) operator()(X&& x) const {
+    auto operator()(X&& x) const {
       return std::forward<X>(x) * a;
     }
 
@@ -193,7 +193,7 @@ namespace libgm {
     divided_by(T a) : a(a) { }
 
     template <typename X>
-    decltype(auto) operator()(X&& x) const {
+    auto operator()(X&& x) const {
       return std::forward<X>(x) / a;
     }
 
@@ -213,7 +213,7 @@ namespace libgm {
     dividing(T a) : a(a) { }
 
     template <typename X>
-    decltype(auto) operator()(X&& x) const {
+    auto operator()(X&& x) const {
       return a / std::forward<X>(x);
     }
   };
@@ -227,7 +227,7 @@ namespace libgm {
     power(T a) : a(a) { }
 
     template <typename X>
-    decltype(auto) operator()(X&& x) const {
+    auto operator()(X&& x) const {
       using std::pow;
       return pow(x, a);
     }
@@ -247,7 +247,7 @@ namespace libgm {
   template <>
   struct logarithm<void> : default_update<logarithm<void> > {
     template <typename X>
-    decltype(auto) operator()(X&& x) const {
+    auto operator()(X&& x) const {
       return log(x);
     }
   };
@@ -266,7 +266,7 @@ namespace libgm {
   template <>
   struct exponent<void> : default_update<exponent<void> > {
     template <typename X>
-    decltype(auto) operator()(X&& x) const {
+    auto operator()(X&& x) const {
       return exp(x);
     }
   };
