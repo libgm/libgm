@@ -40,7 +40,7 @@ namespace libgm {
    */
   template <std::size_t N, typename T>
   homogeneous_tuple<T, N> tuple_rep(const T& value) {
-    return tuple_rep(value, static_range<0, N>());
+    return tuple_rep<N>(value, static_range<0, N>());
   }
 
   /**

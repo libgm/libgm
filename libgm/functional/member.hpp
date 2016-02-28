@@ -4,6 +4,50 @@
 namespace libgm {
 
   /**
+   * An operator that invokes the marginal() member function on the given
+   * object.
+   */
+  struct member_marginal {
+    template <typename F, typename... Args>
+    auto operator()(F&& f, Args&&... args) {
+      return std::forward<F>(f).marginal(std::forward<Args>(args)...);
+    }
+  };
+
+  /**
+   * An operator that invokes the maximum() member function on the given
+   * object.
+   */
+  struct member_maximum {
+    template <typename F, typename... Args>
+    auto operator()(F&& f, Args&&... args) {
+      return std::forward<F>(f).maximum(std::forward<Args>(args)...);
+    }
+  };
+
+  /**
+   * An operator that invokes the minimum() member function on the given
+   * object.
+   */
+  struct member_minimum {
+    template <typename F, typename... Args>
+    auto operator()(F&& f, Args&&... args) {
+      return std::forward<F>(f).minium(std::forward<Args>(args)...);
+    }
+  };
+
+  /**
+   * An operator that inovkes the restrict() member function on the given
+   * object.
+   */
+  struct member_restrict {
+    template <typename F, typename... Args>
+    auto operator()(F&& f, Args&&... args) {
+      return std::forward<F>(f).restrict(std::forward<Args>(args)...);
+    }
+  };
+
+  /**
    * An operator that invokes the sum() member function on the given object.
    */
   struct member_sum {
