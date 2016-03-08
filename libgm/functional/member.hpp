@@ -48,6 +48,28 @@ namespace libgm {
   };
 
   /**
+   * An operator that invokes the restrict_head() memebr function on the
+   * given object.
+   */
+  struct member_restrict_head {
+    template <typename F, typename... Args>
+    auto operator()(F&& f, Args&&... args) {
+      return std::forward<F>(f).restrict_head(std::forward<Args>(args)...);
+    }
+  };
+
+  /**
+   * An operator that invokes the restrict_tail() memebr function on the
+   * given object.
+   */
+  struct member_restrict_tail {
+    template <typename F, typename... Args>
+    auto operator()(F&& f, Args&&... args) {
+      return std::forward<F>(f).restrict_tail(std::forward<Args>(args)...);
+    }
+  };
+
+  /**
    * An operator that invokes the sum() member function on the given object.
    */
   struct member_sum {

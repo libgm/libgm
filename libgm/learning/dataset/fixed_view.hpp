@@ -2,8 +2,8 @@
 #define LIBGM_FIXED_VIEW_HPP
 
 #include <libgm/argument/argument_traits.hpp>
+#include <libgm/datastructure/uint_vector.hpp>
 #include <libgm/math/eigen/subvector.hpp>
-#include <libgm/range/integral.hpp>
 #include <libgm/range/iterator_range.hpp>
 
 #include <iterator>

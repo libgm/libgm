@@ -1,6 +1,7 @@
 #ifndef LIBGM_MISSING_HPP
 #define LIBGM_MISSING_HPP
 
+#include <cmath>
 #include <limits>
 #include <type_traits>
 

@@ -115,8 +115,9 @@ void time_join_accumulate(JoinOp join_op,
     Factor g(y.prefix(arity));
     domain<var> z = {x[0]};
     t.restart();
+    result_t<Factor> e;
     for (std::size_t i = 0; i < num_reps; ++i) {
-      result_t<Factor> e = accu_op(join_op(f, g));
+      e += accu_op(join_op(f, g));
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }

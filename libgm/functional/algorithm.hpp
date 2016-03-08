@@ -122,6 +122,24 @@ namespace libgm {
     }
   };
 
+  /**
+   * A unary predicate that computes the partial sums of the provided values
+   * and returns true if the sum is greater than a fixed value.
+   */
+  template <typename T>
+  struct partial_sum_greater_than {
+    explicit partial_sum_greater_than(const T& a)
+      : a(a), partial_sum(T(0)) { }
+
+    bool operator()(const T& x) {
+      partial_sum += x;
+      return partial_sum > a;
+    }
+
+    T a;
+    T partial_sum;
+  };
+
 } // namespace libgm
 
 #endif

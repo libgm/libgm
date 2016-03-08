@@ -42,7 +42,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_all, F, factor_types) {
   uint_vector shape(2, 3);
   for (std::size_t i = 0; i < nsamples; ++i) {
     F f = gen(xy, rng);
-    uint_vector_iterator it(&shape), end(2);
+    uint_vector_iterator it(shape), end(2);
     for (; it != end; ++it) {
       const uint_vector& index = *it;
       if (index[0] == index[1]) {

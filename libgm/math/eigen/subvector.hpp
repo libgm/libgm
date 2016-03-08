@@ -1,8 +1,8 @@
 #ifndef LIBGM_SUBVECTOR_HPP
 #define LIBGM_SUBVECTOR_HPP
 
+#include <libgm/datastructure/uint_vector.hpp>
 #include <libgm/functional/assign.hpp>
-#include <libgm/range/integral.hpp>
 
 #include <vector>
 #include <type_traits>

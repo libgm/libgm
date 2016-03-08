@@ -114,32 +114,53 @@ namespace libgm {
       return result;
     }
 
-    /**
-     * Returns the finite index for the given linear index.
-     */
-    uint_vector finite(std::size_t offset) const {
-      uint_vector ind(multiplier_.size());
-      // must use int here to avoid wrap-around
-      for(std::ptrdiff_t i = multiplier_.size() - 1; i >= 0; --i) {
-        ind[i] = offset / multiplier_[i];
-        offset = offset % multiplier_[i];
+    std::size_t linear(const uint_vector& dims, const uint_vector& vals) const {
+      assert(dims.size() == vals.size());
+      std::size_t result = 0;
+      for (std::size_t i = 0; i < dims.size(); ++i) {
+        result += multiplier_[dims[i]] * vals[i];
       }
-      return ind;
+      return result;
     }
 
     /**
-     * Returns the finite index corresponding to the linear index
-     * for the first n dimensions. The specified linear index must
-     * not exceed the total number of elements in the first n
-     * dimensions.
+     * Computes the vector index for the given linear offset.
+     * \throw std::out_of_range
+     *        if the offset is larger than the number of elements in the table
      */
-    uint_vector finite(std::size_t offset, std::size_t n) const {
-      uint_vector ind(n);
-      for (std::ptrdiff_t i = n - 1; i >= 0; --i) {
-        ind[i] = offset / multiplier_[i];
-        offset = offset % multiplier_[i];
+    void vector(std::size_t offset, uint_vector& index) const {
+      vector(offset, 0, size(), index);
+    }
+
+    /**
+     * Computes the vector index for the given linear offset for the first
+     * n dimensions.
+     * \throw std::out_of_range
+     *        if the offset is larger than the number of elements in the first
+     *        n dimensions
+     */
+    void vector(std::size_t offset, std::size_t n, uint_vector& index) const {
+      vector(offset, 0, n, index);
+    }
+
+    /**
+     * Computes the vector index for the given linear offset for dimensions
+     * m, ..., n-1.
+     * \throw std::out_of_range
+     *        if the offset is larger than the number of elements in the first
+     *        n dimensions
+     */
+    void vector(std::size_t offset, std::size_t m, std::size_t n,
+                uint_vector& index) const {
+      assert(n <= size());
+      if (offset >= multiplier(n)) {
+        throw std::out_of_range("Table offset is out of range");
       }
-      return ind;
+      index.resize(n-m);
+      for (std::ptrdiff_t i = n - 1; i >= ptrdiff_t(m); --i) {
+        index[i-m] = offset / multiplier_[i];
+        offset %= multiplier_[i];
+      }
     }
 
   private:
@@ -172,7 +193,7 @@ namespace libgm {
     table_increment(const uint_vector& a_shape,
                     const table_offset& b_offset,
                     const uint_vector& b_map)
-      : inc_(a_shape.size() + 1, 0) {
+      : inc_(a_shape.size() + 1, 0) { // do we need + 1?
       assert(b_offset.size() == b_map.size());
       for (std::size_t i = 0; i < b_map.size(); ++i) {
         if (b_map[i] != missing<std::size_t>::value) {
@@ -185,11 +206,21 @@ namespace libgm {
     }
 
     /**
+     * Creates a table increment corresponding to a linear scan through
+     * a table.
+     */
+    table_increment(const uint_vector& a_shape, const table_offset& b_offset)
+      : inc_(a_shape.size() + 1, 0) { // need + 1 in case a is constant
+      inc_[0] = 1;
+      inc_[b_offset.size()] = -ptrdiff_t(b_offset.num_elements());
+    }
+
+    /**
      * Updates the increment to contain a partial (cumulative) sum
      * of its present values.
      */
-    void partial_sum() {
-      std::partial_sum(inc_.begin(), inc_.end(), inc_.begin());
+    void partial_sum(std::size_t start = 0) {
+      std::partial_sum(inc_.begin() + start, inc_.end(), inc_.begin() + start);
     }
 
     /**
@@ -206,6 +237,235 @@ namespace libgm {
 
 
   /**
+   * A function that loops linearly over one table and non-linearly
+   * over another tables.
+   *
+   * This function implements a hybrid approach, where the two lowest-order
+   * dimensions are traversed directly using two nested for loops, and the
+   * remaining ones via a carry bit. This enables us to obtain efficient
+   * low-level code for the two inner-most loops.
+   *
+   * \param shape the shape of the table that we traverse linearly
+   * \param x_ptr the pointer to the first element of table X
+   * \param x_inc the pointer increment in X for each dimension in shape
+   * \param op    a unary operation accepting x_ptr
+   *
+   * \return the unary operation in its final state
+   */
+  template <typename Tx, typename Op>
+  Op unary_loop(const uint_vector& shape,
+                Tx* x_ptr, table_increment&& x_inc,
+                Op op) {
+    // initialize the index
+    assert(shape.size() < 16);
+    std::size_t index[16];
+    std::copy(shape.begin(), shape.end(), index);
+    index[shape.size()] = 0;
+
+    // the special case with zero dimensions (i.e., a single element)
+    if (shape.empty()) {
+      op(x_ptr);
+      return op;
+    }
+
+    // the special case with 1 dimension
+    if (shape.size() == 1) {
+      std::ptrdiff_t x_inc0 = x_inc[0];
+      for (std::size_t i = shape[0]; i; --i) {
+        op(x_ptr);
+        x_ptr += x_inc0;
+      }
+      return op;
+    }
+
+    // the general case
+    x_inc.partial_sum(2);
+    std::ptrdiff_t x_inc0 = x_inc[0];
+    std::ptrdiff_t x_inc1 = x_inc[1];
+    std::size_t d; // the last updated bit (initialized in the loop)
+    do {
+      for (std::size_t j = shape[1]; j; --j) {
+        for (std::size_t i = shape[0]; i; --i) {
+          op(x_ptr);
+          x_ptr += x_inc0;
+        }
+        x_ptr += x_inc1;
+      }
+      d = 2;
+      while (__builtin_expect(!--index[d], false)) {
+        index[d] = shape[d];
+        ++d;
+      }
+      x_ptr += x_inc[d];
+    } while (d != shape.size());
+    return op;
+  }
+
+  /**
+   * A function that loops linearly over one table and non-linearly
+   * over two other tables.
+   *
+   * This function implements a hybrid approach, where the two lowest-order
+   * dimensions are traversed directly using two nested for loops, and the
+   * remaining ones via a carry bit. This enables us to obtain efficient
+   * low-level code for the two inner-most loops.
+   *
+   * \param shape the shape of the table that we traverse linearly
+   * \param x_ptr the pointer to the first element of table X
+   * \param x_inc the pointer increment in X for each dimension in shape
+   * \param y_ptr the pointer to the first element of table Y
+   * \param y_inc the pointer increment in Y for each dimension in shape
+   * \param op    a binary operation accepting x_ptr and y_ptr
+   *
+   * \return the binary operation in its final state
+   */
+  template <typename Tx, typename Ty, typename Op>
+  Op binary_loop(const uint_vector& shape,
+                 Tx* x_ptr, table_increment&& x_inc,
+                 Ty* y_ptr, table_increment&& y_inc,
+                 Op op) {
+    // initialize the index
+    assert(shape.size() < 16);
+    std::size_t index[16];
+    std::copy(shape.begin(), shape.end(), index);
+    index[shape.size()] = 0;
+
+    // the special case with zero dimensions (i.e., a single element)
+    if (shape.empty()) {
+      op(x_ptr, y_ptr);
+      return op;
+    }
+
+    // the special case with 1 dimension
+    if (shape.size() == 1) {
+      std::ptrdiff_t x_inc0 = x_inc[0];
+      std::ptrdiff_t y_inc0 = y_inc[0];
+      for (std::size_t i = shape[0]; i; --i) {
+        op(x_ptr, y_ptr);
+        x_ptr += x_inc0;
+        y_ptr += y_inc0;
+      }
+      return op;
+    }
+
+    // the general case
+    x_inc.partial_sum(2);
+    y_inc.partial_sum(2);
+    std::ptrdiff_t x_inc0 = x_inc[0];
+    std::ptrdiff_t y_inc0 = y_inc[0];
+    std::ptrdiff_t x_inc1 = x_inc[1];
+    std::ptrdiff_t y_inc1 = y_inc[1];
+    std::size_t d; // the last updated bit (initialized in the loop)
+    do {
+      for (std::size_t j = shape[1]; j; --j) {
+        for (std::size_t i = shape[0]; i; --i) {
+          op(x_ptr, y_ptr);
+          x_ptr += x_inc0;
+          y_ptr += y_inc0;
+        }
+        x_ptr += x_inc1;
+        y_ptr += y_inc1;
+      }
+      d = 2;
+      while (__builtin_expect(!--index[d], false)) {
+        index[d] = shape[d];
+        ++d;
+      }
+      x_ptr += x_inc[d];
+      y_ptr += y_inc[d];
+    } while (d != shape.size());
+    return op;
+  }
+
+  /**
+   * A function that loops linearly over one table and non-linearly
+   * over three other tables.
+   *
+   * This function implements a hybrid approach, where the two lowest-order
+   * dimensions are traversed directly using two nested for loops, and the
+   * remaining ones via a carry bit. This enables us to obtain efficient
+   * low-level code for the two inner-most loops.
+   *
+   * \param shape the shape of the table that we traverse linearly
+   * \param x_ptr the pointer to the first element of table X
+   * \param x_inc the pointer increment in X for each dimension in shape
+   * \param y_ptr the pointer to the first element of table Y
+   * \param y_inc the pointer increment in Y for each dimension in shape
+   * \param z_ptr the pointer to the first element of table Z
+   * \param z_inc the pointer increment in Z for each dimension in shape
+   * \param op    a ternary operation accepting x_ptr, y_ptr, and z_ptr
+   *
+   * \return op the ternary operation in its final state
+   */
+  template <typename Tx, typename Ty, typename Tz, typename Op>
+  Op ternary_loop(const uint_vector& shape,
+                  Tx* x_ptr, table_increment&& x_inc,
+                  Ty* y_ptr, table_increment&& y_inc,
+                  Tz* z_ptr, table_increment&& z_inc,
+                  Op op) {
+    // initialize the index
+    assert(shape.size() < 16);
+    std::size_t index[16];
+    std::copy(shape.begin(), shape.end(), index);
+    index[shape.size()] = 0;
+
+    // the special case with zero dimensions (i.e., a single element)
+    if (shape.empty()) {
+      op(x_ptr, y_ptr, z_ptr);
+      return op;
+    }
+
+    // the special case with 1 dimension
+    if (shape.size() == 1) {
+      std::ptrdiff_t x_inc0 = x_inc[0];
+      std::ptrdiff_t y_inc0 = y_inc[0];
+      std::ptrdiff_t z_inc0 = z_inc[0];
+      for (std::size_t i = shape[0]; i; --i) {
+        op(x_ptr, y_ptr, z_ptr);
+        x_ptr += x_inc0;
+        y_ptr += y_inc0;
+        z_ptr += z_inc0;
+      }
+      return op;
+    }
+
+    // the general case
+    x_inc.partial_sum(2);
+    y_inc.partial_sum(2);
+    z_inc.partial_sum(2);
+    std::ptrdiff_t x_inc0 = x_inc[0];
+    std::ptrdiff_t y_inc0 = y_inc[0];
+    std::ptrdiff_t z_inc0 = z_inc[0];
+    std::ptrdiff_t x_inc1 = x_inc[1];
+    std::ptrdiff_t y_inc1 = y_inc[1];
+    std::ptrdiff_t z_inc1 = z_inc[1];
+    std::size_t d; // the last updated bit (initialized in the loop)
+    do {
+      for (std::size_t j = shape[1]; j; --j) {
+        for (std::size_t i = shape[0]; i; --i) {
+          op(x_ptr, y_ptr, z_ptr);
+          x_ptr += x_inc0;
+          y_ptr += y_inc0;
+          z_ptr += z_inc0;
+        }
+        x_ptr += x_inc1;
+        y_ptr += y_inc1;
+        z_ptr += z_inc1;
+      }
+      d = 2;
+      while (__builtin_expect(!--index[d], false)) {
+        index[d] = shape[d];
+        ++d;
+      }
+      x_ptr += x_inc[d];
+      y_ptr += y_inc[d];
+      z_ptr += z_inc[d];
+    } while (d != shape.size());
+    return op;
+  }
+
+
+  /**
    * A dense table with an arbitrary number of dimensions, each with a
    * finite number of values. The elements are stored in a linear fashion,
    * with the lowest-dimension indices changing the most frequently and
@@ -219,7 +479,7 @@ namespace libgm {
   class table {
   public:
     // Public type declarations
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     //! The type of values stored in this object
     typedef T value_type;
@@ -237,7 +497,7 @@ namespace libgm {
     typedef uint_vector_iterator index_iterator;
 
     // Constructors and initialization
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     /**
      * Default constructor. Creates an empty table with no elements.
@@ -343,8 +603,45 @@ namespace libgm {
       }
     }
 
+    /**
+     * Resets the table to the shape given by a range of two iterators.
+     * Allocates the memory, but does not initialize the elements.
+     */
+    template <typename It>
+    void reset(It start, It end) {
+      std::size_t old_size = size();
+      shape_.assign(start, end);
+      offset_.reset(shape_); // affects size()
+      if (size() != old_size) { data_.reset(new T[size()]); }
+      for (std::size_t i = 0; i < shape_.size(); ++i) {
+        if (std::numeric_limits<std::size_t>::max() / shape_[i] <=
+            offset_.multiplier(i)) {
+          throw std::out_of_range("table::reset possibly overflows size_t");
+        }
+      }
+    }
+
+    /**
+     * Verifies that the specified shape matches this table.
+     */
+    void check_shape(const uint_vector& shape) const {
+      if (shape_ != shape) {
+        throw std::invalid_argument("Incompatible shapes");
+      }
+    }
+
+    /**
+     * Verifies that the specified shape matches this table.
+     */
+    template <typename It>
+    void check_shape(It begin, It end) const {
+      if (!std::equal(shape_.begin(), shape_.end(), begin, end)) {
+        throw std::invalid_argument("Incompatible shapes");
+      }
+    }
+
     // Accessors
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     //! Returns the number of dimensions of this table.
     std::size_t arity() const {
@@ -408,17 +705,17 @@ namespace libgm {
 
     //! Returns the index associated with an iterator position
     uint_vector index(const T* it) const {
-      assert(it >= begin() && it < end());
-      return offset_.finite(it - begin());
+      uint_vector result;
+      offset_.vector(it - begin(), result);
+      return result;
     }
 
     //! Returns an iterator range over indices into this table.
     iterator_range<index_iterator> indices() const {
-      typedef iterator_range<index_iterator> range_type;
       if (empty()) {
-        return range_type(index_iterator(), index_iterator());
+        return { index_iterator(), index_iterator() };
       } else {
-        return range_type(index_iterator(&shape_), index_iterator(arity()));
+        return { index_iterator(shape_), index_iterator(arity()) };
       }
     }
 
@@ -453,7 +750,8 @@ namespace libgm {
     }
 
     // Sequential operations
-    //==========================================================================
+    //--------------------------------------------------------------------------
+
     /**
      * Sets all the elements to the given value.
      */
@@ -474,7 +772,7 @@ namespace libgm {
     }
 
     /**
-     * Convenience function that does not do anything.
+     * A convenience function that does not do anything.
      */
     table<T>& transform(identity) {
       return *this;
@@ -547,7 +845,9 @@ namespace libgm {
       for (std::size_t i = 0; i < nelem; ++i) {
         T prob = trans(elem[i]);
         if (p <= prob) {
-          return offset().finite(i, nhead);
+          uint_vector result;
+          offset().vector(i, nhead, result);
+          return result;
         } else {
           p -= prob;
         }
@@ -555,9 +855,592 @@ namespace libgm {
       throw std::invalid_argument("The total probability is less than 1");
     }
 
+    /**
+     * Identifies the first elements that satisfies the given predicate
+     * and stores the corresponding index to an output vector.
+     *
+     * \throw std::out_of_range if the element cannot be found.
+     */
+    template <typename UnaryPredicate>
+    void find_if(UnaryPredicate pred, uint_vector& index) const {
+      offset_.vector(std::find_if(begin(), end(), pred) - begin(), index);
+    }
+
+    // Factor operations
+    //--------------------------------------------------------------------------
+
+    /**
+     * Joins two tables.
+     * The left table is iterated over in a sequential fashion, while the second
+     * one is iterated as specified by the mapping dim_map.
+     *
+     * \param join_op  A binary operation operating on the elements of f and g.
+     * \param f        The left table.
+     * \param g        The right table.
+     * \param g_map    The mapping from the second table to the joint table.
+     * \param result   The output table.
+     */
+    template <typename JoinOp>
+    friend void join(JoinOp join_op,
+                     const table& f,
+                     const table& g,
+                     const uint_vector& g_map,
+                     table& result) {
+      // reset the output table
+      auto it = std::max_element(g_map.begin(), g_map.end());
+      if (it == g_map.end() || *it < f.arity()) { // left join
+        result.reset(f.shape());
+      } else {                                    // right or outer join
+        result.reset(join_shape(*it + 1, f.shape(), g.shape(), g_map));
+      }
+
+      // iterate linearly over the output and non-linearly over the inputs
+      T* r = result.data();
+      binary_loop(result.shape(),
+                  f.data(), table_increment(result.shape(), f.offset()),
+                  g.data(), table_increment(result.shape(), g.offset(), g_map),
+                  [join_op, r] (const T* x, const T* y) mutable {
+                    *r++ = join_op(*x, *y);
+                  });
+    }
+
+    /**
+     * Joins this table into another one inplace.
+     *
+     * \param join_op  A binary operation operating on the elements of f and g.
+     * \param dim_map  A mapping from this table to the result.
+     * \param result   The output table.
+     */
+    template <typename JoinOp>
+    void join_inplace(JoinOp join_op, const uint_vector& dim_map,
+                      table& result) const {
+      // check that dimensions match
+      assert(arity() == dim_map.size());
+      for (std::size_t i = 0; i < dim_map.size(); ++i) {
+        assert(size(i) == result.size(dim_map[i]));
+      }
+
+      // iterate linearly over the output and non-linearly over the input
+      T* r = result.data();
+      unary_loop(result.shape(),
+                 data(), table_increment(result.shape(), offset_, dim_map),
+                 [join_op, r] (const T* x) mutable {
+                   *r = join_op(*r, *x);
+                   ++r;
+                 });
+    }
+
+    /**
+     * Joins two tables and accumulates the result of the join.
+     * The left table is iterated over in a sequential fashion, while the second
+     * one is iterated as specified by the mapping dim_map.
+     *
+     * \param join_op  A binary operation operating on the elements of f and g.
+     * \param agg_op   A binary aggregation operation.
+     * \param init     The initial value for the aggregate.
+     * \param f        The left table.
+     * \param g        The right table.
+     * \param g_map    The mapping from the second table to the joint table.
+     */
+    template <typename JoinOp, typename AggOp>
+    friend T join_accumulate(JoinOp join_op,
+                             AggOp agg_op,
+                             T init,
+                             const table& f,
+                             const table& g,
+                             const uint_vector& g_map) {
+      // compute the shape of the output table
+      uint_vector shape;
+      auto it = std::max_element(g_map.begin(), g_map.end());
+      if (it == g_map.end() || *it < f.arity()) { // left join
+        shape = f.shape();
+      } else {                                    // right or outer join
+        shape = join_shape(*it + 1, f.shape(), g.shape(), g_map);
+      }
+
+      // iterate non-linearly over the inputs, aggregating the result
+      return binary_loop(
+        shape,
+        f.data(), table_increment(shape, f.offset()),
+        g.data(), table_increment(shape, g.offset(), g_map),
+        join_accu<JoinOp, AggOp>{join_op, agg_op, init}
+      ).result;
+    }
+
+    //! A helper for join_accumulate
+    template <typename JoinOp, typename AggOp>
+    struct join_accu {
+      JoinOp join_op;
+      AggOp agg_op;
+      T result;
+      void operator()(const T* x, const T* y) {
+        result = agg_op(result, join_op(*x, *y));
+      }
+    };
+
+    /**
+     * Aggregates this table using a binary aggregate operation,
+     * retaining the specified dimensions.
+     *
+     * \param agg_op   A binary aggregation operation.
+     * \param init     The initial value for the aggregate.
+     * \param retain   The retained dimensions.
+     * \param result   The output table.
+     */
+    template <typename AggOp>
+    void aggregate(AggOp agg_op,
+                   T init,
+                   const uint_vector& retain,
+                   table& result) const {
+      // reset the output table
+      result.reset(aggregate_shape(shape_, retain));
+      result.fill(init);
+
+      // iterate linearly over the input and non-linearly over the output
+      const T* in = data();
+      unary_loop(shape_,
+                 result.data(), table_increment(shape_, result.offset(), retain),
+                 [agg_op, in] (T* r) mutable {
+                   *r = agg_op(*r, *in++);
+                 });
+    }
+
+    /**
+     * A specialization of aggregate for the log-sum-exp operation.
+     */
+    void aggregate(log_plus_exp<T> /* ignored */,
+                   T /* ignored */,
+                   const uint_vector& retain,
+                   table& result) const {
+      // reset the output table
+      result.reset(aggregate_shape(shape_, retain));
+      result.fill(T(0));
+
+      // iterate linearly over the input and non-linearly over the output
+      const T* in = data();
+      T offset = *std::max_element(begin(), end());
+      unary_loop(shape_,
+                 result.data(), table_increment(shape_, result.offset(), retain),
+                 [in, offset] (T* r) mutable {
+                   *r += std::exp(*in++ - offset);
+                 });
+      for (T& x : result) { x = std::log(x) + offset; }
+    }
+
+    /**
+     * Aggregates this table using a binary aggregate operation,
+     * retaining the specified dimension (not optimized at the moment).
+     *
+     * \param agg_op   A binary aggregation operation.
+     * \param init     The initial value for the aggregate.
+     * \param retain   The retained dimension.
+     * \param result   The output table.
+     */
+    template <typename AggOp>
+    void aggregate(AggOp agg_op,
+                   T init,
+                   std::size_t retain,
+                   table& result) const {
+      aggregate(agg_op, init, uint_vector({retain}), result);
+    }
+
+    /**
+     * Eliminates the specified dimensions from this table using a binary
+     * operation.
+     *
+     * \param agg_op   A binary aggregation operation.
+     * \param init     The initial value for the aggregate.
+     * \param dims     The eliminated dimensions.
+     * \param result   The output table.
+     */
+    template <typename AggOp>
+    void eliminate(AggOp agg_op,
+                   T init,
+                   const uint_vector& dims,
+                   table& result) const {
+      aggregate(agg_op, init, retained_dims(arity(), dims), result);
+    }
+
+    /**
+     * Joins two tables and aggregates the result into an output table.
+     * The left table is iterated over in a sequential fashion, while the second
+     * one is iterated as specified by the mapping dim_map.
+     *
+     * \param join_op  A binary operation operating on the elements of f and g.
+     * \param agg_op   A binary aggregation operation.
+     * \param init     The initial value for the aggregate.
+     * \param f        The left table.
+     * \param g        The right table.
+     * \param g_map    The mapping from the second table to the joint table.
+     * \param retain   The retained dimensions of the ficticious table.
+     * \param result   The output table.
+     */
+    template <typename JoinOp, typename AggOp>
+    friend void join_aggregate(JoinOp join_op,
+                               AggOp agg_op,
+                               T init,
+                               const table& f,
+                               const table& g,
+                               const uint_vector& g_map,
+                               const uint_vector& retain,
+                               table& result) {
+      // reset the output table
+      auto it = std::max_element(g_map.begin(), g_map.end());
+      uint_vector shape;
+      if (it == g_map.end() || *it < f.arity()) { // left join
+        shape = f.shape();
+      } else {                                    // right or outer join
+        shape = join_shape(*it + 1, f.shape(), g.shape(), g_map);
+      }
+      result.reset(aggregate_shape(shape, retain));
+      result.fill(init);
+
+      // iterate linearly over the ficticious table and non-linearly over the
+      // inputs and the output
+      ternary_loop(shape,
+                   f.data(), table_increment(shape, f.offset()),
+                   g.data(), table_increment(shape, g.offset(), g_map),
+                   result.data(), table_increment(shape, result.offset(), retain),
+                   [join_op, agg_op] (const T* x, const T* y, T* r) {
+                     *r = agg_op(*r, join_op(*x, *y));
+                   });
+    }
+
+    /**
+     * Specialization of join_aggregate for the log-sum-exp aggregation.
+     */
+    template <typename JoinOp>
+    friend void join_aggregate(JoinOp join_op,
+                               log_plus_exp<T> agg_op,
+                               T init,
+                               const table& f,
+                               const table& g,
+                               const uint_vector& g_map,
+                               const uint_vector& retain,
+                               table& result) {
+      table tmp;
+      join(join_op, f, g, g_map, tmp);
+      tmp.aggregate(agg_op, init, retain, result);
+    }
+
+    /**
+     * Joins two tables and aggregates the result into an output table.
+     * The left table is iterated over in a sequential fashion, while the second
+     * one is iterated as specified by the mapping dim_map.
+     */
+    template <typename JoinOp, typename AggOp>
+    friend void join_aggregate(JoinOp join_op,
+                               AggOp agg_op,
+                               T init,
+                               const table& f,
+                               const table& g,
+                               const uint_vector& g_map,
+                               std::size_t retain,
+                               table& result) {
+      join_aggregate(join_op, agg_op, init, f, g, g_map, uint_vector({retain}),
+                     result);
+    }
+
+    /**
+     * Restricts the head dimensions of this table, retaining the remaining
+     * tail dimensions.
+     *
+     * \param values  The assignment to the head dimensions.
+     * \param result  The output table.
+     */
+    void restrict_head(const uint_vector& values, table& result) const {
+      // reset the output table
+      assert(values.size() <= arity());
+      result.reset(shape_.begin(), shape_.end() - values.size());
+
+      // direct copy
+      std::size_t start = offset_.linear(values, result.arity());
+      std::copy(data() + start, data() + start + result.size(), result.data());
+    }
+
+    /**
+     * Restricts the head dimensions of this table and updates the output
+     * table using a binary operation.
+     *
+     * \param values  The assignment to the head dimensions.
+     * \param join_op A binary operation accepting the elements of the output
+     *                and this table.
+     * \param result  The output table.
+     */
+    template <typename JoinOp>
+    void restrict_head_update(const uint_vector& values,
+                              JoinOp join_op,
+                              table& result) const {
+      // check the shape of the output table
+      assert(values.size() <= arity());
+      result.check_shape(shape_.begin(), shape_.end() - values.size());
+
+      // direct transform
+      std::size_t start = offset_.linear(values, result.arity());
+      std::transform(result.begin(), result.end(), data() + start,
+                     result.begin(), join_op);
+    }
+
+    /**
+     * Restricts the head dimensions and computes the index of the first
+     * element of the result that satisfies the given predicate.
+     */
+    template <typename UnaryPredicate>
+    void restrict_head_find_if(const uint_vector& values,
+                               UnaryPredicate pred,
+                               uint_vector& result) const {
+      assert(values.size() <= arity());
+      std::size_t ntail = arity() - values.size();
+      const T* begin = begin() + offset_.linear(values, ntail);
+      const T* end = begin + offset_.multiplier(ntail);
+      offset_.vector(std::find_if(begin, end) - begin, ntail, result);
+    }
+
+    /**
+     * Restricts the tail dimensions of this table, retaining the remaining
+     * head dimensions.
+     *
+     * \param values  The assignment to the tail dimensions.
+     * \param result  The output table.
+     */
+    void restrict_tail(const uint_vector& values, table& result) const {
+      // reset the output table
+      assert(values.size() <= arity());
+      result.reset(shape_.end() - values.size(), shape_.end());
+
+      // skip copy
+      std::size_t linear = offset_.linear(values, 0);
+      std::size_t stride = size() / result.size();
+      for (std::size_t i = 0; i < result.size(); ++i, linear += stride) {
+        result[i] = data_[linear];
+      }
+    }
+
+    /**
+     * Restricts the tail dimensions of this table and updates the output
+     * table using a binary operation.
+     *
+     * \param values  The assignment to the tail dimensions.
+     * \param join_op A binary operation accepting the elements of the output
+     *                and this table.
+     * \param result  The output table.
+     */
+    template <typename JoinOp>
+    void restrict_tail_update(const uint_vector& values,
+                              JoinOp join_op,
+                              table& result) const {
+      // reset the output table
+      assert(values.size() <= arity());
+      result.check_shape(shape_.end() - values.size(), shape_.end());
+
+      // skip update
+      std::size_t linear = offset_.linear(values, 0);
+      std::size_t stride = size() / result.size();
+      for (std::size_t i = 0; i < result.size(); ++i, linear += stride) {
+        result[i] = join_op(result[i], data_[linear]);
+      }
+    }
+
+    /**
+     * Restricts the tail dimensions and computes the index of the first
+     * element of the result that satisfies the given predicate.
+     */
+    template <typename UnaryPredicate>
+    void restrict_tail_find_if(const uint_vector& values,
+                               UnaryPredicate pred,
+                               uint_vector& result) const {
+      assert(values.size() <= arity());
+      std::size_t stride = offset_.multiplier(values.size());
+      std::size_t linear = offset_.linear(values, 0);
+      while (linear < size() && !pred(data_[linear])) {
+        linear += stride;
+      }
+      offset_.vector(linear, values.size(), arity(), result);
+    }
+
+    /**
+     * Restricts the specified dimensions of this table to the given values,
+     * retaining the remaining dimensions.
+     *
+     * \param dims    The restricted dimensions.
+     * \param values  The assignment to the restricted dimensions.
+     * \param result  The output table.
+     */
+    void restrict(const uint_vector& dims,
+                  const uint_vector& values,
+                  table& result) const {
+      assert(dims.size() == values.size());
+
+      // reset the output table
+      uint_vector dim_map = restrict_map(dims);
+      uint_vector shape = restrict_shape(arity() - dims.size(), dim_map);
+      result.reset(shape);
+
+      // iterate linearly over the output and non-linearly over the input
+      T* r = result.data();
+      std::size_t start = offset_.linear(dims, values);
+      unary_loop(result.shape(),
+                 data() + start, table_increment(result.shape(), offset_, dim_map),
+                 [r] (const T* x) mutable {
+                   *r++ = *x;
+                 });
+    }
+
+    /**
+     * Restricts the specified dimensions of this table to the given values
+     * and updates the output table using the given binary operation.
+     *
+     * \param dims    The restricted dimensions.
+     * \param values  The assignment to the restricted dimensions.
+     * \param join_op A binary operation accepting the elements of the output
+     *                and this table.
+     * \param result  The output table.
+     */
+    template <typename JoinOp>
+    void restrict_update(const uint_vector& dims,
+                         const uint_vector& values,
+                         JoinOp join_op,
+                         table& result) const {
+      assert(dims.size() == values.size());
+
+      // reset the output table
+      uint_vector dim_map = restrict_map(dims);
+      uint_vector shape = restrict_shape(arity() - dims.size(), dim_map);
+      result.check_shape(shape);
+
+      // iterate linearly over the output and non-linearly over the input
+      T* r = result.data();
+      std::size_t start = offset_.linear(dims, values);
+      unary_loop(result.shape(),
+                 data() + start, table_increment(result.shape(), offset_, dim_map),
+                 [r, join_op] (const T* x) mutable {
+                   *r = join_op(*r, *x);
+                   ++r;
+                 });
+    }
+
+    /**
+     * Restricts the specified dimensions of this table to the given values
+     * and joins the result into the output table using a binary operation.
+     *
+     * \param dims    The restricted dimensions.
+     * \param values  The assignment to the restricted dimensions.
+     * \param r_map   A map from the restricted result to the output table.
+     * \param join_op A binary operation accepting the elements of the output
+     *                and this table.
+     * \param result  The output table.
+     */
+    template <typename JoinOp>
+    void restrict_join(const uint_vector& dims,
+                       const uint_vector& values,
+                       const uint_vector& r_map,
+                       JoinOp join_op,
+                       table& result) const {
+      assert(dims.size() == values.size());
+
+      // reset the output table
+      uint_vector dim_map = restrict_map(dims, r_map);
+      // todo: check shape
+
+      // iterate linearly over the output and non-linearly over the input
+      T* r = result.data();
+      std::size_t start = offset_.linear(dims, values);
+      unary_loop(result.shape(),
+                 data() + start, table_increment(result.shape(), offset_, dim_map),
+                 [r, join_op] (const T* x) mutable {
+                   *r = join_op(*r, *x);
+                   ++r;
+                 });
+    }
+
+    /**
+     * Reorders the dimensions of this table and stores the result
+     * to an output table.
+     *
+     * \param order  The ordering of indices in the output table, i.e.,
+     *               mapping from the output table dimensions to this one.
+     * \param result The result table.
+     */
+    void reorder(const uint_vector& order, table& result) const {
+      assert(order.size() == arity());
+      result.reset(aggregate_shape(shape_, order));
+
+      // iterate linearly over the output and non-linearly over the input
+      const T* x = data();
+      unary_loop(shape_,
+                 result.data(), table_increment(shape_, result.offset(), order),
+                 [x] (T* r) mutable {
+                   *r = *x++;
+                 });
+    }
+
   private:
+    static uint_vector join_shape(std::size_t n,
+                                  const uint_vector& f_shape,
+                                  const uint_vector& g_shape,
+                                  const uint_vector& g_map) {
+      uint_vector shape(n, missing<std::size_t>::value);
+      std::copy(f_shape.begin(), f_shape.end(), shape.begin());
+      for (std::size_t i = 0; i < g_map.size(); ++i) {
+        std::size_t& size = shape[g_map[i]];
+        if (size == missing<std::size_t>::value) {
+          size = g_shape[i];
+        } else {
+          assert(size == g_shape[i]);
+        }
+      }
+      return shape;
+    }
+
+    static uint_vector aggregate_shape(const uint_vector& f_shape,
+                                       const uint_vector& retain) {
+      uint_vector shape(retain.size());
+      for (std::size_t i = 0; i < retain.size(); ++i) {
+        shape[i] = f_shape[retain[i]];
+      }
+      return shape;
+    }
+
+    uint_vector restrict_map(const uint_vector& dims) const {
+      uint_vector dim_map(arity(), 0);
+      for (std::size_t d : dims) {
+        dim_map[d] = missing<std::size_t>::value;
+      }
+      std::size_t i = 0;
+      for (std::size_t& d : dim_map) {
+        if (d == 0) { d = i++; }
+      }
+      assert(i == arity() - dims.size()); // check for duplicates
+      return dim_map;
+    }
+
+    uint_vector restrict_map(const uint_vector& dims,
+                             const uint_vector& r_map) const {
+      assert(arity() - dims.size() == r_map.size());
+      uint_vector dim_map(arity(), 0);
+      for (std::size_t d : dims) {
+        dim_map[d] = missing<std::size_t>::value;
+      }
+      std::size_t i = 0;
+      for (std::size_t& d : dim_map) {
+        if (d == 0) { d = r_map[i++]; }
+      }
+      assert(i == r_map.size()); // check for duplicates
+      return dim_map;
+    }
+
+    uint_vector restrict_shape(std::size_t n, const uint_vector& map) const {
+      uint_vector shape(n);
+      for (std::size_t i = 0; i < map.size(); ++i) {
+        if (map[i] != missing<std::size_t>::value) {
+          shape[map[i]] = shape_[i];
+        }
+      }
+      return shape;
+    }
+
     // Private members
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     //! The dimensions of this table.
     uint_vector shape_;
@@ -661,19 +1544,6 @@ namespace libgm {
     return std::inner_product(x.begin(), x.end(), y.begin(), T(0));
   }
 
-  /*
-      // ConditionalParameter functions
-      //====================================================================
-      param_type condition(const uint_vector& index) const {
-        assert(index.size() <= this->arity());
-        std::size_t n = this->arity() - index.size();
-        uint_vector shape(this->shape().begin(), this->shape().begin() + n);
-        param_type result(shape);
-        result.restrict(*this, this->offset().linear(index, n));
-        return result;
-      }
-  */
-
   // Table operations
   //==========================================================================
 
@@ -685,7 +1555,7 @@ namespace libgm {
    * class and the given table arity. The goal is to inline the loops if arity
    * is sufficiently small. Specifically, this function invokes the member
    * function template loop<D> with D=arity if arity is small; otherwise,
-   * it invokes the non-template loop() member.
+   * it throws an error.
    */
   template <typename TableOp>
   void invoke_loop_template(TableOp& table_op, std::size_t arity) {
@@ -701,7 +1571,7 @@ namespace libgm {
     case 8: table_op.loop(int_<8>()); break;
     case 9: table_op.loop(int_<9>()); break;
     case 10: table_op.loop(int_<10>()); break;
-    default: table_op.loop(); // reached the precompile limit
+    default: table_op.loop(); break;
     }
   }
 
@@ -713,13 +1583,19 @@ namespace libgm {
    * \tparam Op the transform operation that returns value convertible to T
    */
   template <typename T, typename Op>
-  class table_transform {
+  class table_transform_assign {
   public:
-    table_transform(table<T>& result, Op op)
+    table_transform_assign(table<T>& result, Op op)
       : result_(result), op_(op) { }
 
     template <typename... Ts>
     void operator()(const table<Ts>&... input) const {
+      constexpr std::size_t N = sizeof...(Ts);
+      if (homogeneous_tuple<const uint_vector&, N>(input.shape()...) !=
+          tuple_rep<N>(nth_value<0>(input...).shape())) {
+        throw std::invalid_argument("table_transform:: Incompatible shapes");
+      }
+
       std::tuple<const Ts*...> src(input.data()...);
       std::size_t size = nth_value<0>(input...).size();
       result_.reset(nth_value<0>(input...).shape());
@@ -736,17 +1612,17 @@ namespace libgm {
   };
 
   /**
-   * Performs a transform operation on one or more tables and combines the
-   * result of this operation elementwise with a result table.
+   * Performs a transform operation on one or more tables and updates the
+   * the result table with result of this operation elementwise.
    *
    * \tparam T the value type of the result table
    * \tparam TransOp the transform operation that returns value convertible to T
    * \tapram Combine the combination operation
    */
   template <typename T, typename TransOp, typename Combine>
-  class table_transform_combine {
+  class table_transform_update {
   public:
-    table_transform_combine(table<T>& result, TransOp op)
+    table_transform_update(table<T>& result, TransOp op)
       : result_(result), op_(op) { }
 
     template <typename... Ts>
@@ -783,6 +1659,7 @@ namespace libgm {
 
     template <typename... Ts>
     T operator()(const table<Ts>&... input) const {
+      // TODO: check compatibility
       std::tuple<const Ts*...> ptr(input.data()...);
       std::size_t size = nth_value<0>(input...).size();
       T r = init_;
@@ -856,7 +1733,7 @@ namespace libgm {
     void loop() {
       x_inc_.partial_sum();
       y_inc_.partial_sum();
-      uint_vector_iterator it(&shape_), end(shape_.size());
+      uint_vector_iterator it(shape_), end(shape_.size());
       while (it != end) {
         *r_++ = op_(*x_, *y_);
         ++it;
@@ -929,7 +1806,7 @@ namespace libgm {
     //! Performs the join operation for an arbitrary result (slow).
     void loop() {
       x_inc_.partial_sum();
-      uint_vector_iterator it(&shape_), end(shape_.size());
+      uint_vector_iterator it(shape_), end(shape_.size());
       while (it != end) {
         *r_ = op_(*r_, *x_);
         ++r_;
@@ -1009,7 +1886,7 @@ namespace libgm {
     void loop() {
       x_inc_.partial_sum();
       y_inc_.partial_sum();
-      uint_vector_iterator it(&shape_), end(shape_.size());
+      uint_vector_iterator it(shape_), end(shape_.size());
       while (it != end) {
         result_ = agg_op_(result_, join_op_(*x_, *y_));
         ++it;
@@ -1084,7 +1961,7 @@ namespace libgm {
     //! Performs the aggregate operation for an arbitrary input (slow).
     void loop() {
       r_inc_.partial_sum();
-      uint_vector_iterator it(&shape_), end(shape_.size());
+      uint_vector_iterator it(shape_), end(shape_.size());
       while (it != end) {
         *r_ = op_(*r_, *x_++);
         ++it;
@@ -1173,7 +2050,7 @@ namespace libgm {
       r_inc_.partial_sum();
       x_inc_.partial_sum();
       y_inc_.partial_sum();
-      uint_vector_iterator it(&shape_), end(shape_.size());
+      uint_vector_iterator it(shape_), end(shape_.size());
       while (it != end) {
         *r_ = agg_op_(*r_, join_op_(*x_, *y_));
         ++it;
@@ -1249,7 +2126,7 @@ namespace libgm {
     //! Performs the restrict operation for an arbitrary result (slow).
     void loop() {
       x_inc_.partial_sum();
-      uint_vector_iterator it(&shape_), end(shape_.size());
+      uint_vector_iterator it(shape_), end(shape_.size());
       while (it != end) {
         *r_++ = *x_;
         ++it;
@@ -1325,7 +2202,7 @@ namespace libgm {
     //! Performs the restrict-join operation for an arbitrary result (slow).
     void loop() {
       x_inc_.partial_sum();
-      uint_vector_iterator it(&shape_), end(shape_.size());
+      uint_vector_iterator it(shape_), end(shape_.size());
       while (it != end) {
         *r_ = join_op_(*r_, *x_);
         ++r_;

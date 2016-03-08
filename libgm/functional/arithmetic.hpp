@@ -66,6 +66,25 @@ namespace libgm {
   };
 
   /**
+   * A binary operator that computes the sum of the exponents and
+   * the corresponding offset.
+   */
+  template <typename T>
+  struct plus_exponent_offset {
+    T& offset;
+    plus_exponent_offset(T* offset) : offset(*offset) { }
+    T operator()(T x, T y) {
+      if (y > offset) {
+        T norm = std::exp(y - offset);
+        offset = y;
+        return x / norm + T(1);
+      } else {
+        return x + std::exp(y - offset);
+      }
+    }
+  };
+
+  /**
    * A binary operator that computes the log of the sum of the
    * exponents of two values.
    */

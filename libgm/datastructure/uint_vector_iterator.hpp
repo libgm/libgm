@@ -2,6 +2,7 @@
 #define LIBGM_UINT_VECTOR_ITERATOR_HPP
 
 #include <libgm/datastructure/uint_vector.hpp>
+#include <libgm/range/iterator_range.hpp>
 
 #include <iterator>
 #include <vector>
@@ -17,10 +18,9 @@ namespace libgm {
    * The number of sets (dimensions) may be zero, none of the cardinalities
    * may be zero. For an empty cross product set, use the default constructor.
    *
-   * For efficiency reasons, the iterator stores the set cardinalities by
-   * pointer, and the indices are returned by const-reference to a member.
-   * Since the iterator internally stores a vector of indices (which are
-   * allocated on the heap), it is not recommended to use the postfix
+   * For efficiency reasons, the indices are returned by const-reference to
+   * a member. Since the iterator internally stores a vector of indices (which
+   * are allocated on the heap), it is not recommended to use the postfix
    * increment operator for performance reasons.
    *
    * \ingroup datastructure
@@ -33,18 +33,16 @@ namespace libgm {
 
     //! End iterator constructor for the given number of dimensions
     explicit uint_vector_iterator(std::size_t n = 0)
-      : cardinality_(nullptr), index_(n, 0), digit_(n) { }
+      : index_(n, 0), digit_(n) { }
 
     //! Begin iterator constructor for the given cardinality vector.
-    explicit uint_vector_iterator(const uint_vector* card)
-      : cardinality_(card),
-        index_(card->size(), 0),
-        digit_(-1) { }
+    explicit uint_vector_iterator(const uint_vector& card)
+      : cardinality_(card), index_(card.size(), 0), digit_(-1) { }
 
     //! Prefix increment
     uint_vector_iterator& operator++() {
       for(digit_ = 0; digit_ < index_.size(); ++digit_) {
-        if (index_[digit_] == (*cardinality_)[digit_] - 1) {
+        if (index_[digit_] == cardinality_[digit_] - 1) {
           index_[digit_] = 0;
         } else {
           ++index_[digit_];
@@ -88,7 +86,7 @@ namespace libgm {
 
   private:
     //! The cardinalities of the underlying sets
-    const uint_vector* cardinality_;
+    uint_vector cardinality_;
 
     //! The current index
     uint_vector index_;
@@ -97,6 +95,16 @@ namespace libgm {
     std::size_t digit_;
 
   }; // class uint_vector_iterator
+
+
+  /**
+   * Returns the range of all indices for a table of the given shape.
+   */
+  inline iterator_range<uint_vector_iterator>
+  uint_vectors(const uint_vector& shape) {
+    return { uint_vector_iterator(shape),
+             uint_vector_iterator(shape.size()) };
+  }
 
 } // namespace libgm
 

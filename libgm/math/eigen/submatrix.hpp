@@ -1,8 +1,8 @@
 #ifndef LIBGM_SUBMATRIX_HPP
 #define LIBGM_SUBMATRIX_HPP
 
+#include <libgm/datastructure/uint_vector.hpp>
 #include <libgm/functional/assign.hpp>
-#include <libgm/range/integral.hpp>
 
 #include <type_traits>
 

@@ -1,13 +1,13 @@
 #ifndef LIBGM_MOMENT_GAUSSIAN_PARAM_HPP
 #define LIBGM_MOMENT_GAUSSIAN_PARAM_HPP
 
+#include <libgm/datastructure/uint_vector.hpp>
 #include <libgm/math/constants.hpp>
 #include <libgm/math/eigen/real.hpp>
 #include <libgm/math/eigen/logdet.hpp>
 #include <libgm/math/eigen/submatrix.hpp>
 #include <libgm/math/eigen/subvector.hpp>
 #include <libgm/math/numerical_error.hpp>
-#include <libgm/range/integral.hpp>
 #include <libgm/serialization/eigen.hpp>
 
 #include <algorithm>

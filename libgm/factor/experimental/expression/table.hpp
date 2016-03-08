@@ -1,8 +1,6 @@
 #ifndef LIBGM_TABLE_EXPRESSIONS_HPP
 #define LIBGM_TABLE_EXPRESSIONS_HPP
 
-#include <libgm/argument/domain.hpp>
-#include <libgm/argument/uint_assignment.hpp>
 #include <libgm/datastructure/table.hpp>
 #include <libgm/factor/traits.hpp>
 #include <libgm/functional/algorithm.hpp>
@@ -16,56 +14,201 @@
 #include <type_traits>
 #include <utility>
 
-// Shortcuts for common expressions (used inside table_base implementations)
+// Macros for common expressions (used inside table_base implementations)
 //==============================================================================
 
-#define LIBGM_TABLE_AGGREGATE(function, agg_op, init)            \
-  auto function(const domain<Arg>& retain) const& {              \
-    return derived().aggregate(retain, agg_op, init);            \
+#define LIBGM_TABLE_AGGREGATE(function, agg_op, init, domain)    \
+  auto function(domain retain) const& {                          \
+    return derived().aggregate(agg_op, init, retain);            \
   }                                                              \
                                                                  \
-  auto function(const domain<Arg>& retain) && {                  \
-    return std::move(derived()).aggregate(retain, agg_op, init); \
+  auto function(domain retain) && {                              \
+    return std::move(derived()).aggregate(agg_op, init, retain); \
+  }
+
+#define LIBGM_TABLE_ELIMINATE(function, agg_op, init)            \
+  auto function() const& {                                       \
+    return this->derived().eliminate(agg_op, init);              \
+  }                                                              \
+                                                                 \
+  auto function() && {                                           \
+    return std::move(this->derived()).eliminate(agg_op, init);   \
   }
 
 #define LIBGM_TABLE_RESTRICT()                                   \
-  auto restrict(const uint_assignment<Arg>& a) const& {          \
+  auto restrict(const uint_vector& dims,                         \
+                const uint_vector& values) const& {              \
     return table_restrict<space_type, identity, const Derived&>( \
-      derived(), a, identity());                                 \
+      identity(), derived(), dims, values);                      \
   }                                                              \
                                                                  \
-  auto restrict(const uint_assignment<Arg>& a) && {              \
+  auto restrict(const uint_vector& dims,                         \
+                const uint_vector& values) && {                  \
     return table_restrict<space_type, identity, Derived>(        \
-      std::move(derived()), a, identity());                      \
+      identity(), std::move(derived()), dims, values);           \
   }
 
-#define LIBGM_TABLE_CONDITIONAL(division_op)                     \
-  auto conditional(const domain<Arg>& tail) const& {             \
-    return make_table_conditional(derived(), tail, division_op); \
-  }                                                              \
-                                                                 \
-  auto conditional(const domain<Arg>& tail) && {                 \
-    return make_table_conditional(std::move(derived()), tail, division_op); \
+#define LIBGM_TABLE_RESTRICT_SEGMENT(segment)                           \
+  auto restrict_##segment(const uint_vector& values) const& {           \
+    return table_restrict_##segment<space_type, identity, const Derived&>( \
+      identity(), derived(), values);                                   \
+  }                                                                     \
+                                                                        \
+  auto restrict_##segment(const uint_vector& values) && {               \
+    return table_restrict_##segment<space_type, identity, Derived>(     \
+      identity(), std::move(derived()), values);                        \
+  }
+
+#define LIBGM_TABLE_SELECT(Domain, domain)      \
+  table_selector<space_type, Derived&>          \
+  wise(Domain domain) & {                       \
+    return { derived(), domain };               \
+  }                                             \
+                                                \
+  table_selector<space_type, const Derived&>    \
+  wise(Domain domain) const& {                  \
+    return { derived(), domain };               \
+  }                                             \
+                                                \
+  table_selector<space_type, Derived>           \
+  wise(Domain domain) && {                      \
+    return { std::move(derived()), domain };    \
   }
 
 /*
+#define LIBGM_TABLE_CONDITIONAL(division_op)                     \
+  auto conditional(const uint_vector& tail) const& {             \
+    return make_table_conditional(derived(), tail, division_op); \
+  }                                                              \
+                                                                 \
+  auto conditional(const uint_vector& tail) && {                 \
+    return make_table_conditional(std::move(derived()), tail, division_op); \
+  }
+
 #define LIBGM_TABLE_REORDER() \
-  auto reorder(const domain_type& args) const {  \
+  auto reorder(const uint_vector& order) const {  \
     return ...;                                  \
   }                                              \
                                                  \
-  auto reorder(const domain_type& args) && {     \
+  auto reorder(const uint_vector& order) && {     \
     return ...;                                  \
   }
 */
 
 namespace libgm { namespace experimental {
 
-  // The base class declaration
+  // Base classes
   //============================================================================
 
-  template <typename Space, typename Arg, typename RealType, typename Derived>
+  /**
+   * The base class of all table factor expressions.
+   * This class must be specialized for each specific factor class.
+   */
+  template <typename Space, typename RealType, typename Derived>
   class table_base;
+
+  /**
+   * The base class of all table factor selectors.
+   * This class must be specialized for each specific factor class and
+   * must subclass from table<Space, RealType, Derived>
+   */
+  template <typename Space, typename RealType, typename Derived>
+  class table_selector_base;
+
+  // Forward declarations
+  //============================================================================
+
+  template <typename Space, typename AggOp, typename F>
+  class table_eliminate;
+
+  template <typename Space, typename JoinOp, typename AggOp,
+            typename F, typename G>
+  class table_join_eliminate;
+
+  template <typename Space, typename JoinOp, typename AggOp, typename Domain,
+            typename F, typename G>
+  class table_join_aggregate;
+
+  // Selector
+  //============================================================================
+
+  /**
+   * The basic table selector that references an underlying table expression.
+   *
+   * This class supports the following derived expressions:
+   *  - eliminate -> table_eliminate
+   */
+  template <typename Space, typename F>
+  class table_selector
+    : public table_selector_base<Space, real_t<F>, table_selector<Space, F> > {
+  public:
+    // shortcuts
+    using real_type  = real_t<F>;
+    using param_type = table<real_type>;
+
+    table_selector(F&& f, const uint_vector& dims)
+      : f_(std::forward<F>(f)), ptr_(&dims) { }
+
+    table_selector(F&& f, std::size_t dim)
+      : f_(std::forward<F>(f)), ptr_(nullptr), vec_(1, dim) { }
+
+    std::size_t arity() const {
+      return f_.arity();
+    }
+
+    decltype(auto) param() const {
+      return f_.param();
+    }
+
+    LIBGM_ENABLE_IF(is_mutable<std::decay_t<F> >::value)
+    param_type& param() {
+      return f_.param();
+    }
+
+    // Derived expressions
+    //--------------------------------------------------------------------------
+
+    template <typename AggOp>
+    table_eliminate<Space, AggOp, cref_t<F> >
+    eliminate(AggOp agg_op, real_type init) const& {
+      return { agg_op, init, f_ };
+    }
+
+    template <typename AggOp>
+    table_eliminate<Space, AggOp, F>
+    eliminate(AggOp agg_op, real_type init) && {
+      return { agg_op, init, std::forward<F>(f_) };
+    }
+
+    // Evaluation
+    //--------------------------------------------------------------------------
+
+    bool alias(const param_type& param) const {
+      return f_.alias(param);
+    }
+
+    void eval_to(param_type& result) const {
+      f_.eval_to(result);
+    }
+
+    template <typename AggOp>
+    real_type accumulate(real_type init, AggOp agg_op) const {
+      return f_.accumulate(init, agg_op);
+    }
+
+    const uint_vector& dims() const {
+      return ptr_ ? *ptr_ : vec_;
+    }
+
+  private:
+    F f_;
+    const uint_vector* ptr_;
+    uint_vector vec_;
+  };
+
+  template <typename Space, typename F>
+  struct is_mutable<table_selector<Space, F> >
+    : is_mutable<std::decay_t<F> > { };
 
 
   // Transform expression
@@ -73,7 +216,7 @@ namespace libgm { namespace experimental {
 
   /**
    * A class that represents an element-wise transform of one or more tables.
-   * The tables must have the same arguments.
+   * The tables must have the same shapes.
    *
    * Examples of a transform:
    *   f * 2
@@ -94,34 +237,25 @@ namespace libgm { namespace experimental {
   class table_transform
     : public table_base<
         Space,
-        argument_t<nth_type_t<0, Expr...> >,
         real_t<nth_type_t<0, Expr...> >,
         table_transform<Space, Op, Expr...> > {
 
   public:
     // shortcuts
-    using argument_type = argument_t<nth_type_t<0, Expr...> >;
-    using domain_type   = domain_t<nth_type_t<0, Expr...> >;
-    using real_type     = real_t<nth_type_t<0, Expr...> >;
-    using param_type    = table<real_type>;
-
-    using base = table_base<Space, argument_type, real_type, table_transform>;
-    using base::param;
+    using real_type  = real_t<nth_type_t<0, Expr...> >;
+    using param_type = table<real_type>;
 
     static const std::size_t trans_arity = sizeof...(Expr);
 
-    //! Constructs a table_transform using the given operator and expressions.
     table_transform(Op op, std::tuple<Expr...>&& data)
       : op_(op), data_(std::move(data)) { }
 
-    const domain_type& arguments() const {
-      return std::get<0>(data_).arguments();
-    }
+    table_transform(Op op, Expr&&... expr)
+      : op_(op), data_(std::forward<Expr>(expr)...) { }
 
-    param_type param() const {
-      param_type tmp;
-      eval_to(tmp);
-      return tmp;
+
+    std::size_t arity() const {
+      return std::get<0>(data_).arity();
     }
 
     // Evaluation
@@ -131,7 +265,7 @@ namespace libgm { namespace experimental {
       return op_;
     }
 
-    std::tuple<add_const_reference_t<Expr>...> trans_data() const& {
+    std::tuple<cref_t<Expr>...> trans_data() const& {
       return data_;
     }
 
@@ -144,25 +278,14 @@ namespace libgm { namespace experimental {
     }
 
     void eval_to(param_type& result) const {
-      tuple_apply(libgm::table_transform<real_type, Op>(result, op_),
-                  tuple_transform(member_param(), data_));
+      table_transform_assign<real_type, Op> assign(result, op_);
+      tuple_apply(assign, tuple_transform(member_param(), data_));
     }
 
     template <typename JoinOp>
     void transform_inplace(JoinOp op, param_type& result) const {
-      table_transform_combine<real_type, Op, JoinOp> updater(result, op_);
+      table_transform_update<real_type, Op, JoinOp> updater(result, op_);
       tuple_apply(updater, tuple_transform(member_param(), data_));
-    }
-
-    template <typename JoinOp>
-    void join_inplace(JoinOp join_op,
-                      const domain_type& result_args,
-                      param_type& result) const {
-      if (result_args == arguments()) {
-        transform_inplace(join_op, result);
-      } else {
-        base::join_inplace(join_op, result_args, result);
-      }
     }
 
     template <typename AccuOp>
@@ -171,10 +294,8 @@ namespace libgm { namespace experimental {
       return tuple_apply(acc, tuple_transform(member_param(), data_));
     }
 
-    //! The operation applied to the tables.
+  private:
     Op op_;
-
-    //! The transformed factor expressions.
     std::tuple<Expr...> data_;
 
   }; // class table_transform
@@ -191,18 +312,18 @@ namespace libgm { namespace experimental {
   }
 
   /**
-   * Transforms two tables with identical Space, Arg, and RealType.
+   * Transforms two tables with identical Space and RealType.
    * The pointers serve as tags to allow us simultaneously dispatch
    * all possible combinations of lvalues and rvalues F and G.
    *
    * \relates table_transform
    */
-  template <typename BinaryOp, typename Space, typename Arg, typename RealType,
+  template <typename BinaryOp, typename Space, typename RealType,
             typename F, typename G>
   inline auto
   transform(BinaryOp binary_op, F&& f, G&& g,
-            table_base<Space, Arg, RealType, std::decay_t<F> >* /* f_tag */,
-            table_base<Space, Arg, RealType, std::decay_t<G> >* /* g_tag */) {
+            table_base<Space, RealType, std::decay_t<F> >* /* f_tag */,
+            table_base<Space, RealType, std::decay_t<G> >* /* g_tag */) {
     constexpr std::size_t m = std::decay_t<F>::trans_arity;
     constexpr std::size_t n = std::decay_t<G>::trans_arity;
     return make_table_transform<Space>(
@@ -213,438 +334,216 @@ namespace libgm { namespace experimental {
   }
 
 
-  // Join expression
+  // Join expressions
   //============================================================================
 
-  // Forward declaration
-  template <typename Space,
-            typename JoinOp, typename AggOp, typename TransOp,
-            typename F, typename G>
-  class table_join_aggregate;
-
   /**
-   * A class that represents a binary join of two tables.
+   * A selector that represents a join of a table selector f and a table g
+   * using a binary operator. The dimensions of g must precisely match the
+   * selected dimensions in f, and the result is a table whose dimensions
+   * correspond to dimensions of f. The selected dimensions are those of f.
    *
-   * Examples of a join:
-   *   f * g
-   *   f / g * 2
-   *
-   * \tparam Space
-   *         A tag denoting the space of the table, e.g., prob_tag or log_tag.
-   * \tparam JoinOp
-   *         A binary function object type accepting two real_type arguments
-   *         and returning real_type.
-   * \tparam F
-   *         The left (possibly const-reference qualified) expression type.
-   * \tparam G
-   *         The right (possibly const-reference qualified) expression type.
+   * This class supports the following derived expressions:
+   *  - transform -> table_left_join
+   *  - eliminate -> table_left_join_eliminate
+   *  - aggregate -> table_left_join_aggregate
    */
   template <typename Space, typename JoinOp, typename F, typename G>
-  class table_join
-    : public table_base<
+  class table_left_join
+    : public table_selector_base<
         Space,
-        argument_t<F>,
         real_t<F>,
-        table_join<Space, JoinOp, F, G> > {
-
-    static_assert(std::is_same<argument_t<F>, argument_t<G> >::value,
-                  "The joined expressions must have the same argument type");
+        table_left_join<Space, JoinOp, F, G> > {
     static_assert(std::is_same<real_t<F>, real_t<G> >::value,
                   "The joined expressions must have the same real type");
-
   public:
-    // Shortcuts
-    using argument_type = argument_t<F>;
-    using domain_type   = domain_t<F>;
-    using real_type     = real_t<F>;
-    using param_type    = table<real_type>;
+    // shortcuts
+    using real_type  = real_t<F>;
+    using param_type = table<real_type>;
 
-    using base = table_base<Space, argument_type, real_type, table_join>;
-    using base::param;
+    table_left_join(JoinOp join_op, F&& f, G&& g)
+      : join_op_(join_op), f_(std::forward<F>(f)), g_(std::forward<G>(g)) { }
 
-    //! Constructs a table_join using the given operator and subexpressions.
-    table_join(JoinOp join_op, F&& f, G&& g)
-      : join_op_(join_op), f_(std::forward<F>(f)), g_(std::forward<G>(g)) {
-      if (f_.arguments() == g_.arguments()) {
-        direct_ = true;
-      } else {
-        direct_ = false;
-        args_ = f_.arguments() + g_.arguments();
-      }
-    }
-
-    //! Constructs a table_join with the precomputed state.
-    table_join(JoinOp join_op, F&& f, G&& g, domain_type&& args, bool direct)
-      : join_op_(join_op),
-        f_(std::forward<F>(f)),
-        g_(std::forward<G>(g)),
-        args_(std::move(args)),
-        direct_(direct) { }
-
-    const domain_type& arguments() const {
-      return direct_ ? f_.arguments() : args_;
-    }
-
-    param_type param() const {
-      param_type tmp;
-      eval_to(tmp);
-      return tmp;
+    std::size_t arity() const {
+      return f_.arity();
     }
 
     // Derived expressions
     //--------------------------------------------------------------------------
 
-    //! Unary transform of a table_join reference.
     template <typename ResultSpace = Space, typename UnaryOp = void>
-    table_join<ResultSpace, compose_t<UnaryOp, JoinOp>,
-               add_const_reference_t<F>, add_const_reference_t<G> >
+    table_left_join<ResultSpace, compose_t<UnaryOp, JoinOp>, cref_t<F>, cref_t<G> >
     transform(UnaryOp unary_op) const& {
-      return { compose(unary_op, join_op_), f_, g_,
-               domain_type(args_), direct_ };
+      return { compose(unary_op, join_op_), f_, g_ };
     }
 
-    //! Unary transform of a table_join temporary.
     template <typename ResultSpace = Space, typename UnaryOp = void>
-    table_join<ResultSpace, compose_t<UnaryOp, JoinOp>, F, G>
+    table_left_join<ResultSpace, compose_t<UnaryOp, JoinOp>, F, G>
     transform(UnaryOp unary_op) && {
       return { compose(unary_op, join_op_),
-               std::forward<F>(f_), std::forward<G>(g_),
-               std::move(args_), direct_ };
-    }
-
-    //! Aggregate of a table_join reference, resulting in table_join_aggregate.
-    template <typename AggOp>
-    table_join_aggregate<Space, JoinOp, AggOp, identity,
-                         add_const_reference_t<F>, add_const_reference_t<G> >
-    aggregate(const domain_type& retain, AggOp agg_op, real_type init) const& {
-      return { retain, join_op_, agg_op, init, identity(), f_, g_ };
-    }
-
-    //! Aggregate of a table_join temporary, resulting in table_join_aggregate.
-    template <typename AggOp>
-    table_join_aggregate<Space, JoinOp, AggOp, identity, F, G>
-    aggregate(const domain_type& retain, AggOp agg_op, real_type init) && {
-      return { retain, join_op_, agg_op, init, identity(),
                std::forward<F>(f_), std::forward<G>(g_) };
+    }
+
+    template <typename AggOp>
+    table_join_eliminate<Space, JoinOp, AggOp, cref_t<F>, cref_t<G> >
+    eliminate(AggOp agg_op, real_type init) const& {
+      return { join_op_, agg_op, init, uint_vector(f_.dims()),
+               f_.arity() - g_.arity(), f_, g_ };
+    }
+
+    template <typename AggOp>
+    table_join_eliminate<Space, JoinOp, AggOp, F, G>
+    eliminate(AggOp agg_op, real_type init) && {
+      return { join_op_, agg_op, init, uint_vector(f_.dims()),
+               f_.arity() - g_.arity(), std::forward<F>(f_), std::forward<G>(g_) };
+    }
+
+    template <typename AggOp>
+    table_join_aggregate<Space, JoinOp, AggOp, std::size_t, cref_t<F>, cref_t<G> >
+    aggregate(AggOp agg_op, real_type init, std::size_t retain) const& {
+      return { join_op_, agg_op, init, uint_vector(f_.dims()),
+               retain, f_, g_ };
+    }
+
+    template <typename AggOp>
+    table_join_aggregate<Space, JoinOp, AggOp, std::size_t, F, G>
+    aggregate(AggOp agg_op, real_type init, std::size_t retain) && {
+      return { join_op_, agg_op, init, uint_vector(f_.dims()),
+               retain, std::forward<F>(f_), std::forward<G>(g_) };
+    }
+
+    template <typename AggOp>
+    table_join_aggregate<Space, JoinOp, AggOp, const uint_vector&, cref_t<F>, cref_t<G> >
+    aggregate(AggOp agg_op, real_type init, const uint_vector& retain) const& {
+      return { join_op_, agg_op, init, uint_vector(f_.dims()),
+               retain, f_, g_ };
+    }
+
+    template <typename AggOp>
+    table_join_aggregate<Space, JoinOp, AggOp, const uint_vector&, F, G>
+    aggregate(AggOp agg_op, real_type init, const uint_vector& retain) && {
+      return { join_op_, agg_op, init, uint_vector(f_.dims()),
+               retain, std::forward<F>(f_), std::forward<G>(g_) };
     }
 
     // Evaluation
     //--------------------------------------------------------------------------
 
     bool alias(const param_type& param) const {
-      return !direct_ && (f_.alias(param) || g_.alias(param));
+      return g_.alias(param);
     }
 
     void eval_to(param_type& result) const {
-      if (direct_) {
-        libgm::table_transform<real_type, JoinOp>(
-          result, join_op_)(f_.param(), g_.param());
-      } else {
-        uint_vector f_map = f_.arguments().index(args_);
-        uint_vector g_map = g_.arguments().index(args_);
-        result.reset(args_.num_values());
-        libgm::table_join<real_type, real_type, JoinOp>(
-          result, f_.param(), g_.param(), f_map, g_map, join_op_)();
-      }
+      join(join_op_, f_.param(), g_.param(), f_.dims(), result);
     }
 
     template <typename AggOp>
     real_type accumulate(real_type init, AggOp agg_op) const {
-      if (direct_) {
-        return table_transform_accumulate<real_type, JoinOp, AggOp>(
-          init, join_op_, agg_op)(f_.param(), g_.param());
-      } else {
-        uint_vector f_map = f_.arguments().index(args_);
-        uint_vector g_map = g_.arguments().index(args_);
-        return table_join_accumulate<real_type, real_type, JoinOp, AggOp>(
-          init, f_.param(), g_.param(), f_map, g_map, args_.num_values(),
-          join_op_, agg_op)();
-      }
+      return join_accumulate(join_op_, agg_op, init, f_.param(), g_.param(),
+                             f_.dims());
+    }
+
+    const uint_vector& dims() const {
+      return f_.dims();
     }
 
   private:
-    //! The join operator.
     JoinOp join_op_;
-
-    //! The left expression.
     F f_;
-
-    //! The right expression.
     G g_;
 
-    //! The arguments of the result unless performing a direct join.
-    domain_type args_;
+  }; // class table_left_join
 
-    //! True if doing a direct join (a transform).
-    bool direct_;
-
-  }; // class table_join
 
   /**
-   * Joins two tables with identical Space, Arg, and RealType.
-   * The pointers serve as tags to allow us to simultaneously dispatch
-   * all possible combinations of lvalues and rvalues F and G.
+   * A selector that represents a join of a table f and a table selector g
+   * using a binary operator. The dimensions of f must precisely match the
+   * selected dimensions in g, and the result is a table whose leading
+   * dimensions correspond to dimensions of f, and the trailing dimensions
+   * correspond to unselected dimensions of g. The selected dimensions are
+   * the leading f.arity() dimensions.
    *
-   * \relates table_join
+   * This expression supports the following derived expressions
+   *  - transform -> table_right_join
+   *  - aggregate -> table_right_join_aggregate
+   *  - eliminate -> table_right_join_eliminate
    */
-  template <typename BinaryOp, typename Space, typename Arg, typename RealType,
-            typename F, typename G>
-  inline table_join<Space, BinaryOp,
-                    remove_rvalue_reference_t<F>, remove_rvalue_reference_t<G> >
-  join(BinaryOp binary_op, F&& f, G&& g,
-       table_base<Space, Arg, RealType, std::decay_t<F> >* /* f_tag */,
-       table_base<Space, Arg, RealType, std::decay_t<G> >* /* g_tag */) {
-    return { binary_op, std::forward<F>(f), std::forward<G>(g) };
-  }
-
-  /**
-   * Constructs a special type of a table_join object that represents
-   * a conditional distribution.
-   *
-   * \relates table_join
-   */
-  template <typename JoinOp, typename F>
-  inline auto
-  make_table_conditional(F&& f, const domain_t<F>& tail, JoinOp join_op) {
-    auto&& feval = std::forward<F>(f).eval();
-    using feval_type = remove_rvalue_reference_t<decltype(feval)>;
-    return table_join<space_t<F>, JoinOp, feval_type, factor_t<F> >(
-      join_op, std::forward<feval_type>(feval), feval.marginal(tail).eval(),
-      feval.arguments() - tail + tail,
-      false /* not a direct join */
-    );
-  }
-
-  // Aggregate expression
-  //============================================================================
-
-  /**
-   * A class that represents an aggregate of a table, followed by an optional
-   * transform.
-   *
-   * Examples of an aggregate expression:
-   *   f.maximum(dom)
-   *   pow(f.marginal(dom), 2.0)
-   *
-   * \tparam Space
-   *         A tag denoting the space of the table, e.g., prob_tag or log_tag.
-   * \tparam AggOp
-   *         A binary function object type accepting two real_type arguments
-   *         and returning real_type.
-   * \tparam TransOp
-   *         A unary function object type accepting real_type and returning
-   *         real_type.
-   * \tparam F
-   *         The (possibly const-reference qualified) aggregated expression.
-   */
-  template <typename Space, typename AggOp, typename TransOp, typename F>
-  class table_aggregate
-    : public table_base<
+  template <typename Space, typename JoinOp, typename F, typename G>
+  class table_right_join
+    : public table_selector_base<
         Space,
-        argument_t<F>,
         real_t<F>,
-        table_aggregate<Space, AggOp, TransOp, F> > {
-
-  public:
-    // Shortcuts
-    using argument_type = argument_t<F>;
-    using domain_type   = domain_t<F>;
-    using real_type     = real_t<F>;
-    using param_type    = table<real_type>;
-
-    using base = table_base<Space, argument_type, real_type, table_aggregate>;
-    using base::param;
-
-    //! Constructs a table_aggregate using the given operators and expression.
-    table_aggregate(const domain_type& retain,
-                    AggOp agg_op,
-                    real_type init,
-                    TransOp trans_op,
-                    F&& f)
-      : retain_(retain),
-        agg_op_(agg_op),
-        init_(init),
-        trans_op_(trans_op),
-        f_(std::forward<F>(f)) { }
-
-    const domain_type& arguments() const {
-      return retain_;
-    }
-
-    param_type param() const {
-      param_type tmp;
-      eval_to(tmp);
-      return tmp;
-    }
-
-    // Derived expressions
-    //--------------------------------------------------------------------------
-
-    //! Unary transform of a table_aggregate reference.
-    template <typename ResultSpace = Space, typename UnaryOp = void>
-    table_aggregate<ResultSpace, AggOp, compose_t<UnaryOp, TransOp>,
-                    add_const_reference_t<F> >
-    transform(UnaryOp unary_op) const& {
-      return { retain_, agg_op_, init_, compose(unary_op, trans_op_), f_ };
-    }
-
-    //! Unary transform of a table_aggregate temporary.
-    template <typename ResultSpace = Space, typename UnaryOp = void>
-    table_aggregate<ResultSpace, AggOp, compose_t<UnaryOp, TransOp>, F>
-    transform(UnaryOp unary_op) && {
-      return { retain_, agg_op_, init_, compose(unary_op, trans_op_),
-               std::forward<F>(f_) };
-    }
-
-    // Evaluation
-    //--------------------------------------------------------------------------
-
-    bool alias(const param_type& param) const {
-      return f_.alias(param);
-    }
-
-    void eval_to(param_type& result) const {
-      result.reset(retain_.num_values());
-      result.fill(init_);
-      uint_vector map = retain_.index(f_.arguments());
-      libgm::table_aggregate<real_type, real_type, AggOp>(
-        result, f_.param(), map, agg_op_)();
-      result.transform(trans_op_);
-    }
-
-  private:
-    //! The retained arguments; these are the arguments of the result.
-    const domain_type& retain_;
-
-    //! The aggregation operation.
-    AggOp agg_op_;
-
-    //! The initial value in the aggregate.
-    real_type init_;
-
-    //! The transform operator applied at the end.
-    TransOp trans_op_;
-
-    //! The expression to be aggregated.
-    F f_;
-
-  }; // class table_aggregate
-
-  /**
-   * Creates a special type of aggregate that represents a numerically stable
-   * log-sum-exp. This is performed by evaluating the table before performing
-   * the aggregate.
-   */
-  template <typename F>
-  inline auto make_table_log_sum_exp(F&& f, const domain_t<F>& retain) {
-    auto&& joint = std::forward<F>(f).eval();
-    using joint_type = remove_rvalue_reference_t<decltype(joint)>;
-    using real_type = real_t<F>;
-    real_type offset = joint.maximum().lv;
-    return table_aggregate<
-      space_t<F>, plus_exponent<real_type>, increment_logarithm<real_type>,
-      joint_type
-    >(retain, -offset, real_type(0), +offset, std::forward<joint_type>(joint));
-  }
-
-
-  // Join-aggregate expression
-  //============================================================================
-
-  /**
-   * A class that represents an aggregate of a join of two tables, followed by
-   * an optional transform.
-   *
-   * Examples of a join-aggregate expression:
-   *   (f * g).maximum(dom)
-   *   (f / g).marginal(dom) * 2
-   *
-   * \tparam Space
-   *         A tag denoting the space of the table, e.g., prob_tag or log_tag.
-   * \tparam JoinOp
-   *         A binary function object type accepting two real_type arguments
-   *         and returning real_type.
-   * \tparam AggOp
-   *         A binary function object type accepting two real_type arguments
-   *         and returning real_type.
-   * \tparam TransOp
-   *         A unary function object accepting real_type and returning
-   *         real_type.
-   * \tparam F
-   *         The left (possibly const-reference qualified) expression type.
-   * \tparam G
-   *         The right (possibly const-reference qualified) expression type.
-   */
-  template <typename Space, typename JoinOp, typename AggOp, typename TransOp,
-            typename F, typename G>
-  class table_join_aggregate
-    : public table_base<
-        Space,
-        argument_t<F>,
-        real_t<F>,
-        table_join_aggregate<Space, JoinOp, AggOp, TransOp, F, G> > {
-
-    static_assert(std::is_same<argument_t<F>, argument_t<G> >::value,
-                  "The joined expressions must have the same argument type");
+        table_right_join<Space, JoinOp, F, G> > {
     static_assert(std::is_same<real_t<F>, real_t<G> >::value,
                   "The joined expressions must have the same real type");
-
   public:
-    // Shortcuts
-    using argument_type = argument_t<F>;
-    using domain_type   = domain_t<F>;
-    using real_type     = real_t<F>;
-    using param_type    = table<real_type>;
+    // shortcuts
+    using real_type  = real_t<F>;
+    using param_type = table<real_type>;
 
-    using base =
-      table_base<Space, argument_type, real_type, table_join_aggregate>;
-    using base::param;
+    table_right_join(JoinOp join_op, F&& f, G&& g)
+      : join_op_(join_op), f_(std::forward<F>(f)), g_(std::forward<G>(g)) { }
 
-    //! Constructs a join-aggregate using the given operators and expression.
-    table_join_aggregate(const domain_type& retain,
-                         JoinOp join_op,
-                         AggOp agg_op,
-                         real_type init,
-                         TransOp trans_op,
-                         F&& f,
-                         G&& g)
-      : retain_(retain),
-        join_op_(join_op),
-        agg_op_(agg_op),
-        init_(init),
-        trans_op_(trans_op),
-        f_(std::forward<F>(f)),
-        g_(std::forward<G>(g)) { }
-
-    const domain_type& arguments() const {
-      return retain_;
-    }
-
-    param_type param() const {
-      param_type tmp;
-      eval_to(tmp);
-      return tmp;
+    std::size_t arity() const {
+      return g_.arity();
     }
 
     // Derived expressions
     //--------------------------------------------------------------------------
 
-    //! Unary transform of a join-aggregate reference.
     template <typename ResultSpace = Space, typename UnaryOp = void>
-    table_join_aggregate<ResultSpace, JoinOp, AggOp, compose_t<UnaryOp, TransOp>,
-                         add_const_reference_t<F>, add_const_reference_t<G> >
+    table_right_join<ResultSpace, compose_t<UnaryOp, JoinOp>, cref_t<F>, cref_t<G> >
     transform(UnaryOp unary_op) const& {
-      return { retain_, join_op_, agg_op_, init_, compose(unary_op, trans_op_),
-               f_, g_ };
+      return { compose(unary_op, join_op_), f_, g_ };
     }
 
-    //! Unary transform of a join-aggregate temporary.
     template <typename ResultSpace = Space, typename UnaryOp = void>
-    table_join_aggregate<ResultSpace, JoinOp, AggOp, compose_t<UnaryOp, TransOp>,
-                         F, G>
+    table_right_join<ResultSpace, compose_t<UnaryOp, JoinOp>, F, G>
     transform(UnaryOp unary_op) && {
-      return { retain_, join_op_, agg_op_, init_, compose(unary_op, trans_op_),
+      return { compose(unary_op, join_op_),
                std::forward<F>(f_), std::forward<G>(g_) };
+    }
+
+    template <typename AggOp>
+    table_join_eliminate<Space, JoinOp, AggOp, cref_t<F>, cref_t<G> >
+    eliminate(AggOp agg_op, real_type init) const& {
+      return { join_op_, agg_op, init, remap_right(g_.arity(), g_.dims()),
+               g_.arity() - f_.arity(), f_, g_ };
+    }
+
+    template <typename AggOp>
+    table_join_eliminate<Space, JoinOp, AggOp, F, G>
+    eliminate(AggOp agg_op, real_type init) && {
+      return { join_op_, agg_op, init, remap_right(g_.arity(), g_.dims()),
+               g_.arity() - f_.arity(), std::forward<F>(f_), std::forward<G>(g_) };
+    }
+
+    template <typename AggOp>
+    table_join_aggregate<Space, JoinOp, AggOp, std::size_t, cref_t<F>, cref_t<G> >
+    aggregate(AggOp agg_op, real_type init, std::size_t retain) const& {
+      return { join_op_, agg_op, init, remap_right(g_.arity(), g_.dims()),
+               retain, f_, g_ };
+    }
+
+    template <typename AggOp>
+    table_join_aggregate<Space, JoinOp, AggOp, std::size_t, F, G>
+    aggregate(AggOp agg_op, real_type init, std::size_t retain) && {
+      return { join_op_, agg_op, init, remap_right(g_.arity(), g_.dims()),
+               retain, std::forward<F>(f_), std::forward<G>(g_) };
+    }
+
+    template <typename AggOp>
+    table_join_aggregate<Space, JoinOp, AggOp, const uint_vector&, cref_t<F>, cref_t<G> >
+    aggregate(AggOp agg_op, real_type init, const uint_vector& retain) const& {
+      return { join_op_, agg_op, init, remap_right(g_.arity(), g_.dims()),
+               retain, f_, g_ };
+    }
+
+    template <typename AggOp>
+    table_join_aggregate<Space, JoinOp, AggOp, const uint_vector&, F, G>
+    aggregate(AggOp agg_op, real_type init, const uint_vector& retain) && {
+      return { join_op_, agg_op, init, remap_right(g_.arity(), g_.dims()),
+               retain, std::forward<F>(f_), std::forward<G>(g_) };
     }
 
     // Evaluation
@@ -655,128 +554,436 @@ namespace libgm { namespace experimental {
     }
 
     void eval_to(param_type& result) const {
-      domain_type h_args = f_.arguments() + g_.arguments();
-      result.reset(retain_.num_values());
-      result.fill(init_);
-      uint_vector f_map = f_.arguments().index(h_args);
-      uint_vector g_map = g_.arguments().index(h_args);
-      uint_vector r_map = retain_.index(h_args);
-      libgm::table_join_aggregate<real_type, JoinOp, AggOp>(
-        result, f_.param(), g_.param(), r_map, f_map, g_map,
-        h_args.num_values(),
-        join_op_, agg_op_)();
-      result.transform(trans_op_);
+      uint_vector dims = remap_right(g_.arity(), g_.dims());
+      join(join_op_, f_.param(), g_.param(), dims, result);
+    }
+
+    const uint_vector& dims() const {
+      if (dims_.empty()) { dims_ = range(0, f_.arity()); }
+      return dims_;
     }
 
   private:
-    //! The retained arguments; these are the arguments of the result.
-    const domain_type& retain_;
-
-    //! The join operator.
     JoinOp join_op_;
-
-    //! The aggregation operation.
-    AggOp agg_op_;
-
-    //! The initial value in the aggregate.
-    real_type init_;
-
-    //! The transform operator applied at the end.
-    TransOp trans_op_;
-
-    //! The left expression.
     F f_;
-
-    //! The right expression.
     G g_;
+    mutable uint_vector dims_;
 
-  }; // class table_join_aggregate
+  }; // table_right_join
 
-
-  // Restrict expression
-  //============================================================================
 
   /**
-   * A class that represents a restriction of a table to an assignment,
-   * followed by an optional transform.
+   * A join of two table selectors.
+   * This results in a table whose leading dimensions correspond to dimensions
+   * of f and the trailing dimensions correspond to unselected dimensions of g.
+   * The selected dimensions are those of f.
    *
-   * Examples of a restrict expression:
-   *   f.restrict(a)
-   *   f.restrict(a) * 2
-   *
-   * \tparam Space
-   *         A tag denoting the space of the table, e.g., prob_tag or log_tag.
-   * \tparam TransOp
-   *         A unary function object accepting real_type and returning
-   *         real_type.
-   * \tparam F
-   *         Restricted (possibly const-reference qualified) expression type.
+   * This expression supports the following derived expressions
+   *  - transform -> table_outer_join
+   *  - eliminate -> table_outer_join_eliminate
+   *  - aggregate -> table_outer_join_aggregate
    */
-  template <typename Space, typename TransOp, typename F>
-  class table_restrict
-    : public table_base<
+  template <typename Space, typename JoinOp, typename F, typename G>
+  class table_outer_join
+    : public table_selector_base<
         Space,
-        argument_t<F>,
         real_t<F>,
-        table_restrict<Space, TransOp, F> > {
-
+        table_outer_join<Space, JoinOp, F, G> > {
+    static_assert(std::is_same<real_t<F>, real_t<G> >::value,
+                  "The joined expressions must have the same real type");
   public:
     // Shortcuts
-    using argument_type   = argument_t<F>;
-    using domain_type     = domain_t<F>;
-    using real_type       = real_t<F>;
-    using assignment_type = assignment_t<F>;
-    using param_type      = table<real_type>;
+    using real_type  = real_t<F>;
+    using param_type = table<real_type>;
 
-    using base = table_base<Space, argument_type, real_type, table_restrict>;
-    using base::param;
+    table_outer_join(JoinOp join_op, F&& f, G&& g)
+      : join_op_(join_op), f_(std::forward<F>(f)), g_(std::forward<G>(g)) { }
 
-    //! Constructs a table_restrict using the given expression and assignment.
-    table_restrict(F&& f, const assignment_type& a, TransOp trans_op)
-      : f_(std::forward<F>(f)), a_(a), trans_op_(trans_op) {
-      for (argument_type arg : f_.arguments()) {
-        if (!a.count(arg)) { args_.push_back(arg); }
-      }
-      start_ = a.linear_index(f.arguments(), false /* not strict */);
-    }
-
-    //! Constructs a table_restrict with the precomputed state.
-    table_restrict(std::add_rvalue_reference_t<F> f,
-                   const assignment_type& a,
-                   TransOp trans_op,
-                   domain_type&& args,
-                   std::size_t start)
-      : f_(std::forward<F>(f)), a_(a), trans_op_(trans_op),
-        args_(std::move(args)), start_(start) { }
-
-    const domain_type& arguments() const {
-      return args_;
-    }
-
-    param_type param() const {
-      param_type tmp;
-      eval_to(tmp);
-      return tmp;
+    std::size_t arity() const {
+      return f_.arity() + g_.arity() - f_.dims().size();
     }
 
     // Derived expressions
     //--------------------------------------------------------------------------
 
-    //! Unary transform of a table_restrict reference.
     template <typename ResultSpace = Space, typename UnaryOp = void>
-    table_restrict<ResultSpace, compose_t<UnaryOp, TransOp>,
-                   add_const_reference_t<F> >
+    table_outer_join<ResultSpace, compose_t<UnaryOp, JoinOp>, cref_t<F>, cref_t<G> >
     transform(UnaryOp unary_op) const& {
-      return { f_, a_, compose(unary_op, trans_op_),
-               domain_type(args_), start_ };
+      return { compose(unary_op, join_op_), f_, g_ };
     }
 
-    //! Unary transform of a table_restrict temporary.
     template <typename ResultSpace = Space, typename UnaryOp = void>
-    table_restrict<ResultSpace, compose_t<UnaryOp, TransOp>, F>
+    table_outer_join<ResultSpace, compose_t<UnaryOp, JoinOp>, F, G>
     transform(UnaryOp unary_op) && {
-      return { std::forward<F>(f_), a_, compose(unary_op, trans_op_),
-               std::move(args_), start_ };
+      return { compose(unary_op, join_op_),
+               std::forward<F>(f_), std::forward<G>(g_) };
+    }
+
+    template <typename AggOp>
+    table_join_eliminate<Space, JoinOp, AggOp, cref_t<F>, cref_t<G> >
+    eliminate(AggOp agg_op, real_type init) const& {
+      return { join_op_, agg_op, init,
+               remap_right(f_.arity(), f_.dims(), g_.arity(), g_.dims()),
+               arity() - f_.dims().size(), f_, g_ };
+    }
+
+    template <typename AggOp>
+    table_join_eliminate<Space, JoinOp, AggOp, F, G>
+    eliminate(AggOp agg_op, real_type init) && {
+      return { join_op_, agg_op, init,
+               remap_right(f_.arity(), f_.dims(), g_.arity(), g_.dims()),
+               arity() - f_.dims().size(), std::forward<F>(f_), std::forward<G>(g_) };
+    }
+
+    template <typename AggOp>
+    table_join_aggregate<Space, JoinOp, AggOp, std::size_t, cref_t<F>, cref_t<G> >
+    aggregate(AggOp agg_op, real_type init, std::size_t retain) const& {
+      return { join_op_, agg_op, init,
+               remap_right(f_.arity(), f_.dims(), g_.arity(), g_.dims()),
+               retain, f_, g_ };
+    }
+
+    template <typename AggOp>
+    table_join_aggregate<Space, JoinOp, AggOp, std::size_t, F, G>
+    aggregate(AggOp agg_op, real_type init, std::size_t retain) && {
+      return { join_op_, agg_op, init,
+               remap_right(f_.arity(), f_.dims(), g_.arity(), g_.dims()),
+               retain, std::forward<F>(f_), std::forward<G>(g_) };
+    }
+
+    template <typename AggOp>
+    table_join_aggregate<Space, JoinOp, AggOp, const uint_vector&, cref_t<F>, cref_t<G> >
+    aggregate(AggOp agg_op, real_type init, const uint_vector& retain) const& {
+      return { join_op_, agg_op, init,
+               remap_right(f_.arity(), f_.dims(), g_.arity(), g_.dims()),
+               retain, f_, g_ };
+    }
+
+    template <typename AggOp>
+    table_join_aggregate<Space, JoinOp, AggOp, const uint_vector&, F, G>
+    aggregate(AggOp agg_op, real_type init, const uint_vector& retain) && {
+      return { join_op_, agg_op, init,
+               remap_right(f_.arity(), f_.dims(), g_.arity(), g_.dims()),
+               retain, std::forward<F>(f_), std::forward<G>(g_) };
+    }
+
+    // Evaluation
+    //--------------------------------------------------------------------------
+
+    bool alias(const param_type& param) const {
+      return f_.alias(param) || g_.alias(param);
+    }
+
+    void eval_to(param_type& result) const {
+      uint_vector dims = remap_right(f_.arity(), f_.dims(),
+                                     g_.arity(), g_.dims());
+      join(join_op_, f_.param(), g_.param(), dims, result);
+    }
+
+    template <typename AggOp>
+    real_type accumulate(real_type init, AggOp agg_op) const {
+      uint_vector dims = remap_right(f_.arity(), f_.dims(),
+                                     g_.arity(), g_.dims());
+      return join_accumulate(join_op_, agg_op, init, f_.param(), g_.param(),
+                             dims);
+    }
+
+    const uint_vector& dims() const {
+      return f_.dims();
+    }
+
+  private:
+    JoinOp join_op_;
+    F f_;
+    G g_;
+  }; // class table_outer_join
+
+  /**
+   * Joins two tables with identical Space, RealType, and shapes.
+   * \relates table_transform
+   */
+  template <typename BinaryOp, typename Space, typename RealType,
+            typename F, typename G>
+  inline table_transform<Space, BinaryOp, remove_rref_t<F>, remove_rref_t<G> >
+  join(BinaryOp binary_op, F&& f, G&& g,
+       table_base<Space, RealType, std::decay_t<F> >* /* f_tag */,
+       table_base<Space, RealType, std::decay_t<G> >* /* g_tag */) {
+    return { binary_op, std::forward<F>(f), std::forward<G>(g) };
+  }
+
+  /**
+   * Joins a selector and a table with identical Space and RealType.
+   * \relates table_left_join
+   */
+  template <typename BinaryOp, typename Space, typename RealType,
+            typename F, typename G>
+  inline table_left_join<Space, BinaryOp, remove_rref_t<F>, remove_rref_t<G> >
+  join(BinaryOp binary_op, F&& f, G&& g,
+       table_selector_base<Space, RealType, std::decay_t<F> >* /* f_tag */,
+       table_base<Space, RealType, std::decay_t<G> >*          /* g_tag */) {
+    return { binary_op, std::forward<F>(f), std::forward<G>(g) };
+  }
+
+  /**
+   * Joins a table and a selector with identical Space and RealType.
+   * \relates table_right_join
+   */
+  template <typename BinaryOp, typename Space, typename RealType,
+            typename F, typename G>
+  inline table_right_join<Space, BinaryOp, remove_rref_t<F>, remove_rref_t<G> >
+  join(BinaryOp binary_op, F&& f, G&& g,
+       table_base<Space, RealType, std::decay_t<F> >*          /* f_tag */,
+       table_selector_base<Space, RealType, std::decay_t<G> >* /* g_tag */) {
+    return { binary_op, std::forward<F>(f), std::forward<G>(g) };
+  }
+
+  /**
+   * Joins two table selectors with identical Space and RealType.
+   * \relates table_outer_join
+   */
+  template <typename BinaryOp, typename Space, typename RealType,
+            typename F, typename G>
+  inline table_outer_join<Space, BinaryOp, remove_rref_t<F>, remove_rref_t<G> >
+  join(BinaryOp binary_op, F&& f, G&& g,
+       table_selector_base<Space, RealType, std::decay_t<F> >* /* f_tag */,
+       table_selector_base<Space, RealType, std::decay_t<G> >* /* g_tag */) {
+    return { binary_op, std::forward<F>(f), std::forward<G>(g) };
+  }
+
+
+  // Aggregate expressions
+  //============================================================================
+
+  /**
+   * An expression that represents an elimination of a set of dimensions from
+   * a table selector using a binary aggregate operation.
+   */
+  template <typename Space, typename AggOp, typename F>
+  class table_eliminate
+    : public table_base<
+        Space,
+        real_t<F>,
+        table_eliminate<Space, AggOp, F> > {
+  public:
+    // Shortcuts
+    using real_type  = real_t<F>;
+    using param_type = table<real_type>;
+
+    table_eliminate(AggOp agg_op, real_type init, F&& f)
+      : agg_op_(agg_op), init_(init), f_(std::forward<F>(f)) { }
+
+    std::size_t arity() const {
+      return f_.arity() - f_.dims().size();
+    }
+
+    bool alias(const param_type& param) const {
+      return f_.alias(param);
+    }
+
+    void eval_to(param_type& result) const {
+      f_.param().eliminate(agg_op_, init_, f_.dims(), result);
+    }
+
+  private:
+    AggOp agg_op_;
+    real_type init_;
+    F f_;
+  }; // class table_eliminate
+
+
+  /**
+   * An expression that represents an aggregation over a set of dimensions from
+   * a table using a binary aggregate operation.
+   *
+   * \tparam Domain
+   *         A domain type accepted by the table's aggregate function.
+   *         In practice, this is either std::size_t or const uint_vector&.
+   */
+  template <typename Space, typename AggOp, typename Domain, typename F>
+  class table_aggregate
+    : public table_base<
+        Space,
+        real_t<F>,
+        table_aggregate<Space, AggOp, Domain, F> > {
+
+  public:
+    // Shortcuts
+    using real_type  = real_t<F>;
+    using param_type = table<real_type>;
+
+    table_aggregate(AggOp agg_op, real_type init, Domain retain, F&& f)
+      : agg_op_(agg_op), init_(init), retain_(retain), f_(std::forward<F>(f)) {}
+
+    std::size_t arity() const {
+      return length(retain_); // defined in uint_vector.hpp
+    }
+
+    bool alias(const param_type& param) const {
+      return f_.alias(param);
+    }
+
+    void eval_to(param_type& result) const {
+      f_.param().aggregate(agg_op_, init_, retain_, result);
+    }
+
+  private:
+    AggOp agg_op_;
+    real_type init_;
+    Domain retain_;
+    F f_;
+
+  }; // class table_aggregate
+
+
+  // Join-aggregate expressions
+  //============================================================================
+
+  /**
+   * A class that represents a join of two table expressions using a binary
+   * operator, followed by eliminating the selected dimensions.
+   */
+  template <typename Space, typename JoinOp, typename AggOp,
+            typename F, typename G>
+  class table_join_eliminate
+    : public table_base<
+        Space,
+        real_t<F>,
+        table_join_eliminate<Space, JoinOp, AggOp, F, G> > {
+    static_assert(std::is_same<real_t<F>, real_t<G> >::value,
+                  "The joined expressions must have the same real type");
+  public:
+    using real_type  = real_t<F>;
+    using param_type = table<real_type>;
+
+    table_join_eliminate(JoinOp join_op, AggOp agg_op, real_type init,
+                         uint_vector&& dims, std::size_t arity, F&& f, G&& g)
+      : join_op_(join_op), agg_op_(agg_op), init_(init), dims_(std::move(dims)),
+        arity_(arity), f_(std::forward<F>(f)), g_(std::forward<G>(g)) { }
+
+    std::size_t arity() const {
+      return arity_;
+    }
+
+    // Evaluation
+    //--------------------------------------------------------------------------
+
+    bool alias(const param_type& param) const {
+      return f_.alias(param) || g_.alias(param);
+    }
+
+    void eval_to(param_type& result) const {
+      /*
+      return join_eliminate(join_op_, agg_op, init_, f_.param(), g_.param(),
+                            dims, result);
+      */
+    }
+
+  private:
+    JoinOp join_op_;
+    AggOp agg_op_;
+    real_type init_;
+    uint_vector dims_;
+    std::size_t arity_;
+    F f_;
+    G g_;
+
+  }; // class table_join_eliminate
+
+
+  /**
+   * A class that represents a join of two table expressions using a binary
+   * operator, followed by an aggregate over the specified retained dimensions.
+   */
+  template <typename Space, typename JoinOp, typename AggOp, typename Domain,
+            typename F, typename G>
+  class table_join_aggregate
+    : public table_base<
+        Space,
+        real_t<F>,
+        table_join_aggregate<Space, JoinOp, AggOp, Domain, F, G> > {
+    static_assert(std::is_same<real_t<F>, real_t<G> >::value,
+                  "The joined expressions must have the same real type");
+  public:
+    using real_type  = real_t<F>;
+    using param_type = table<real_type>;
+
+    table_join_aggregate(JoinOp join_op, AggOp agg_op, real_type init,
+                         uint_vector&& dims, Domain retain, F&& f, G&& g)
+      : join_op_(join_op), agg_op_(agg_op), init_(init), dims_(std::move(dims)),
+        retain_(retain), f_(std::forward<F>(f)), g_(std::forward<G>(g)) { }
+
+    std::size_t arity() const {
+      return length(retain_); // defined in uint_vector.hpp
+    }
+
+    // Evaluation
+    //--------------------------------------------------------------------------
+
+    bool alias(const param_type& param) const {
+      return f_.alias(param) || g_.alias(param);
+    }
+
+    void eval_to(param_type& result) const {
+      return join_aggregate(join_op_, agg_op_, init_, f_.param(), g_.param(),
+                            dims_, retain_, result);
+    }
+
+  private:
+    JoinOp join_op_;
+    AggOp agg_op_;
+    real_type init_;
+    uint_vector dims_;
+    Domain retain_;
+    F f_;
+    G g_;
+
+  }; // class table_join_aggregate
+
+
+  // Restrict expressions
+  //============================================================================
+
+  /**
+   * A class that represents an assignment of a table to the leading dimensions
+   * (head), followed by an optional transform.
+   *
+   * This class supports the following derived expressions:
+   *  - transform -> table_restrict_head
+   */
+  template <typename Space, typename TransOp, typename F>
+  class table_restrict_head
+    : public table_base<
+        Space,
+        real_t<F>,
+        table_restrict_head<Space, TransOp, F> > {
+
+  public:
+    // Shortcuts
+    using real_type  = real_t<F>;
+    using param_type = table<real_type>;
+
+    table_restrict_head(TransOp trans_op, F&& f, const uint_vector& values)
+      : trans_op_(trans_op), f_(std::forward<F>(f)), values_(values) {
+      assert(values_.size() <= f_.arity());
+    }
+
+    std::size_t arity() const {
+      return f_.arity() - values_.size();
+    }
+
+    // Derived expressions
+    //--------------------------------------------------------------------------
+
+    template <typename ResultSpace = Space, typename UnaryOp = void>
+    table_restrict_head<ResultSpace, compose_t<UnaryOp, TransOp>, cref_t<F> >
+    transform(UnaryOp unary_op) const& {
+      return { compose(unary_op, trans_op_), f_, values_ };
+    }
+
+    template <typename ResultSpace = Space, typename UnaryOp = void>
+    table_restrict_head<ResultSpace, compose_t<UnaryOp, TransOp>, F>
+    transform(UnaryOp unary_op) && {
+      return { compose(unary_op, trans_op_), std::forward<F>(f_), values_ };
     }
 
     // Evaluation
@@ -787,55 +994,201 @@ namespace libgm { namespace experimental {
     }
 
     void eval_to(param_type& result) const {
-      result.reset(args_.num_values());
-      if (f_.arguments().prefix(args_)) {
-        result.restrict(f_.param(), start_);
-      } else {
-        uint_vector map = f_.arguments().index(args_, false /* not strict */);
-        libgm::table_restrict<real_type>(result, f_.param(), map, start_)();
-      }
+      f_.param().restrict_head(values_, result);
       result.transform(trans_op_);
     }
 
     template <typename JoinOp>
+    void transform_inplace(JoinOp op, param_type& result) const {
+      f_.param().
+        restrict_head_update(values_, compose_right(op, trans_op_), result);
+    }
+
+    template <typename JoinOp>
     void join_inplace(JoinOp join_op,
-                      const domain_type& result_args,
+                      const uint_vector& result_dims,
                       param_type& result) const {
-      uint_vector map = f_.arguments().index(result_args);
+      f_.param().restrict_join(range(arity(), f_.arity()), values_, result_dims,
+                               compose_right(join_op, trans_op_),
+                               result);
+    }
 
-      // the following code removes the restricted arguments from the index map
-      // this is needed to handle cases when the result contains the restricted
-      // argument, as in:
-      // result *= f.restrict({x, 2}); (when result contains x)
-      uint_vector::iterator dest = map.begin();
-      for (argument_type arg : f_.arguments()) {
-        std::size_t n = argument_traits<argument_type>::num_dimensions(arg);
-        if (a_.count(arg)) {
-          dest = std::fill_n(dest, n, missing<std::size_t>::value);
-        } else {
-          dest += n;
-        }
-      }
-
-      table_restrict_join<real_type, real_type, composed_right<JoinOp, TransOp> >(
-        result, f_.param(), map, start_, {join_op, trans_op_})();
+    template <typename UnaryPredicate>
+    void find_if(UnaryPredicate pred, uint_vector& result) const {
+      f_.param().restrict_head_find_if(values_, pred, result);
     }
 
   private:
-    //! The restricted expression.
-    F f_;
-
-    //! The assignment to the restricted arguments.
-    const assignment_type& a_;
-
-    //! The transform operator applied to the restricted elements.
     TransOp trans_op_;
+    F f_;
+    const uint_vector& values_;
 
-    //! The computed arguments of this expression.
-    domain_type args_;
+  }; // class table_restrict_head
 
-    //! The linear index (in f_) of the 1st element of the restriction.
-    std::size_t start_;
+
+  /**
+   * An class that represents an assignment of a table to the trailing
+   * dimensions (tail), followed by an optional transform.
+   *
+   * This class supports the following derived expressions:
+   *  - transform -> table_restrict_tail
+   */
+  template <typename Space, typename TransOp, typename F>
+  class table_restrict_tail
+    : public table_base<
+        Space,
+        real_t<F>,
+        table_restrict_tail<Space, TransOp, F> > {
+
+  public:
+    // Shortcuts
+    using real_type  = real_t<F>;
+    using param_type = table<real_type>;
+
+    table_restrict_tail(TransOp trans_op, F&& f, const uint_vector& values)
+      : trans_op_(trans_op), f_(std::forward<F>(f)), values_(values) {
+      assert(values_.size() <= f_.arity());
+    }
+
+    std::size_t arity() const {
+      return f_.arity() - values_.size();
+    }
+
+    // Derived expressions
+    //--------------------------------------------------------------------------
+
+    template <typename ResultSpace = Space, typename UnaryOp = void>
+    table_restrict_tail<ResultSpace, compose_t<UnaryOp, TransOp>, cref_t<F> >
+    transform(UnaryOp unary_op) const& {
+      return { compose(unary_op, trans_op_), f_, values_ };
+    }
+
+    template <typename ResultSpace = Space, typename UnaryOp = void>
+    table_restrict_tail<ResultSpace, compose_t<UnaryOp, TransOp>, F>
+    transform(UnaryOp unary_op) && {
+      return { compose(unary_op, trans_op_), std::forward<F>(f_), values_ };
+    }
+
+    // Evaluation
+    //--------------------------------------------------------------------------
+
+    bool alias(const param_type& param) const {
+      return f_.alias(param);
+    }
+
+    void eval_to(param_type& result) const {
+      f_.param().restrict_tail(values_, result);
+      result.transform(trans_op_);
+    }
+
+    template <typename JoinOp>
+    void transform_inplace(JoinOp op, param_type& result) const {
+      f_.param().
+        restrict_tail_update(values_, compose_right(op, trans_op_), result);
+    }
+
+    template <typename JoinOp>
+    void join_inplace(JoinOp join_op,
+                      const uint_vector& result_dims,
+                      param_type& result) const {
+      f_.param().restrict_join(range(0, values_.size()), values_, result_dims,
+                               compose_right(join_op, trans_op_),
+                               result);
+    }
+
+    template <typename UnaryPredicate>
+    void find_if(UnaryPredicate pred, uint_vector& result) const {
+      f_.param().restrict_tail_find_if(values_, pred, result);
+    }
+
+  private:
+    TransOp trans_op_;
+    F f_;
+    const uint_vector& values_;
+
+  }; // class table_restrict_tail
+
+  /**
+   * An class that represents an assignment of a table to a subset of
+   * dimensions, followed by an optional transform.
+   *
+   * This class supports the following derived expressions:
+   *  - transform -> table_restrict
+   */
+  template <typename Space, typename TransOp, typename F>
+  class table_restrict
+    : public table_base<
+        Space,
+        real_t<F>,
+        table_restrict<Space, TransOp, F> > {
+
+  public:
+    // Shortcuts
+    using real_type  = real_t<F>;
+    using param_type = table<real_type>;
+
+    table_restrict(TransOp trans_op, F&& f,
+                   const uint_vector& dims, const uint_vector& values)
+      : trans_op_(trans_op),
+        f_(std::forward<F>(f)),
+        dims_(dims),
+        values_(values) {
+      assert(dims.size() == values.size());
+    }
+
+    std::size_t arity() const {
+      return f_.arity() - values_.size();
+    }
+
+    // Derived expressions
+    //--------------------------------------------------------------------------
+
+    //! Unary transform of a table_restrict reference.
+    template <typename ResultSpace = Space, typename UnaryOp = void>
+    table_restrict<ResultSpace, compose_t<UnaryOp, TransOp>, cref_t<F> >
+    transform(UnaryOp unary_op) const& {
+      return { compose(unary_op, trans_op_), f_, dims_, values_ };
+    }
+
+    //! Unary transform of a table_restrict temporary.
+    template <typename ResultSpace = Space, typename UnaryOp = void>
+    table_restrict<ResultSpace, compose_t<UnaryOp, TransOp>, F>
+    transform(UnaryOp unary_op) && {
+      return { compose(unary_op, trans_op_), std::forward<F>(f_), dims_, values_ };
+    }
+
+    // Evaluation
+    //--------------------------------------------------------------------------
+
+    bool alias(const param_type& param) const {
+      return f_.alias(param);
+    }
+
+    void eval_to(param_type& result) const {
+      f_.param().restrict(dims_, values_, result);
+      result.transform(trans_op_);
+    }
+
+    template <typename JoinOp>
+    void transform_inplace(JoinOp op, param_type& result) const {
+      f_.param().
+        restrict_update(dims_, values_, compose_right(op, trans_op_), result);
+    }
+
+    template <typename JoinOp>
+    void join_inplace(JoinOp join_op,
+                      const uint_vector& result_dims,
+                      param_type& result) const {
+      f_.param().restrict_join(dims_, values_, result_dims,
+                               compose_right(join_op, trans_op_),
+                               result);
+    }
+
+  private:
+    TransOp trans_op_;
+    F f_;
+    const uint_vector& dims_;
+    const uint_vector& values_;
 
   }; // class table_restrict
 

@@ -30,8 +30,8 @@ namespace libgm {
   using homogeneous_tuple = typename detail::homogeneous_tuple_impl<T, N>::type;
 
   template <std::size_t N, typename T, std::size_t... Is>
-  homogeneous_tuple<T, N> tuple_rep(const T& value, index_list<Is...>) {
-    std::tuple<T> singleton(value);
+  homogeneous_tuple<T, N> tuple_rep(T&& value, index_list<Is...>) {
+    std::tuple<T> singleton(std::forward<T>(value));
     return homogeneous_tuple<T, N>(std::get<Is*0>(singleton)...);
   }
 
@@ -39,8 +39,8 @@ namespace libgm {
    * Given a count and value, returns a tuple replicating the value N times.
    */
   template <std::size_t N, typename T>
-  homogeneous_tuple<T, N> tuple_rep(const T& value) {
-    return tuple_rep<N>(value, static_range<0, N>());
+  homogeneous_tuple<T, N> tuple_rep(T&& value) {
+    return tuple_rep<N>(std::forward<T>(value), static_range<0, N>());
   }
 
   /**

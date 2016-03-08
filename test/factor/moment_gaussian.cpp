@@ -164,12 +164,12 @@ BOOST_AUTO_TEST_CASE(test_constructors) {
   BOOST_CHECK(mg_properties(em, {x, y}));
   BOOST_CHECK(mg_params(em, vec3(1,2,3), mat_type::Identity(3, 3), mat_type(3, 0), 2.0));
 
-  param = e.param();
-  param.coef = vec3(0.5, 1, 2);
-  mgaussian f({x, y}, {z}, param);
+  param_type param1 = e.param();
+  param1.coef = vec3(0.5, 1, 2);
+  mgaussian f({x, y}, {z}, param1);
   BOOST_CHECK(mg_properties(f, {x, y}, {z}));
   BOOST_CHECK(mg_params(f, vec3(1,2,3), mat_type::Identity(3, 3), vec3(0.5,1,2), 2.0));
-  mgaussian fm({x, y}, {z}, std::move(param));
+  mgaussian fm({x, y}, {z}, std::move(param1));
   BOOST_CHECK(mg_properties(fm, {x, y}, {z}));
   BOOST_CHECK(mg_params(fm, vec3(1,2,3), mat_type::Identity(3, 3), vec3(0.5,1,2), 2.0));
 
