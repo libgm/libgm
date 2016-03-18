@@ -1,11 +1,11 @@
 add_executable(probability_table_experimental probability_table.cpp)
 add_executable(logarithmic_table_experimental logarithmic_table.cpp)
 
-# add_executable(probability_vector_experimental probability_vector.cpp)
-# add_executable(logarithmic_vector_experimental logarithmic_vector.cpp)
+add_executable(probability_vector_experimental probability_vector.cpp)
+add_executable(logarithmic_vector_experimental logarithmic_vector.cpp)
 
-# add_executable(probability_matrix_experimental probability_matrix.cpp)
-# add_executable(logarithmic_matrix_experimental logarithmic_matrix.cpp)
+add_executable(probability_matrix_experimental probability_matrix.cpp)
+add_executable(logarithmic_matrix_experimental logarithmic_matrix.cpp)
 
 # add_executable(moment_gaussian_experimental moment_gaussian.cpp)
 # add_executable(canonical_gaussian_experimental canonical_gaussian.cpp)
@@ -13,11 +13,11 @@ add_executable(logarithmic_table_experimental logarithmic_table.cpp)
 add_test(probability_table_experimental probability_table_experimental)
 add_test(logarithmic_table_experimental logarithmic_table_experimental)
 
-# add_test(probability_vector_experimental probability_vector_experimental)
-# add_test(logarithmic_vector_experimental logarithmic_vector_experimental)
+add_test(probability_vector_experimental probability_vector_experimental)
+add_test(logarithmic_vector_experimental logarithmic_vector_experimental)
 
-# add_test(probability_matrix_experimental probability_matrix_experimental)
-# add_test(logarithmic_matrix_experimental logarithmic_matrix_experimental)
+add_test(probability_matrix_experimental probability_matrix_experimental)
+add_test(logarithmic_matrix_experimental logarithmic_matrix_experimental)
 
 # add_test(moment_gaussian_experimental moment_gaussian_experimental)
 # add_test(canonical_gaussian_experimental canonical_gaussian_experimental)

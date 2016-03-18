@@ -24,16 +24,18 @@ else(MSVC)
 endif(MSVC)
 
 find_package(Boost 1.40 COMPONENTS
-             program_options
+             chrono
              filesystem
+             program_options
+	     system
              unit_test_framework
-	     system REQUIRED)
+             REQUIRED)
 
 # Hacky Eigen3 configuration until there is a find module
 include_directories(
+  $ENV{EIGEN3_INCLUDE_DIR}
   /usr/local/include/eigen3
   /usr/include/eigen3
-  $ENV{EIGEN3_INCLUDE_DIR}
 )
 
 include_directories(${LibGM_SOURCE_DIR} ${Boost_INCLUDE_DIR})

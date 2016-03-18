@@ -14,87 +14,6 @@
 #include <type_traits>
 #include <utility>
 
-// Macros for common expressions (used inside table_base implementations)
-//==============================================================================
-
-#define LIBGM_TABLE_AGGREGATE(function, agg_op, init, domain)    \
-  auto function(domain retain) const& {                          \
-    return derived().aggregate(agg_op, init, retain);            \
-  }                                                              \
-                                                                 \
-  auto function(domain retain) && {                              \
-    return std::move(derived()).aggregate(agg_op, init, retain); \
-  }
-
-#define LIBGM_TABLE_ELIMINATE(function, agg_op, init)            \
-  auto function() const& {                                       \
-    return this->derived().eliminate(agg_op, init);              \
-  }                                                              \
-                                                                 \
-  auto function() && {                                           \
-    return std::move(this->derived()).eliminate(agg_op, init);   \
-  }
-
-#define LIBGM_TABLE_RESTRICT()                                   \
-  auto restrict(const uint_vector& dims,                         \
-                const uint_vector& values) const& {              \
-    return table_restrict<space_type, identity, const Derived&>( \
-      identity(), derived(), dims, values);                      \
-  }                                                              \
-                                                                 \
-  auto restrict(const uint_vector& dims,                         \
-                const uint_vector& values) && {                  \
-    return table_restrict<space_type, identity, Derived>(        \
-      identity(), std::move(derived()), dims, values);           \
-  }
-
-#define LIBGM_TABLE_RESTRICT_SEGMENT(segment)                           \
-  auto restrict_##segment(const uint_vector& values) const& {           \
-    return table_restrict_##segment<space_type, identity, const Derived&>( \
-      identity(), derived(), values);                                   \
-  }                                                                     \
-                                                                        \
-  auto restrict_##segment(const uint_vector& values) && {               \
-    return table_restrict_##segment<space_type, identity, Derived>(     \
-      identity(), std::move(derived()), values);                        \
-  }
-
-#define LIBGM_TABLE_SELECT(Domain, domain)      \
-  table_selector<space_type, Derived&>          \
-  wise(Domain domain) & {                       \
-    return { derived(), domain };               \
-  }                                             \
-                                                \
-  table_selector<space_type, const Derived&>    \
-  wise(Domain domain) const& {                  \
-    return { derived(), domain };               \
-  }                                             \
-                                                \
-  table_selector<space_type, Derived>           \
-  wise(Domain domain) && {                      \
-    return { std::move(derived()), domain };    \
-  }
-
-/*
-#define LIBGM_TABLE_CONDITIONAL(division_op)                     \
-  auto conditional(const uint_vector& tail) const& {             \
-    return make_table_conditional(derived(), tail, division_op); \
-  }                                                              \
-                                                                 \
-  auto conditional(const uint_vector& tail) && {                 \
-    return make_table_conditional(std::move(derived()), tail, division_op); \
-  }
-
-#define LIBGM_TABLE_REORDER() \
-  auto reorder(const uint_vector& order) const {  \
-    return ...;                                  \
-  }                                              \
-                                                 \
-  auto reorder(const uint_vector& order) && {     \
-    return ...;                                  \
-  }
-*/
-
 namespace libgm { namespace experimental {
 
   // Base classes
@@ -206,9 +125,10 @@ namespace libgm { namespace experimental {
     uint_vector vec_;
   };
 
+  //! table_selector inherits mutable from the underlying factor
   template <typename Space, typename F>
   struct is_mutable<table_selector<Space, F> >
-    : is_mutable<std::decay_t<F> > { };
+    : is_mutable<F> { };
 
 
   // Transform expression
@@ -765,7 +685,6 @@ namespace libgm { namespace experimental {
         real_t<F>,
         table_eliminate<Space, AggOp, F> > {
   public:
-    // Shortcuts
     using real_type  = real_t<F>;
     using param_type = table<real_type>;
 
@@ -805,9 +724,7 @@ namespace libgm { namespace experimental {
         Space,
         real_t<F>,
         table_aggregate<Space, AggOp, Domain, F> > {
-
   public:
-    // Shortcuts
     using real_type  = real_t<F>;
     using param_type = table<real_type>;
 
@@ -962,6 +879,12 @@ namespace libgm { namespace experimental {
     using real_type  = real_t<F>;
     using param_type = table<real_type>;
 
+    LIBGM_ENABLE_IF((std::is_same<TransOp, identity>::value))
+    table_restrict_head(F&& f, const uint_vector& values)
+      : f_(std::forward<F>(f)), values_(values) {
+      assert(values_.size() <= f_.arity());
+    }
+
     table_restrict_head(TransOp trans_op, F&& f, const uint_vector& values)
       : trans_op_(trans_op), f_(std::forward<F>(f)), values_(values) {
       assert(values_.size() <= f_.arity());
@@ -1027,7 +950,7 @@ namespace libgm { namespace experimental {
 
 
   /**
-   * An class that represents an assignment of a table to the trailing
+   * A class that represents an assignment of a table to the trailing
    * dimensions (tail), followed by an optional transform.
    *
    * This class supports the following derived expressions:
@@ -1044,6 +967,12 @@ namespace libgm { namespace experimental {
     // Shortcuts
     using real_type  = real_t<F>;
     using param_type = table<real_type>;
+
+    LIBGM_ENABLE_IF((std::is_same<TransOp, identity>::value))
+    table_restrict_tail(F&& f, const uint_vector& values)
+      : f_(std::forward<F>(f)), values_(values) {
+      assert(values_.size() <= f_.arity());
+    }
 
     table_restrict_tail(TransOp trans_op, F&& f, const uint_vector& values)
       : trans_op_(trans_op), f_(std::forward<F>(f)), values_(values) {
@@ -1127,6 +1056,10 @@ namespace libgm { namespace experimental {
     using real_type  = real_t<F>;
     using param_type = table<real_type>;
 
+    LIBGM_ENABLE_IF((std::is_same<TransOp, identity>::value))
+    table_restrict(F&& f, const uint_vector& dims, const uint_vector& values)
+      : table_restrict(identity(), std::forward<F>(f), dims, values) { }
+
     table_restrict(TransOp trans_op, F&& f,
                    const uint_vector& dims, const uint_vector& values)
       : trans_op_(trans_op),
@@ -1143,14 +1076,12 @@ namespace libgm { namespace experimental {
     // Derived expressions
     //--------------------------------------------------------------------------
 
-    //! Unary transform of a table_restrict reference.
     template <typename ResultSpace = Space, typename UnaryOp = void>
     table_restrict<ResultSpace, compose_t<UnaryOp, TransOp>, cref_t<F> >
     transform(UnaryOp unary_op) const& {
       return { compose(unary_op, trans_op_), f_, dims_, values_ };
     }
 
-    //! Unary transform of a table_restrict temporary.
     template <typename ResultSpace = Space, typename UnaryOp = void>
     table_restrict<ResultSpace, compose_t<UnaryOp, TransOp>, F>
     transform(UnaryOp unary_op) && {

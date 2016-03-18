@@ -1,8 +1,7 @@
 #ifndef LIBGM_VECTOR_EXPRESSIONS_HPP
 #define LIBGM_VECTOR_EXPRESSIONS_HPP
 
-#include <libgm/argument/binary_domain.hpp>
-#include <libgm/argument/unary_domain.hpp>
+#include <libgm/datastructure/temporary.hpp>
 #include <libgm/factor/traits.hpp>
 #include <libgm/functional/algorithm.hpp>
 #include <libgm/functional/composition.hpp>
@@ -20,11 +19,16 @@ namespace libgm { namespace experimental {
   // The base class
   //============================================================================
 
-  template <typename Space, typename Arg, typename RealType, typename Derived>
+  template <typename Space, typename RealType, typename Derived>
   class vector_base;
 
+  // Forward declaration
+  template <typename Space, typename RealType, typename Derived>
+  class matrix_base;
+
   template <typename F>
-  struct is_vector : std::is_same<param_t<F>, real_vector<real_t<F> > > { };
+  struct is_vector
+    : std::is_same<param_t<F>, real_vector<real_t<F> > > { };
 
   // Transform expression
   //============================================================================
@@ -51,19 +55,13 @@ namespace libgm { namespace experimental {
   class vector_transform
     : public vector_base<
         Space,
-        argument_t<nth_type_t<0, Expr...> >,
         real_t<nth_type_t<0, Expr...> >,
         vector_transform<Space, Op, Expr...> > {
 
   public:
     // shortcuts
-    using argument_type = argument_t<nth_type_t<0, Expr...> >;
-    using domain_type   = domain_t<nth_type_t<0, Expr...> >;
-    using real_type     = real_t<nth_type_t<0, Expr...> >;
-    using param_type    = real_vector<real_type>;
-
-    using base = vector_base<Space, argument_type, real_type, vector_transform>;
-    using base::param;
+    using real_type  = real_t<nth_type_t<0, Expr...> >;
+    using param_type = real_vector<real_type>;
 
     static const std::size_t trans_arity = sizeof...(Expr);
 
@@ -71,24 +69,15 @@ namespace libgm { namespace experimental {
     vector_transform(Op op, std::tuple<Expr...>&& data)
       : op_(op), data_(std::move(data)) { }
 
-    const domain_type& arguments() const {
-      return std::get<0>(data_).arguments();
+    std::size_t size() const {
+      return std::get<0>(data_).size();
     }
-
-    param_type param() const {
-      param_type tmp;
-      eval_to(tmp);
-      return tmp;
-    }
-
-    // Evaluation
-    //--------------------------------------------------------------------------
 
     Op trans_op() const {
       return op_;
     }
 
-    std::tuple<add_const_reference_t<Expr>...> trans_data() const& {
+    std::tuple<cref_t<Expr>...> trans_data() const& {
       return data_;
     }
 
@@ -96,39 +85,42 @@ namespace libgm { namespace experimental {
       return std::move(data_);
     }
 
-    bool alias(const param_type& param) const {
-      return false; // vector_transform is always safe to evaluate
+    bool alias(const real_vector<real_type>& param) const {
+      return false;
+      // vector_transform is always safe to evaluate, because it is performed
+      // element-wise on the input arrays, and input arrays are trivial
+    }
+
+    bool alias(const real_matrix<real_type>& param) const {
+      return false;
+      // vector_transform evaluates to a vector temporary, so it cannot alias
+      // a matrix
     }
 
     void eval_to(param_type& result) const {
-      result = result_expr();
+      auto vectors = tuple_transform(member_param(), data_);
+      result = expr(vectors);
     }
 
     template <typename AssignOp>
     void transform_inplace(AssignOp assign_op, param_type& result) const {
-      assign_op(result.array(), result_expr());
-    }
-
-    template <typename AccuOp>
-    void accumulate(AccuOp accu_op) const {
-      return accu_op(result_expr());
+      auto vectors = tuple_transform(member_param(), data_);
+      assign_op(result.array(), expr(vectors));
     }
 
   private:
-    //! Returns the Eigen expression for the result of this transform.
-    auto result_expr() const {
-      return tuple_apply(
-        op_,
-        tuple_transform(member_array(), tuple_transform(member_param(), data_))
-      );
+    /**
+     * Returns the Eigen expression representing the result of this transform.
+     * Because the results of some of the subexpressions may be plain types,
+     * these need to be passed explicitly by reference.
+     */
+    template <typename... Vectors>
+    auto expr(std::tuple<Vectors...>& vectors) const {
+      return tuple_apply(op_, tuple_transform(member_array(), vectors));
     }
 
-    //! The array operator applied to the Eigen vectors.
     Op op_;
-
-    //! The transformed vector expressions.
     std::tuple<Expr...> data_;
-
   }; // class vector_transform
 
   /**
@@ -143,18 +135,18 @@ namespace libgm { namespace experimental {
   }
 
   /**
-   * Transforms two vector with identical Space, Arg, and RealType.
+   * Transforms two vector with identical Space and RealType.
    * The pointers serve as tags to allow us simultaneously dispatch
    * all possible combinations of lvalues and rvalues F and G.
    *
    * \relates vector_transform
    */
-  template <typename BinaryOp, typename Space, typename Arg, typename RealType,
+  template <typename BinaryOp, typename Space, typename RealType,
             typename F, typename G>
   inline auto
   transform(BinaryOp binary_op, F&& f, G&& g,
-            vector_base<Space, Arg, RealType, std::decay_t<F> >* /* f_tag */,
-            vector_base<Space, Arg, RealType, std::decay_t<G> >* /* g_tag */) {
+            vector_base<Space, RealType, std::decay_t<F> >* /* f_tag */,
+            vector_base<Space, RealType, std::decay_t<G> >* /* g_tag */) {
     constexpr std::size_t m = std::decay_t<F>::trans_arity;
     constexpr std::size_t n = std::decay_t<G>::trans_arity;
     return make_vector_transform<Space>(
@@ -165,87 +157,137 @@ namespace libgm { namespace experimental {
   }
 
 
+  // Join expressions
+  //============================================================================
+
+  /**
+   * A class that represents an outer join of two vectors F and G.
+   */
+  template <typename Space, typename JoinOp, typename F, typename G>
+  class vector_outer_join
+    : public matrix_base<
+        Space,
+        real_t<F>,
+        vector_outer_join<Space, JoinOp, F, G> > {
+    static_assert(std::is_same<real_t<F>, real_t<G> >::value,
+                  "The joined expressions must have the same real type");
+    static_assert(is_vector<F>::value && is_vector<G>::value,
+                  "The joined expressions must be both vector expressions");
+
+  public:
+    using real_type  = real_t<F>;
+    using param_type = real_matrix<real_type>;
+
+    vector_outer_join(JoinOp join_op, F&& f, G&& g)
+      : join_op_(join_op),
+        f_(std::forward<F>(f)),
+        g_(std::forward<G>(g)) { }
+
+    std::size_t rows() const {
+      return f_.size();
+    }
+
+    std::size_t cols() const {
+      return g_.size();
+    }
+
+    bool alias(const real_vector<real_type>& param) const {
+      return f_.alias(param) || g_.alias(param);
+      // vector_outer_join can alias a vector e.g. if f_ or g_ own that vector
+    }
+
+    bool alias(const real_matrix<real_type>& param) const {
+      return f_.alias(param) || g_.alias(param);
+      // in some edge cases, this join could be aliasing a matrix,
+      // e.g., when taking an outer product of two matrix restrictions,
+      // assigned back to one of those matrices
+    }
+
+    auto array() const {
+      return join_op_(
+        u_.capture(f_.param()).array().rowwise().replicate(g_.size()),
+        v_.capture(g_.param()).array().rowwise().replicate(f_.size()).transpose()
+      );
+    }
+
+  private:
+    JoinOp join_op_;
+    F f_;
+    G g_;
+
+    mutable temporary<real_vector<real_type>, has_param_temporary<F>::value> u_;
+    mutable temporary<real_vector<real_type>, has_param_temporary<G>::value> v_;
+  }; // class vector_outer_join
+
+  /**
+   * Returns an outer join of two vectors with identical Space and RealType.
+   * \relates vector_outer_join
+   */
+  template <typename BinaryOp, typename Space, typename RealType,
+            typename F, typename G>
+  inline vector_outer_join<Space, BinaryOp, remove_rref_t<F>, remove_rref_t<G> >
+  outer(BinaryOp binary_op, F&& f, G&& g,
+        vector_base<Space, RealType, std::decay_t<F> >* /* f_tag */,
+        vector_base<Space, RealType, std::decay_t<G> >* /* g_tag */) {
+    return { binary_op, std::forward<F>(f), std::forward<G>(g) };
+  }
+
+
   // Raw buffer map
   //============================================================================
 
   /**
-   * An expression that represents a vector via a domain and a raw pointer to
+   * An expression that represents a vector via a elngth and a raw pointer to
    * the data.
    */
-  template <typename Space, typename Arg, typename RealType>
+  template <typename Space, typename RealType>
   class vector_map
-    : public vector_base<
-        Space,
-        Arg,
-        RealType,
-        vector_map<Space, Arg, RealType> > {
+    : public vector_base<Space, RealType, vector_map<Space, RealType> > {
 
   public:
-    using base = vector_base<Space, Arg, RealType, vector_map>;
-    using base::param;
+    using param_type = real_vector<RealType>;
 
-    vector_map(const unary_domain<Arg>& args, const RealType* data)
-      : args_(args), data_(data) {
-      assert(data);
-    }
+    vector_map(std::size_t length, const RealType* data)
+      : length_(length), data_(data) { }
 
-    const unary_domain<Arg>& arguments() const {
-      return args_;
-    }
-
-    real_vector<RealType> param() const {
-      return map();
+    std::size_t size() const {
+      return length_;
     }
 
     bool alias(const real_vector<RealType>& param) const {
-      return false; // vector_map is always safe to evaluate
+      return false; // vector_map assumes no aliasing
     }
 
-    void eval_to(real_vector<RealType>& result) const {
-      result = map();
+    bool alias(const real_matrix<RealType>& param) const {
+      return false; // vector_map assumes no aliasing
     }
 
-    template <typename AssignOp>
-    void transform_inplace(AssignOp assign_op,
-                           real_vector<RealType>& result) const {
-      assign_op(result.array(), map().array());
+    void eval_to(param_type& result) const {
+      result = param();
     }
 
-    template <typename AssignOp>
-    void join_inplace(AssignOp op,
-                      const binary_domain<Arg>& result_args,
-                      real_matrix<RealType>& result) const {
-      if (args_.x() == result_args.x()) {
-        op(result.array().colwise(), map().array());
-      } else if (args_.x() == result_args.y()) {
-        op(result.array().rowwise(), map().array().transpose());
+    Eigen::Map<const param_type> param() const {
+      return { data_, std::ptrdiff_t(length_) };
+    }
+
+    template <typename UnaryPredicate>
+    std::size_t find_if(UnaryPredicate pred) const {
+      auto it = std::find(data_, data_ + length_, pred);
+      if (it == data_ + length_) {
+        throw std::out_of_range("Element could not be found");
       } else {
-        std::ostringstream out;
-        out << "vector_map: argument ";
-        argument_traits<Arg>::print(out, args_.x());
-        out << " not found";
-        throw std::invalid_argument(out.str());
+        return it - data_;
       }
     }
 
-    template <typename AccuOp>
-    RealType accumulate(AccuOp accu_op) const {
-      return accu_op(map());
-    }
-
   private:
-    //! Returns the Eigen Map object for this expression.
-    Eigen::Map<const real_vector<RealType> > map() const {
-      return { data_, std::ptrdiff_t(args_.num_values()) };
-    }
-
-    //! The arguments of the expression.
-    unary_domain<Arg> args_;
-
-    //! The raw pointer to the data.
+    std::size_t length_;
     const RealType* data_;
 
   }; // class vector_map
+
+  template <typename Space, typename RealType>
+  struct is_primitive<vector_map<Space, RealType> > : std::true_type { };
 
 } } // namespace libgm::experimental
 

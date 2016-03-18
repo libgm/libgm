@@ -1,6 +1,8 @@
 #ifndef LIBGM_FUNCTIONAL_MEMBER_HPP
 #define LIBGM_FUNCTIONAL_MEMBER_HPP
 
+#include <cmath>
+
 namespace libgm {
 
   /**
@@ -32,7 +34,29 @@ namespace libgm {
   struct member_minimum {
     template <typename F, typename... Args>
     auto operator()(F&& f, Args&&... args) {
-      return std::forward<F>(f).minium(std::forward<Args>(args)...);
+      return std::forward<F>(f).minimum(std::forward<Args>(args)...);
+    }
+  };
+
+  /**
+   * An operator that invokes the head() member function on the
+   * given object.
+   */
+  struct member_head {
+    template <typename F, typename... Args>
+    auto operator()(F&& f, Args&&... args) {
+      return std::forward<F>(f).head(std::forward<Args>(args)...);
+    }
+  };
+
+  /**
+   * An operator that invokes the tail() member function on the
+   * given object.
+   */
+  struct member_tail {
+    template <typename F, typename... Args>
+    auto operator()(F&& f, Args&&... args) {
+      return std::forward<F>(f).tail(std::forward<Args>(args)...);
     }
   };
 
@@ -48,33 +72,11 @@ namespace libgm {
   };
 
   /**
-   * An operator that invokes the restrict_head() memebr function on the
-   * given object.
-   */
-  struct member_restrict_head {
-    template <typename F, typename... Args>
-    auto operator()(F&& f, Args&&... args) {
-      return std::forward<F>(f).restrict_head(std::forward<Args>(args)...);
-    }
-  };
-
-  /**
-   * An operator that invokes the restrict_tail() memebr function on the
-   * given object.
-   */
-  struct member_restrict_tail {
-    template <typename F, typename... Args>
-    auto operator()(F&& f, Args&&... args) {
-      return std::forward<F>(f).restrict_tail(std::forward<Args>(args)...);
-    }
-  };
-
-  /**
    * An operator that invokes the sum() member function on the given object.
    */
   struct member_sum {
     template <typename A>
-    auto operator()(A&& a) const -> decltype(a.sum()) {
+    decltype(auto) operator()(A&& a) const {
       return a.sum();
     }
   };
@@ -84,8 +86,20 @@ namespace libgm {
    */
   struct member_prod {
     template <typename A>
-    auto operator()(A&& a) const -> decltype(a.prod()) {
+    decltype(auto) operator()(A&& a) const {
       return a.prod();
+    }
+  };
+
+  /**
+   * An operator that computes log-sum-exp on the given object.
+   * This does not work with vectorwise operations.
+   */
+  struct member_logSumExp {
+    template <typename A>
+    auto operator()(A&& a) const {
+      auto offset = a.maxCoeff();
+      return std::log((a - offset).exp().sum()) + offset;
     }
   };
 
@@ -193,7 +207,27 @@ namespace libgm {
     }
   };
 
+  //! An operator that returns the Eigen expression for the given expression.
+  struct member_eigen {
+    template <typename Expr>
+    decltype(auto) operator()(Expr&& expr) {
+      return std::forward<Expr>(expr).eigen();
+    }
+  };
+
+  //! An operator that returns true if the given expression aliases parameters.
+  template <typename Param>
+  struct member_alias {
+    const Param& param;
+    explicit member_alias(const Param& param) : param(param) { }
+    template <typename Expr>
+    bool operator()(Expr&& expr) {
+      return std::forward<Expr>(expr).alias(param);
+    }
+  };
+
   //! An operator that computes the exponent (of possibly shifted) object.
+  //! \deprecated remove once we migrate to new factors
   template <typename T>
   struct exp_op {
     T offset;
@@ -205,6 +239,7 @@ namespace libgm {
   };
 
   //! An operator that computes the (possibly shifted) log(a.sum()) of object a.
+  //! \deprecated remove once we migrate to new factors
   template <typename T>
   struct log_sum_op {
     T offset;

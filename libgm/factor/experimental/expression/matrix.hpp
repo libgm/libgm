@@ -1,84 +1,149 @@
 #ifndef LIBGM_MATRIX_EXPRESSIONS_HPP
 #define LIBGM_MATRIX_EXPRESSIONS_HPP
 
-#include <libgm/argument/binary_domain.hpp>
-#include <libgm/argument/uint_assignment.hpp>
+#include <libgm/enable_if.hpp>
+#include <libgm/datastructure/temporary.hpp>
 #include <libgm/factor/traits.hpp>
 #include <libgm/factor/experimental/expression/vector.hpp>
 #include <libgm/functional/algorithm.hpp>
 #include <libgm/functional/composition.hpp>
 #include <libgm/functional/member.hpp>
 #include <libgm/functional/tuple.hpp>
+#include <libgm/functional/updater.hpp>
+#include <libgm/math/eigen/directional.hpp>
 #include <libgm/math/eigen/real.hpp>
+#include <libgm/traits/int_constant.hpp>
 #include <libgm/traits/nth_type.hpp>
 #include <libgm/traits/reference.hpp>
 
 #include <tuple>
 #include <type_traits>
 
-// Shortcuts for common expressions (used inside matrix_base implementations)
-//==============================================================================
-
-#define LIBGM_MATMAT_JOIN(function, stem, op)                   \
-  LIBGM_JOIN2(function, stem##_matrix, stem##_matrix, op)
-
-#define LIBGM_MATVEC_JOIN(function, stem, op)                   \
-  LIBGM_JOIN2(function, stem##_matrix, stem##_vector, op)
-
-#define LIBGM_VECMAT_JOIN(function, stem, op)                   \
-  LIBGM_JOIN2R(function, stem##_vector, stem##_matrix, op)
-
-#define LIBGM_MATRIX_AGGREGATE(function, agg_op)             \
-  auto function(const unary_domain<Arg>& retain) const & {   \
-    return derived().aggregate(retain, agg_op);              \
-  }                                                          \
-                                                             \
-  auto function(const unary_domain<Arg>& retain) && {        \
-    return std::move(derived()).aggregate(retain, agg_op);   \
-  }
-
-#define LIBGM_MATRIX_RESTRICT()                                   \
-  auto restrict(const uint_assignment<Arg>& a) const& {           \
-    return matrix_restrict<space_type, identity, const Derived&>( \
-      derived(), a, identity());                                  \
-  }                                                               \
-                                                                  \
-  auto restrict(const uint_assignment<Arg>& a) && {               \
-    return matrix_restrict<space_type, identity, Derived>(        \
-      std::move(derived()), a, identity());                       \
-  }
-
-#define LIBGM_MATRIX_CONDITIONAL(division_op)                     \
-  auto conditional(const unary_domain<Arg>& tail) const& {        \
-    return make_matrix_conditional(derived(), tail, division_op); \
-  }                                                               \
-                                                                  \
-  auto conditional(const unary_domain<Arg>& tail) && {            \
-    return make_matrix_conditional(std::move(derived()), tail, division_op); \
-  }
-
 namespace libgm { namespace experimental {
 
   // Base class and traits
   //============================================================================
 
-  template <typename Space, typename Arg, typename RealType, typename Derived>
+  template <typename Space, typename RealType, typename Derived>
   class matrix_base;
+
+  template <typename Space, typename RealType, int Direction, typename Derived>
+  class matrix_selector_base;
 
   template <typename F>
   struct is_matrix : std::is_same<param_t<F>, real_matrix<real_t<F> > > { };
 
+  template <typename Space, typename TransOp, int Direction,
+            typename F, typename G>
+  class matrix_vector_multiply;
+
+
+  // Selector
+  //============================================================================
+
+  /**
+   * A selector that references a dimension (rows or columns) of a matrix
+   * expression.
+   *
+   * This class provides the following derived expressions:
+   *  - eliminate -> matrix_eliminate
+   */
+  template <typename Space, int Direction, typename F>
+  class matrix_selector
+    : public matrix_selector_base<
+        Space,
+        real_t<F>,
+        Direction,
+        matrix_selector<Space, Direction, F> > {
+  public:
+    // shortcuts
+    using real_type  = real_t<F>;
+    using param_type = real_matrix<real_type>;
+
+    LIBGM_ENABLE_IF(Direction != Eigen::BothDirections)
+    matrix_selector(F&& f)
+      : f_(std::forward<F>(f)) { }
+
+    matrix_selector(F&& f, std::size_t dim)
+      : f_(std::forward<F>(f)), dim_(dim) { }
+
+    std::size_t rows() const {
+      return f_.rows();
+    }
+
+    std::size_t cols() const {
+      return f_.cols();
+    }
+
+    std::size_t dim() const {
+      return dim_;
+    }
+
+    cref_t<F> ref() const& {
+      return f_;
+    }
+
+    F ref() && {
+      return std::forward<F>(f_);
+    }
+
+    decltype(auto) array() const {
+      return f_.array();
+    }
+
+    decltype(auto) param() const {
+      return f_.param();
+    }
+
+    LIBGM_ENABLE_IF(is_mutable<std::decay_t<F> >::value)
+    param_type& param() {
+      return f_.param();
+    }
+
+    bool alias(const real_vector<real_type>& param) const {
+      return f_.alias(param);
+    }
+
+    bool alias(const real_matrix<real_type>& param) const {
+      return f_.alias(param);
+    }
+
+    void eval_to(param_type& result) const {
+      f_.eval_to(result);
+    }
+
+    template <typename UpdateOp, typename Other>
+    void update(UpdateOp update_op,
+                const vector_base<Space, real_type, Other>& f) {
+      auto left = this->derived().param().array();
+      if (f.derived().alias(this->derived().param())) {
+        directional_update(update_op,
+                           int_constant<Direction>(), dim_,
+                           left, f.derived().param().array().eval());
+      } else {
+        directional_update(update_op,
+                           int_constant<Direction>(), dim_,
+                           left, f.derived().param().array());
+      }
+    }
+
+  private:
+    F f_;
+    std::size_t dim_;
+  }; // class matrix_selector
+
+
+  //! matrix_selector inherits mutable from the underlying factor
+  template <typename Space, int Direction, typename F>
+  struct is_mutable<matrix_selector<Space, Direction, F> >
+    : is_mutable<F> { };
 
   // Transform expression
   //============================================================================
 
   /**
    * A class that represents an element-wise transform of one or more matrices.
-   * The matrices must have the same arguments.
-   *
-   * Examples of a transform:
-   * f * 2
-   * max(f*2, g)
+   * The matrices must have the same shapes.
    *
    * \tparam Space
    *         A tag denoting the space of the matrix, e.g., prob_tag or log_tag.
@@ -94,43 +159,54 @@ namespace libgm { namespace experimental {
   class matrix_transform
     : public matrix_base<
         Space,
-        argument_t<nth_type_t<0, Expr...> >,
         real_t<nth_type_t<0, Expr...> >,
         matrix_transform<Space, Op, Expr...> > {
 
   public:
-    // shortcuts
-    using argument_type = argument_t<nth_type_t<0, Expr...> >;
-    using domain_type   = domain_t<nth_type_t<0, Expr...> >;
-    using real_type     = real_t<nth_type_t<0, Expr...> >;
-    using param_type    = real_matrix<real_type>;
-
-    using base = matrix_base<Space, argument_type, real_type, matrix_transform>;
-    using base::param;
+    using real_type  = real_t<nth_type_t<0, Expr...> >;
+    using param_type = real_matrix<real_type>;
 
     static const std::size_t trans_arity = sizeof...(Expr);
 
     matrix_transform(Op op, std::tuple<Expr...>&& data)
       : op_(op), data_(std::move(data)) { }
 
-    const domain_type& arguments() const {
-      return std::get<0>(data_).arguments();
+    matrix_transform(Op op, Expr&&... expr)
+      : op_(op), data_(std::forward<Expr>(expr)...) { }
+
+    std::size_t rows() const {
+      return std::get<0>(data_).rows();
     }
 
-    param_type param() const {
-      param_type tmp;
-      eval_to(tmp);
-      return tmp;
+    std::size_t cols() const {
+      return std::get<0>(data_).cols();
     }
 
-    // Evaluation
-    //--------------------------------------------------------------------------
+    bool alias(const real_vector<real_type>& param) const {
+      // matrix_transform might alias a vector if any of its components
+      // aliases this vector (e.g., by being an outer product of that vector)
+      return tuple_any(member_alias<real_vector<real_type> >(param), data_);
+    }
+
+    bool alias(const real_matrix<real_type>& param) const {
+      // matrix_transform might alias a matrix e.g. if one of its components
+      // is a join of a vector and that matrix
+      // however, we optimize away the case when the component is primitive
+      // and thus is safe to transform in element-wise fashion
+      return tuple_any([&param] (auto&& expr) {
+          return !is_primitive<decltype(expr)>::value && expr.alias(param);
+        }, data_);
+    }
+
+    auto array() const {
+      return tuple_apply(op_, tuple_transform(member_array(), data_));
+    }
 
     Op trans_op() const {
       return op_;
     }
 
-    std::tuple<add_const_reference_t<Expr>...> trans_data() const& {
+    std::tuple<cref_t<Expr>...> trans_data() const& {
       return data_;
     }
 
@@ -138,50 +214,9 @@ namespace libgm { namespace experimental {
       return std::move(data_);
     }
 
-    bool alias(const param_type& param) const {
-      return false; // vector_transform is always safe to evaluate
-    }
-
-    void eval_to(param_type& result) const {
-      result = result_expr();
-    }
-
-    template <typename AssignOp>
-    void transform_inplace(AssignOp assign_op, param_type& result) const {
-      assign_op(result.array(), result_expr());
-    }
-
-    template <typename AssignOp>
-    void join_inplace(AssignOp assign_op,
-                      const domain_type& result_args,
-                      param_type& result)const {
-      assert(equivalent(arguments(), result_args));
-      if (arguments() == result_args) {
-        assign_op(result.array(), result_expr());
-      } else {
-        assign_op(result.array().transpose(), result_expr());
-      }
-    }
-
-    template <typename AccuOp>
-    void accumulate(AccuOp accu_op) const {
-      return accu_op(result_expr());
-    }
-
   private:
-    //! Returns the Eigen expression for the result of this transform.
-    auto result_expr() const {
-      return tuple_apply(
-        op_,
-        tuple_transform(member_array(), tuple_transform(member_param(), data_))
-      );
-    }
-    //! The array operator applied to the Eigen vectors.
     Op op_;
-
-    //! The transformed matrix expressions.
     std::tuple<Expr...> data_;
-
   }; // class matrix_transform
 
   /**
@@ -196,18 +231,18 @@ namespace libgm { namespace experimental {
   }
 
   /**
-   * Transforms two matrices with identical Space, Arg, and RealType.
+   * Transforms two matrices with identical Space, and RealType.
    * The pointers serve as tags to allow us simultaneously dispatch
    * all possible combinations of lvalues and rvalues F and G.
    *
    * \relates matrix_transform
    */
-  template <typename BinaryOp, typename Space, typename Arg, typename RealType,
+  template <typename BinaryOp, typename Space, typename RealType,
             typename F, typename G>
   inline auto
   transform(BinaryOp binary_op, F&& f, G&& g,
-            matrix_base<Space, Arg, RealType, std::decay_t<F> >* /* f_tag */,
-            matrix_base<Space, Arg, RealType, std::decay_t<G> >* /* g_tag */) {
+            matrix_base<Space, RealType, std::decay_t<F> >* /* f_tag */,
+            matrix_base<Space, RealType, std::decay_t<G> >* /* g_tag */) {
     constexpr std::size_t m = std::decay_t<F>::trans_arity;
     constexpr std::size_t n = std::decay_t<G>::trans_arity;
     return make_matrix_transform<Space>(
@@ -218,748 +253,974 @@ namespace libgm { namespace experimental {
   }
 
 
-  // Join expressions
+  // Matrix-vector join
   //============================================================================
 
   /**
-   * A class that represents a binary join of two matrices.
+   * A class that represents a binary join of a matrix and a vector along
+   * the dimension specified via the Direction template parameter.
    *
-   * \tparam Space
-   *         A tag denoting the space of the matrix, e.g., prob_tag or log_tag.
-   * \tparam JoinOp
-   *         A binary function object type accepting two dense matrices
-   *         and returning a matrix expression.
-   * \tparam F
-   *         The left (possibly const-reference qualified) expression type.
-   *         F must derive from matrix_base.
-   * \tparam G
-   *         The right (possibly const-reference qualified) expression type.
-   *         G must derive from matrix_base.
-   */
-  template <typename Space, typename JoinOp, typename F, typename G>
-  class matmat_join
-    : public matrix_base<
-        Space,
-        argument_t<F>,
-        real_t<F>,
-        matmat_join<Space, JoinOp, F, G> > {
-
-    static_assert(std::is_same<argument_t<F>, argument_t<G> >::value,
-                  "The joined expressions must have the same argument type");
-    static_assert(std::is_same<real_t<F>, real_t<G> >::value,
-                  "The joined expressions must have the same real type");
-    static_assert(is_matrix<F>::value && is_matrix<G>::value,
-                  "The joined expressions must be both matrix expressions");
-
-  public:
-    // Shortcuts
-    using argument_type = argument_t<F>;
-    using domain_type   = domain_t<F>;
-    using real_type     = real_t<F>;
-    using param_type    = real_matrix<real_type>;
-
-    using base = matrix_base<Space, argument_type, real_type, matmat_join>;
-    using base::param;
-
-    //! Constructs a matmat_join using the given operator and subexpressions.
-    matmat_join(JoinOp join_op, F&& f, G&& g)
-      : join_op_(join_op), f_(std::forward<F>(f)), g_(std::forward<G>(g)) {
-      if (!equivalent(f_.arguments(), g_.arguments())) {
-        throw std::invalid_argument("matmat_join creates a ternary factor");
-      }
-      direct_ = (f_.arguments() == g_.arguments());
-    }
-
-    //! Constructs a matmat_join using the precomputed state.
-    matmat_join(JoinOp join_op, F&& f, G&& g, bool direct)
-      : join_op_(join_op), f_(std::forward<F>(f)), g_(std::forward<G>(g)),
-        direct_(direct) { }
-
-    const domain_type& arguments() const {
-      return f_.arguments();
-    }
-
-    param_type param() const {
-      param_type tmp;
-      eval_to(tmp);
-      return tmp;
-    }
-
-    // Derived expressions
-    //--------------------------------------------------------------------------
-
-    //! Unary transform of a matmat_join reference.
-    template <typename ResultSpace = Space, typename UnaryOp = void>
-    matmat_join<ResultSpace, compose_t<UnaryOp, JoinOp>,
-                add_const_reference_t<F>, add_const_reference_t<G> >
-    transform(UnaryOp unary_op) const& {
-      return { compose(unary_op, join_op_), f_, g_, direct_ };
-    }
-
-    //! Unary transform of a matmat_join temporary.
-    template <typename ResultSpace = Space, typename UnaryOp = void>
-    matmat_join<ResultSpace, compose_t<UnaryOp, JoinOp>, F, G>
-    transform(UnaryOp unary_op) && {
-      return { compose(unary_op, join_op_),
-               std::forward<F>(f_), std::forward<G>(g_), direct_ };
-    }
-
-    // Evaluation
-    //--------------------------------------------------------------------------
-
-    bool alias(const param_type& result) const {
-      return (!is_primitive<F>::value && f_.alias(result))
-          || (!direct_ && g_.alias(result));
-    }
-
-    template <bool P = is_primitive<F>::value>
-    std::enable_if_t<P, void> eval_to(param_type& result) const {
-      if (direct_) {
-        result = join_op_(f_.param().array(), g_.param().array());
-      } else {
-        result = join_op_(f_.param().array(), g_.param().array().transpose());
-      }
-    }
-
-    template <bool P = is_primitive<F>::value>
-    std::enable_if_t<!P, void> eval_to(param_type& result) const {
-      f_.eval_to(result);
-      // TODO: use a non-updating version of the operator for now
-      if (direct_) {
-        result = join_op_(result.array(), g_.param().array());
-      } else {
-        result = join_op_(result.array(), g_.param().array().transpose());
-      }
-    }
-
-  private:
-    //! The join operator.
-    JoinOp join_op_;
-
-    //! The left expression.
-    F f_;
-
-    //! The right expression
-    G g_;
-
-    //! True if doing a direct join (no transpose).
-    bool direct_;
-
-  }; // class matmat_join_base
-
-  /**
-   * A class that represents a binary join of a matrix and a vector.
+   * The Direction argument must take on one of the values specified by Eigen's
+   * DirectionType enum (see Eigen/src/Core/util/Constants.h).
+   * When Direction = Eigen::Vertical or Eigen::Horizontal, the joined dimension
+   * is selected at compile-time (column-wise or row-wise, respectively).
+   * When Direction = Eigen::BothDirections, the joined dimension is selected
+   * at run-time, based on the constructor argument.
    *
-   * \tparam Space
-   *         A tag denoting the space of the matrix, e.g., prob_tag or log_tag.
-   * \tparam JoinOp
-   *         A binary function object type accepting two dense matrices
-   *         and returning a matrix expression.
-   * \tparam F
-   *         The left (possibly const-reference qualified) expression type.
-   *         F must derive from matrix_base.
-   * \tparam G
-   *         The right (possibly const-reference qualified) expression type.
-   *         G must derive from vector_base.
+   * This class provides the following derived expressions:
+   *  - transform -> matrix_vector_join
+   *      [with Direction = Eigen::BothDirections]
+   *  - eliminate(member_sum) -> matrix_vector_multiply
+   *      [with JoinOp = std::multiplies<>]
    */
-  template <typename Space, typename JoinOp, typename F, typename G>
-  class matvec_join
-    : public matrix_base<
+  template <typename Space, typename JoinOp, int Direction,
+            typename F, typename G>
+  class matrix_vector_join
+    : public matrix_selector_base<
         Space,
-        argument_t<F>,
         real_t<F>,
-        matvec_join<Space, JoinOp, F, G> > {
-
-    static_assert(std::is_same<argument_t<F>, argument_t<G> >::value,
-                  "The joined expressions must have the same argument type");
+        Direction,
+        matrix_vector_join<Space, JoinOp, Direction, F, G> > {
     static_assert(std::is_same<real_t<F>, real_t<G> >::value,
                   "The joined expressions must have the same real type");
     static_assert(is_matrix<F>::value && is_vector<G>::value,
-                  "A matvec_join expression must join a matrix and a vector");
+                  "This expression must join a matrix and a vector");
 
   public:
-    // Shortcuts
-    using argument_type = argument_t<F>;
-    using domain_type   = domain_t<F>;
-    using real_type     = real_t<F>;
-    using param_type    = real_matrix<real_type>;
+    using real_type  = real_t<F>;
+    using param_type = real_matrix<real_type>;
 
-    using base = matrix_base<Space, argument_type, real_type, matvec_join>;
-    using base::param;
+    using base = matrix_selector_base<Space, real_type, Direction,
+                                      matrix_vector_join>;
+    using base::eliminate;
 
-    //! Constructs a matvec_join using the given operator and subexpressions.
-    matvec_join(JoinOp join_op, F&& f, G&& g)
-      : join_op_(join_op), f_(std::forward<F>(f)), g_(std::forward<G>(g)) {
-      if (!superset(f_.arguments(), g_.arguments())) {
-        throw std::invalid_argument("matmat_join creates a ternary factor");
-      }
-      colwise_ = f_.arguments().prefix(g_.arguments());
+    matrix_vector_join(JoinOp join_op, std::size_t /* dim */, F&& f, G&& g)
+      : join_op_(join_op), f_(std::forward<F>(f)), g_(std::forward<G>(g)) { }
+
+    std::size_t rows() const {
+      return f_.rows();
     }
 
-    //! Constructs a matvec_join with the precomputed state.
-    matvec_join(JoinOp join_op, F&& f, G&& g, bool colwise)
-      : join_op_(join_op), f_(std::forward<F>(f)), g_(std::forward<G>(g)),
-        colwise_(colwise) { }
-
-    const domain_type& arguments() const {
-      return f_.arguments();
-    }
-
-    param_type param() const {
-      param_type tmp;
-      eval_to(tmp);
-      return tmp;
+    std::size_t cols() const {
+      return f_.cols();
     }
 
     // Derived expressions
     //--------------------------------------------------------------------------
 
-    //! Unary transform of a matvec_join reference.
-    template <typename ResultSpace = Space, typename UnaryOp = void>
-    matvec_join<ResultSpace, compose_t<UnaryOp, JoinOp>,
-                add_const_reference_t<F>, add_const_reference_t<G> >
-    transform(UnaryOp unary_op) const& {
-      return { compose(unary_op, join_op_), f_, g_, colwise_ };
+    LIBGM_ENABLE_IF((std::is_same<JoinOp, std::multiplies<> >::value))
+    matrix_vector_multiply<Space, identity, Direction, cref_t<F>, cref_t<G> >
+    eliminate(member_sum) const& {
+      return { identity(), f_, g_ };
     }
 
-    //! Unary transform of a matvec_join temporary.
-    template <typename ResultSpace = Space, typename UnaryOp = void>
-    matvec_join<ResultSpace, compose_t<UnaryOp, JoinOp>, F, G>
-    transform(UnaryOp unary_op) && {
-      return { compose(unary_op, join_op_),
-               std::forward<F>(f_), std::forward<G>(g_), colwise_ };
+    LIBGM_ENABLE_IF((std::is_same<JoinOp, std::multiplies<> >::value))
+    matrix_vector_multiply<Space, identity, Direction, F, G>
+    eliminate(member_sum) && {
+      return { identity(), std::forward<F>(f_), std::forward<G>(g_) };
     }
 
     // Evaluation
     //--------------------------------------------------------------------------
 
-    bool alias(const param_type& result) const {
-      return f_.alias(result); // g is evaluated before result is updated
+    std::size_t dim() const {
+      return 0;
     }
 
-    template <bool P = is_primitive<F>::value>
-    std::enable_if_t<P, void> eval_to(param_type& result) const {
-      if (colwise_) {
-        result = join_op_(f_.param().array().colwise(),
-                          g_.param().array());
+    bool alias(const real_vector<real_type>& param) const {
+      return f_.alias(param) || g_.alias(param);
+      // f_ might alias a vector e.g. if it is an outer product of that vector
+      // g_ might alias a vector e.g. if &param == &g_.param()
+    }
+
+    bool alias(const real_matrix<real_type>& param) const {
+      return f_.alias(param) || g_.alias(param);
+      // f_ might alias a matrix e.g. if &param == &f_.param()
+      // g_ might alias a matrix e.g. if it is a segment of that matrix
+    }
+
+    auto array() const {
+      return array(int_constant<Direction>());
+    }
+
+  private:
+    auto array(int_constant<Eigen::Vertical>) const {
+      return join_op_(f_.array().colwise(),
+                      v_.capture(g_.param()).array());
+    }
+
+    auto array(int_constant<Eigen::Horizontal>) const {
+      return join_op_(f_.array().rowwise(),
+                      v_.capture(g_.param()).array().transpose());
+    }
+
+    JoinOp join_op_;
+    F f_;
+    G g_;
+
+    mutable temporary<real_vector<real_type>, has_param_temporary<G>::value> v_;
+  }; // class matrix_vector_join
+
+
+  // Specialization for dynamic direction
+  template <typename Space, typename JoinOp, typename F, typename G>
+  class matrix_vector_join<Space, JoinOp, Eigen::BothDirections, F, G>
+    : public matrix_selector_base<
+        Space,
+        real_t<F>,
+        Eigen::BothDirections,
+        matrix_vector_join<Space, JoinOp, Eigen::BothDirections, F, G> > {
+    static_assert(std::is_same<real_t<F>, real_t<G> >::value,
+                  "The joined expressions must have the same real type");
+    static_assert(is_matrix<F>::value && is_vector<G>::value,
+                  "This expression must join a matrix and a vector");
+
+  public:
+    using real_type  = real_t<F>;
+    using param_type = real_matrix<real_type>;
+
+    using base = matrix_selector_base<Space, real_type, Eigen::BothDirections,
+                                      matrix_vector_join>;
+    using base::eliminate;
+
+    matrix_vector_join(JoinOp join_op, std::size_t dim, F&& f, G&& g)
+      : join_op_(join_op), dim_(dim),
+        f_(std::forward<F>(f)), g_(std::forward<G>(g)) {
+      assert(dim <= 1);
+    }
+
+    std::size_t rows() const {
+      return f_.rows();
+    }
+
+    std::size_t cols() const {
+      return f_.cols();
+    }
+
+    // Derived expressions
+    //--------------------------------------------------------------------------
+
+    template <typename ResultSpace = Space, typename UnaryOp = void>
+    matrix_vector_join<ResultSpace, compose_t<UnaryOp, JoinOp>,
+                       Eigen::BothDirections, cref_t<F>, cref_t<G> >
+    transform(UnaryOp unary_op) const& {
+      return { compose(unary_op, join_op_), dim_, f_, g_ };
+    }
+
+    template <typename ResultSpace = Space, typename UnaryOp = void>
+    matrix_vector_join<ResultSpace, compose_t<UnaryOp, JoinOp>,
+                       Eigen::BothDirections, F, G>
+    transform(UnaryOp unary_op) && {
+      return { compose(unary_op, join_op_), dim_,
+               std::forward<F>(f_), std::forward<G>(g_) };
+    }
+
+    LIBGM_ENABLE_IF((std::is_same<JoinOp, std::multiplies<> >::value))
+    matrix_vector_multiply<Space, identity, Eigen::BothDirections,
+                           cref_t<F>, cref_t<G> >
+    eliminate(member_sum) const& {
+      return { identity(), dim_, f_, g_ };
+    }
+
+    LIBGM_ENABLE_IF((std::is_same<JoinOp, std::multiplies<> >::value))
+    matrix_vector_multiply<Space, identity, Eigen::BothDirections, F, G>
+    eliminate(member_sum) && {
+      return { identity(), dim_, std::forward<F>(f_), std::forward<G>(g_) };
+    }
+
+    // Evaluation
+    //--------------------------------------------------------------------------
+
+    std::size_t dim() const {
+      return dim_;
+    }
+
+    bool alias(const real_vector<real_type>& param) const {
+      return false;
+      // matrix_vector_join::array() returns a temporary, so it cannot alias
+      // a vector
+    }
+
+    bool alias(const real_matrix<real_type>& param) const {
+      return f_.alias(param) || g_.alias(param);
+      // f_ might alias a matrix e.g. if &param == &f_.param()
+      // g_ might alias a matirx e.g. if it a segment of that matrix
+    }
+
+    auto array() const {
+      eval_to(tmp_);
+      return tmp_.array();
+    }
+
+    void eval_to(param_type& result) const {
+      eval_to(result, is_primitive<F>());
+    }
+
+    void eval_to(param_type& result, std::true_type /* primitive */) const {
+      if (dim_ == 0) {
+        result = join_op_(f_.array().colwise(), g_.param().array());
       } else {
-        result = join_op_(f_.param().array().rowwise(),
-                          g_.param().array().transpose());
+        result = join_op_(f_.array().rowwise(), g_.param().array().transpose());
       }
     }
 
-    template <bool P = is_primitive<F>::value>
-    std::enable_if_t<!P, void> eval_to(param_type& result) const {
+    void eval_to(param_type& result, std::false_type /* not primitive*/) const {
       f_.eval_to(result);
-      if (colwise_) {
-        result = join_op_(result.array().colwise(), g_.param().array()); // for now
+      updater<JoinOp> update(join_op_);
+      if (dim_ == 0) {
+        update(result.array().colwise(), g_.param().array());
       } else {
-        result = join_op_(result.array().rowwise(), g_.param().array().transpose());
+        update(result.array().rowwise(), g_.param().array().transpose());
       }
     }
 
   private:
-    //! The join operator.
     JoinOp join_op_;
-
-    //! The left expression.
+    std::size_t dim_;
     F f_;
-
-    //! The right expression
     G g_;
-
-    //!< True if joining with the vector column-wise.
-    bool colwise_;
-
-    }; // class matvec_join_base
-
+    mutable param_type tmp_;
+  }; // class matrix_vector_join
 
   /**
-   * A class that represents a binary join of a vector and a matrix.
-   *
-   * \tparam Space
-   *         A tag denoting the space of the matrix, e.g., prob_tag or log_tag.
-   * \tparam JoinOp
-   *         A binary function object type accepting two dense matrices
-   *         and returning a matrix expression.
-   * \tparam F
-   *         The left (possibly const-reference qualified) expression type.
-   *         F must derive from vector_base.
-   * \tparam G
-   *         The right (possibly const-reference qualified) expression type.
-   *         G must derive from matrix_base.
+   * Joins any matrix selector and a vector with identical Space and RealType.
+   * \relates matrix_vector_join
    */
-  template <typename Space, typename JoinOp, typename F, typename G>
-  class vecmat_join
-    : public matrix_base<
-        Space,
-        argument_t<F>,
-        real_t<F>,
-        vecmat_join<Space, JoinOp, F, G> > {
+  template <typename BinaryOp, typename Space, typename RealType, int Direction,
+            typename F, typename G>
+  inline matrix_vector_join<Space, BinaryOp, Direction,
+                            remove_rref_t<F>, remove_rref_t<G> >
+  join(BinaryOp binary_op, F&& f, G&& g,
+       matrix_selector_base<Space, RealType, Direction, std::decay_t<F> >*,
+       vector_base<Space, RealType, std::decay_t<G> >* /* g_tag */) {
+    return { binary_op, f.dim(), std::forward<F>(f), std::forward<G>(g) };
+  }
 
-    static_assert(std::is_same<argument_t<F>, argument_t<G> >::value,
-                  "The joined expressions must have the same argument type");
+  /**
+   * Joins a matrix_selector and a vector with identical Space and RealType.
+   * \relats matrix_vector_join
+   */
+  template <typename BinaryOp, typename Space, typename RealType, int Direction,
+            typename F, typename G, typename Referenced>
+  inline matrix_vector_join<Space, BinaryOp, Direction,
+                            decltype(std::declval<F>().ref()), remove_rref_t<G> >
+  join(BinaryOp binary_op, F&& f, G&& g,
+       matrix_selector<Space, Direction, Referenced >* /* f_tag */,
+       vector_base<Space, RealType, std::decay_t<G> >* /* g_tag */) {
+    return { binary_op, f.dim(), std::forward<F>(f).ref(), std::forward<G>(g) };
+  }
+
+
+  // Vector-matrix join expression
+  //============================================================================
+
+  /**
+   * A class that represents a binary join of a vector and a matrix along
+   * the dimension specified via the Direction template parameter.
+   *
+   * The Direction argument must take on one of the values specified by Eigen's
+   * DirectionType enum (see Eigen/src/Core/util/Constants.h).
+   * When Direction = Eigen::Vertical or Eigen::Horizontal, the joined dimension
+   * is selected at compile-time (column-wise or row-wise, respectively).
+   * When Direction = Eigen::BothDirections, the joined dimension is selected
+   * at run-time, based on the constructor argument.
+   *
+   * This class provides the following derived expressions:
+   *  - transform -> vector_matrix_join
+   *      [with Direction = Eigen::BothDirections]
+   *  - eliminate(member_sum) -> matrix_vector_multiply
+   *      [with JoinOp = std::multiplies<>]
+   */
+  template <typename Space, typename JoinOp, int Direction,
+            typename F, typename G>
+  class vector_matrix_join
+    : public matrix_selector_base<
+        Space,
+        real_t<F>,
+        Direction,
+        vector_matrix_join<Space, JoinOp, Direction, F, G> > {
     static_assert(std::is_same<real_t<F>, real_t<G> >::value,
                   "The joined expressions must have the same real type");
     static_assert(is_vector<F>::value && is_matrix<G>::value,
-                  "A vecmat_join expression must join a vector and a matrix");
+                  "This expression must join a vector and a matrix");
 
   public:
-    // Shortcuts
-    using argument_type = argument_t<F>;
-    using domain_type   = domain_t<G>;
-    using real_type     = real_t<F>;
-    using param_type    = real_matrix<real_type>;
+    using real_type  = real_t<F>;
+    using param_type = real_matrix<real_type>;
 
-    using base = matrix_base<Space, argument_type, real_type, vecmat_join>;
-    using base::param;
+    using base =
+      matrix_selector_base<Space, real_type, Direction, vector_matrix_join>;
+    using base::eliminate;
 
-    //! Constructs a vecmat_join using the given operator and subexpressions.
-    vecmat_join(JoinOp join_op, F&& f, G&& g)
-      : join_op_(join_op), f_(std::forward<F>(f)), g_(std::forward<G>(g)),
-        args_(f_.arguments() + g_.arguments()),
-        direct_(g_.arguments().prefix(f_.arguments())) { }
+    vector_matrix_join(JoinOp join_op, std::size_t /*dim*/, F&& f, G&& g)
+      : join_op_(join_op), f_(std::forward<F>(f)), g_(std::forward<G>(g)) { }
 
-    //! Constructs a vecmat_join with the precomputed state.
-    vecmat_join(JoinOp join_op, F&& f, G&& g,
-                const domain_type& args, bool direct)
-      : join_op_(join_op), f_(std::forward<F>(f)), g_(std::forward<G>(g)),
-        args_(args), direct_(direct) { }
-
-    const domain_type& arguments() const {
-      return args_;
+    std::size_t rows() const {
+      return f_.size();
     }
 
-    param_type param() const {
-      param_type tmp;
-      eval_to(tmp);
-      return tmp;
+    std::size_t cols() const {
+      return (Direction == Eigen::Vertical) ? g_.cols() : g_.rows();
     }
 
     // Derived expressions
     //--------------------------------------------------------------------------
 
-    //! Unary transform of a vecmat_join reference.
-    template <typename ResultSpace = Space, typename UnaryOp = void>
-    vecmat_join<ResultSpace, compose_t<UnaryOp, JoinOp>,
-                add_const_reference_t<F>, add_const_reference_t<G> >
-    transform(UnaryOp unary_op) const& {
-      return { compose(unary_op, join_op_), f_, g_, args_, direct_ };
+    LIBGM_ENABLE_IF((std::is_same<JoinOp, std::multiplies<> >::value))
+    matrix_vector_multiply<Space, identity, Direction, cref_t<G>, cref_t<F> >
+    eliminate(member_sum) const& {
+      return { identity(), g_, f_ };
     }
 
-    //! Unary transform of a vecmat_join temporary.
-    template <typename ResultSpace = Space, typename UnaryOp = void>
-    vecmat_join<ResultSpace, compose_t<UnaryOp, JoinOp>, F, G>
-    transform(UnaryOp unary_op) && {
-      return { compose(unary_op, join_op_),
-               std::forward<F>(f_), std::forward<G>(g_), args_, direct_ };
-    }
-
-    bool alias(const param_type& result) const {
-      return !direct_ && g_.alias(result);
-    }
-
-    void eval_to(param_type& result) const {
-      auto&& f_param = f_.param();
-      Eigen::Replicate<const real_vector<real_type>, 1, Eigen::Dynamic>
-        f_rep(f_param, 1, args_.num_values().second);
-      if (direct_) {
-        result = join_op_(f_rep.array(), g_.param().array());
-      } else {
-        result = join_op_(f_rep.array(), g_.param().array().transpose());
-      }
-    }
-
-  private:
-    //! The join operator.
-    JoinOp join_op_;
-
-    //! The left expression.
-    F f_;
-
-    //! The right expression
-    G g_;
-
-    //! The computed arguments of this expression.
-    domain_type args_;
-
-    //! True if doing a direct join (no transpose).
-    bool direct_;
-
-  }; // class vecmat_join_base
-
-  /**
-   * Joins two matrices with identical Space, Arg, and RealType.
-   * The pointers serve as tags to allow us simultaneously dispatch
-   * all possible combinations of lvalues and rvalues F and G.
-   *
-   * \relates matmat_join
-   */
-  template <typename BinaryOp, typename Space, typename Arg, typename RealType,
-            typename F, typename G>
-  inline matmat_join<Space, BinaryOp,
-                     remove_rvalue_reference_t<F>, remove_rvalue_reference_t<G> >
-  join(BinaryOp binary_op, F&& f, G&& g,
-       matrix_base<Space, Arg, RealType, std::decay_t<F> >* /* f_tag */,
-       matrix_base<Space, Arg, RealType, std::decay_t<G> >* /* g_tag */) {
-    return { binary_op, std::forward<F>(f), std::forward<G>(g) };
-  }
-
-  /**
-   * Joins a matrix and a vector with identical Space, Arg, and RealType.
-   * The pointers serve as tags to allow us simultaneously dispatch
-   * all possible combinations of lvalues and rvalues F and G.
-   *
-   * \relates matvec_join
-   */
-  template <typename BinaryOp, typename Space, typename Arg, typename RealType,
-            typename F, typename G>
-  inline matvec_join<Space, BinaryOp,
-                     remove_rvalue_reference_t<F>, remove_rvalue_reference_t<G> >
-  join(BinaryOp binary_op, F&& f, G&& g,
-       matrix_base<Space, Arg, RealType, std::decay_t<F> >* /* f_tag */,
-       vector_base<Space, Arg, RealType, std::decay_t<G> >* /* g_tag */) {
-    return { binary_op, std::forward<F>(f), std::forward<G>(g) };
-  }
-
-  /**
-   * Joins two matrices with identical Space, Arg, and RealType.
-   * The pointers serve as tags to allow us simultaneously dispatch
-   * all possible combinations of lvalues and rvalues F and G.
-   *
-   * \relates vecmat_join
-   */
-  template <typename BinaryOp, typename Space, typename Arg, typename RealType,
-            typename F, typename G>
-  inline vecmat_join<Space, BinaryOp,
-                     remove_rvalue_reference_t<F>, remove_rvalue_reference_t<G> >
-  join(BinaryOp binary_op, F&& f, G&& g,
-       vector_base<Space, Arg, RealType, std::decay_t<F> >* /* f_tag */,
-       matrix_base<Space, Arg, RealType, std::decay_t<G> >* /* g_tag */) {
-    return { binary_op, std::forward<F>(f), std::forward<G>(g) };
-  }
-
-
-  // Aggregate
-  //============================================================================
-
-  /**
-   * A class that represents an aggregate of a matrix, followed by an optional
-   * transform.
-   *
-   * Examples of an aggregate expression:
-   *   f.maximum(dom)
-   *   pow(f.marginal(dom), 2.0)
-   *
-   * \tparam Space
-   *         A tag denoting the space of the vector, e.g., prob_tag or log_tag.
-   * \tparam AggOp
-   *         A unary function object type accepting a dense matrix and returning
-   *         an Eigen expression representing the aggregate.
-   * \tparam TransOp
-   *         A unary function object type accepting a dense matrix and returning
-   *         an Eigen expression representing the transform.
-   * \tparam F
-   *         The (possibly const-reference qualified) aggregated expression.
-   */
-  template <typename Space, typename AggOp, typename TransOp, typename F>
-  class matrix_aggregate
-    : public vector_base<
-        Space,
-        argument_t<F>,
-        real_t<F>,
-        matrix_aggregate<Space, AggOp, TransOp, F> > {
-
-  public:
-    // Shortcuts
-    using argument_type = argument_t<F>;
-    using domain_type   = unary_domain<argument_type>;
-    using real_type     = real_t<F>;
-    using param_type    = real_vector<real_type>;
-
-    using base = vector_base<Space, argument_type, real_type, matrix_aggregate>;
-    using base::param;
-
-    //! Constructs a matrix_aggregate using the given operators and expression.
-    matrix_aggregate(const domain_type& retain, AggOp agg_op, TransOp trans_op,
-                     F&& f)
-      : retain_(retain), agg_op_(agg_op), trans_op_(trans_op),
-        f_(std::forward<F>(f)) {
-      if (!superset(f_.arguments(), retain)) {
-        throw std::invalid_argument(
-          "Attempt to compute a matrix aggregate over nonexistent arguments"
-        );
-      }
-      rowwise_ = f_.arguments().prefix(retain_);
-    }
-
-    //! Constructs a matrix_aggregate with the precomputed state.
-    matrix_aggregate(const domain_type& retain, AggOp agg_op, TransOp trans_op,
-                     F&& f, bool rowwise)
-      : retain_(retain), agg_op_(agg_op), trans_op_(trans_op),
-        f_(std::forward<F>(f)), rowwise_(rowwise) { }
-
-    const domain_type& arguments() const {
-      return retain_;
-    }
-
-    param_type param() const {
-      param_type tmp;
-      eval_to(tmp);
-      return tmp;
-    }
-
-    // Derived expressions
-    //--------------------------------------------------------------------------
-
-    //! Unary transform of a matrix_aggregate reference.
-    template <typename ResultSpace = Space, typename UnaryOp = void>
-    matrix_aggregate<ResultSpace, AggOp, compose_t<UnaryOp, TransOp>,
-                     add_const_reference_t<F> >
-    transform(UnaryOp unary_op) const& {
-      return { retain_, agg_op_, compose(unary_op, trans_op_), f_, rowwise_ };
-    }
-
-    //! Unary transform of a matrix_aggregate temporary.
-    template <typename ResultSpace = Space, typename UnaryOp = void>
-    matrix_aggregate<ResultSpace, AggOp, compose_t<UnaryOp, TransOp>, F>
-    transform(UnaryOp unary_op) && {
-      return { retain_, agg_op_, compose(unary_op, trans_op_),
-               std::forward<F>(f_), rowwise_ };
+    LIBGM_ENABLE_IF((std::is_same<JoinOp, std::multiplies<> >::value))
+    matrix_vector_multiply<Space, identity, Direction, G, F>
+    eliminate(member_sum) && {
+      return { identity(), std::forward<G>(g_), std::forward<F>(f_) };
     }
 
     // Evaluation
     //--------------------------------------------------------------------------
 
-    bool alias(const param_type& result) const {
+    std::size_t dim() const {
+      return 0;
+    }
+
+    bool alias(const real_vector<real_type>& param) const {
+      return f_.alias(param) || g_.alias(param);
+      // f_ might alias a vector e.g. if &param == &f_.param()
+      // g_ might alias a vector e.g. if it is an outer product of that vector
+    }
+
+    bool alias(const real_matrix<real_type>& param) const {
+      return f_.alias(param) || g_.alias(param);
+      // f_ might alias a matrix e.g. if it is a segment of that matrix
+      // g_ might alias a matrix e.g. if &param == &g_.param()
+    }
+
+    auto array() const {
+      return array(int_constant<Direction>());
+    }
+
+  private:
+    auto array(int_constant<Eigen::Vertical>) const {
+      return join_op_(
+        u_.capture(f_.param()).array().rowwise().replicate(g_.cols()),
+        g_.array()
+      );
+    }
+
+    auto array(int_constant<Eigen::Horizontal>) const {
+      return join_op_(
+        u_.capture(f_.param()).array().rowwise().replicate(g_.rows()),
+        g_.array().transpose()
+      );
+    }
+
+
+  private:
+    JoinOp join_op_;
+    F f_;
+    G g_;
+    mutable temporary<real_vector<real_type>, has_param_temporary<F>::value> u_;
+  }; // class vector_matrix_join
+
+  // Specialization for dynamic direction
+  template <typename Space, typename JoinOp, typename F, typename G>
+  class vector_matrix_join<Space, JoinOp, Eigen::BothDirections, F, G>
+    : public matrix_selector_base<
+        Space,
+        real_t<F>,
+        Eigen::BothDirections,
+        vector_matrix_join<Space, JoinOp, Eigen::BothDirections, F, G> > {
+    static_assert(std::is_same<real_t<F>, real_t<G> >::value,
+                  "The joined expressions must have the same real type");
+    static_assert(is_vector<F>::value && is_matrix<G>::value,
+                  "This expression must join a vector and a matrix");
+
+  public:
+    using real_type  = real_t<F>;
+    using param_type = real_matrix<real_type>;
+
+    using base =  matrix_selector_base<Space, real_type, Eigen::BothDirections,
+                                       vector_matrix_join>;
+    using base::eliminate;
+
+    vector_matrix_join(JoinOp join_op, std::size_t dim, F&& f, G&& g)
+      : join_op_(join_op), dim_(dim),
+        f_(std::forward<F>(f)), g_(std::forward<G>(g)) {
+      assert(dim <= 1);
+    }
+
+    std::size_t rows() const {
+      return f_.rows();
+    }
+
+    std::size_t cols() const {
+      return (dim_ == 0) ? g_.cols() : g_.rows();
+    }
+
+    // Derived expressions
+    //--------------------------------------------------------------------------
+
+    template <typename ResultSpace = Space, typename UnaryOp = void>
+    vector_matrix_join<ResultSpace, compose_t<UnaryOp, JoinOp>,
+                       Eigen::BothDirections, cref_t<F>, cref_t<G> >
+    transform(UnaryOp unary_op) const& {
+      return { compose(unary_op, join_op_), dim_, f_, g_ };
+    }
+
+    template <typename ResultSpace = Space, typename UnaryOp = void>
+    vector_matrix_join<ResultSpace, compose_t<UnaryOp, JoinOp>,
+                       Eigen::BothDirections, F, G>
+    transform(UnaryOp unary_op) && {
+      return { compose(unary_op, join_op_), dim_,
+               std::forward<F>(f_), std::forward<G>(g_) };
+    }
+
+    LIBGM_ENABLE_IF((std::is_same<JoinOp, std::multiplies<> >::value))
+    matrix_vector_multiply<Space, identity, Eigen::BothDirections, cref_t<G>, cref_t<F> >
+    eliminate(member_sum) const& {
+      return { identity(), dim_, g_, f_ };
+    }
+
+    LIBGM_ENABLE_IF((std::is_same<JoinOp, std::multiplies<> >::value))
+    matrix_vector_multiply<Space, identity, Eigen::BothDirections, G, F>
+    eliminate(member_sum) && {
+      return { identity(), dim_, std::forward<G>(g_), std::forward<F>(f_) };
+    }
+
+    // Evaluation
+    //--------------------------------------------------------------------------
+
+    std::size_t dim() const {
+      return dim_;
+    }
+
+    bool alias(const real_vector<real_type>& param) const {
       return false;
+      // vector_matrix_join::array() returns a temporary, so it cannot alias
+      // a vector
+    }
+
+    bool alias(const real_matrix<real_type>& param) const {
+      return f_.alias(param) || g_.alias(param);
+      // f_ might alias a matrix e.g. if it is a segment of that matrix
+      // g_ might alias a matrix e.g. if &param == &g_.param()
+    }
+
+    auto array() const {
+      eval_to(tmp_);
+      return tmp_.array();
     }
 
     void eval_to(param_type& result) const {
-      if (rowwise_) {
-        result = trans_op_(agg_op_(f_.param().array().rowwise()));
+      if (dim_ == 0) {
+        result = join_op_(f_.param().array().rowwise().replicate(g_.cols()),
+                          g_.array());
       } else {
-        result = trans_op_(agg_op_(f_.param().array().colwise())).transpose();
+        result = join_op_(f_.param().array().rowwise().replicate(g_.rows()),
+                          g_.array().transpose());
       }
     }
 
   private:
-    //! The retained argument; this is the argument of the result.
-    const domain_type& retain_;
-
-    //! The aggregation operation.
-    AggOp agg_op_;
-
-    //! The transform operator applied to the aggregate.
-    TransOp trans_op_;
-
-    //! The expression to be aggregated.
+    JoinOp join_op_;
+    std::size_t dim_;
     F f_;
+    G g_;
+    mutable param_type tmp_;
+  }; // class vector_matrix_join
 
-    //! True if aggregating the rows.
-    bool rowwise_;
+  /**
+   * Joins a vector and any matrix selector with identical Space, and RealType.
+   * \relates vector_matrix_join
+   */
+  template <typename BinaryOp, typename Space, typename RealType, int Direction,
+            typename F, typename G>
+  inline vector_matrix_join<Space, BinaryOp, Direction,
+                            remove_rref_t<F>, remove_rref_t<G> >
+  join(BinaryOp binary_op, F&& f, G&& g,
+       vector_base<Space, RealType, std::decay_t<F> >* /* f_tag */,
+       matrix_selector_base<Space, RealType, Direction, std::decay_t<G> >*) {
+    return { binary_op, g.dim(), std::forward<F>(f), std::forward<G>(g) };
+  }
 
-  }; // class matrix_aggregate
+  /**
+   * Joins a vector and any matrix selector with identical Space, and RealType.
+   * \relates vector_matrix_join
+   */
+  template <typename BinaryOp, typename Space, typename RealType, int Direction,
+            typename F, typename G, typename Referenced>
+  inline vector_matrix_join<Space, BinaryOp, Direction,
+                            remove_rref_t<F>, decltype(std::declval<G>().ref())>
+  join(BinaryOp binary_op, F&& f, G&& g,
+       vector_base<Space, RealType, std::decay_t<F> >* /* f_tag */,
+       matrix_selector<Space, Direction, Referenced >* /* g_tag */) {
+    return { binary_op, g.dim(), std::forward<F>(f), std::forward<G>(g).ref() };
+  }
 
 
-  // Restrict
+  // Aggregate expressions
   //============================================================================
 
   /**
-   * A class that represents a restriction of a matrix to a row or column,
-   * followed by an optional transform.
+   * An expression that represents an elimination of a dimension from
+   * a matrix expression using an aggregate function.
    *
-   * Examples of a restrict expression:
-   *   f.restrict(a)
-   *   f.restrict(a) * 2
+   * The Direction argument must take on one of the values specified by Eigen's
+   * DirectionType enum (see Eigen/src/Core/util/Constants.h).
+   * When Direction = Eigen::Vertical or Eigen::Horizontal, the eliminated
+   * dimension is selected at compile-time (columns or rows, respectively).
+   * When Direction = Eigen::BothDirections, the joined dimension is selected
+   * at run-time, based on the constructor argument.
    *
-   * \tparam Space
-   *         A tag denoting the space of the vector, e.g., prob_tag or log_tag.
-   * \tparam TransOp
-   *         A unary function object type accepting a dense matrix and returning
-   *         an Eigen expression representing the transform.
-   * \tparam F
-   *         Restricted (possibly const-reference qualified) expression type.
+   * This class supports the following derived expressions:
+   *  - transform -> matrix_eliminate
+   */
+  template <typename Space, typename AggOp, int Direction, typename F>
+  class matrix_eliminate
+    : public vector_base<
+        Space,
+        real_t<F>,
+        matrix_eliminate<Space, AggOp, Direction, F> > {
+  public:
+    using real_type  = real_t<F>;
+    using param_type = real_vector<real_type>;
+
+    matrix_eliminate(AggOp agg_op, std::size_t dim, F&& f)
+      : agg_op_(agg_op), dim_(dim), f_(std::forward<F>(f)) { }
+
+    std::size_t size() const {
+      if (Direction == Eigen::BothDirections) {
+        return (dim_ == 0) ? f_.cols() : f_.rows();
+      } else {
+        return (Direction == Eigen::Vertical) ? f_.cols() : f_.rows();
+      }
+    }
+
+    template <typename ResultSpace = Space, typename UnaryOp = void>
+    matrix_eliminate<ResultSpace, compose_t<UnaryOp, AggOp>, Direction, cref_t<F> >
+    transform(UnaryOp unary_op) const& {
+      return { compose(unary_op, agg_op_), dim_, f_ };
+    }
+
+    template <typename ResultSpace = Space, typename UnaryOp = void>
+    matrix_eliminate<ResultSpace, compose_t<UnaryOp, AggOp>, Direction, F>
+    transform(UnaryOp unary_op) && {
+      return { compose(unary_op, agg_op_), dim_, std::forward<F>(f_) };
+    }
+
+    bool alias(const param_type& param) const {
+      return f_.alias(param);
+      // matrix_aggregate may alias a vector if f_ does (e.g., an outer product)
+    }
+
+    bool alias(const real_matrix<real_type>& param) const {
+      return false;
+      // matrix_eliminate::param() returns a vector temporary, so it will never
+      // alias a matrix
+    }
+
+    void eval_to(param_type& result) const {
+      directional_eliminate(agg_op_,
+                            int_constant<Direction>(), dim_,
+                            f_.array(), result);
+    }
+
+  private:
+    AggOp agg_op_;
+    std::size_t dim_;
+    F f_;
+  };
+
+  /**
+   * An expression that represents an aggregation over a dynamically selected
+   * dimension from a matrix using an aggregate operation.
+   *
+   * This class supports the following derived expressions:
+   *  - transform -> matrix_aggregate
+   */
+  template <typename Space, typename AggOp, typename F>
+  class matrix_aggregate
+    : public vector_base<
+        Space,
+        real_t<F>,
+        matrix_aggregate<Space, AggOp, F> > {
+  public:
+    using real_type  = real_t<F>;
+    using param_type = real_vector<real_type>;
+
+    matrix_aggregate(AggOp agg_op, std::size_t retain, F&& f)
+      : agg_op_(agg_op), retain_(retain), f_(std::forward<F>(f)) { }
+
+    std::size_t size() const {
+      return (retain_ == 0) ? f_.rows() : f_.cols();
+    }
+
+    template <typename ResultSpace = Space, typename UnaryOp = void>
+    matrix_aggregate<ResultSpace, compose_t<UnaryOp, AggOp>, cref_t<F> >
+    transform(UnaryOp unary_op) const& {
+      return { compose(unary_op, agg_op_), retain_, f_ };
+    }
+
+    template <typename ResultSpace = Space, typename UnaryOp = void>
+    matrix_aggregate<ResultSpace, compose_t<UnaryOp, AggOp>, F>
+    transform(UnaryOp unary_op) && {
+      return { compose(unary_op, agg_op_), retain_, std::forward<F>(f_) };
+    }
+
+    bool alias(const real_vector<real_type>& param) const {
+      return f_.alias(param);
+      // matrix_aggregate may alias a vector if f_ does (e.g., an outer product)
+    }
+
+    bool alias(const real_matrix<real_type>& param) const {
+      return false;
+      // matrix_aggregate::param() returns a vector temporary, so it will never
+      // alias a matrix
+    }
+
+    void eval_to(param_type& result) const {
+      directional_eliminate(agg_op_,
+                            int_constant<Eigen::BothDirections>(), 1 - retain_,
+                            f_.array(), result);
+    }
+
+  private:
+    AggOp agg_op_;
+    std::size_t retain_;
+    F f_;
+  };
+
+
+  // Join-aggregate expressions
+  //============================================================================
+
+  /**
+   * An expression that represents a matrix-vector multiplication, followed by
+   * an optional transform
+   *
+   * The Direction argument must take on one of the values specified by Eigen's
+   * DirectionType enum (see Eigen/src/Core/util/Constants.h).
+   * When Direction = Eigen::Vertical or Eigen::Horizontal, the position of the
+   * vector (i.e., the joined dimensions) is selected at compile-time (left or
+   * right, respectively). When Direction = Eigen::BothDirections, the position
+   * of the vector is determined at run-time, based on the constructor argument.
+   *
+   * This class supports the following derived expressions:
+   *  - transform -> matrix_vector_multiply
+   */
+  template <typename Space, typename TransOp, int Direction,
+            typename F, typename G>
+  class matrix_vector_multiply
+    : public vector_base<
+        Space,
+        real_t<F>,
+        matrix_vector_multiply<Space, TransOp, Direction, F, G> > {
+    static_assert(std::is_same<real_t<F>, real_t<G> >::value,
+                  "The joined expressions must have the same real type");
+    static_assert(is_matrix<F>::value && is_vector<G>::value,
+                  "This expression must multiply a matrix and a vector");
+  public:
+    using real_type  = real_t<F>;
+    using param_type = real_vector<real_type>;
+
+    LIBGM_ENABLE_IF(Direction != Eigen::BothDirections)
+    matrix_vector_multiply(TransOp trans_op, F&& f, G&& g)
+      : trans_op_(trans_op), f_(std::forward<F>(f)), g_(std::forward<G>(g)) { }
+
+    LIBGM_ENABLE_IF(Direction == Eigen::BothDirections)
+    matrix_vector_multiply(TransOp trans_op, std::size_t dim, F&& f, G&& g)
+      : trans_op_(trans_op), dim_(dim),
+        f_(std::forward<F>(f)), g_(std::forward<G>(g)) { }
+
+    std::size_t size() const {
+      if (Direction == Eigen::BothDirections) {
+        return (dim_ == 0) ? f_.cols() : f_.rows();
+      } else {
+        return (dim_ == Eigen::Vertical) ? f_.cols() : f_.rows();
+      }
+    }
+
+    // Derived expressions
+    //--------------------------------------------------------------------------
+
+    template <typename ResultSpace = Space, typename UnaryOp = void>
+    matrix_vector_multiply<ResultSpace, compose_t<UnaryOp, TransOp>, Direction,
+                           cref_t<F>, cref_t<G> >
+    transform(UnaryOp unary_op) const& {
+      return { compose(unary_op, trans_op_), dim_, f_, g_ };
+    }
+
+    template <typename ResultSpace = Space, typename UnaryOp = void>
+    matrix_vector_multiply<ResultSpace, compose_t<UnaryOp, TransOp>, Direction,
+                           F, G>
+    transform(UnaryOp unary_op) && {
+      return { compose(unary_op, trans_op_), dim_,
+               std::forward<F>(f_), std::forward<G>(g_) };
+    }
+
+    // Evaluation
+    //--------------------------------------------------------------------------
+
+    bool alias(const real_vector<real_type>& param) const {
+      return g_.alias(param);
+      // matrix_vector_multiply might alias param e.g. if &g_.param() == &param
+    }
+
+    bool alias(const real_matrix<real_type>& param) const {
+      return false;
+      // matrix_vector_multiply::array() returns a vector temporary, so it never
+      // aliases a matrix
+    }
+
+    void eval_to(param_type& param) const {
+      eval_to(param, int_constant<Direction>());
+    }
+
+    void eval_to(param_type& result, int_constant<Eigen::Vertical>) const {
+      result.noalias() = f_.array().matrix().transpose() * g_.param();
+    }
+
+    void eval_to(param_type& result, int_constant<Eigen::Horizontal>) const {
+      result.noalias() = f_.array().matrix() * g_.param();
+    }
+
+    void eval_to(param_type& result, int_constant<Eigen::BothDirections>) const{
+      if (dim_ == 0) {
+        eval_to(result, int_constant<Eigen::Vertical>());
+      } else {
+        eval_to(result, int_constant<Eigen::Horizontal>());
+      }
+    }
+
+  private:
+    TransOp trans_op_;
+    std::size_t dim_;
+    F f_;
+    G g_;
+  }; // class matrix_vector_multiply
+
+
+  // Restrict expressions
+  //============================================================================
+
+  /**
+   * A class that represents the values of the matrix when the head or tail
+   * is fixed to the given value.
+   *
+   * When Direction = Eigen::Vertical, this expression restricts the head,
+   * taking the values of a single column.
+   * When Direction = Eigen::Horizontal, this expression restricts the tail,
+   * taking the values of a single row.
+   */
+  template <typename Space, int Direction, typename F>
+  class matrix_segment
+    : public vector_base<
+        Space,
+        real_t<F>,
+        matrix_segment<Space, Direction, F> > {
+  public:
+    using real_type  = real_t<F>;
+    using param_type = real_vector<real_type>;
+
+    using base = vector_base<Space, real_type, matrix_segment>;
+    using base::param;
+
+    matrix_segment(F&& f, std::size_t value)
+      : f_(std::forward<F>(f)), value_(value) { }
+
+    std::size_t size() const {
+      return (Direction == Eigen::Vertical) ? f_.rows() : f_.cols();
+    }
+
+    bool alias(const real_vector<real_type>& param) const {
+      return f_.alias(param);
+      // matrix_segment might alias a vector e.g. if f_ is an outer product
+    }
+
+    bool alias(const real_matrix<real_type>& param) const {
+      return f_.alias(param);
+      // matrix_segment might alias a matrix e.g. if f_ involves that matrix
+    }
+
+    void eval_to(param_type& result) const {
+      result = param();
+    }
+
+    auto param() const {
+      return param(int_constant<Direction>());
+    }
+
+  private:
+    auto param(int_constant<Eigen::Vertical>) const {
+      return f_.array().matrix().col(value_);
+    }
+
+    auto param(int_constant<Eigen::Horizontal>) const {
+      return f_.array().matrix().row(value_).transpose();
+    }
+
+    F f_;
+    std::size_t value_;
+  }; // class matrix_segment
+
+  /**
+   * A class that represents a matrix restricted to a row or a column,
+   * selected dynamically at run-time, followed by an optional transform.
+   *
+   * This class optimizes the following derived expressions:
+   *  - transform -> matrix_restrict
    */
   template <typename Space, typename TransOp, typename F>
   class matrix_restrict
     : public vector_base<
         Space,
-        argument_t<F>,
         real_t<F>,
         matrix_restrict<Space, TransOp, F> > {
 
   public:
-    // Shortcuts
-    using argument_type   = argument_t<F>;
-    using domain_type     = unary_domain<argument_type>;
-    using real_type       = real_t<F>;
-    using assignment_type = assignment_t<F>;
-    using param_type      = real_vector<real_type>;
+    using real_type  = real_t<F>;
+    using param_type = real_vector<real_type>;
 
-    using base = vector_base<Space, argument_type, real_type, matrix_restrict>;
-    using base::param;
-
-    //! Constructs a matrix_restrict using the given expression and assignment.
-    matrix_restrict(F&& f, const assignment_type& a, TransOp trans_op)
-      : f_(std::forward<F>(f)), trans_op_(trans_op) {
-      domain_type restricted;
-      f_.arguments().partition(a, restricted, retain_); // may throw
-      index_ = a.at(restricted.x());
-      colwise_ = f.arguments().prefix(retain_);
+    LIBGM_ENABLE_IF((std::is_same<TransOp, identity>::value))
+    matrix_restrict(F&& f, std::size_t dim, std::size_t value)
+      : f_(std::forward<F>(f)), dim_(dim), value_(value) {
+      assert(dim <= 1);
     }
 
-    matrix_restrict(F&& f, TransOp trans_op,
-                    const domain_type& retain, bool colwise)
-      : f_(std::forward<F>(f)),
-        trans_op_(trans_op),
-        retain_(retain),
-        colwise_(colwise) { }
-
-    const domain_type& arguments() const {
-      return retain_;
+    matrix_restrict(TransOp trans_op, F&& f, std::size_t dim, std::size_t value)
+      : trans_op_(trans_op), f_(std::forward<F>(f)), dim_(dim), value_(value) {
+      assert(dim <= 1);
     }
 
-    param_type param() const {
-      param_type tmp;
-      eval_to(tmp);
-      return tmp;
+    std::size_t size() const {
+      return (dim_ == 0) ? f_.rows() : f_.cols();
     }
 
-    // Derived expressions
-    //--------------------------------------------------------------------------
-
-    //! Unary transform of a matrix_restrict reference.
     template <typename ResultSpace = Space, typename UnaryOp = void>
-    matrix_restrict<ResultSpace, compose_t<UnaryOp, TransOp>,
-                    add_const_reference_t<F> >
+    matrix_restrict<ResultSpace, compose_t<UnaryOp, TransOp>, cref_t<F> >
     transform(UnaryOp unary_op) const& {
-      return { f_, compose(unary_op, trans_op_), retain_, colwise_ };
+      return { compose(unary_op, trans_op_), f_, dim_, value_ };
     }
 
-    //! Unary transform of a matrix_restrict temporary.
     template <typename ResultSpace = Space, typename UnaryOp = void>
     matrix_restrict<ResultSpace, compose_t<UnaryOp, TransOp>, F>
     transform(UnaryOp unary_op) && {
-      return { std::forward<F>(f_), compose(unary_op, trans_op_),
-               retain_, colwise_ };
+      return { compose(unary_op, trans_op_), std::forward<F>(f_), dim_, value_ };
     }
 
-    // Evaluation
-    //--------------------------------------------------------------------------
+    bool alias(const real_vector<real_type>& param) const {
+      return f_.alias(param);
+      // matrix_restrict might alias a vector e.g. if f_ is an outer product
+    }
 
-    bool alias(const param_type& result) const {
+    bool alias(const real_matrix<real_type>& param) const {
       return false;
+      // matrix_restrict evaluates to a vector temporary, so it never aliases
+      // a matrix
     }
 
     void eval_to(param_type& result) const {
-      if (colwise_) {
-        result = trans_op_(f_.param().array().col(index_));
+      if (dim_ == 1) {
+        result = trans_op_(f_.array().col(value_));
       } else {
-        result = trans_op_(f_.param().array().row(index_)).transpose();
+        result = trans_op_(f_.array().row(value_).transpose());
       }
     }
 
   private:
-    //! The restricted expression.
-    F f_;
-
-    //! The transform operator applied to the restricted elements.
     TransOp trans_op_;
+    F f_;
+    std::size_t dim_;
+    std::size_t value_;
+  }; // class matrix_restrict
 
-    //! The computed argument of this expression.
-    domain_type retain_;
 
-    //! The index of thw row/column retained.
-    std::size_t index_;
+  // Reorder expressions
+  //============================================================================
 
-    //! True if restricting column-wise.
-    bool colwise_;
+  /**
+   * An expression that swaps head and tail.
+   */
+  template <typename Space, typename F>
+  class matrix_transpose
+    : public matrix_base<Space, real_t<F>, matrix_transpose<Space, F> > {
+  public:
+    using real_type = real_t<F>;
 
-  }; // class matrix_restrict_base
+    matrix_transpose(F&& f)
+      : f_(std::forward<F>(f)) { }
+
+    std::size_t rows() const {
+      return f_.cols();
+    }
+
+    std::size_t cols() const {
+      return f_.rows();
+    }
+
+    bool alias(const real_vector<real_type>& param) const {
+      return f_.alias(param);
+    }
+
+    bool alias(const real_matrix<real_type>& param) const {
+      return f_.alias(param);
+    }
+
+    auto array() const {
+      return f_.array().transpose();
+    }
+
+  private:
+    F f_;
+  };
 
 
   // Raw buffer map
   //============================================================================
 
   /**
-   * An expression that represents a probabilitty matrix via a domain and a raw
-   * pointer to the data. At the moment, this expression is used primarily in
-   * table-matrix conversions.
+   * An expression that represents a matrix via its shape and a raw pointer to
+   * the data.
    */
-  template <typename Space, typename Arg, typename RealType>
+  template <typename Space, typename RealType>
   class matrix_map
-    : public matrix_base<
-        Space,
-        Arg,
-        RealType,
-        matrix_map<Space, Arg, RealType> > {
+    : public matrix_base<Space, RealType, matrix_map<Space, RealType> > {
 
   public:
-    using base = matrix_base<Space, Arg, RealType, matrix_map>;
-    using base::param;
+    matrix_map(std::size_t rows, std::size_t cols, const RealType* data)
+      : rows_(rows), cols_(cols), data_(data) { }
 
-    matrix_map(const binary_domain<Arg>& args, const RealType* data)
-      : args_(args), data_(data) {
-      assert(data);
+    std::size_t rows() const {
+      return rows_;
     }
 
-    const binary_domain<Arg>& arguments() const {
-      return args_;
+    std::size_t cols() const {
+      return cols_;
     }
 
-    real_matrix<RealType> param() const {
-      return map();
+    Eigen::Map<const real_matrix<RealType> > array() const {
+      return { data_, std::ptrdiff_t(rows_), std::ptrdiff_t(cols_) };
+    }
+
+    bool alias(const real_vector<RealType>& param) const {
+      return false; // matrix_map assumes no aliasing
     }
 
     bool alias(const real_matrix<RealType>& param) const {
-      return false; // matrix_map is always safe to evaluate
-    }
-
-    void eval_to(real_matrix<RealType>& result) const {
-      result = map();
-    }
-
-    template <typename AssignOp>
-    void transform_inplace(AssignOp assign_op,
-                           real_matrix<RealType>& result) const {
-      assign_op(result.array(), map().array());
-    }
-
-    template <typename AssignOp>
-    void join_inplace(AssignOp op,
-                      const binary_domain<Arg>& result_args,
-                      real_matrix<RealType>& result) const {
-      if (args_.x() == result_args.x() && args_.y() == result_args.y()) {
-        op(result.array(), map().array());
-      } else if (args_.x() == result_args.y() && args_.y() == result_args.x()) {
-        op(result.array(), map().array().transpose());
-      } else {
-        throw std::invalid_argument(
-          "probability_matrix: incompatible arguments"
-        );
-      }
-    }
-
-    template <typename AccuOp>
-    RealType accumulate(AccuOp op) const {
-      return op(map());
+      return false; // matrix_map assumes no aliasing
     }
 
   private:
-    //! Returns the Eigen Map object for this expression.
-    Eigen::Map<const real_matrix<RealType> > map() const {
-      std::pair<std::ptrdiff_t, std::ptrdiff_t> num_values = args_.num_values();
-      return { data_, num_values.first, num_values.second };
-    }
-
-    //! The arguments of the expression.
-    binary_domain<Arg> args_;
-
-    //! The raw pointer to the data.
+    std::size_t rows_;
+    std::size_t cols_;
     const RealType* data_;
 
   }; // class matrix_map
+
+  template <typename Space, typename RealType>
+  struct is_primitive<matrix_map<Space, RealType> > : std::true_type { };
 
 } } // namespace libgm::experimental
 

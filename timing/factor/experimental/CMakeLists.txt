@@ -1,1 +1,3 @@
 add_executable(table_experimental_timing table.cpp)
+add_executable(vector_experimental_timing vector.cpp)
+add_executable(matrix_experimental_timing matrix.cpp)

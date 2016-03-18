@@ -18,12 +18,17 @@ namespace libgm {
    * \tparam Inner a type representing the inner function g.
    */
   template <typename Outer, typename Inner>
-  struct composed : default_update<composed<Outer, Inner> > {
+  struct composed {
     composed(Outer f, Inner g)
       : f(f), g(g) { }
 
     template <typename... Args>
     auto operator()(Args&&... args) {
+      return f(g(std::forward<Args>(args)...));
+    }
+
+    template <typename... Args>
+    auto operator()(Args&&... args) const {
       return f(g(std::forward<Args>(args)...));
     }
 
@@ -73,7 +78,7 @@ namespace libgm {
       : f(f), g(g) { }
 
     template <typename First, typename... Rest>
-    auto operator()(First&& first, Rest&&... rest) {
+    auto operator()(First&& first, Rest&&... rest) const {
       return f(g(std::forward<Rest>(rest)...), std::forward<First>(first));
     }
 
@@ -99,7 +104,7 @@ namespace libgm {
       : f(f), g(g) { }
 
     template <typename... Args>
-    auto operator()(Args&&... args) {
+    auto operator()(Args&&... args) const {
       constexpr std::size_t N = sizeof...(Args) - 1;
       return f(invoke(g, static_range<0, N>(), std::forward<Args>(args)...),
                nth_value<N>(std::forward<Args>(args)...));
@@ -127,7 +132,7 @@ namespace libgm {
       : f(f), g(g) { }
 
     template <typename First, typename... Rest>
-    auto operator()(First&& first, Rest&&... rest) {
+    auto operator()(First&& first, Rest&&... rest) const {
       return f(std::forward<First>(first), g(std::forward<Rest>(rest)...));
     }
 
@@ -158,7 +163,7 @@ namespace libgm {
       : f(f), g(g), h(h) { }
 
     template <typename... Args>
-    auto operator()(Args&&... args) {
+    auto operator()(Args&&... args) const {
       return f(invoke(g, static_range<0, M>(), std::forward<Args>(args)...),
                invoke(h, static_range<M, M+N>(), std::forward<Args>(args)...));
     }

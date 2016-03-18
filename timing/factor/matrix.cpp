@@ -302,7 +302,7 @@ int main(int argc, char** argv) {
 
   std::cout << std::endl << "matrix + matrix" << std::endl;
   time_transform<pmatrix, 2>(std::plus<>(), num_values, num_reps);
-  time_transform<lmatrix, 2>(std::plus<>(), num_values, num_reps);
+  time_transform<lmatrix, 2>(std::plus<>(), num_values, num_reps / 10);
 
   std::cout << std::endl << "matrix * matrix -- direct" << std::endl;
   time_matmat_join<pmatrix>(mult, false, num_values, num_reps);
@@ -334,11 +334,11 @@ int main(int argc, char** argv) {
 
   std::cout << std::endl << "matrix.marginal(dom) -- row-wise" << std::endl;
   time_aggregate<pmatrix, pvector>(member_marginal(), true, num_values, num_reps);
-  time_aggregate<lmatrix, lvector>(member_marginal(), true, num_values, num_reps);
+  time_aggregate<lmatrix, lvector>(member_marginal(), true, num_values, num_reps / 10);
 
   std::cout << std::endl << "matrix.marginal(dom) -- column-wise" << std::endl;
   time_aggregate<pmatrix, pvector>(member_marginal(), false, num_values, num_reps);
-  time_aggregate<lmatrix, lvector>(member_marginal(), false, num_values, num_reps);
+  time_aggregate<lmatrix, lvector>(member_marginal(), false, num_values, num_reps / 10);
 
   std::cout << std::endl << "matrix.maximum(a)" << std::endl;
   time_assignment<pmatrix, pvector>(member_maximum(), num_values, num_reps);
@@ -349,14 +349,14 @@ int main(int argc, char** argv) {
   time_join_aggregate<pmatrix, pvector>(mult, member_marginal(), true,
                                         num_values, num_reps);
   time_join_aggregate<lmatrix, lvector>(mult, member_marginal(), true,
-                                        num_values, num_reps);
+                                        num_values, num_reps / 10);
 
   std::cout << std::endl << "(matrix * vector).marginal(dom) -- left"
             << std::endl;
   time_join_aggregate<pmatrix, pvector>(mult, member_marginal(), false,
                                         num_values, num_reps);
   time_join_aggregate<lmatrix, lvector>(mult, member_marginal(), false,
-                                        num_values, num_reps);
+                                        num_values, num_reps / 10);
 
   std::cout << std::endl << "(matrix * vector).maximum(dom) -- right"
             << std::endl;

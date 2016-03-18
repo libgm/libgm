@@ -94,25 +94,25 @@ BOOST_AUTO_TEST_CASE(test_operators) {
   ptable f({2, 2}, {0, 1, 2, 3});       // x, y
   ptable g({2, 3}, {1, 2, 3, 4, 5, 6}); // y, z
   ptable h;
-  h = f.wise(1) * g.wise(0);
+  h = f.dim(1) * g.dim(0);
   BOOST_CHECK(table_properties(h, {2, 2, 3}));
   for (const uint_vector& v : uint_vectors({2, 2, 3})) {
     BOOST_CHECK_CLOSE(h(v), f({v[0],v[1]}) * g({v[1],v[2]}), 1e-8);
   }
 
-  h.wise({1, 2}) *= g;
+  h.dims({1, 2}) *= g;
   BOOST_CHECK(table_properties(h, {2, 2, 3}));
   for (const uint_vector& v : uint_vectors({2, 2, 3})) {
     BOOST_CHECK_CLOSE(h(v), f({v[0],v[1]}) * std::pow(g({v[1],v[2]}), 2), 1e-8);
   }
 
-  h = f.wise(1) / g.wise(0);
+  h = f.dim(1) / g.dim(0);
   BOOST_CHECK(table_properties(h, {2, 2, 3}));
   for (const uint_vector& v : uint_vectors({2, 2, 3})) {
     BOOST_CHECK_CLOSE(h(v), f({v[0],v[1]}) / g({v[1],v[2]}), 1e-8);
   }
 
-  h.wise({0, 1}) /= f;
+  h.dims({0, 1}) /= f;
   BOOST_CHECK(table_properties(h, {2, 2, 3}));
   for (const uint_vector& v : uint_vectors({2, 2, 3})) {
     BOOST_CHECK_CLOSE(h(v), f({v[0],v[1]}) ? (1 / g({v[1],v[2]})) : 0.0, 1e-8);
@@ -222,7 +222,7 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
   ptable fxy({2, 3}, {2.2, 2.5, 0.2, 1.0, 0.8, 0.0});
   ptable pxy({2, 3}, {1.1, 0.5, 0.1, 0.2, 0.4, 0.0});
   ptable py({3}, {1.6, 0.3, 0.4});
-  ptable g = (fx * fxy.wise(0)).marginal(1);
+  ptable g = (fx * fxy.dim(0)).marginal(1);
   h = pxy.marginal(1);
   BOOST_CHECK(table_properties(g, {3}));
   BOOST_CHECK(table_properties(h, {3}));
@@ -240,12 +240,12 @@ BOOST_AUTO_TEST_CASE(test_restrict) {
   ptable h;
 
   std::vector<double> fall2 = {5, 6};
-  h = f.restrict_head({2});
+  h = f.tail({2});
   BOOST_CHECK(table_properties(h, {2}));
   BOOST_CHECK(range_equal(h, fall2));
 
   std::vector<double> f1all = {1, 3, 6};
-  h = f.restrict_tail({1});
+  h = f.head({1});
   BOOST_CHECK(table_properties(h, {3}));
   BOOST_CHECK(range_equal(h, f1all));
 
@@ -275,13 +275,13 @@ BOOST_AUTO_TEST_CASE(test_sample) {
   }
 
   // test conditional sample
-  ptable g = f.wise(0) / f.marginal(0); // f.conditional(0);
+  ptable g = f.dim(0) / f.marginal(0); // f.conditional(0);
   auto gd = g.distribution(1);
   for (std::size_t xv = 0; xv < 2; ++xv) {
     uint_vector tail = {xv};
     for (std::size_t i = 0; i < 20; ++i) {
       uint_vector sample = gd(rng1, tail);
-      BOOST_CHECK_EQUAL(g.restrict_tail(tail).sample(rng2), sample);
+      BOOST_CHECK_EQUAL(g.head(tail).sample(rng2), sample);
     }
   }
 }

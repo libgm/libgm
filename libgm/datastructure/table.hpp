@@ -10,6 +10,7 @@
 #include <libgm/functional/tuple.hpp>
 #include <libgm/range/iterator_range.hpp>
 #include <libgm/serialization/vector.hpp>
+#include <libgm/traits/int_constant.hpp>
 #include <libgm/traits/missing.hpp>
 
 #include <algorithm>
@@ -1547,9 +1548,6 @@ namespace libgm {
   // Table operations
   //==========================================================================
 
-  template <int N>
-  using int_ = std::integral_constant<int, N>;
-
   /**
    * A utility function that invokes the loop template for the table operation
    * class and the given table arity. The goal is to inline the loops if arity
@@ -1560,17 +1558,17 @@ namespace libgm {
   template <typename TableOp>
   void invoke_loop_template(TableOp& table_op, std::size_t arity) {
     switch(arity) {
-    case 0: table_op.loop(int_<0>()); break;
-    case 1: table_op.loop(int_<1>()); break;
-    case 2: table_op.loop(int_<2>()); break;
-    case 3: table_op.loop(int_<3>()); break;
-    case 4: table_op.loop(int_<4>()); break;
-    case 5: table_op.loop(int_<5>()); break;
-    case 6: table_op.loop(int_<6>()); break;
-    case 7: table_op.loop(int_<7>()); break;
-    case 8: table_op.loop(int_<8>()); break;
-    case 9: table_op.loop(int_<9>()); break;
-    case 10: table_op.loop(int_<10>()); break;
+    case 0: table_op.loop(int_constant<0>()); break;
+    case 1: table_op.loop(int_constant<1>()); break;
+    case 2: table_op.loop(int_constant<2>()); break;
+    case 3: table_op.loop(int_constant<3>()); break;
+    case 4: table_op.loop(int_constant<4>()); break;
+    case 5: table_op.loop(int_constant<5>()); break;
+    case 6: table_op.loop(int_constant<6>()); break;
+    case 7: table_op.loop(int_constant<7>()); break;
+    case 8: table_op.loop(int_constant<8>()); break;
+    case 9: table_op.loop(int_constant<9>()); break;
+    case 10: table_op.loop(int_constant<10>()); break;
     default: table_op.loop(); break;
     }
   }
@@ -1647,19 +1645,26 @@ namespace libgm {
   /**
    * Follows a transform on one or more tables and accumulates the result.
    *
-   * \tparam T the type representing the result
-   * \tparam AggOp a binary operation that accumulates the result
    * \tparam TransOp the transform operation
+   * \tparam AggOp   a binary operation that accumulates the result
+   * \tparam T       the type representing the result
    */
-  template <typename T, typename TransOp, typename AggOp>
+  template <typename TransOp, typename AggOp, typename T>
   class table_transform_accumulate {
   public:
-    table_transform_accumulate(T init, TransOp trans_op, AggOp agg_op)
-      : init_(init), trans_op_(trans_op), agg_op_(agg_op) { }
+    table_transform_accumulate(TransOp trans_op, AggOp agg_op, T init)
+      : trans_op_(trans_op), agg_op_(agg_op), init_(init) { }
 
     template <typename... Ts>
     T operator()(const table<Ts>&... input) const {
-      // TODO: check compatibility
+      constexpr std::size_t N = sizeof...(Ts);
+      if (homogeneous_tuple<const uint_vector&, N>(input.shape()...) !=
+          tuple_rep<N>(nth_value<0>(input...).shape())) {
+        throw std::invalid_argument(
+          "table_transform_accumulate:: Incompatible shapes"
+        );
+      }
+
       std::tuple<const Ts*...> ptr(input.data()...);
       std::size_t size = nth_value<0>(input...).size();
       T r = init_;
@@ -1671,10 +1676,17 @@ namespace libgm {
     }
 
   private:
-    T init_;
     TransOp trans_op_;
     AggOp agg_op_;
+    T init_;
   };
+
+  template <typename TransOp, typename AggOp, typename T, typename... Ts>
+  T transform_accumulate(TransOp trans_op, AggOp agg_op, T init,
+                         const table<Ts>&... tables) {
+    table_transform_accumulate<TransOp, AggOp, T> accu(trans_op, agg_op, init);
+    return accu(tables...);
+  }
 
   /**
    * Performs a join operation on two tables, storing the result to a
@@ -1716,16 +1728,16 @@ namespace libgm {
 
     //! Performs the join operation for a fixed arity of the result.
     template <int D>
-    void loop(int_<D>) {
+    void loop(int_constant<D>) {
       for (std::size_t i = shape_[D-1]; i; --i) {
-        loop(int_<D-1>());
+        loop(int_constant<D-1>());
         x_ += x_inc_[D-1];
         y_ += y_inc_[D-1];
       }
     }
 
     //! Performs the join operation for a nullary result (the base case).
-    void loop(int_<0>) {
+    void loop(int_constant<0>) {
       *r_++ = op_(*x_, *y_);
     };
 
@@ -1790,15 +1802,15 @@ namespace libgm {
 
     //! Performs the join operation for a fixed arity of the result.
     template <int D>
-    void loop(int_<D>) {
+    void loop(int_constant<D>) {
       for (std::size_t i = shape_[D-1]; i; --i) {
-        loop(int_<D-1>());
+        loop(int_constant<D-1>());
         x_ += x_inc_[D-1];
       }
     }
 
     //! Performs the join operation for a nullary result (the base case).
-    void loop(int_<0>) {
+    void loop(int_constant<0>) {
       *r_ = op_(*r_, *x_);
       ++r_;
     };
@@ -1869,16 +1881,16 @@ namespace libgm {
 
     //! Performs the join operation for a fixed arity of the result.
     template <int D>
-    void loop(int_<D>) {
+    void loop(int_constant<D>) {
       for (std::size_t i = shape_[D-1]; i; --i) {
-        loop(int_<D-1>());
+        loop(int_constant<D-1>());
         x_ += x_inc_[D-1];
         y_ += y_inc_[D-1];
       }
     }
 
     //! Performs the join operation for a nullary result (the base case).
-    void loop(int_<0>) {
+    void loop(int_constant<0>) {
       result_ = agg_op_(result_, join_op_(*x_, *y_));
     };
 
@@ -1946,15 +1958,15 @@ namespace libgm {
 
     //! Performs an aggregate operation for a fixed arity of the input.
     template <int D>
-    void loop(int_<D>) {
+    void loop(int_constant<D>) {
       for (std::size_t i = shape_[D-1]; i; --i) {
-        loop(int_<D-1>());
+        loop(int_constant<D-1>());
         r_ += r_inc_[D-1];
       }
     }
 
     //! Performs the aggregate operation for a nullary result (the base case).
-    void loop(int_<0>) {
+    void loop(int_constant<0>) {
       *r_ = op_(*r_, *x_++);
     };
 
@@ -2031,9 +2043,9 @@ namespace libgm {
 
     //! Performs the join-aggregate operation for a fixed arity of the z table.
     template <int D>
-    void loop(int_<D>) {
+    void loop(int_constant<D>) {
       for (std::size_t i = shape_[D-1]; i; --i) {
-        loop(int_<D-1>());
+        loop(int_constant<D-1>());
         r_ += r_inc_[D-1];
         x_ += x_inc_[D-1];
         y_ += y_inc_[D-1];
@@ -2041,7 +2053,7 @@ namespace libgm {
     }
 
     //! Performs the join-aggregate operation for a nullary z (the base case).
-    void loop(int_<0>) {
+    void loop(int_constant<0>) {
       *r_ = agg_op_(*r_, join_op_(*x_, *y_));
     };
 
@@ -2111,15 +2123,15 @@ namespace libgm {
 
     //! Performs a restrict operation for a fixed arity of the result.
     template <int D>
-    void loop(int_<D>) {
+    void loop(int_constant<D>) {
       for (std::size_t i = shape_[D-1]; i; --i) {
-        loop(int_<D-1>());
+        loop(int_constant<D-1>());
         x_ += x_inc_[D-1];
       }
     }
 
     //! Performs the restrict operation for a nullary result (the base case).
-    void loop(int_<0>) {
+    void loop(int_constant<0>) {
       *r_++ = *x_;
     };
 
@@ -2186,15 +2198,15 @@ namespace libgm {
 
     //! Performs the restrict-join operation for a fixed arity of the result.
     template <int D>
-    void loop(int_<D>) {
+    void loop(int_constant<D>) {
       for (std::size_t i = shape_[D-1]; i; --i) {
-        loop(int_<D-1>());
+        loop(int_constant<D-1>());
         x_ += x_inc_[D-1];
       }
     }
 
     //! Performs a restrict-join operation for a nullary result (the base case).
-    void loop(int_<0>) {
+    void loop(int_constant<0>) {
       *r_ = join_op_(*r_, *x_);
       ++r_;
     };

@@ -56,7 +56,7 @@ void time_join(JoinOp join_op) {
     uint_vector y = range(0, arity-1);
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
-      h = join_op(f.wise(x), g.wise(y));
+      h = join_op(f.dims(x), g.dims(y));
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }
@@ -92,7 +92,7 @@ void time_join_aggregate(JoinOp join_op, AggOp agg_op) {
     uint_vector y = range(0, arity-1);
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
-      h = agg_op(join_op(f.wise(x), g.wise(y)), 0);
+      h = agg_op(join_op(f.dims(x), g.dims(y)), 0);
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }
@@ -111,7 +111,7 @@ void time_join_accumulate(JoinOp join_op, AccuOp accu_op) {
     uint_vector y = range(0, arity-1);
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
-      result_t<Factor> e = accu_op(join_op(f.wise(x), g.wise(y)));
+      result_t<Factor> e = accu_op(join_op(f.dims(x), g.dims(y)));
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }
@@ -163,7 +163,7 @@ void time_update(UpdateOp update_op) {
     uint_vector x = range(1, arity);
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
-      update_op(f.wise(x), g);
+      update_op(f.dims(x), g);
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }
@@ -181,7 +181,7 @@ void time_restrict_update(UpdateOp update_op) {
     uint_vector x = range(0, arity-1);
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
-      update_op(f.wise(x), g.restrict_head(vals));
+      update_op(f.dims(x), g.tail(vals));
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }
@@ -272,17 +272,17 @@ int main(int argc, char** argv) {
   time_join_accumulate<ptable>(std::multiplies<>(), member_maximum());
   time_join_accumulate<ltable>(std::multiplies<>(), member_maximum());
 
-  std::cout << std::endl << "table.restrict(a)" << std::endl;
+  std::cout << std::endl << "table.restrict(dims, vals)" << std::endl;
   time_restrict<ptable>();
   time_restrict<ltable>();
 
-  std::cout << std::endl << "table.restrict_head(a)" << std::endl;
-  time_restrict_segment<ptable>(member_restrict_head());
-  time_restrict_segment<ltable>(member_restrict_head());
+  std::cout << std::endl << "table.head(vals)" << std::endl;
+  time_restrict_segment<ptable>(member_head());
+  time_restrict_segment<ltable>(member_head());
 
-  std::cout << std::endl << "table.restrict_tail(a)" << std::endl;
-  time_restrict_segment<ptable>(member_restrict_tail());
-  time_restrict_segment<ltable>(member_restrict_tail());
+  std::cout << std::endl << "table.tail(vals)" << std::endl;
+  time_restrict_segment<ptable>(member_tail());
+  time_restrict_segment<ltable>(member_tail());
 
   std::cout << std::endl << "table *= table" << std::endl;
   time_update<ptable>(multiplies_assign<>());

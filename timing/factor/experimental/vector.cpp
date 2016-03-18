@@ -1,6 +1,5 @@
-#include <libgm/argument/var.hpp>
-#include <libgm/factor/probability_array.hpp>
-#include <libgm/factor/canonical_array.hpp>
+#include <libgm/factor/experimental/probability_vector.hpp>
+#include <libgm/factor/experimental/logarithmic_vector.hpp>
 #include <libgm/factor/traits.hpp>
 #include <libgm/functional/member.hpp>
 #include <libgm/functional/tuple.hpp>
@@ -16,23 +15,24 @@ namespace po = boost::program_options;
 
 using namespace libgm;
 
+// global options
+uint_vector num_values;
+std::size_t num_reps = 0;
+
 const char* version(double) {
   return "probability";
 }
 
 const char* version(logd) {
-  return "canonical  ";
+  return "logarithmic";
 }
 
 template <typename Factor, std::size_t N, typename Op>
-void time_transform(Op op,
-                    const uint_vector& num_values,
-                    std::size_t num_reps) {
-  universe u;
+void time_transform(Op op) {
   boost::timer t;
   std::cout << version(result_t<Factor>()) << std::flush;
-  for (std::size_t n : num_values) {
-    auto f = tuple_rep<N>(Factor({var::discrete(u, "x", n)}));
+  for (std::size_t len : num_values) {
+    auto f = tuple_rep<N>(Factor(len));
     Factor g;
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
@@ -44,15 +44,12 @@ void time_transform(Op op,
 }
 
 template <typename Factor, typename Op>
-auto time_accumulate(Op op,
-                    const uint_vector& num_values,
-                    std::size_t num_reps) {
-  universe u;
+auto time_accumulate(Op op) {
   boost::timer t;
   std::cout << version(result_t<Factor>()) << std::flush;
   result_t<Factor> value;
-  for (std::size_t n : num_values) {
-    Factor f({var::discrete(u, "x", n)});
+  for (std::size_t len : num_values) {
+    Factor f(len);
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
       value *= op(f);
@@ -64,22 +61,21 @@ auto time_accumulate(Op op,
 }
 
 template <typename Factor, typename Op>
-void time_assignment(Op op,
-                     const uint_vector& num_values,
-                     std::size_t num_reps) {
-  universe u;
+auto time_find(Op op) {
   boost::timer t;
   std::cout << version(result_t<Factor>()) << std::flush;
-  for (std::size_t n : num_values) {
-    Factor f({var::discrete(u, "x", n)});
-    uint_assignment<var> a;
+  result_t<Factor> value;
+  for (std::size_t len : num_values) {
+    Factor f(len);
+    std::size_t pos;
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
-      result_t<Factor> value = op(f, a);
+      value *= op(f, &pos);
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }
   std::cout << std::endl;
+  return value;
 }
 
 struct ternary_multiplies {
@@ -93,7 +89,6 @@ int main(int argc, char** argv) {
   std::size_t min_values;
   std::size_t step_size;
   std::size_t max_values = 0;
-  std::size_t num_reps = 0;
 
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -123,46 +118,46 @@ int main(int argc, char** argv) {
             << " num_reps=" << num_reps
             << std::endl;
 
-  typedef probability_array<var, 1> pvector;
-  typedef canonical_array<var, 1> lvector;
-  uint_vector num_values;
   for (std::size_t i = min_values; i <= max_values; i += step_size) {
     num_values.push_back(i);
   }
 
+  typedef experimental::probability_vector<> pvector;
+  typedef experimental::logarithmic_vector<> lvector;
+
   std::cout << std::scientific << std::setprecision(3);
 
   std::cout << std::endl << "vector * constant" << std::endl;
-  time_transform<pvector, 1>(multiplied_by<double>(2), num_values, num_reps);
-  time_transform<lvector, 1>(multiplied_by<logd>(logd(2)), num_values, num_reps);
+  time_transform<pvector, 1>(multiplied_by<double>(2));
+  time_transform<lvector, 1>(multiplied_by<logd>(logd(2)));
 
   std::cout << std::endl << "vector + vector" << std::endl;
-  time_transform<pvector, 2>(std::plus<>(), num_values, num_reps);
-  time_transform<lvector, 2>(std::plus<>(), num_values, num_reps);
+  time_transform<pvector, 2>(std::plus<>());
+  time_transform<lvector, 2>(std::plus<>());
 
   std::cout << std::endl << "vector * vector * vector" << std::endl;
-  time_transform<pvector, 3>(ternary_multiplies(), num_values, num_reps);
-  time_transform<lvector, 3>(ternary_multiplies(), num_values, num_reps);
+  time_transform<pvector, 3>(ternary_multiplies());
+  time_transform<lvector, 3>(ternary_multiplies());
 
   std::cout << std::endl << "vector.marginal()" << std::endl;
-  time_accumulate<pvector>(member_marginal(), num_values, num_reps);
-  time_accumulate<lvector>(member_marginal(), num_values, num_reps);
+  time_accumulate<pvector>(member_marginal());
+  time_accumulate<lvector>(member_marginal());
 
   std::cout << std::endl << "vector.maximum()" << std::endl;
-  time_accumulate<pvector>(member_maximum(), num_values, num_reps);
-  time_accumulate<lvector>(member_maximum(), num_values, num_reps);
+  time_accumulate<pvector>(member_maximum());
+  time_accumulate<lvector>(member_maximum());
 
   std::cout << std::endl << "vector.minimum()" << std::endl;
-  time_accumulate<pvector>(member_minimum(), num_values, num_reps);
-  time_accumulate<lvector>(member_minimum(), num_values, num_reps);
+  time_accumulate<pvector>(member_minimum());
+  time_accumulate<lvector>(member_minimum());
 
-  std::cout << std::endl << "vector.maximum(a)" << std::endl;
-  time_assignment<pvector>(member_maximum(), num_values, num_reps);
-  time_assignment<lvector>(member_maximum(), num_values, num_reps);
+  std::cout << std::endl << "vector.maximum(pos)" << std::endl;
+  time_find<pvector>(member_maximum());
+  time_find<lvector>(member_maximum());
 
-  std::cout << std::endl << "vector.minimum(a)" << std::endl;
-  time_assignment<pvector>(member_minimum(), num_values, num_reps);
-  time_assignment<lvector>(member_minimum(), num_values, num_reps);
+  std::cout << std::endl << "vector.minimum(pos)" << std::endl;
+  time_find<pvector>(member_minimum());
+  time_find<lvector>(member_minimum());
 
   return 0;
 }

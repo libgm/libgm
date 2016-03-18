@@ -92,9 +92,6 @@ namespace libgm {
     decltype(auto) operator()(T&& t) const {
       return std::forward<T>(t);
     }
-
-    template <typename T>
-    void update(T&& t) const { }
   };
 
   /**
@@ -106,19 +103,6 @@ namespace libgm {
     template <typename U>
     T operator()(const U& value) const {
       return T(value);
-    }
-  };
-
-  /**
-   * A base class for unary operators that proides the default implementation
-   * of the update() function.
-   */
-  template <typename Derived>
-  struct default_update {
-    template <typename X>
-    void update(X&& x) const {
-      std::forward<X>(x) =
-        static_cast<const Derived&>(*this)(std::forward<X>(x));
     }
   };
 

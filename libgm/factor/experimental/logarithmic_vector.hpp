@@ -2,11 +2,8 @@
 #define LIBGM_EXPERIMENTAL_LOGARITHMIC_VECTOR_HPP
 
 #include <libgm/enable_if.hpp>
-#include <libgm/argument/argument_traits.hpp>
-#include <libgm/argument/uint_assignment.hpp>
-#include <libgm/argument/unary_domain.hpp>
 #include <libgm/factor/traits.hpp>
-#include <libgm/factor/experimental/expression/common.hpp>
+#include <libgm/factor/experimental/expression/macros.hpp>
 #include <libgm/factor/experimental/expression/vector.hpp>
 #include <libgm/functional/algorithm.hpp>
 #include <libgm/functional/arithmetic.hpp>
@@ -25,15 +22,11 @@
 
 namespace libgm { namespace experimental {
 
-  // Base template alias
-  template <typename Arg, typename RealType, typename Derived>
-  using logarithmic_vector_base = vector_base<log_tag, Arg, RealType, Derived>;
-
   // Forward declaration of the factor
-  template <typename Arg, typename RealType> class logarithmic_vector;
+  template <typename RealType> class logarithmic_vector;
 
   // Forward declaration of the table raw buffer view.
-  template <typename Space, typename Arg, typename RealType> class table_map;
+  template <typename Space, typename RealType> class table_map;
 
 
   // Base expression class
@@ -42,39 +35,28 @@ namespace libgm { namespace experimental {
   /**
    * The base class for logarithmic_vector factors and expressions.
    *
-   * \tparam Arg
-   *         The argument type. Must modle the DiscreteArgument and
-   *         UnaryArgument concept.
    * \tparam RealType
    *         A real type representing the parameters.
    * \tparam Derived
    *         The expression type that derives form this base class.
    *         This type must implement the following functions:
-   *         arguments(), param(), alias(), eval_to().
+   *         alias(), eval_to().
    */
-  template <typename Arg, typename RealType, typename Derived>
-  class vector_base<log_tag, Arg, RealType, Derived> {
-
-    static_assert(is_discrete<Arg>::value,
-                  "logarithmic_vector requires Arg to be discrete");
-    static_assert(is_univariate<Arg>::value,
-                  "logarithmic_vector requires Arg to be univariate");
-
+  template <typename RealType, typename Derived>
+  class vector_base<log_tag, RealType, Derived> {
   public:
     // Public types
     //--------------------------------------------------------------------------
 
     // FactorExpression member types
-    typedef Arg                   argument_type;
-    typedef unary_domain<Arg>     domain_type;
-    typedef uint_assignment<Arg>  assignment_type;
-    typedef RealType              real_type;
-    typedef logarithmic<RealType> result_type;
+    typedef RealType                     real_type;
+    typedef logarithmic<RealType>        result_type;
+    typedef logarithmic_vector<RealType> factor_type;
 
     // ParametricFactor member types
     typedef real_vector<RealType>  param_type;
     typedef uint_vector            vector_type;
-    // typedef vector_distribution<RealType> distribution_type;
+    typedef categorical_distribution<RealType> distribution_type;
 
     // Vector-specific types
     typedef log_tag space_type;
@@ -104,11 +86,6 @@ namespace libgm { namespace experimental {
       return static_cast<Derived&&>(*this);
     }
 
-    //! Returns the sole argument of this expression.
-    Arg x() const {
-      return derived().arguments().x();
-    }
-
     //! Returns the number of arguments of this expression.
     std::size_t arity() const {
       return 1;
@@ -116,7 +93,7 @@ namespace libgm { namespace experimental {
 
     //! Returns the total number of elements of the expression.
     std::size_t size() const {
-      return argument_traits<Arg>::num_values(x());
+      return derived().param().size();
     }
 
     //! Returns true if the expression has no data.
@@ -124,9 +101,18 @@ namespace libgm { namespace experimental {
       return derived().param().data() == nullptr;
     }
 
-    //! Returns the parameter for the given assignment.
-    RealType param(const uint_assignment<Arg>& a) const {
-      return derived().param()[a.at(x())];
+    /**
+     * Returns an Eigen expression representing the parameters of this
+     * probability_vector expression. This is guaranteed to be an object
+     * with trivial evaluation, and may be a real_vector temporary.
+     */
+    param_type param() const {
+      param_type tmp; derived().eval_to(tmp); return tmp;
+    }
+
+    //! Returns the parameter for the given row.
+    RealType param(std::size_t row) const {
+      return derived().param()[row];
     }
 
     //! Returns the parameter for the given index.
@@ -135,14 +121,9 @@ namespace libgm { namespace experimental {
       return derived().param()[index[0]];
     }
 
-    //! Returns the parameter for the given row.
-    RealType param(std::size_t row) const {
-      return derived().param()[row];
-    }
-
-    //! Returns the value of the expression for the given assignment.
-    logarithmic<RealType> operator()(const uint_assignment<Arg>& a) const {
-      return { param(a), log_tag() };
+    //! Retursn the value of the expression for the given row.
+    logarithmic<RealType> operator()(std::size_t row) const {
+      return { param(row), log_tag() };
     }
 
     //! Returns the value of the expression for the given index.
@@ -150,14 +131,9 @@ namespace libgm { namespace experimental {
       return { param(index), log_tag() };
     }
 
-    //! Retursn the value of the expression for the given row.
-    logarithmic<RealType> operator()(std::size_t row) const {
-      return { param(row), log_tag() };
-    }
-
-    //! Returns the log-value of the expression for the given assignment.
-    RealType log(const uint_assignment<Arg>& a) const {
-      return param(a);
+    //! Returns the log-value of the expression for the given row.
+    RealType log(std::size_t row) const {
+      return param(row);
     }
 
     //! Returns the log-value of the expression for the given index.
@@ -165,31 +141,23 @@ namespace libgm { namespace experimental {
       return param(index);
     }
 
-    //! Returns the log-value of the expression for the given row.
-    RealType log(std::size_t row) const {
-      return param(row);
-    }
-
     /**
-     * Returns true if the two expressions have the same arguments and
-     * parameters.
+     * Returns true if the two expressions have the same parameters.
      */
     template <typename Other>
     friend bool
-    operator==(const logarithmic_vector_base<Arg, RealType, Derived>& f,
-               const logarithmic_vector_base<Arg, RealType, Other>& g) {
-      return f.derived().arguments() == g.derived().arguments()
-          && f.derived().param() == g.derived().param();
+    operator==(const vector_base<log_tag, RealType, Derived>& f,
+               const vector_base<log_tag, RealType, Other>& g) {
+      return f.derived().param() == g.derived().param();
     }
 
     /**
-     * Returns true if two expressions do not have the same arguments or
-     * parameters.
+     * Returns true if two expressions do not have the same parameters.
      */
     template <typename Other>
     friend bool
-    operator!=(const logarithmic_vector_base<Arg, RealType, Derived>& f,
-               const logarithmic_vector_base<Arg, RealType, Other>& g) {
+    operator!=(const vector_base<log_tag, RealType, Derived>& f,
+               const vector_base<log_tag, RealType, Other>& g) {
       return !(f == g);
     }
 
@@ -197,10 +165,8 @@ namespace libgm { namespace experimental {
      * Outputs a human-readable representation of the expression to the stream.
      */
     friend std::ostream&
-    operator<<(std::ostream& out,
-               const logarithmic_vector_base<Arg, RealType, Derived>& f) {
-      out << f.derived().arguments() << std::endl
-          << f.derived().param() << std::endl;
+    operator<<(std::ostream& out, const vector_base& f) {
+      out << f.derived().param();
       return out;
     }
 
@@ -208,8 +174,8 @@ namespace libgm { namespace experimental {
     //--------------------------------------------------------------------------
 
     /**
-     * Returns a logarithmic_vector expression representing an element-wise
-     * transform of a logarithmic_vector expression with a unary operation.
+     * Returns a vector expression in the specified ResultSpace, representing an
+     * element-wise transform of this expression with a unary operation.
      */
     template <typename ResultSpace = log_tag, typename UnaryOp = void>
     auto transform(UnaryOp unary_op) const& {
@@ -231,83 +197,98 @@ namespace libgm { namespace experimental {
      * Returns a logarithmic_vector expression representing the element-wise
      * product of a logarithmic_vector expression and a scalar.
      */
-    LIBGM_TRANSFORM_LEFT(operator*, logarithmic_vector, logarithmic<RealType>,
-                         incremented_by<RealType>(x.lv))
+    LIBGM_TRANSFORM_RIGHT(operator*, incremented_by<RealType>(x.lv),
+                          logarithmic<RealType>, vector_base, log_tag, RealType)
 
     /**
      * Returns a logarithmic_vector expression representing the element-wise
      * product of a scalar and a logarithmic_vector expression.
      */
-    LIBGM_TRANSFORM_RIGHT(operator*, logarithmic_vector, logarithmic<RealType>,
-                          incremented_by<RealType>(x.lv))
+    LIBGM_TRANSFORM_LEFT(operator*, incremented_by<RealType>(x.lv),
+                         logarithmic<RealType>, vector_base, log_tag, RealType)
 
     /**
      * Returns a logarithmic_vector expression representing the element-wise
      * division of a logarithmic_vector expression and a scalar.
      */
-    LIBGM_TRANSFORM_LEFT(operator/, logarithmic_vector, logarithmic<RealType>,
-                         decremented_by<RealType>(x.lv))
+    LIBGM_TRANSFORM_RIGHT(operator/, decremented_by<RealType>(x.lv),
+                          logarithmic<RealType>, vector_base, log_tag, RealType)
 
     /**
      * Returns a logarithmic_vector expression representing the element-wise
      * division of a scalar and a logarithmic_vector expression.
      */
-    LIBGM_TRANSFORM_RIGHT(operator/, logarithmic_vector, logarithmic<RealType>,
-                          subtracted_from<RealType>(x.lv))
+    LIBGM_TRANSFORM_LEFT(operator/, subtracted_from<RealType>(x.lv),
+                         logarithmic<RealType>, vector_base, log_tag, RealType)
 
     /**
      * Returns a logarithmic_vector expression representing the
      * logarithmic_vector expression raised to an exponent element-wise.
      */
-    LIBGM_TRANSFORM_LEFT(pow, logarithmic_vector, RealType,
-                         multiplied_by<RealType>(x))
+    LIBGM_TRANSFORM_RIGHT(pow, multiplied_by<RealType>(x),
+                          RealType, vector_base, log_tag, RealType)
 
     /**
      * Returns a logarithmic_vector expression representing the element-wise
      * sum of two logarithmic_vector expressions.
      */
-    LIBGM_TRANSFORM(operator+, logarithmic_vector, log_plus_exp<>())
+    LIBGM_TRANSFORM(operator+, log_plus_exp<>(),
+                    vector_base, log_tag, RealType)
 
     /**
      * Returns a logarithmic_vector expression representing the product of
      * two logarithmic_vector expressions.
      */
-    LIBGM_TRANSFORM(operator*, logarithmic_vector, std::plus<>())
+    LIBGM_TRANSFORM(operator*, std::plus<>(),
+                    vector_base, log_tag, RealType)
 
     /**
      * Returns a logarithmic_vector expression representing the division of
      * two logarithmic_vector expressions.
      */
-    LIBGM_TRANSFORM(operator/, logarithmic_vector, std::minus<>())
+    LIBGM_TRANSFORM(operator/, std::minus<>(),
+                    vector_base, log_tag, RealType)
+
+    /**
+     * Returns the logarithmic_matrix expression representing the outer product
+     * of two logarithmic_vector expressions.
+     */
+    LIBGM_OUTER(outer_prod, std::plus<>(),
+                vector_base, log_tag, RealType);
+
+    /**
+     * Returns the logarithmic_matrix expression reprsenting the outer division
+     * of two logarithmic_vetor expressions.
+     */
+    LIBGM_OUTER(outer_div, std::minus<>(),
+                vector_base, log_tag, RealType);
 
     /**
      * Returns a logarithmic_vector expression representing the element-wise
      * maximum of two logarithmic_vector expressions.
      */
-    LIBGM_TRANSFORM(max, logarithmic_vector, member_max())
+    LIBGM_TRANSFORM(max, member_max(),
+                    vector_base, log_tag, RealType)
 
     /**
      * Returns a logarithmic_vector expression representing the element-wise
      * minimum of two logarithmic_vector expressions.
      */
-    LIBGM_TRANSFORM(min, logarithmic_vector, member_min())
+    LIBGM_TRANSFORM(min, member_min(),
+                    vector_base, log_tag, RealType)
 
     /**
      * Returns a logarithmic_vector expression representing \f$f^(1-a) + g^a\f$
      * for two logarithmic_vector expressions f and g.
      */
-    LIBGM_TRANSFORM_SCALAR(weighted_udpate, logarithmic_vector, RealType,
-                           weighted_plus<RealType>(1 - x, x))
+    LIBGM_TRANSFORM_SCALAR(weighted_udpate, weighted_plus<RealType>(1 - x, x),
+                           RealType, vector_base, log_tag, RealType)
 
     /**
      * Computes the normalization constant of this expression.
-     * \todo Check the perf of this implementation vs. std::accumulate.
      */
     logarithmic<RealType> marginal() const {
-      auto&& param = derived().param();
-      RealType offset = param.maxCoeff();
-      RealType sum = exp(param.array() - offset).sum();
-      return { std::log(sum) + offset, log_tag() };
+      return { derived().accumulate(member_logSumExp()), log_tag() };
     }
 
     /**
@@ -326,18 +307,36 @@ namespace libgm { namespace experimental {
 
     /**
      * Computes the maximum value of this expression and stores the
-     * corresponding assignment to a, overwritting any existing arguments.
+     * corresponding row.
      */
-    logarithmic<RealType> maximum(uint_assignment<Arg>& a) const {
-      return { derived().accumulate(member_maxCoeffIndex(&a[x()])), log_tag() };
+    logarithmic<RealType> maximum(std::size_t* row) const {
+      return { derived().accumulate(member_maxCoeffIndex(row)), log_tag() };
+    }
+
+    /**
+     * Computes the maximum value of this expression and stores the
+     * corresponding index to a vector.
+     */
+    logarithmic<RealType> maximum(uint_vector* index) const {
+      index->resize(1);
+      return maximum(&index->front());
     }
 
     /**
      * Computes the minimum value of this expression and stores the
-     * corresponding assignment to a, overwriting any existing arguments.
+     * corresponding row.
      */
-    logarithmic<RealType> minimum(uint_assignment<Arg>& a) const {
-      return { derived().accumulate(member_minCoeffIndex(&a[x()])), log_tag() };
+    logarithmic<RealType> minimum(std::size_t* row) const {
+      return { derived().accumulate(member_minCoeffIndex(row)), log_tag() };
+    }
+
+    /**
+     * Computes the minimum value of this expression and stores the
+     * corresponding index to a vector.
+     */
+    logarithmic<RealType> minimum(uint_vector* index) const {
+      index->resize(1);
+      return minimum(&index->front());
     }
 
     /**
@@ -346,14 +345,6 @@ namespace libgm { namespace experimental {
      */
     bool normalizable() const {
       return maximum().lv > -inf<RealType>();
-    }
-
-    /**
-     * Returns the logarithmic_vector object resulting by evaluating this
-     * expression.
-     */
-    logarithmic_vector<Arg, RealType> eval() const {
-      return *this;
     }
 
     // Conversions
@@ -374,9 +365,9 @@ namespace libgm { namespace experimental {
     /**
      * Returns a logarithmic_table expression equivalent to this expression.
      */
-    LIBGM_ENABLE_IF(is_primitive<Arg>::value)
-    logarithmic_table_map<Arg, RealType> table() const {
-      return { derived().arguments(), derived().param().data() };
+    LIBGM_ENABLE_IF(is_primitive<Derived>::value)
+    logarithmic_table_map<RealType> table() const {
+      return { derived().param().size(), derived().param().data() };
     }
 #endif
 
@@ -396,16 +387,19 @@ namespace libgm { namespace experimental {
      */
     template <typename Generator>
     std::size_t sample(Generator& rng) const {
-      return distribution()(rng);
+      RealType p = std::uniform_real_distribution<RealType>()(rng);
+      return derived().find_if(
+        compose(partial_sum_greater_than<RealType>(p), exponent<RealType>())
+      );
     }
 
     /**
      * Draws a random sample from a marginal distribution represented by this
-     * expression, storing the result in an assignment.
+     * expression, storing the result in a vector.
      */
     template <typename Generator>
-    void sample(Generator& rng, uint_assignment<Arg>& a) const {
-      a[x()] = sample(rng);
+    void sample(Generator& rng, uint_vector& result) const {
+      result.assign(1, sample(rng));
     }
 
     // Entropy and divergences
@@ -424,67 +418,72 @@ namespace libgm { namespace experimental {
 
     /**
      * Computes the cross entropy from p to q.
-     * The two distributions must have the same arguments.
+     * The two vectors must have the same lengths.
      */
     template <typename Other>
     friend RealType
-    cross_entropy(const logarithmic_vector_base<Arg, RealType, Derived>& p,
-                  const logarithmic_vector_base<Arg, RealType, Other>& q) {
-      return transform_accumulate(p, q,
-                                  entropy_log_op<RealType>(),
-                                  std::plus<RealType>());
+    cross_entropy(const vector_base<log_tag, RealType, Derived>& p,
+                  const vector_base<log_tag, RealType, Other>& q) {
+      return transform_accumulate(
+        entropy_log_op<RealType>(), std::plus<RealType>(), RealType(0),
+        p.derived().param(), q.derived().param()
+      );
     }
 
     /**
      * Computes the Kullback-Leibler divergence from p to q.
-     * The two distributions must have the same arguments.
+     * The two vectors must have the same lengths.
      */
     template <typename Other>
     friend RealType
-    kl_divergence(const logarithmic_vector_base<Arg, RealType, Derived>& p,
-                  const logarithmic_vector_base<Arg, RealType, Other>& q) {
-      return transform_accumulate(p, q,
-                                  kld_log_op<RealType>(),
-                                  std::plus<RealType>());
+    kl_divergence(const vector_base<log_tag, RealType, Derived>& p,
+                  const vector_base<log_tag, RealType, Other>& q) {
+      return transform_accumulate(
+        kld_log_op<RealType>(), std::plus<RealType>(), RealType(0),
+        p.derived().param(), q.derived().param()
+      );
     }
 
     /**
      * Computes the Jensen–Shannon divergece between p and q.
-     * The two distributions must have the same arguments.
+     * The two vectors must have the same lengths.
      */
     template <typename Other>
     friend RealType
-    js_divergence(const logarithmic_vector_base<Arg, RealType, Derived>& p,
-                  const logarithmic_vector_base<Arg, RealType, Other>& q) {
-      return transform_accumulate(p, q,
-                                  jsd_log_op<RealType>(),
-                                  std::plus<RealType>());
+    js_divergence(const vector_base<log_tag, RealType, Derived>& p,
+                  const vector_base<log_tag, RealType, Other>& q) {
+      return transform_accumulate(
+        jsd_log_op<RealType>(), std::plus<RealType>(), RealType(0),
+        p.derived().param(), q.derived().param()
+      );
     }
 
     /**
      * Computes the sum of absolute differences between parameters of p and q.
-     * The two expressions must have the same arguments.
+     * The two vectors must have the same lengths.
      */
     template <typename Other>
     friend RealType
-    sum_diff(const logarithmic_vector_base<Arg, RealType, Derived>& p,
-             const logarithmic_vector_base<Arg, RealType, Other>& q) {
-      return transform_accumulate(p, q,
-                                  abs_difference<RealType>(),
-                                  std::plus<RealType>());
+    sum_diff(const vector_base<log_tag, RealType, Derived>& p,
+             const vector_base<log_tag, RealType, Other>& q) {
+      return transform_accumulate(
+        abs_difference<RealType>(), std::plus<RealType>(), RealType(0),
+        p.derived().param(), q.derived().param()
+      );
     }
 
     /**
      * Computes the max of absolute differences between parameters of p and q.
-     * The two expressions must have the same arguments.
+     * The two vectors must have the same lengths.
      */
     template <typename Other>
     friend RealType
-    max_diff(const logarithmic_vector_base<Arg, RealType, Derived>& p,
-             const logarithmic_vector_base<Arg, RealType, Other>& q) {
-      return transform_accumulate(p, q,
-                                  abs_difference<RealType>(),
-                                  libgm::maximum<RealType>());
+    max_diff(const vector_base<log_tag, RealType, Derived>& p,
+             const vector_base<log_tag, RealType, Other>& q) {
+      return transform_accumulate(
+        abs_difference<RealType>(), libgm::maximum<RealType>(), RealType(0),
+        p.derived().param(), q.derived().param()
+      );
     }
 
     // Mutations
@@ -515,8 +514,7 @@ namespace libgm { namespace experimental {
      * Only supported when this expression is mutable (e.g., a factor).
      */
     LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
-    Derived& operator*=(const logarithmic_vector_base<Arg, RealType, Other>& f){
-      assert(derived().arguments() == f.derived().arguments());
+    Derived& operator*=(const vector_base<log_tag, RealType, Other>& f){
       f.derived().transform_inplace(plus_assign<>(), derived().param());
       return derived();
     }
@@ -526,8 +524,7 @@ namespace libgm { namespace experimental {
      * Only supported when this expression is mutable (e.g., a factor).
      */
     LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
-    Derived& operator/=(const logarithmic_vector_base<Arg, RealType, Other>& f){
-      assert(derived().arguments() == f.derived().arguments());
+    Derived& operator/=(const vector_base<log_tag, RealType, Other>& f){
       f.derived().transform_inplace(minus_assign<>(), derived().param());
       return derived();
     }
@@ -542,6 +539,14 @@ namespace libgm { namespace experimental {
 
     // Expression evaluations
     //--------------------------------------------------------------------------
+
+    /**
+     * Returns the logarithmic_vector object resulting by evaluating this
+     * expression.
+     */
+    logarithmic_vector<RealType> eval() const {
+      return *this;
+    }
 
     //! Returns the transform operator associated with this expression.
     identity trans_op() const {
@@ -560,33 +565,11 @@ namespace libgm { namespace experimental {
 
     /**
      * Updates the result with the given assignment operator. Calling this
-     * function is guaranteed ot be safe even in the presence of aliasing.
+     * function is guaranteed to be safe even in the presence of aliasing.
      */
     template <typename AssignOp>
-    void transform_inplace(AssignOp po, real_vector<RealType>& result) const {
+    void transform_inplace(AssignOp op, real_vector<RealType>& result) const {
       op(result.array(), derived().param().array());
-    }
-
-    /**
-     * Joins the result with this expression in place, using an assignment
-     * operator. Calling this function is safe even in the presenc of aliasing.
-     */
-    template <typename AssignOp>
-    void join_inplace(AssignOp op,
-                      const binary_domain<Arg>& result_args,
-                      real_matrix<RealType>& result) const {
-      auto&& param = derived().param();
-      if (x() == result_args.x()) {
-        op(result.array().colwise(), param.array());
-      } else if (x() == result_args.y()) {
-        op(result.array().rowwise(), param.array().transpose());
-      } else {
-        std::ostringstream out;
-        out << "logarithmic_matrix: argument ";
-        argument_traits<Arg>::print(out, x());
-        out << " not found";
-        throw std::invalid_argument(out.str());
-      }
     }
 
     /**
@@ -594,24 +577,27 @@ namespace libgm { namespace experimental {
      */
     template <typename AccuOp>
     RealType accumulate(AccuOp op) const {
-      return op(derived().param());
+      return op(derived().param().array());
     }
 
-  private:
-    template <typename Other, typename TransOp, typename AggOp>
-    friend RealType
-    transform_accumulate(const logarithmic_vector_base<Arg, RealType, Derived>& f,
-                         const logarithmic_vector_base<Arg, RealType, Other>& g,
-                         TransOp trans_op, AggOp agg_op) {
-      assert(f.derived().arguments() == g.derived().arguments());
-      auto&& fp = f.derived().param();
-      auto&& gp = g.derived().param();
-      assert(fp.rows() == gp.rows());
-      return std::inner_product(fp.data(), fp.data() + fp.size(), gp.data(),
-                                RealType(0), agg_op, trans_op);
+    /**
+     * Identifies the first element that satisfies the given predicate
+     * and return its index.
+     *
+     * \throw std::out_of_range if the element cannot be found
+     */
+    template <typename UnaryPredicate>
+    std::size_t find_if(UnaryPredicate pred) const {
+      auto&& param = derived().param();
+      auto it = std::find(param.data(), param.data() + param.size(), pred);
+      if (it == param.data() + param.size()) {
+        throw std::out_of_range("Element could not be found");
+      } else {
+        return it - param.data();
+      }
     }
 
-  }; // class logarithmic_vector_base
+  }; // class vector_base<log_tag, RealType, Derived>
 
 
   // Factor
@@ -631,12 +617,9 @@ namespace libgm { namespace experimental {
    * \ingroup factor_types
    * \see Factor
    */
-  template <typename Arg, typename RealType = double>
+  template <typename RealType = double>
   class logarithmic_vector
-    : public logarithmic_vector_base<
-        Arg,
-        RealType,
-        logarithmic_vector<Arg, RealType> > {
+    : public vector_base<log_tag, RealType, logarithmic_vector<RealType> > {
   public:
     // Public types
     //--------------------------------------------------------------------------
@@ -644,8 +627,8 @@ namespace libgm { namespace experimental {
     // LearnableDistributionFactor member types
     typedef logarithmic_vector_ll<RealType>  ll_type;
 
-    template <typename Derived>
-    using base = logarithmic_vector_base<Arg, RealType, Derived>;
+    template <typename Other>
+    using base = vector_base<log_tag, RealType, Other>;
 
     // Constructors and conversion operators
     //--------------------------------------------------------------------------
@@ -654,114 +637,79 @@ namespace libgm { namespace experimental {
     logarithmic_vector() { }
 
     //! Constructs a factor with given arguments and uninitialized parameters.
-    explicit logarithmic_vector(const unary_domain<Arg>& args) {
-      reset(args);
+    explicit logarithmic_vector(std::size_t length) {
+      reset(length);
     }
 
     //! Constructs a factor with the given arguments and constant value.
-    logarithmic_vector(const unary_domain<Arg>& args, logarithmic<RealType> x) {
-      reset(args);
+    logarithmic_vector(std::size_t length, logarithmic<RealType> x) {
+      reset(length);
       param_.fill(x.lv);
     }
 
-    //! Constructs a factor with the given argument and parameters.
-    logarithmic_vector(const unary_domain<Arg>& args,
-                       const real_vector<RealType>& param)
-      : args_(args), param_(param) {
-      check_param();
-    }
+    //! Constructs a factor with the given parameters.
+    logarithmic_vector(const real_vector<RealType>& param)
+      : param_(param) { }
 
-    //! Constructs a factor with the given argument and parameters.
-    logarithmic_vector(const unary_domain<Arg>& args,
-                       real_vector<RealType>&& param)
-      : args_(args), param_(std::move(param)) {
-      check_param();
-    }
+    //! Constructs a factor with the given parameters.
+    logarithmic_vector(real_vector<RealType>&& param)
+      : param_(std::move(param)) { }
 
     //! Constructs a factor with the given arguments and parameters.
-    logarithmic_vector(const unary_domain<Arg>& args,
-                       std::initializer_list<RealType> params) {
-      reset(args);
-      assert(this->size() == params.size());
+    logarithmic_vector(std::initializer_list<RealType> params)
+      : param_(params.size()) {
       std::copy(params.begin(), params.end(), param_.data());
     }
 
     //! Constructs a factor from an expression.
     template <typename Derived>
-    logarithmic_vector(
-        const logarithmic_vector_base<Arg, RealType, Derived>& f) {
+    logarithmic_vector(const vector_base<log_tag, RealType, Derived>& f) {
       f.derived().eval_to(param_);
-      args_ = f.derived().arguments();
     }
 
     //! Assigns the result of an expression to this factor.
     template <typename Derived>
     logarithmic_vector&
-    operator=(const logarithmic_vector_base<Arg, RealType, Derived>& f) {
+    operator=(const vector_base<log_tag, RealType, Derived>& f) {
       if (f.derived().alias(param_)) {
         param_ = f.derived().param();
       } else {
         f.derived().eval_to(param_);
       }
-      args_ = f.derived().arguments(); // safe now that f has been evaluated
       return *this;
     }
 
     //! Swaps the content of two logarithmic_vector factors.
     friend void swap(logarithmic_vector& f, logarithmic_vector& g) {
-      swap(f.args_, g.args_);
       f.param_.swap(g.param_);
     }
 
     //! Serializes the members.
     void save(oarchive& ar) const {
-      ar << args_ << param_;
+      ar << param_;
     }
 
     //! Deserializes members.
     void load(iarchive& ar) {
-      ar >> args_ >> param_;
-      check_param();
+      ar >> param_;
     }
 
     /**
      * Resets the content of this factor to the given arguments.
      */
-    void reset(const unary_domain<Arg>& args) {
-      if (args_ != args || !param_.data()) {
-        args_ = args;
-        param_.resize(argument_traits<Arg>::num_values(args.x()));
-      }
+    void reset(std::size_t length) {
+      param_.resize(length);
     }
 
-    /**
-     * Checks if the vector length matches the factor argument.
-     * \throw std::logic_error if some of the dimensions do not match
-     */
-    void check_param() const {
-      if (param_.rows() != argument_traits<Arg>::num_values(args_.x())) {
-        throw std::logic_error("Invalid number of rows");
-      }
-    }
-
-    //! Substitutes the arguments of the factor according to a map.
-    template <typename Map>
-    void subst_args(const Map& map) {
-      args_.substitute(map);
-    }
-
+#if 0
     //! Returns the length of the vector corresponding to a domain.
     static std::size_t param_shape(const unary_domain<Arg>& dom) {
       return dom.num_values();
     }
+#endif
 
     // Accessors
     //--------------------------------------------------------------------------
-
-    //! Returns the arguments of this factor.
-    const unary_domain<Arg>& arguments() const {
-      return args_;
-    }
 
     /**
      * Returns the pointer to the first parameter or nullptr if the factor is
@@ -815,14 +763,14 @@ namespace libgm { namespace experimental {
       return param_;
     }
 
-    //! Returns the parameter for the given assignment.
-    RealType& param(const uint_assignment<Arg>& a) {
-      return param_[a.at(args_.x())];
+    //! Returns the parameter for the given row.
+    RealType& param(std::size_t row) {
+      return param_[row];
     }
 
-    //! Returns the parameter for the given assignment.
-    const RealType& param(const uint_assignment<Arg>& a) const {
-      return param_[a.at(args_.x())];
+    //! Returns the parameter for the given row.
+    const RealType& param(std::size_t row) const {
+      return param_[row];
     }
 
     //! Returns the parameter for the given index.
@@ -837,25 +785,28 @@ namespace libgm { namespace experimental {
       return param_[index[0]];
     }
 
-    //! Returns the parameter for the given row.
-    RealType& param(std::size_t row) {
-      return param_[row];
-    }
-
-    //! Returns the parameter for the given row.
-    const RealType& param(std::size_t row) const {
-      return param_[row];
-    }
-
     // Evaluation
     //--------------------------------------------------------------------------
 
     /**
-     * Returns true if evaluating this expression to the specified parameter
-     * table requires a temporary. This is false for the logarithmic_vector
-     * factor type but may be true for factor expressions.
+     * Returns true if this logarithmic_vector aliases the given parameters,
+     * i.e., if evaluating an expression involving this logarithmic_vector
+     * to param requires a temporary.
+     *
+     * This function must be defined by each logarithmic_vector expression.
      */
     bool alias(const real_vector<RealType>& param) const {
+      return &param_ == &param;
+    }
+
+    /**
+     * Returns true if this logarithmic_vector aliases the given parameters,
+     * if.e., if evaluating an expression involving this logarithmic_vector
+     * to param requires a temporary.
+     *
+     * This function must be defined by each logarithmic_vector expression.
+     */
+    bool alias(const real_matrix<RealType>& param) const {
       return false;
     }
 
@@ -870,19 +821,16 @@ namespace libgm { namespace experimental {
     }
 
   private:
-    //! The argument of the factor.
-    unary_domain<Arg> args_;
-
     //! The parameters of the factor, i.e., a vector of log-probabilities.
     real_vector<RealType> param_;
 
   }; // class logarithmic_vector
 
-  template <typename Arg, typename RealType>
-  struct is_primitive<logarithmic_vector<Arg, RealType> > : std::true_type { };
+  template <typename RealType>
+  struct is_primitive<logarithmic_vector<RealType> > : std::true_type { };
 
-  template <typename Arg, typename RealType>
-  struct is_mutable<logarithmic_vector<Arg, RealType> > : std::true_type { };
+  template <typename RealType>
+  struct is_mutable<logarithmic_vector<RealType> > : std::true_type { };
 
 } } // namespace libgm::experimental
 

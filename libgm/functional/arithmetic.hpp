@@ -1,8 +1,6 @@
 #ifndef LIBGM_FUNCTIONAL_ARITHMETIC_HPP
 #define LIBGM_FUNCTIONAL_ARITHMETIC_HPP
 
-#include <libgm/functional/algorithm.hpp>
-
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -140,11 +138,6 @@ namespace libgm {
     auto operator()(X&& x) const {
       return std::forward<X>(x) + a;
     }
-
-    template <typename X>
-    void update(X&& x) const {
-      std::forward<X>(x) += a;
-    }
   };
 
   /**
@@ -160,11 +153,6 @@ namespace libgm {
     auto operator()(X&& x) const {
       return std::forward<X>(x) - a;
     }
-
-    template <typename X>
-    void update(X&& x) const {
-      std::forward<X>(x) -= a;
-    }
   };
 
   /**
@@ -172,7 +160,7 @@ namespace libgm {
    * and the argument.
    */
   template <typename T>
-  struct subtracted_from : default_update<subtracted_from<T> > {
+  struct subtracted_from {
     T a;
     subtracted_from(T a) : a(a) { }
 
@@ -195,11 +183,6 @@ namespace libgm {
     auto operator()(X&& x) const {
       return std::forward<X>(x) * a;
     }
-
-    template <typename X>
-    void update(X&& x) const {
-      std::forward<X>(x) *= a;
-    }
   };
 
   /**
@@ -215,11 +198,6 @@ namespace libgm {
     auto operator()(X&& x) const {
       return std::forward<X>(x) / a;
     }
-
-    template <typename X>
-    void update(X&& x) const {
-      std::forward<X>(x) /= a;
-    }
   };
 
   /**
@@ -227,7 +205,7 @@ namespace libgm {
    * and the argument.
    */
   template <typename T>
-  struct dividing : default_update<dividing<T> > {
+  struct dividing {
     T a;
     dividing(T a) : a(a) { }
 
@@ -241,7 +219,7 @@ namespace libgm {
    * A unary operator that computes the value raised to a fixed exponent.
    */
   template <typename T>
-  struct power : default_update<power<T> > {
+  struct power {
     T a;
     power(T a) : a(a) { }
 
@@ -256,7 +234,7 @@ namespace libgm {
    * A unary operator that computes the log of its argument.
    */
   template <typename T = void>
-  struct logarithm : default_update<logarithm<T> > {
+  struct logarithm {
     T operator()(const T& x) const { return std::log(x); }
   };
 
@@ -264,7 +242,7 @@ namespace libgm {
    * Specialization of the logarithm class to custom types.
    */
   template <>
-  struct logarithm<void> : default_update<logarithm<void> > {
+  struct logarithm<void> {
     template <typename X>
     auto operator()(X&& x) const {
       return log(x);
@@ -275,7 +253,7 @@ namespace libgm {
    * A unary operator that computes the exponent of its argument.
    */
   template <typename T = void>
-  struct exponent : default_update<exponent<T> > {
+  struct exponent {
     T operator()(const T& x) const { return std::exp(x); }
   };
 
@@ -283,7 +261,7 @@ namespace libgm {
    * Specialization of the exponent class to custom types.
    */
   template <>
-  struct exponent<void> : default_update<exponent<void> > {
+  struct exponent<void> {
     template <typename X>
     auto operator()(X&& x) const {
       return exp(x);
@@ -295,10 +273,29 @@ namespace libgm {
    * increments the result by a fixed offset.
    */
   template <typename T>
-  struct increment_logarithm : default_update<increment_logarithm<T> > {
+  struct logarithm_incremented_by {
     T offset;
-    increment_logarithm(T offset) : offset(offset) { }
-    T operator()(const T& x) const { return std::log(x) + offset; }
+    logarithm_incremented_by(T offset) : offset(offset) { }
+    template <typename X>
+    auto operator()(X&& x) const {
+      using std::log;
+      return log(std::forward<X>(x)) + offset;
+    }
+  };
+
+  /**
+   * A unary operator that comptues the exponent of its argument lowered
+   * by an offset.
+   */
+  template <typename T>
+  struct decrease_by_then_exponent {
+    T offset;
+    decrease_by_then_exponent(T offset) : offset(offset) { }
+    template <typename X>
+    auto operator()(X&& x) const {
+      using std::exp;
+      return exp(std::forward<X>(x) - offset);
+    }
   };
 
   /**

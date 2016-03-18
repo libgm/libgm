@@ -123,6 +123,16 @@ namespace libgm {
 
     template <typename Expr>
     struct is_mutable<Expr&&> : is_mutable<Expr> { };
+
+
+    /**
+     * A trait that represents whether the expression's param() function
+     * returns a temporary.
+     */
+    template <typename F>
+    struct has_param_temporary
+      : std::is_same<decltype(std::declval<F>().param()), param_t<F> > { };
+
   }
 
   /**
