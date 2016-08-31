@@ -30,6 +30,9 @@ namespace libgm {
 
     // Open the file and read the preamble
     std::ifstream in(filename);
+    if (!in) {
+      throw std::runtime_error("Cannot open the file " + filename);
+    }
     libgm::getline(in, line, line_num);
     std::string preamble = trim(line);
     if (preamble != "MARKOV" && preamble != "BAYES") {
@@ -193,9 +196,8 @@ namespace libgm {
     // output the factor values
     for (const auto& factor : model) {
       if (factor.arity() > 0) {
-        out << factor.size() << std::endl;
+        out << std::endl << factor.size() << std::endl;
         print_range(out, factor.begin(), factor.end(), ' ', ' ', '\n');
-        out << std::endl;
       }
     }
   } // save_uai

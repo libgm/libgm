@@ -20,8 +20,13 @@ int main(int argc, char** argv) {
   // load the original
   universe u;
   factor_graph<probability_table<var> > model;
-  domain<var> variables =
-    load_uai(input, var::discrete_generator(u, "x"), 0.0, model);
+  domain<var> variables;
+  try {
+    variables = load_uai(input, var::discrete_generator(u, "x"), 0.0, model);
+  } catch(std::runtime_error& e) {
+    std::cout << "Error loading the model. " << e.what() << std::endl;
+    return 2;
+  }
 
   // convert the factors
   pairwise_markov_network<probability_table<var> > mn;

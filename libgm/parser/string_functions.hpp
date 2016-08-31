@@ -74,6 +74,11 @@ namespace libgm {
   inline std::istream& getline(std::istream& in,
                                std::string& line,
                                std::size_t& line_number) {
+    if (!in) {
+      throw std::runtime_error(
+        "Reached the end of file at line " + std::to_string(line_number)
+      );
+    }
     ++line_number;
     return std::getline(in, line);
   }

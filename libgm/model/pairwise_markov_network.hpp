@@ -264,8 +264,8 @@ namespace libgm {
       const node_domain_type& args = factor.arguments();
       switch (args.size()) {
       case 1: {
-        std::size_t added = this->add_vertex(*args.begin());
-	(*this)[*args.begin()] = factor;
+        bool added = this->add_vertex(*args.begin());
+	      (*this)[*args.begin()] = factor;
         return added;
       }
       case 2:
