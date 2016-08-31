@@ -370,6 +370,39 @@ namespace libgm {
     }
 
     /**
+     * Returns true if two discrete domains are conformant.
+     * Discrete domains A and B are conformant if they can be partitioned into
+     * corresponding subsequences (A_1, A_2, ..., A_n) and (B_1, B_2, ..., B_n)
+     * such that at least one of each {A_i, B_i} is a singleton argument.
+     * This means that the domains can participate in reshape operations.
+     */
+    friend bool conformant(const domain& a, const domain& b) {
+      std::size_t i = 0;
+      std::size_t j = 0;
+      while (i < a.size() && j < b.size()) {
+        std::size_t sa = argument_traits<Arg>::num_values(a[i]);
+        std::size_t sb = argument_traits<Arg>::num_values(b[i]);
+        if (sa == sb) {
+          ++i;
+          ++j;
+        } else if (sa < sb) {
+          ++j;
+          for (++i; i < a.size() && sa < sb; ++i) {
+            sa *= argument_traits<Arg>::num_values(a[i]);
+          }
+          if (sa != sb) { return false; }
+        } else {
+          ++i;
+          for (++j; j < b.size() && sb < sa; ++j) {
+            sb *= argument_traits<Arg>::num_values(b[j]);
+          }
+          if (sa != sb) { return false; }
+        }
+      }
+      return i == a.size() && j == b.size();
+    }
+
+    /**
      * Returns the overall dimensionality for a collection of arguments.
      * This is simply the cardinality of the domain for univariate arguments
      * and the the sum of argument dimensionalities for multivariate arguments.

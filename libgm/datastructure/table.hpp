@@ -534,6 +534,16 @@ namespace libgm {
     }
 
     /**
+     * Constructs a table with the given shape and contents of the range.
+     */
+    template <typename It>
+    table(const uint_vector& shape, It begin, It end) {
+      reset(shape);
+      assert(size() == std::distance(begin, end));
+      std::copy(begin, end, data());
+    }
+
+    /**
      * Copy constructor. Copies the shape and elements of a table to this one.
      */
     table(const table& x)
@@ -1681,11 +1691,11 @@ namespace libgm {
     T init_;
   };
 
-  template <typename TransOp, typename AggOp, typename T, typename... Ts>
+  template <typename TransOp, typename AggOp, typename T, typename T0, typename... Ts>
   T transform_accumulate(TransOp trans_op, AggOp agg_op, T init,
-                         const table<Ts>&... tables) {
+                         const table<T0>& first, const table<Ts>&... rest) {
     table_transform_accumulate<TransOp, AggOp, T> accu(trans_op, agg_op, init);
-    return accu(tables...);
+    return accu(first, rest...);
   }
 
   /**

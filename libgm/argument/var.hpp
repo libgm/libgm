@@ -10,6 +10,7 @@
 #include <libgm/parser/string_functions.hpp>
 
 #include <algorithm>
+#include <functional>
 #include <iostream>
 #include <stdexcept>
 #include <sstream>
@@ -116,6 +117,29 @@ namespace libgm {
         throw std::invalid_argument("Attempt to construct multivariate var");
       }
       return var(u.acquire(new description(CONTINUOUS, name)));
+    }
+
+    /**
+     * Returns a functor that generates discrete variables with specified
+     * base name and an increasing index.
+     */
+    static std::function<var(std::size_t)>
+    discrete_generator(universe& u, const std::string& basename) {
+      return [&u, basename, index = std::size_t(0)](std::size_t num_values)
+        mutable {
+        return var::discrete(u, basename + std::to_string(index++), num_values);
+      };
+    }
+
+    /**
+     * Returns a functor that generates continuous variables with specified
+     * base name and an increasing index.
+     */
+    static std::function<var()>
+    continuous_generator(universe& u, const std::string& basename) {
+      return [&u, basename, index = std::size_t(0)]() mutable {
+        return var::continuous(u, basename + std::to_string(index++));
+      };
     }
 
     //! Converts the variable to a pair of the descriptor and index.

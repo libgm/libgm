@@ -1,6 +1,8 @@
 #ifndef LIBGM_PAIRWISE_MARKOV_NETWORK_HPP
 #define LIBGM_PAIRWISE_MARKOV_NETWORK_HPP
 
+#include <libgm/enable_if.hpp>
+#include <libgm/datastructure/uint_vector_iterator.hpp>
 #include <libgm/factor/traits.hpp>
 #include <libgm/graph/property_fn.hpp>
 #include <libgm/graph/undirected_graph.hpp>
@@ -10,6 +12,9 @@
 #include <libgm/traits/is_range.hpp>
 
 namespace libgm {
+
+  // Forward declaration
+  template <typename Arg, typename T> class probability_table;
 
   /**
    * Implements a Markov network with pairwise potentials.
@@ -51,6 +56,12 @@ namespace libgm {
     // Shortcuts
     typedef typename base::vertex_type vertex_type;
     typedef typename base::edge_type edge_type;
+
+    /**
+     * Indicates whether the model uses the same type for node and edge
+     * potentials.
+     */
+    static const bool is_simple = std::is_same<NodeF, EdgeF>::value;
 
     // Constructors
     //==========================================================================
@@ -103,6 +114,11 @@ namespace libgm {
     // Accessors
     //==========================================================================
 
+    //! Returns the number of arguments (i.e., the number of nodes).
+    std::size_t num_arguments() const {
+      return this->num_vertices();
+    }
+
     //! Returns the arguments of this model (i.e., the range of all vertices).
     iterator_range<typename base::vertex_iterator> arguments() const {
       return this->vertices();
@@ -116,6 +132,11 @@ namespace libgm {
     //! Returns the arguments of the factor associated with an edge.
     const edge_domain_type& arguments(const edge_type& e) const {
       return (*this)[e].arguments();
+    }
+
+    //! Returns the number of factors (nodes + edges).
+    std::size_t num_factors() const {
+      return this->num_vertices() + this->num_edges();
     }
 
     //! Returns the factors associated with vertices.
@@ -134,9 +155,9 @@ namespace libgm {
 
     /**
      * Returns iterator to the first factor in the model.
-     * This function is only available if NodeF and EdgeF is the same type.
+     * This function is only provided if the model is simple (NodeF=EdgeF).
      */
-    template <bool B = true>
+    LIBGM_ENABLE_IF(is_simple)
     join_iterator<node_factor_iterator, edge_factor_iterator>
     begin() const {
       auto nf = node_factors();
@@ -146,9 +167,9 @@ namespace libgm {
 
     /**
      * Returns iterator to past the last factor in the model.
-     * This function is only available if NodeF and EdgeF is the same type.
+     * This function is only provided if the model is simple (NodeF=EdgeF).
      */
-    template <bool B = true>
+    LIBGM_ENABLE_IF(is_simple)
     join_iterator<node_factor_iterator, edge_factor_iterator>
     end() const {
       auto nf = node_factors();
@@ -234,23 +255,75 @@ namespace libgm {
     /**
      * Adds a factor to the graphical model and creates the vertices and edges.
      * If the corresponding vertex/edge already exists, does nothing.
-     * Only supported when NodeF and EdgeF refere to the same type.
+     * This function is only provided if the model is simple (NodeF=EdgeF).
      *
-     * \return bool indicating whether the factor was inserted
      * \throw std::invalid_argument if the factor is not unary or binary
      */
-    template <bool B = std::is_same<NodeF, EdgeF>::value>
-    typename std::enable_if<B, bool>::type
-    add_factor(const NodeF& factor) {
+    LIBGM_ENABLE_IF(is_simple)
+    bool add_factor(const NodeF& factor) {
       const node_domain_type& args = factor.arguments();
       switch (args.size()) {
-        case 1:
-	  return this->add_vertex(*args.begin(), factor);
-        case 2:
-	  return this->add_edge(*args.begin(), *++args.begin(), factor).second;
-        default:
-          throw std::invalid_argument("Unsupported factor arity " +
-                                      std::to_string(args.size()));
+      case 1: {
+        std::size_t added = this->add_vertex(*args.begin());
+	(*this)[*args.begin()] = factor;
+        return added;
+      }
+      case 2:
+        return this->add_edge(*args.begin(), *++args.begin(), factor).second;
+      default:
+        throw std::invalid_argument("Unsupported factor arity " +
+                                    std::to_string(args.size()));
+      }
+    }
+
+    /**
+     * Adds an n-ary factor to the graphical model (with n >= 1), unrolling the
+     * factor and introducing determininistic pairwise potentials as needed.
+     * Only supported when NodeF and EdgeF are both probability_table factors.
+     * \param factor the factor to be added
+     * \param a factory returning a new argument with the given arity
+     * \return the newly created argument or null vertex if the factor
+     *         was added as is
+     */
+    LIBGM_ENABLE_IF((
+      std::is_same<NodeF, probability_table<argument_type, real_type> >::value &&
+      std::is_same<EdgeF, probability_table<argument_type, real_type> >::value))
+    argument_type
+    add_nary(const probability_table<argument_type, real_type>& f,
+             const std::function<argument_type(std::size_t)>& arg_gen) {
+      if (f.arity() <= 2) {
+        add_factor(f);
+        return base::null_vertex();
+      } else {
+        // create a factor with all the arguments collapsed
+        argument_type new_arg = arg_gen(f.size());
+        add_factor(f.reshape({new_arg}));
+
+        // initialize indicator potentials linking the arguments of f to new_arg
+        std::vector<probability_table<argument_type, real_type> > potentials;
+        for (argument_type arg : f.arguments()) {
+          potentials.emplace_back(edge_domain_type{new_arg, arg}, real_type(0));
+        }
+
+        // populate the potentials
+        std::size_t index = 0;
+        for (const uint_vector& values : uint_vectors(f.param().shape())) {
+          for (std::size_t i = 0; i < f.arity(); ++i) {
+            potentials[i][index + values[i] * f.size()] = real_type(1);
+          }
+          ++index;
+        }
+
+        // add the potentials
+        for (std::size_t i = 0; i < potentials.size(); ++i) {
+          add_factor(potentials[i]);
+          argument_type arg = f.arguments()[i];
+          if (!this->contains(arg)) {
+            (*this)[arg].reset({arg}, real_type(1));
+          }
+        }
+
+        return new_arg;
       }
     }
 

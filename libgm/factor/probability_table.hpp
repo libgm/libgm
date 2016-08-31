@@ -417,6 +417,13 @@ namespace libgm {
       table_factor<Arg, T>::restrict(a, result);
     }
 
+    //! Reshapes the factor the given sequence of conformant arguments.
+    probability_table reshape(const domain_type& new_args) const {
+      assert(conformant(arguments(), new_args));
+      table<T> reshaped(new_args.num_values(), this->begin(), this->end());
+      return probability_table(new_args, std::move(reshaped));
+    }
+
     // Sampling
     //==========================================================================
 

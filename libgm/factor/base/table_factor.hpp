@@ -87,6 +87,15 @@ namespace libgm {
       }
     }
 
+    /**
+     * Resets the content of this factor and fills the table with the given
+     * value.
+     */
+    void reset(const domain_type& args, T value) {
+      reset(args);
+      param_.fill(value);
+    }
+
     // Accessors
     //==========================================================================
 

@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 2.8.3)
 
 enable_testing()
 
-subdirs(test timing)
+subdirs(test timing tools)
 
 if (MSVC)
   add_definitions(-D_SCL_SECURE_NO_WARNINGS) # disable checked_iterator warnings
