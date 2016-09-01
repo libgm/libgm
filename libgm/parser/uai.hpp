@@ -43,7 +43,7 @@ namespace libgm {
     // The first section is:
     // # variables
     // [arity of all variables in the model]
-    libgm::getline(in, line, line_num);
+    libgm::getline_nonempty(in, line, line_num, whitespace);
     domain<Arg> variables;
     try {
       variables.resize(parse_string<std::size_t>(line));
@@ -51,7 +51,7 @@ namespace libgm {
       throw std::runtime_error("Line " + std::to_string(line_num) +
                                ": Cannot parse the number of variables!");
     }
-    libgm::getline(in, line, line_num);
+    libgm::getline_nonempty(in, line, line_num, whitespace);
     string_split(line, whitespace, tokens);
     if (tokens.size() != variables.size()) {
       throw std::runtime_error("Line " + std::to_string(line_num) +
@@ -71,7 +71,7 @@ namespace libgm {
     // [domain of factor 1]
     // [domain of factor 2]
     // ....
-    libgm::getline(in, line, line_num);
+    libgm::getline_nonempty(in, line, line_num, whitespace);
     std::vector<domain<Arg> > domains;
     try {
       domains.resize(parse_string<std::size_t>(line));
@@ -80,7 +80,7 @@ namespace libgm {
                                ": Cannot parse the number of factors!");
     }
     for (domain<Arg>& domain : domains) {
-      libgm::getline(in, line, line_num);
+      libgm::getline_nonempty(in, line, line_num, whitespace);
       string_split(line, whitespace, tokens);
       if (tokens.empty()) {
         throw std::runtime_error("Line " + std::to_string(line_num) +
@@ -111,9 +111,7 @@ namespace libgm {
       probability_table<Arg, RealType> factor(domains[j]);
 
       // first, check that the number of values matches the factor
-      do {
-        libgm::getline(in, line, line_num);
-      } while(line.empty());
+      libgm::getline_nonempty(in, line, line_num, whitespace);
       try {
         std::size_t count = parse_string<std::size_t>(line);
         if (count != factor.size()) {
@@ -128,7 +126,7 @@ namespace libgm {
       // next, parse the values
       RealType* dest = factor.begin();
       while (dest != factor.end()) {
-        libgm::getline(in, line, line_num);
+        libgm::getline_nonempty(in, line, line_num, whitespace);
         string_split(line, whitespace, tokens);
         for (std::size_t i = 0; i < tokens.size(); ++i) {
           if (dest == factor.end()) {
@@ -181,10 +179,16 @@ namespace libgm {
     }
     out << std::endl;
 
-    // output the number of factors and the domain for each factor
-    out << model.num_factors() << std::endl;
+    // count the number of non-empty factors
+    std::size_t count = 0;
     for (const auto& factor : model) {
-      if (factor.arity() > 0) {
+      if (!factor.empty()) { ++count; }
+    }
+    out << count << std::endl;
+
+    // output the number of factors and the domain for each factor
+    for (const auto& factor : model) {
+      if (!factor.empty()) {
         out << factor.arguments().size();
         for (argument_type arg : make_reversed(factor.arguments())) {
           out << " " << arg_map.at(arg);
@@ -195,7 +199,7 @@ namespace libgm {
 
     // output the factor values
     for (const auto& factor : model) {
-      if (factor.arity() > 0) {
+      if (!factor.empty()) {
         out << std::endl << factor.size() << std::endl;
         print_range(out, factor.begin(), factor.end(), ' ', ' ', '\n');
       }

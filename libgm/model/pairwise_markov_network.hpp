@@ -317,10 +317,6 @@ namespace libgm {
         // add the potentials
         for (std::size_t i = 0; i < potentials.size(); ++i) {
           add_factor(potentials[i]);
-          argument_type arg = f.arguments()[i];
-          if (!this->contains(arg)) {
-            (*this)[arg].reset({arg}, real_type(1));
-          }
         }
 
         return new_arg;

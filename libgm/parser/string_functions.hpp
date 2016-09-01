@@ -84,6 +84,20 @@ namespace libgm {
   }
 
   /**
+  * The same as the libgm::getline, but this keeps reading lines until
+  * it encounters a non-empty line, as given by 
+  */
+  inline std::istream& getline_nonempty(std::istream& in,
+                                        std::string& line,
+                                        std::size_t& line_number,
+                                        const std::string& whitespace) {
+    do {
+      libgm::getline(in, line, line_number);
+    } while (line.find_first_not_of(whitespace) == std::string::npos);
+    return in;
+  }
+
+  /**
    * If the string is enclosed in parentheses, returns the string with
    * the C-style substitutions (\t => tab). Otherwise, returns the
    * input string.
