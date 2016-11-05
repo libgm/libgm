@@ -1,5 +1,5 @@
-#ifndef LIBGM_FUNCTIONAL_COMPOSITION_HPP
-#define LIBGM_FUNCTIONAL_COMPOSITION_HPP
+#ifndef LIBGM_FUNCTIONAL_COMPOSE_HPP
+#define LIBGM_FUNCTIONAL_COMPOSE_HPP
 
 #include <libgm/functional/algorithm.hpp>
 #include <libgm/functional/invoke.hpp>
@@ -43,7 +43,7 @@ namespace libgm {
    * \relates composed
    */
   template <typename Outer, typename Inner>
-  composed<Outer, Inner> compose(Outer f, Inner g) {
+  inline composed<Outer, Inner> compose(Outer f, Inner g) {
     return { f, g };
   }
 
@@ -54,7 +54,7 @@ namespace libgm {
    * \relates composed
    */
   template <typename Outer>
-  Outer compose(Outer f, identity) {
+  inline Outer compose(Outer f, identity) {
     return f;
   }
 
@@ -87,7 +87,7 @@ namespace libgm {
   };
 
   template <typename Outer, typename Inner>
-  composed_left<Outer, Inner> compose_left(Outer f, Inner g) {
+  inline composed_left<Outer, Inner> compose_left(Outer f, Inner g) {
     return {f, g};
   }
 
@@ -115,7 +115,7 @@ namespace libgm {
   };
 
   template <typename Outer, typename Inner>
-  composed_left_alt<Outer, Inner> compose_left_alt(Outer f, Inner g) {
+  inline composed_left_alt<Outer, Inner> compose_left_alt(Outer f, Inner g) {
     return {f, g};
   }
 
@@ -142,7 +142,7 @@ namespace libgm {
 
 
   template <typename Outer, typename Inner>
-  composed_right<Outer, Inner> compose_right(Outer f, Inner g) {
+  inline composed_right<Outer, Inner> compose_right(Outer f, Inner g) {
     return {f, g};
   }
 
@@ -181,7 +181,8 @@ namespace libgm {
    */
   template <std::size_t M, std::size_t N,
             typename Outer, typename Left, typename Right>
-  composed_binary<Outer, Left, Right, M, N> compose(Outer f, Left g, Right h) {
+  inline composed_binary<Outer, Left, Right, M, N>
+  compose(Outer f, Left g, Right h) {
     return {f, g, h};
   }
 
@@ -192,7 +193,7 @@ namespace libgm {
    * \relates composed_binary
    */
   template <std::size_t M, std::size_t N, typename Outer, typename Left>
-  composed_left_alt<Outer, Left> compose(Outer f, Left g, identity) {
+  inline composed_left_alt<Outer, Left> compose(Outer f, Left g, identity) {
     static_assert(N == 1, "Invalid arity of the identity");
     return {f, g};
   }
@@ -204,7 +205,7 @@ namespace libgm {
    * \relates composed_binary
    */
   template <std::size_t M, std::size_t N, typename Outer, typename Right>
-  composed_right<Outer, Right> compose(Outer f, identity, Right g) {
+  inline composed_right<Outer, Right> compose(Outer f, identity, Right g) {
     static_assert(M == 1, "Invalid arity of the identity");
     return {f, g};
   }
@@ -216,7 +217,7 @@ namespace libgm {
    * \relates composed_binary
    */
   template <std::size_t M, std::size_t N, typename Outer>
-  Outer compose(Outer f, identity, identity) {
+  inline Outer compose(Outer f, identity, identity) {
     static_assert(M == 1 && N == 1, "Invalid arity of the identity");
     return f;
   }

@@ -16,7 +16,7 @@ double reconstruction_error(std::size_t nsamples,
                             Shape shape) {
   // generate a few samples
   std::mt19937 rng;
-  Distribution dist(param);
+  Distribution dist(param, prob_tag());
   std::vector<std::pair<typename Distribution::result_type, double>> samples;
   samples.reserve(nsamples);
   for (std::size_t i = 0; i < nsamples; ++i) {

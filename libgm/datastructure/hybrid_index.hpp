@@ -1,7 +1,7 @@
 #ifndef LIBGM_HYBRID_INDEX_HPP
 #define LIBGM_HYBRID_INDEX_HPP
 
-#include <vector>
+#include <libgm/datastructure/uint_vector.hpp>
 
 namespace libgm {
 
@@ -10,8 +10,8 @@ namespace libgm {
    * vector or matrix.
    */
   struct hybrid_index {
-    std::vector<std::size_t> uint;
-    std::vector<std::size_t> real;
+    uint_vector uint;
+    uint_vector real;
   };
 
 } // namespace libgm

@@ -31,7 +31,7 @@ const char* version(logd) {
 template <typename Factor, std::size_t N, typename Op>
 void time_transform(Op op) {
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
+  std::cout << version(typename Factor::result_type()) << std::flush;
   for (std::size_t arity = 0; arity <= max_arity; ++arity) {
     auto f = tuple_rep<N>(Factor(uint_vector(arity, num_values)));
     Factor g;
@@ -47,7 +47,7 @@ void time_transform(Op op) {
 template <typename Factor, typename JoinOp>
 void time_join(JoinOp join_op) {
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
+  std::cout << version(typename Factor::result_type()) << std::flush;
   for (std::size_t arity = 1; arity < max_arity; ++arity) {
     Factor f(uint_vector(arity, num_values));
     Factor g(uint_vector(arity, num_values));
@@ -66,7 +66,7 @@ void time_join(JoinOp join_op) {
 template <typename Factor, typename AggOp>
 void time_aggregate(AggOp agg_op) {
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
+  std::cout << version(typename Factor::result_type()) << std::flush;
   for (std::size_t arity = 1; arity < max_arity; ++arity) {
     Factor f(uint_vector(arity, num_values));
     Factor g;
@@ -83,7 +83,7 @@ void time_aggregate(AggOp agg_op) {
 template <typename Factor, typename JoinOp, typename AggOp>
 void time_join_aggregate(JoinOp join_op, AggOp agg_op) {
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
+  std::cout << version(typename Factor::result_type()) << std::flush;
   for (std::size_t arity = 1; arity < max_arity; ++arity) {
     Factor f(uint_vector(arity, num_values));
     Factor g(uint_vector(arity, num_values));
@@ -103,7 +103,7 @@ void time_join_aggregate(JoinOp join_op, AggOp agg_op) {
 template <typename Factor, typename JoinOp, typename AccuOp>
 void time_join_accumulate(JoinOp join_op, AccuOp accu_op) {
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
+  std::cout << version(typename Factor::result_type()) << std::flush;
   for (std::size_t arity = 1; arity < max_arity; ++arity) {
     Factor f(uint_vector(arity, num_values));
     Factor g(uint_vector(arity, num_values));
@@ -111,7 +111,7 @@ void time_join_accumulate(JoinOp join_op, AccuOp accu_op) {
     uint_vector y = range(0, arity-1);
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
-      result_t<Factor> e = accu_op(join_op(f.dims(x), g.dims(y)));
+      typename Factor::result_type e = accu_op(join_op(f.dims(x), g.dims(y)));
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }
@@ -121,7 +121,7 @@ void time_join_accumulate(JoinOp join_op, AccuOp accu_op) {
 template <typename Factor>
 void time_restrict() {
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
+  std::cout << version(typename Factor::result_type()) << std::flush;
   for (std::size_t arity = 1; arity < max_arity; ++arity) {
     Factor f(uint_vector(arity, num_values));
     Factor g;
@@ -139,7 +139,7 @@ void time_restrict() {
 template <typename Factor, typename RestrictOp>
 void time_restrict_segment(RestrictOp restrict_op) {
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
+  std::cout << version(typename Factor::result_type()) << std::flush;
   for (std::size_t arity = 1; arity < max_arity; ++arity) {
     Factor f(uint_vector(arity, num_values));
     Factor g;
@@ -156,7 +156,7 @@ void time_restrict_segment(RestrictOp restrict_op) {
 template <typename Factor, typename UpdateOp>
 void time_update(UpdateOp update_op) {
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
+  std::cout << version(typename Factor::result_type()) << std::flush;
   for (std::size_t arity = 1; arity < max_arity; ++arity) {
     Factor f(uint_vector(arity, num_values));
     Factor g(uint_vector(arity-1, num_values));
@@ -173,7 +173,7 @@ void time_update(UpdateOp update_op) {
 template <typename Factor, typename UpdateOp>
 void time_restrict_update(UpdateOp update_op) {
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
+  std::cout << version(typename Factor::result_type()) << std::flush;
   for (std::size_t arity = 1; arity < max_arity; ++arity) {
     Factor f(uint_vector(arity, num_values));
     Factor g(uint_vector(arity, num_values));
@@ -181,7 +181,7 @@ void time_restrict_update(UpdateOp update_op) {
     uint_vector x = range(0, arity-1);
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
-      update_op(f.dims(x), g.tail(vals));
+      update_op(f.dims(x), g.restrict_head(vals));
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }
@@ -264,25 +264,25 @@ int main(int argc, char** argv) {
   time_join_aggregate<ptable>(std::multiplies<>(), member_maximum());
   time_join_aggregate<ltable>(std::multiplies<>(), member_maximum());
 
-  std::cout << std::endl << "(table * table).marginal()" << std::endl;
-  time_join_accumulate<ptable>(std::multiplies<>(), member_marginal());
-  time_join_accumulate<ltable>(std::multiplies<>(), member_marginal());
+  std::cout << std::endl << "(table * table).sum()" << std::endl;
+  time_join_accumulate<ptable>(std::multiplies<>(), member_sum());
+  time_join_accumulate<ltable>(std::multiplies<>(), member_sum());
 
-  std::cout << std::endl << "(table * table).maximum()" << std::endl;
-  time_join_accumulate<ptable>(std::multiplies<>(), member_maximum());
-  time_join_accumulate<ltable>(std::multiplies<>(), member_maximum());
+  std::cout << std::endl << "(table * table).max()" << std::endl;
+  time_join_accumulate<ptable>(std::multiplies<>(), member_max());
+  time_join_accumulate<ltable>(std::multiplies<>(), member_max());
 
   std::cout << std::endl << "table.restrict(dims, vals)" << std::endl;
   time_restrict<ptable>();
   time_restrict<ltable>();
 
-  std::cout << std::endl << "table.head(vals)" << std::endl;
-  time_restrict_segment<ptable>(member_head());
-  time_restrict_segment<ltable>(member_head());
+  std::cout << std::endl << "table.restrict_head(vals)" << std::endl;
+  time_restrict_segment<ptable>(member_restrict_head());
+  time_restrict_segment<ltable>(member_restrict_head());
 
-  std::cout << std::endl << "table.tail(vals)" << std::endl;
-  time_restrict_segment<ptable>(member_tail());
-  time_restrict_segment<ltable>(member_tail());
+  std::cout << std::endl << "table.restrict_tail(vals)" << std::endl;
+  time_restrict_segment<ptable>(member_restrict_tail());
+  time_restrict_segment<ltable>(member_restrict_tail());
 
   std::cout << std::endl << "table *= table" << std::endl;
   time_update<ptable>(multiplies_assign<>());

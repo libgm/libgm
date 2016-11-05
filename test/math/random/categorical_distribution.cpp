@@ -28,6 +28,6 @@ double marginal_diff(const dist_type& d, const real_vector<>& v) {
 BOOST_AUTO_TEST_CASE(test_marginal1) {
   real_vector<> v(4);
   v << 0.2, 0.1, 0.4, 0.3;
-  BOOST_CHECK_SMALL(marginal_diff(dist_type(v), v), tol);
+  BOOST_CHECK_SMALL(marginal_diff(dist_type(v, prob_tag()), v), tol);
   BOOST_CHECK_SMALL(marginal_diff(dist_type(v.array().log(), log_tag()), v), tol);
 }

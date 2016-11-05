@@ -44,7 +44,7 @@ namespace libgm {
     // ParametricFactor member types
     typedef canonical_gaussian_param<T> param_type;
     typedef real_vector<T>              vector_type;
-    typedef std::vector<std::size_t>    index_type;
+    typedef uint_vector    index_type;
 
     // ExponentialFamilyFactor member types
     typedef moment_gaussian<Arg, T> probability_type;
@@ -145,16 +145,6 @@ namespace libgm {
       }
     }
 
-    //! Sets the arguments, but does not allocate the parameters.
-    std::size_t reset_prototype(const domain_type& args) {
-      if (args_ != args) {
-        args_ = args;
-        std::size_t n = this->compute_start(args);
-        param_.resize(0);
-        return n;
-      } else return args.num_dimensions();
-    }
-
     // Accessors and comparison operators
     //==========================================================================
 
@@ -225,13 +215,13 @@ namespace libgm {
     //! Returns the information vector for a subset of the arguments
     vec_type inf_vector(const domain_type& args) const {
       index_type index = args.index(this->start_);
-      return subvec(param_.eta, index).ref();
+      return subvec(param_.eta, iref(index));
     }
 
     //! Returns the information matrix for a subset of the arguments
     mat_type inf_matrix(const domain_type& args) const {
       index_type index = args.index(this->start_);
-      return submat(param_.eta, index, index).ref();
+      return submat(param_.eta, iref(index), iref(index));
     }
 
     //! Returns true of the two factors have the same domains and parameters.
@@ -271,7 +261,9 @@ namespace libgm {
           "canonical_gaussian::reorder: ordering changes the argument set"
         );
       }
-      return canonical_gaussian(args, param_.reorder(args.index(this->start_)));
+      canonical_gaussian result(args);
+      param_.reorder(iref(args.index(this->start_)), result.param_);
+      return result;
     }
 
     /**
@@ -325,77 +317,66 @@ namespace libgm {
     // Factor operations (the parameter operation objects are computed below)
     //==========================================================================
 
-    //! Multiplies this factor by another one in-place.
-    canonical_gaussian& operator*=(const canonical_gaussian& f) {
-      multiplies_assign_op(*this, f)(param_, f.param_);
-      return *this;
-    }
-
-    //! Divides this factor by another one in-place.
-    canonical_gaussian& operator/=(const canonical_gaussian& f) {
-      divides_assign_op(*this, f)(param_, f.param_);
-      return *this;
-    }
-
     //! Multiplies this factor by a constant in-place.
     canonical_gaussian& operator*=(logarithmic<T> x) {
-      multiplies_assign_op(*this)(param_, x.lv);
+      param_.lm += x.lv;
       return *this;
     }
 
     //! Divides this factor by a constant in-place.
     canonical_gaussian& operator/=(logarithmic<T> x) {
-      divides_assign_op(*this)(param_, x.lv);
+      param_.lm -= x.lv;
       return *this;
     }
 
-    //! Multiplies two canonical_gaussian factors.
-    friend canonical_gaussian
-    operator*(const canonical_gaussian& f, const canonical_gaussian& g) {
-      canonical_gaussian result;
-      multiplies_op(f, g, result)(f.param_, g.param_, result.param_);
-      return result;
+    //! Multiplies this factor by another one in-place.
+    canonical_gaussian& operator*=(const canonical_gaussian& f) {
+      param_.update(plus_assign<>(),
+                    iref(f.arguments().index(this->start_)),
+                    f.inf_vector(),
+                    f.inf_matrix(),
+                    f.log_multiplier());
+      return *this;
     }
 
-    //! Divides two canonical_gaussian factors.
-    friend canonical_gaussian
-    operator/(const canonical_gaussian& f, const canonical_gaussian& g) {
-      canonical_gaussian result;
-      divides_op(f, g, result)(f.param_, g.param_, result.param_);
-      return result;
+    //! Divides this factor by another one in-place.
+    canonical_gaussian& operator/=(const canonical_gaussian& f) {
+      param_.update(minus_assign<>(),
+                    iref(f.arguments().index(this->start_)),
+                    f.inf_vector(),
+                    f.inf_matrix(),
+                    f.log_multiplier());
+      return *this;
     }
 
     //! Multiplies a canonical_gaussian by a constant.
-    friend canonical_gaussian
-    operator*(canonical_gaussian f, logarithmic<T> x) {
-      multiplies_assign_op(f)(f.param_, x.lv);
+    friend canonical_gaussian operator*(canonical_gaussian f, logarithmic<T> x) {
+      f.param_.lm += x.lv;
       return f;
     }
 
     //! Multiplies a canonical_gaussian by a constant.
-    friend canonical_gaussian
-    operator*(logarithmic<T> x, canonical_gaussian f) {
-      multiplies_assign_op(f)(f.param_, x.lv);
+    friend canonical_gaussian operator*(logarithmic<T> x, canonical_gaussian f) {
+      f.param_.lm += x.lv;
       return f;
     }
 
     //! Divides a canonical_gaussian by a constant.
-    friend canonical_gaussian
-    operator/(canonical_gaussian f, logarithmic<T> x) {
-      divides_assign_op(f)(f.param_, x.lv);
+    friend canonical_gaussian operator/(canonical_gaussian f, logarithmic<T> x) {
+      f.param_.lm -= x.lv;
       return f;
     }
 
     //! Divides a constant by a canonical_gaussian.
-    friend canonical_gaussian
-    operator/(logarithmic<T> x, canonical_gaussian f) {
-      divides_assign_op(f)(x.lv, f.param_);
+    friend canonical_gaussian operator/(logarithmic<T> x, canonical_gaussian f) {
+      f.param_.eta = -f.param_.eta;
+      f.param_.lambda = -f.param_.lambda;
+      f.param_.lm = x.lv - f.param_.lm;
       return f;
     }
 
     //! Raises a canonical_gaussian to an exponent.
-    friend canonical_gaussian
-    pow(canonical_gaussian f, T x) {
+    friend canonical_gaussian pow(canonical_gaussian f, T x) {
       f.param_ *= x;
       return f;
     }
@@ -408,6 +389,42 @@ namespace libgm {
       return canonical_gaussian(f.args_, weighted_sum(f.param_, g.param_, a));
     }
 
+    //! Multiplies two canonical_gaussian factors.
+    friend canonical_gaussian
+    operator*(const canonical_gaussian& f, const canonical_gaussian& g) {
+      canonical_gaussian result(f.arguments() + g.arguments(), logarithmic<T>());
+      result *= f;
+      result *= g;
+      return result;
+    }
+
+    //! Divides two canonical_gaussian factors.
+    friend canonical_gaussian
+    operator/(const canonical_gaussian& f, const canonical_gaussian& g) {
+      canonical_gaussian result(f.arguments() + g.arguments(), logarithmic<T>());
+      result *= f;
+      result /= g;
+      return result;
+    }
+
+    /**
+     * Computes the aggregate of the factor over a sequence of arguments.
+     * \throws invalid_argument if retained is not a subset of arguments
+     * \throws numerical_error if the information matrix over the
+     *         mariginalized variables is singular.
+     */
+    canonical_gaussian aggregate(bool marginal,
+                                 const domain_type& retain) const {
+      canonical_gaussian result(retain);
+      typename param_type::collapse_workspace ws;
+      param_.collapse(marginal,
+                      iref(retain.index(this->start_)),
+                      iref((args_ - retain).index(this->start_)),
+                      ws,
+                      result.param_);
+      return result;
+    }
+
     /**
      * Computes the marginal of the factor over a sequence of arguments.
      * \throws invalid_argument if retained is not a subset of arguments
@@ -415,9 +432,7 @@ namespace libgm {
      *         mariginalized variables is singular.
      */
     canonical_gaussian marginal(const domain_type& retain) const {
-      canonical_gaussian result;
-      marginal(retain, result);
-      return result;
+      return aggregate(true, retain);
     }
 
     /**
@@ -426,36 +441,7 @@ namespace libgm {
      * \throws numerical_error if the information matrix is singular
      */
     canonical_gaussian maximum(const domain_type& retain) const {
-      canonical_gaussian result;
-      maximum(retain, result);
-      return result;
-    }
-
-    /**
-     * If this factor represents p(x, y), returns p(x | y).
-     */
-    canonical_gaussian conditional(const domain_type& tail) const {
-      return *this / marginal(tail);
-    }
-
-    /**
-     * Computes the marginal of the factor over a sequence of arguments.
-     * \throws invalid_argument if retained is not a subset of arguments
-     * \throws numerical_error if the information matrix over the
-     *         marginalized variables is singular.
-     */
-    void marginal(const domain_type& retain, canonical_gaussian& result) const {
-      marginal_op(*this, retain, result)(param_, result.param_);
-    }
-
-    /**
-     * Computes the maximum of the factor over a sequence of arguments.
-     * \throws invalid_argument if retained is not a ubset of arguments
-     * \throws numerical_error if the information matrix over the
-     *         marginalized variables is singular.
-     */
-    void maximum(const domain_type& retain, canonical_gaussian& result) const {
-      maximum_op(*this, retain, result)(param_, result.param_);
+      return aggregate(false, retain);
     }
 
     //! Returns the normalization constant of the factor.
@@ -487,22 +473,21 @@ namespace libgm {
       return std::isfinite(param_.marginal());
     }
 
+    //! If this factor represents p(x, y), returns p(x | y).
+    canonical_gaussian conditional(const domain_type& tail) const {
+      return *this / marginal(tail);
+    }
+
     //! Restricts the factor to the given assignment.
     canonical_gaussian restrict(const assignment_type& a) const {
-      canonical_gaussian result;
-      restrict(a, result);
+      domain<Arg> y, x; // restricted, retained
+      args_.partition(a, y, x);
+      canonical_gaussian result(x);
+      param_.restrict(iref(x.index(this->start_)),
+                      iref(y.index(this->start_)),
+                      a.values(y),
+                      result.param_);
       return result;
-    }
-
-    //! Restricts the factor to the given assignment.
-    void restrict(const assignment_type& a, canonical_gaussian& result) const {
-      restrict_op(*this, a, result)(param_, result.param_);
-    }
-
-    //! Restricts the factor to the given assignment and multiplies the result
-    void restrict_multiply(const assignment_type& a,
-                           canonical_gaussian& result) const {
-      restrict_multiply_op(*this, a, result)(param_, result.param_);
     }
 
     // Entropy and divergences
@@ -565,137 +550,6 @@ namespace libgm {
     out << f.arguments() << std::endl
         << f.param() << std::endl;
     return out;
-  }
-
-  // Factor operation objects
-  //============================================================================
-
-  /**
-   * Returns an object that can add the parameters of one canonical Gaussian
-   * to another one in-place.
-   */
-  template <typename Arg, typename T>
-  canonical_gaussian_join_inplace<T, libgm::plus_assign<> >
-  multiplies_assign_op(canonical_gaussian<Arg, T>& h,
-                       const canonical_gaussian<Arg, T>& f) {
-    return { f.arguments().index(h.start()) };
-  }
-
-  /**
-   * Returns an object that can add a constant to the log-multiplier of
-   * a canonical Gaussian in-place.
-   */
-  template <typename Arg, typename T>
-  canonical_gaussian_join_inplace<T, libgm::plus_assign<> >
-  multiplies_assign_op(canonical_gaussian<Arg, T>& h) {
-    return { };
-  }
-
-  /**
-   * Returns an object that can subtract the parameters of one canonical
-   * Gaussian from another one in-place.
-   */
-  template <typename Arg, typename T>
-  canonical_gaussian_join_inplace<T, libgm::minus_assign<> >
-  divides_assign_op(canonical_gaussian<Arg, T>& h,
-                    const canonical_gaussian<Arg, T>& f) {
-    return { f.arguments().index(h.start()) };
-  }
-
-  /**
-   * Returns an object that can subtract a constant to the log-multiplier of
-   * a canonical Gaussian in-place.
-   */
-  template <typename Arg, typename T>
-  canonical_gaussian_join_inplace<T, libgm::minus_assign<> >
-  divides_assign_op(canonical_gaussian<Arg, T>& h) {
-    return { };
-  }
-
-  /**
-   * Returns an object that can compute the parameters corresponding to the
-   * product of two canonical Gaussians. Initializes the arguments of the
-   * result.
-   */
-  template <typename Arg, typename T>
-  canonical_gaussian_join<T, libgm::plus_assign<> >
-  multiplies_op(const canonical_gaussian<Arg, T>& f,
-                const canonical_gaussian<Arg, T>& g,
-                canonical_gaussian<Arg, T>& h) {
-    std::size_t n = h.reset_prototype(f.arguments() + g.arguments());
-    return {f.arguments().index(h.start()), g.arguments().index(h.start()), n};
-  }
-
-  /**
-   * Returns an object that can compute the parameters corresponding to the
-   * ratio of two canonical Gaussians. Initializes the arguments of the result.
-   */
-  template <typename Arg, typename T>
-  canonical_gaussian_join<T, libgm::minus_assign<> >
-  divides_op(const canonical_gaussian<Arg, T>& f,
-             const canonical_gaussian<Arg, T>& g,
-             canonical_gaussian<Arg, T>& h) {
-    std::size_t n = h.reset_prototype(f.arguments() + g.arguments());
-    return {f.arguments().index(h.start()), g.arguments().index(h.start()), n};
-  }
-
-  /**
-   * Returns an object that can compute the parameters corresponding to
-   * the marginal of a canonical Gaussian over a subset of arguments.
-   * Initializes the arguments of the result.
-   */
-  template <typename Arg, typename T>
-  canonical_gaussian_marginal<T>
-  marginal_op(const canonical_gaussian<Arg, T>& f,
-              const domain<Arg>& retain,
-              canonical_gaussian<Arg, T>& h) {
-    h.reset_prototype(retain);
-    return { retain.index(f.start()), (f.arguments()-retain).index(f.start()) };
-  }
-
-  /**
-   * Returns an object that can compute the parameters corresponding to
-   * the maximum of a canonical Gaussian over a subset of arguments.
-   * Initializes the arguments of the result.
-   */
-  template <typename Arg, typename T>
-  canonical_gaussian_maximum<T>
-  maximum_op(const canonical_gaussian<Arg, T>& f,
-             const domain<Arg>& retain,
-             canonical_gaussian<Arg, T>& h) {
-    h.reset_prototype(retain);
-    return { retain.index(f.start()), (f.arguments()-retain).index(f.start()) };
-  }
-
-  /**
-   * Returns an object that can compute the parameters corresponding to
-   * restricting a canonical Gaussian to the given assignment.
-   * Initializes the arguments of the result.
-   */
-  template <typename Arg, typename T>
-  canonical_gaussian_restrict<T>
-  restrict_op(const canonical_gaussian<Arg, T>& f,
-              const real_assignment<Arg, T>& a,
-              canonical_gaussian<Arg, T>& h) {
-    domain<Arg> y, x; // restricted, retained
-    f.arguments().partition(a, y, x);
-    h.reset_prototype(x);
-    return { x.index(f.start()), y.index(f.start()), a.values(y) };
-  }
-
-  /**
-   * Returns an object that can restrict a canonical Gaussian and
-   * add the resulting parameters to another one.
-   */
-  template <typename Arg, typename T>
-  canonical_gaussian_restrict_join<T, libgm::plus_assign<> >
-  restrict_multiply_op(const canonical_gaussian<Arg, T>& f,
-                       const real_assignment<Arg, T>& a,
-                       canonical_gaussian<Arg, T>& h) {
-    domain<Arg> y, x; // restricted, retained
-    f.arguments().partition(a, y, x);
-    return { x.index(f.start()), y.index(f.start()), x.index(h.start()),
-             a.values(y) };
   }
 
 } // namespace libgm

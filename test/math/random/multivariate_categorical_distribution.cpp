@@ -37,12 +37,12 @@ double marginal_diff(const dist_type& d, const table_type& t) {
 double conditional_diff(const dist_type& d, const table_type& t) {
   std::mt19937 rng;
   table_type estimate(t.shape(), 0.0);
-  for (std::size_t first = 0; first < t.shape().front(); ++first) {
-    uint_vector tail(1, first);
+  for (std::size_t y = 0; y < t.shape().back(); ++y) {
+    uint_vector tail(1, y);
     for (std::size_t i = 0; i < nsamples; ++i) {
       uint_vector sample = d(rng, tail);
       BOOST_REQUIRE_EQUAL(sample.size(), t.arity() - 1);
-      sample.insert(sample.begin(), first);
+      sample.push_back(y);
       ++estimate(sample);
     }
   }
@@ -55,17 +55,16 @@ BOOST_AUTO_TEST_CASE(test_marginal) {
   table_type pt({2, 3}, {0.1, 0.05, 0.15, 0.25, 0.2, 0.25});
   table_type ct({2, 3});
   std::transform(pt.begin(), pt.end(), ct.begin(), logarithm<double>());
-  BOOST_CHECK_SMALL(marginal_diff(dist_type(pt, 0), pt), tol);
-  BOOST_CHECK_SMALL(marginal_diff(dist_type(ct, 0, log_tag()), pt), tol);
+  BOOST_CHECK_SMALL(marginal_diff(dist_type(pt, prob_tag()), pt), tol);
+  BOOST_CHECK_SMALL(marginal_diff(dist_type(ct, log_tag()), pt), tol);
 }
 
 BOOST_AUTO_TEST_CASE(test_conditional) {
-  table_type pt, ct;
-  table_type({2, 3, 2},
-             {0.1, 0.05, 0.15, 0.25, 0.2, 0.25,
-              0.15, 0.25, 0.05, 0.2, 0.3, 0.05}).reorder({2, 0, 1}, pt);
-  ct.reset({2, 2, 3});
+  table_type pt({2, 3, 2},
+                {0.1, 0.05, 0.15, 0.25, 0.2, 0.25,
+                 0.15, 0.25, 0.05, 0.2, 0.3, 0.05});
+  table_type ct(uint_vector{2, 3, 2});
   std::transform(pt.begin(), pt.end(), ct.begin(), logarithm<double>());
-  BOOST_CHECK_SMALL(conditional_diff(dist_type(pt, 1), pt), tol);
-  BOOST_CHECK_SMALL(conditional_diff(dist_type(ct, 1, log_tag()), pt), tol);
+  BOOST_CHECK_SMALL(conditional_diff(dist_type(pt, prob_tag()), pt), tol);
+  BOOST_CHECK_SMALL(conditional_diff(dist_type(ct, log_tag()), pt), tol);
 }

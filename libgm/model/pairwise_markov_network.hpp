@@ -2,7 +2,7 @@
 #define LIBGM_PAIRWISE_MARKOV_NETWORK_HPP
 
 #include <libgm/enable_if.hpp>
-#include <libgm/datastructure/uint_vector_iterator.hpp>
+#include <libgm/iterator/uint_vector_iterator.hpp>
 #include <libgm/factor/traits.hpp>
 #include <libgm/graph/property_fn.hpp>
 #include <libgm/graph/undirected_graph.hpp>

@@ -30,7 +30,7 @@ void time_transform(Op op,
                     std::size_t num_reps) {
   universe u;
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
+  std::cout << version(typename Factor::result_type()) << std::flush;
   for (std::size_t n : num_values) {
     auto f = tuple_rep<N>(Factor({var::discrete(u, "x", n)}));
     Factor g;
@@ -49,8 +49,8 @@ auto time_accumulate(Op op,
                     std::size_t num_reps) {
   universe u;
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
-  result_t<Factor> value;
+  std::cout << version(typename Factor::result_type()) << std::flush;
+  typename Factor::result_type value;
   for (std::size_t n : num_values) {
     Factor f({var::discrete(u, "x", n)});
     t.restart();
@@ -69,13 +69,13 @@ void time_assignment(Op op,
                      std::size_t num_reps) {
   universe u;
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
+  std::cout << version(typename Factor::result_type()) << std::flush;
   for (std::size_t n : num_values) {
     Factor f({var::discrete(u, "x", n)});
     uint_assignment<var> a;
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
-      result_t<Factor> value = op(f, a);
+      typename Factor::result_type value = op(f, a);
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }

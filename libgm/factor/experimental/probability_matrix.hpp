@@ -3,13 +3,17 @@
 
 #include <libgm/enable_if.hpp>
 #include <libgm/factor/traits.hpp>
-#include <libgm/factor/experimental/expression/macros.hpp>
-#include <libgm/factor/experimental/expression/matrix.hpp>
-#include <libgm/factor/experimental/probability_vector.hpp>
+#include <libgm/factor/experimental/expression/matrix_base.hpp>
+#include <libgm/factor/experimental/expression/matrix_function.hpp>
+#include <libgm/factor/experimental/expression/matrix_selector.hpp>
+#include <libgm/factor/experimental/expression/matrix_transform.hpp>
+#include <libgm/factor/experimental/expression/matrix_view.hpp>
+#include <libgm/factor/experimental/expression/vector_view.hpp>
+#include <libgm/factor/experimental/expression/table_function.hpp>
 #include <libgm/functional/algorithm.hpp>
 #include <libgm/functional/arithmetic.hpp>
 #include <libgm/functional/assign.hpp>
-#include <libgm/functional/composition.hpp>
+#include <libgm/functional/compose.hpp>
 #include <libgm/functional/entropy.hpp>
 #include <libgm/functional/member.hpp>
 #include <libgm/math/eigen/real.hpp>
@@ -27,11 +31,7 @@ namespace libgm { namespace experimental {
   // Forward declaration of the factor
   template <typename RealType> class probability_matrix;
 
-  // Forward declaration of the table raw buffer view.
-  template <typename Space, typename RealType> class table_map;
-
-
-  // Base classes
+  // Base class
   //============================================================================
 
   /**
@@ -42,7 +42,7 @@ namespace libgm { namespace experimental {
    * \tparam Derived
    *         The expression type that derives from this base class.
    *         This type must implement the following functions:
-   *         alias(), array().
+   *         alias(), eval_to().
    */
   template <typename RealType, typename Derived>
   class matrix_base<prob_tag, RealType, Derived> {
@@ -60,96 +60,36 @@ namespace libgm { namespace experimental {
     typedef uint_vector           vector_type;
     typedef bivariate_categorical_distribution<RealType> distribution_type;
 
-    // Matrix specific declarations
-    typedef prob_tag space_type;
-    static const std::size_t trans_arity = 1;
-
-    // Constructors
+    // Constructors and casts
     //--------------------------------------------------------------------------
 
     //! Default constructor.
     matrix_base() { }
 
-    // Accessors and comparison operators
-    //--------------------------------------------------------------------------
-
     //! Downcasts this object to the derived type.
-    Derived& derived() & {
+    Derived& derived() {
       return static_cast<Derived&>(*this);
     }
 
     //! Downcasts this object to the derived type.
-    const Derived& derived() const& {
+    const Derived& derived() const {
       return static_cast<const Derived&>(*this);
     }
 
-    //! Downcasts this object to the derived type.
-    Derived&& derived() && {
-      return static_cast<Derived&&>(*this);
+    //! Returns this as void-pointer.
+    const void* void_ptr() const {
+      return this;
     }
 
-    //! Returns the number of arguments of this expression.
-    std::size_t arity() const {
-      return 2;
-    }
-
-    //! Returns the number of rows of the expression.
-    std::size_t rows() const {
-      return derived().array().rows();
-    }
-
-    //! Returns the number of columns of the expression.
-    std::size_t cols() const {
-      return derived().array().cols();
-    }
-
-    //! Returns the total number of elements of the expression.
-    std::size_t size() const {
-      return derived().rows() * derived().cols();
-    }
-
-    //! Evaluates the expression to a parameter matrix.
-    real_matrix<RealType> param() const {
-      return derived().array();
-    }
-
-    //! Returns the parameter for the given row and column.
-    RealType param(std::size_t row, std::size_t col) const {
-      return derived().array()(row, col);
-    }
-
-    //! Returns the parameter for the given index.
-    RealType param(const uint_vector& index) const {
-      assert(index.size() == 2);
-      return derived().array()(index[0], index[1]);
-    }
-
-    //! Returns the value of the expression for the given row and column.
-    RealType operator()(std::size_t row, std::size_t col) const {
-      return param(row, col);
-    }
-
-    //! Returns the value of the expression for the given index.
-    RealType operator()(const uint_vector& index) const {
-      return param(index);
-    }
-
-    //! Returns the log-value of the expression for the given row and column.
-    RealType log(std::size_t row, std::size_t col) const {
-      return std::log(param(row, col));
-    }
-
-    //! Returns the log-value of the expression for the given index.
-    RealType log(const uint_vector& index) const {
-      return std::log(param(index));
-    }
+    // Comparison and output operators
+    //--------------------------------------------------------------------------
 
     /**
      * Returns true if the two expressions have the same values.
      */
     template <typename Other>
     friend bool
-    operator==(const matrix_base<prob_tag, RealType, Derived>& f,
+    operator==(const matrix_base& f,
                const matrix_base<prob_tag, RealType, Other>& g) {
       return f.derived().param() == g.derived().param();
     }
@@ -159,7 +99,7 @@ namespace libgm { namespace experimental {
      */
     template <typename Other>
     friend bool
-    operator!=(const matrix_base<prob_tag, RealType, Derived>& f,
+    operator!=(const matrix_base& f,
                const matrix_base<prob_tag, RealType, Other>& g) {
       return !(f == g);
     }
@@ -167,13 +107,12 @@ namespace libgm { namespace experimental {
     /**
      * Outputs a human-readable representation of the expression to the stream.
      */
-    friend std::ostream&
-    operator<<(std::ostream& out, const matrix_base& f) {
+    friend std::ostream& operator<<(std::ostream& out, const matrix_base& f) {
       out << f.derived().param();
       return out;
     }
 
-    // Factor operations
+    // Transforms
     //--------------------------------------------------------------------------
 
     /**
@@ -181,193 +120,253 @@ namespace libgm { namespace experimental {
      * element-wise transform of this expression with a unary operation.
      */
     template <typename ResultSpace = prob_tag, typename UnaryOp = void>
-    auto transform(UnaryOp unary_op) const& {
-      return make_matrix_transform<ResultSpace>(
-        compose(unary_op, derived().trans_op()),
-        derived().trans_data()
-      );
-    }
-
-    template <typename ResultSpace = prob_tag, typename UnaryOp = void>
-    auto transform(UnaryOp unary_op) && {
-      return make_matrix_transform<ResultSpace>(
-        compose(unary_op, derived().trans_op()),
-        std::move(derived()).trans_data()
-      );
+    auto transform(UnaryOp unary_op) const {
+      return make_matrix_transform<ResultSpace>(unary_op, std::tie(derived()));
     }
 
     /**
      * Returns a probability_matrix expression representing the element-wise
      * sum of a probability_matrix expression and a scalar.
      */
-    LIBGM_TRANSFORM_RIGHT(operator+, incremented_by<RealType>(x),
-                          RealType, matrix_base, prob_tag, RealType)
+    friend auto operator+(const matrix_base& f, RealType x) {
+      return f.derived().transform(incremented_by<RealType>(x));
+    }
 
     /**
      * Returns a probability_matrix expression representing the element-wise
      * sum of a scalar and a probability_matrix expression.
      */
-    LIBGM_TRANSFORM_LEFT(operator+, incremented_by<RealType>(x),
-                         RealType, matrix_base, prob_tag, RealType)
+    friend auto operator+(RealType x, const matrix_base& f) {
+      return f.derived().transform(incremented_by<RealType>(x));
+    }
 
     /**
      * Returns a probability_matrix expression representing the element-wise
      * difference of a probability_matrix expression and a scalar.
      */
-    LIBGM_TRANSFORM_RIGHT(operator-, decremented_by<RealType>(x),
-                          RealType, matrix_base, prob_tag, RealType)
+    friend auto operator-(const matrix_base& f, RealType x) {
+      return f.derived().transform(decremented_by<RealType>(x));
+    }
 
     /**
      * Returns a probability_matrix expression representing the element-wise
      * difference of a scalar and a probability_matrix expression.
      */
-    LIBGM_TRANSFORM_LEFT(operator-, subtracted_from<RealType>(x),
-                         RealType, matrix_base, prob_tag, RealType)
+    friend auto operator-(RealType x, const matrix_base& f) {
+      return f.derived().transform(subtracted_from<RealType>(x));
+    }
 
     /**
      * Returns a probability_matrix expression representing the element-wise
      * product of a probability_matrix expression and a scalar.
      */
-    LIBGM_TRANSFORM_RIGHT(operator*, multiplied_by<RealType>(x),
-                          RealType, matrix_base, prob_tag, RealType)
+    friend auto operator*(const matrix_base& f, RealType x) {
+      return f.derived().transform(multiplied_by<RealType>(x));
+    }
 
     /**
      * Returns a probability_matrix expression representing the element-wise
      * product of a scalar and a probability_matrix expression.
      */
-    LIBGM_TRANSFORM_LEFT(operator*, multiplied_by<RealType>(x),
-                         RealType, matrix_base, prob_tag, RealType)
+    friend auto operator*(RealType x, const matrix_base& f) {
+      return f.derived().transform(multiplied_by<RealType>(x));
+    }
 
     /**
      * Returns a probability_matrix expression representing the element-wise
      * division of a probability_matrix expression and a scalar.
      */
-    LIBGM_TRANSFORM_RIGHT(operator/, divided_by<RealType>(x),
-                          RealType, matrix_base, prob_tag, RealType)
+    friend auto operator/(const matrix_base& f, RealType x) {
+      return f.derived().transform(divided_by<RealType>(x));
+    }
 
     /**
      * Returns a probability_matrix expression representing the element-wise
      * division of a scalar and a probability_matrix expression.
      */
-    LIBGM_TRANSFORM_LEFT(operator/, dividing<RealType>(x),
-                         RealType, matrix_base, prob_tag, RealType)
+    friend auto operator/(RealType x, const matrix_base& f) {
+      return f.derived().transform(dividing<RealType>(x));
+    }
 
     /**
      * Returns a probability_matrix expression representing a probability_matrix
      *  expression raised to an exponent element-wise.
      */
-    LIBGM_TRANSFORM_RIGHT(pow, power<RealType>(x),
-                          RealType, matrix_base, prob_tag, RealType)
+    friend auto pow(const matrix_base& f, RealType x) {
+      return f.derived().transform(power<RealType>(x));
+    }
 
     /**
      * Returns a probability_matrix expression representing the element-wise
      * sum of two probability_matrix expressions.
      */
-    LIBGM_TRANSFORM(operator+, std::plus<>(),
-                    matrix_base, prob_tag, RealType)
+    template <typename Other>
+    friend auto operator+(const matrix_base& f,
+                          const matrix_base<prob_tag, RealType, Other>& g) {
+      return libgm::experimental::transform(std::plus<>(), f, g);
+    }
 
     /**
      * Returns a probability_matrix expression representing the element-wise
      * difference of two probability_matrix expressions.
      */
-    LIBGM_TRANSFORM(operator-, std::minus<>(),
-                    matrix_base, prob_tag, RealType)
+    template <typename Other>
+    friend auto operator-(const matrix_base& f,
+                          const matrix_base<prob_tag, RealType, Other>& g) {
+      return libgm::experimental::transform(std::minus<>(), f, g);
+    }
 
     /**
      * Returns a probability_matrix expression representing the element-wise
      * product of two probability_matrix expressions.
      */
-    LIBGM_TRANSFORM(operator*, std::multiplies<>(),
-                    matrix_base, prob_tag, RealType)
+    template <typename Other>
+    friend auto operator*(const matrix_base& f,
+                          const matrix_base<prob_tag, RealType, Other>& g) {
+      return libgm::experimental::transform(std::multiplies<>(), f, g);
+    }
 
     /**
      * Returns a probability_matrix expression representing the element-wise
      * ratio of two probability_matrix expressions.
      */
-    LIBGM_TRANSFORM(operator/, std::divides<>(),
-                    matrix_base, prob_tag, RealType)
+    template <typename Other>
+    friend auto operator/(const matrix_base& f,
+                          const matrix_base<prob_tag, RealType, Other>& g) {
+      return libgm::experimental::transform(std::divides<>(), f, g);
+    }
 
     /**
      * Returns a probability_table expression representing the element-wise
      * maximum of two probability_matrix expressions.
      */
-    LIBGM_TRANSFORM(max, member_max(),
-                    matrix_base, prob_tag, RealType)
+    template <typename Other>
+    friend auto max(const matrix_base& f,
+                    const matrix_base<prob_tag, RealType, Other>& g) {
+      return libgm::experimental::transform(member_max(), f, g);
+    }
 
     /**
      * Returns a probability_table expression representing the element-wise
      * minimum of two probability_matrix expressions.
      */
-    LIBGM_TRANSFORM(min, member_min(),
-                    matrix_base, prob_tag, RealType)
+    template <typename Other>
+    friend auto min(const matrix_base& f,
+                    const matrix_base<prob_tag, RealType, Other>& g) {
+      return libgm::experimental::transform(member_min(), f, g);
+    }
 
     /**
      * Returns a probability_matrix expression representing \f$f*(1-x) + g*x\f$
      * for two probability_matrix expressions f and g.
      */
-    LIBGM_TRANSFORM_SCALAR(weighted_update, weighted_plus<RealType>(1-x, x),
-                           RealType, matrix_base, prob_tag, RealType)
+    template <typename Other>
+    friend auto weighted_update(const matrix_base& f,
+                                const matrix_base<prob_tag, RealType, Other>& g,
+                                RealType x) {
+      return libgm::experimental::transform(weighted_plus<RealType>(1-x, x), f, g);
+    }
+
+    // Conversions
+    //--------------------------------------------------------------------------
+
+    /**
+     * Returns a probability_matrix expression with the elements of this
+     * expression cast to a different RealType.
+     */
+    template <typename NewRealType>
+    auto cast() const {
+      return derived().transform(member_cast<NewRealType>());
+    }
+
+    /**
+     * Returns a logarithmic_matrix expression equivalent to this expression.
+     */
+    auto logarithmic() const {
+      return derived().template transform<log_tag>(logarithm<>());
+    }
+
+    /**
+     * Returns a probability_table expression equivalent to this matrix.
+     */
+    auto table() const {
+      return table_from_matrix<prob_tag>(derived()); // in table_function.hpp
+    }
+
+    // Aggregates
+    //--------------------------------------------------------------------------
 
     /**
      * Returns a probability_vector expression representing the aggregate
      * of this expression over a single argument.
      */
     template <typename AggOp>
-    auto aggregate(AggOp agg_op, std::size_t retain) const& {
-      return matrix_aggregate<prob_tag, AggOp, const Derived&>(
-        agg_op, retain, derived());
-    }
-
-    template <typename AggOp>
-    auto aggregate(AggOp agg_op, std::size_t retain) && {
-      return matrix_aggregate<prob_tag, AggOp, Derived>(
-        agg_op, retain, std::move(derived()));
+    auto aggregate(AggOp agg_op, std::size_t retain) const {
+      assert(retain <= 1);
+      return make_vector_function<prob_tag>(
+        [agg_op, retain](const Derived& f, real_vector<RealType>& result) {
+          if (retain == 0) {
+            result = agg_op(f.param().rowwise());
+          } else {
+            result = agg_op(f.param().colwise()).transpose();
+          }
+        }, derived());
     }
 
     /**
      * Returns a probability_vector expression representing the marginal
      * of this expression over a single dimension.
+     *
+     * The second, optional argument is provided for compatibility with other
+     * factors; if provided, it must be equal to 1.
      */
-    LIBGM_AGGREGATE(marginal, std::size_t, member_sum())
+    auto marginal(std::size_t retain, std::size_t n = 1) const {
+      assert(n == 1);
+      return derived().aggregate(member_sum(), retain);
+    }
 
     /**
      * Returns a probability_vector expression representing the maximum
      * of this expression over a single dimension.
+     *
+     * The second, optional argument is provided for compatibility with other
+     * factors; if provided, it must be equal to 1.
      */
-    LIBGM_AGGREGATE(maximum, std::size_t, member_maxCoeff())
+    auto maximum(std::size_t retain, std::size_t n = 1) const {
+      assert(n == 1);
+      return derived().aggregate(member_maxCoeff(), retain);
+    }
 
     /**
      * Returns a probability_vector expression representing the minimum
      * of this expression over a single dimension.
+     *
+     * The second, optional argument is provided for compatibility with other
+     * factors; if provided, it must be equal to 1.
      */
-    LIBGM_AGGREGATE(minimum, std::size_t, member_minCoeff())
-
-#if 0
-    /**
-     * If this expression represents p(head \cup tail), returns a
-     * probability_matrix expression representing p(head | tail).
-     */
-    LIBGM_MATRIX_CONDITIONAL(std::divides<>())
-#endif
+    auto minimum(std::size_t retain, std::size_t n = 1) const {
+      assert(n == 1);
+      return derived().aggregate(member_minCoeff(), retain);
+    }
 
     /**
      * Computes the normalization constant of this expression.
      */
-    RealType marginal() const {
+    RealType sum() const {
       return derived().accumulate(member_sum());
     }
 
     /**
      * Computes the maximum value of this expression.
      */
-    RealType maximum() const {
+    RealType max() const {
       return derived().accumulate(member_maxCoeff());
     }
 
     /**
      * Computes the minimum value of this expression.
      */
-    RealType minimum() const {
+    RealType min() const {
       return derived().accumulate(member_minCoeff());
     }
 
@@ -375,34 +374,34 @@ namespace libgm { namespace experimental {
      * Computes the maximum value of this expression and stores the
      * corresponding row and column.
      */
-    RealType maximum(std::size_t* row, std::size_t* col) const {
-      return derived().accumulate(member_maxCoeffIndex(row, col));
+    RealType max(std::size_t& row, std::size_t& col) const {
+      return derived().accumulate(member_maxCoeffIndex(&row, &col));
     }
 
     /**
      * Computes the maximum value of this expression and stores the
      * corresponding index to a vector.
      */
-    RealType maximum(uint_vector* index) const {
-      index->resize(2);
-      return maximum(&index->front(), &index->back());
+    RealType max(uint_vector& index) const {
+      index.resize(2);
+      return maximum(index.front(), index.back());
     }
 
     /**
      * Computes the minimum value of this expression and stores the
      * corresponding row and column.
      */
-    RealType minimum(std::size_t* row, std::size_t* col) const {
-      return derived().accumulate(member_minCoeffIndex(row, col));
+    RealType min(std::size_t& row, std::size_t& col) const {
+      return derived().accumulate(member_minCoeffIndex(&row, &col));
     }
 
     /**
      * Computes the minimum value of this expression and stores the
      * corresponding index to a vector.
      */
-    RealType minimum(uint_vector* index) const {
-      index->resize(2);
-      return minimum(&index->front(), &index->back());
+    RealType min(uint_vector& index) const {
+      index.resize(2);
+      return minimum(index.front(), index.back());
     }
 
     /**
@@ -410,96 +409,165 @@ namespace libgm { namespace experimental {
      * constant > 0.
      */
     bool normalizable() const {
-      return marginal() > 0;
+      return sum() > 0;
+    }
+
+    // Conditioning
+    //--------------------------------------------------------------------------
+
+    /**
+     * If this expression represents a marginal distribution p(x, y), this
+     * function returns a probability_matrix expression representing the
+     * conditional p(x | y) with 1 head (front) dimension.
+     *
+     * The optional argument must be always 1.
+     */
+    auto conditional(std::size_t nhead = 1) const {
+      assert(nhead == 1);
+      return make_matrix_function<prob_tag>(
+        [](const Derived& f, real_matrix<RealType>& result) {
+          f.eval_to(result);
+          result.array().rowise() /= result.array().colwise().sum().eval();
+        }, derived());
     }
 
     /**
-     * Returns a probability_vector expression representing the tail values
-     * (i.e., a column) of this expression when the head is fixed as given.
+     * Returns a probability_vector expression representing a row of this
+     * expresion. The factor provides an optimized version of this expression.
      */
-    LIBGM_BLOCK(tail, std::size_t, col,
-                matrix_segment, prob_tag, Eigen::Vertical)
+    auto row(std::size_t index) const {
+      return make_vector_function<prob_tag>(
+        [index](const Derived& f, real_vector<RealType>& result) {
+          result = f.row(index).transpose();
+        }, derived());
+    }
 
     /**
-     * Returns a probability_vector expression representing the head values
-     * (i.e., a row) of this expression when the tail is fixed as given.
+     * Returns a probability_vector expression representing a column of this
+     * expression. The factor provides an optimized version of this expression.
      */
-    LIBGM_BLOCK(head, std::size_t, row,
-                matrix_segment, prob_tag, Eigen::Horizontal)
+    auto col(std::size_t index) const {
+      return make_vector_function<prob_tag>(
+        [index](const Derived& f, real_vector<RealType>& result) {
+          result = f.col(index);
+        }, derived());
+    }
+
+    /**
+     * Returns a probability_vector expression representing a row of this
+     * expresion.
+     */
+    auto restrict_head(std::size_t row) const {
+      return derived().row(row);
+    }
+
+    /**
+     * Returns a probability_vector expression representing a column of this
+     * expression.
+     */
+    auto restrict_tail(std::size_t col) const {
+      return derived().col(col);
+    }
 
     /**
      * Returns a probability_vector expression resulting when restricting the
-     * specified dimension of this expression to the specified value.
-     * Use 0 to restrict the row, 1 to restrict a column.
+     * specified dimension of this expression (i.e., rows or columns) to the
+     * specified value. Use 0 to restrict the rows, 1 to restrict the columns.
      */
-    LIBGM_RESTRICT(std::size_t, dim, std::size_t, value,
-                   matrix_restrict, prob_tag, identity)
+    auto restrict(std::size_t dim, std::size_t index) const {
+      assert(dim <= 1);
+      return make_vector_function<prob_tag>(
+        [dim, index](const Derived& f, real_vector<RealType>& result) {
+          if (dim == 1) {
+            result = f.param().col(index);
+          } else {
+            result = f.param().row(index).transpose();
+          }
+        }, derived());
+    }
+
+    // Reshaping
+    //--------------------------------------------------------------------------
 
     /**
-     * Returns the expression representing the transpose of this expression.
+     * Returns the probability_matrix expression representing the transpose of
+     * this expression.
      */
-    matrix_transpose<prob_tag, const Derived&> transpose() const& {
+    auto transpose() const {
+      return make_matrix_function<prob_tag>(
+        [](const Derived& f, real_matrix<RealType>& result) {
+          result = f.param().transpose();
+        }, derived());
+    }
+
+    // Selectors
+    //--------------------------------------------------------------------------
+
+    /**
+     * Returns a probability_matrix selector referencing the rows of
+     * this expression (i.e., performing column-wise operations).
+     */
+    matrix_selector<prob_tag, Eigen::Vertical, const Derived>
+    colwise() const {
       return derived();
     }
 
-    matrix_transpose<prob_tag, Derived> transpose() && {
-      return std::move(derived());
+    /**
+     * Returns a probability_matrix selector referencing the columns of
+     * this of this expression (i.e., performing row-wise operations).
+     */
+    matrix_selector<prob_tag, Eigen::Horizontal, const Derived>
+    rowwise() const {
+      return derived();
     }
 
     /**
-     * Returns the probability_matrix factor resulting from evaluating this
-     * expression.
+     * Returns a probability_matrix selector referencing the rows of
+     * this expression (i.e., performing column-wise operations).
+     *
+     * The optional argument is provided for compatibility with other factors
+     * and, if specified, must be equal to 1.
      */
-    probability_matrix<RealType> eval() const {
-      return *this;
+    matrix_selector<prob_tag, Eigen::Vertical, const Derived>
+    head(std::size_t n = 1) const {
+      assert(n == 1);
+      return derived();
     }
 
-    // Index selectors
-    //--------------------------------------------------------------------------
-
     /**
-     * Returns a probability_matrix selector referencing the tail dimension
-     * of this expression (i.e., performing column-wise operations).
+     * Returns a probability_matrix selector referencing the columns of
+     * this of this expression (i.e., performing row-wise operations).
+     *
+     * The optional argument is provided for compatibility with other factors
+     * and, if specified, must be equal to 1.
      */
-    LIBGM_SELECT0(tail, matrix_selector, prob_tag, Eigen::Vertical)
-
-    /**
-     * Returns a probability_matrix selector referecing the head dimension
-     * of this expression (i.e., performing row-wise operations).
-     */
-    LIBGM_SELECT0(head, matrix_selector, prob_tag, Eigen::Horizontal)
-
-    /**
-     * Returns a probability_matrix selector referencing a single dimension
-     * of this expression. The only valid dimensions are 0 and 1, with 0
-     * representing column-wise operations and 1 row-wise operations.
-     */
-    LIBGM_SELECT1(dim, std::size_t, dim,
-                  matrix_selector, prob_tag, Eigen::BothDirections)
-
-    // Conversions
-    //--------------------------------------------------------------------------
-
-    /**
-     * Returns a logarithmic_matrix expression equivalent to this expression.
-     */
-    auto logarithmic() const& {
-      return derived().template transform<log_tag>(logarithm<>());
+    matrix_selector<prob_tag, Eigen::Horizontal, const Derived>
+    tail(std::size_t n = 1) const {
+      assert(n == 1);
+      return derived();
     }
 
-    auto logarithmic() && {
-      return std::move(derived()).template transform<log_tag>(logarithm<>());
+    /**
+     * Returns a probability_matrix selector referencing a single
+     * dimension of this expression. The only valid dimensions are 0 and 1,
+     * with 0 representing column-wise operations and 1 row-wise operations.
+     */
+    matrix_selector<prob_tag, Eigen::BothDirections, const Derived>
+    dim(std::size_t index) const {
+      return { index, derived() };
     }
 
-#if 0
     /**
-     * Returns a probability_table expression equivalent to this expression.
+     * Returns a probability_matrix selector referencing a single
+     * dimension of this expression. The only valid dimensions are 0 and 1,
+     * with 0 representing column-wise operations and 1 row-wise operations.
+     * The second argument must be equal to 1.
      */
-    LIBGM_ENABLE_IF(is_primitive<Derived>::value)
-    probability_table_map<RealType> table() const {
-      return { derived().arguments(), derived().param().data() };
+    matrix_selector<prob_tag, Eigen::BothDirections, const Derived>
+    dims(std::size_t index, std::size_t n = 1) const {
+      assert(n == 1);
+      return { index, derived() };
     }
-#endif
 
     // Sampling
     //--------------------------------------------------------------------------
@@ -507,9 +575,8 @@ namespace libgm { namespace experimental {
     /**
      * Returns a categorical distribution represented by this expression.
      */
-    bivariate_categorical_distribution<RealType>
-    distribution(std::size_t ntail = 0) const {
-      return { derived().param(), ntail };
+    bivariate_categorical_distribution<RealType> distribution() const {
+      return { derived().param(), prob_tag() };
     }
 
     /**
@@ -555,13 +622,15 @@ namespace libgm { namespace experimental {
     /**
      * Computes the entropy for a single dimension (argument) of the
      * distribution represented by this expression.
+     * The second argument, if provided, must be equal to 1.
      */
-    RealType entropy(std::size_t dim) const {
+    RealType entropy(std::size_t dim, std::size_t n = 1) const {
+      assert(n == 1);
       return derived().marginal(dim).entropy();
     }
 
     /**
-     * Computes the mutual information between the two dimensions (arguments)
+     * Computes the mutual information between the two dimensions
      * of the distribution represented by this expression.
      */
     RealType mutual_information() const {
@@ -571,9 +640,12 @@ namespace libgm { namespace experimental {
     /**
      * Computes the mutual information between two (not necessarily unique)
      * dimensions of the distribution represented by this expression.
+     * The two optional arguments, if provided, must be both equal to 1.
      */
-    RealType mutual_information(std::size_t a, std::size_t b) const {
+    RealType mutual_information(std::size_t a, std::size_t b,
+                                std::size_t na = 1, std::size_t nb = 1) const {
       assert(a <= 1 && b <= 1);
+      assert(na == 1 && nb == 1);
       if (a == b) {
         return entropy(a);
       } else {
@@ -587,7 +659,7 @@ namespace libgm { namespace experimental {
      */
     template <typename Other>
     friend RealType
-    cross_entropy(const matrix_base<prob_tag, RealType, Derived>& p,
+    cross_entropy(const matrix_base& p,
                   const matrix_base<prob_tag, RealType, Other>& q) {
       return transform_accumulate(
         entropy_op<RealType>(), std::plus<RealType>(), RealType(0),
@@ -601,7 +673,7 @@ namespace libgm { namespace experimental {
      */
     template <typename Other>
     friend RealType
-    kl_divergence(const matrix_base<prob_tag, RealType, Derived>& p,
+    kl_divergence(const matrix_base& p,
                   const matrix_base<prob_tag, RealType, Other>& q) {
       return transform_accumulate(
         kld_op<RealType>(), std::plus<RealType>(), RealType(0),
@@ -615,7 +687,7 @@ namespace libgm { namespace experimental {
      */
     template <typename Other>
     friend RealType
-    js_divergence(const matrix_base<prob_tag, RealType, Derived>& p,
+    js_divergence(const matrix_base& p,
                   const matrix_base<prob_tag, RealType, Other>& q) {
       return transform_accumulate(
         jsd_op<RealType>(), std::plus<RealType>(), RealType(0),
@@ -629,7 +701,7 @@ namespace libgm { namespace experimental {
      */
     template <typename Other>
     friend RealType
-    sum_diff(const matrix_base<prob_tag, RealType, Derived>& p,
+    sum_diff(const matrix_base& p,
              const matrix_base<prob_tag, RealType, Other>& q) {
       return transform_accumulate(
         abs_difference<RealType>(), std::plus<RealType>(), RealType(0),
@@ -643,7 +715,7 @@ namespace libgm { namespace experimental {
      */
     template <typename Other>
     friend RealType
-    max_diff(const matrix_base<prob_tag, RealType, Derived>& p,
+    max_diff(const matrix_base& p,
              const matrix_base<prob_tag, RealType, Other>& q) {
       return transform_accumulate(
         abs_difference<RealType>(), libgm::maximum<RealType>(), RealType(0),
@@ -651,125 +723,35 @@ namespace libgm { namespace experimental {
       );
     }
 
-    // Mutations
-    //--------------------------------------------------------------------------
-
-    /**
-     * Increments this expression by a constant.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
-    Derived& operator+=(RealType x) {
-      derived().param().array() += x;
-      return derived();
-    }
-
-    /**
-     * Decrements this expression by a constant.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
-    Derived& operator-=(RealType x) {
-      derived().param().array() -= x;
-      return derived();
-    }
-
-    /**
-     * Multiplies this expression by a constant.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
-    Derived& operator*=(RealType x) {
-      derived().param() *= x;
-      return derived();
-    }
-
-    /**
-     * Divides this expression by a constant.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
-    Derived& operator/=(RealType x) {
-      derived().param() /= x;
-      return derived();
-    }
-
-    /**
-     * Adds another expression to this expression element-wise.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
-    Derived& operator+=(const matrix_base<prob_tag, RealType, Other>& f) {
-      derived().param().array() += f.derived().array();
-      return derived();
-    }
-
-    /**
-     * Subtracts another expression from this expression element-wise.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
-    Derived& operator-=(const matrix_base<prob_tag, RealType, Other>& f) {
-      derived().param().array() -= f.derived().array();
-      return derived();
-    }
-
-    /**
-     * Multiplies another expression into this expression element-wise.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
-    Derived& operator*=(const matrix_base<prob_tag, RealType, Other>& f) {
-      derived().param().array() *= f.derived().array();
-      return derived();
-    }
-
-    /**
-     * Divides another expression into this expression element-wise.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
-    Derived& operator/=(const matrix_base<prob_tag, RealType, Other>& f) {
-      derived().param().array() /= f.derived().array();
-      return derived();
-    }
-
-    /**
-     * Divides this expression by its norm inplace.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
-    void normalize() {
-      *this /= marginal();
-    }
-
     // Expression evaluations
     //--------------------------------------------------------------------------
 
-    //! Returns the transform operator associated with this expression.
-    identity trans_op() const {
-      return identity();
-    }
-
-    //! Returns a reference to this expression as a tuple.
-    std::tuple<const Derived&> trans_data() const& {
-      return std::tie(derived());
-    }
-
-    //! Encapsulates this expression temporary in a tuple.
-    std::tuple<Derived> trans_data() && {
-      return std::make_tuple(std::move(derived()));
-    }
-
     //! Evaluates the expression to a parameter matrix.
-    void eval_to(param_type& result) const {
-      result = derived().array();
+    param_type param() const {
+      param_type tmp; derived().eval_to(tmp); return tmp;
+    }
+
+    /**
+     * Returns the probability_matrix factor resulting from evaluating this
+     * expression.
+     */
+    probability_matrix<RealType> eval() const {
+      return *this;
+    }
+
+    /**
+     * Updates the result with the given assignment operator. Calling this
+     * function is guaranteed to be safe even in the presence of aliasing.
+     */
+    template <typename AssignOp>
+    void transform_inplace(AssignOp op, real_matrix<RealType>& result) const {
+      op(result.array(), derived().param().array());
     }
 
     //! Accumulates the parameters with the given operator.
     template <typename AccuOp>
     RealType accumulate(AccuOp op) const {
-      return op(derived().array());
+      return op(derived().param());
     }
 
     /**
@@ -791,104 +773,6 @@ namespace libgm { namespace experimental {
 
   }; // class matrix_base<prob_tag, RealType, Derived>
 
-
-  /**
-   * Base class for probability_matrix selectors.
-   *
-   * \tparam Derived
-   *         The expression type that derives from this base class.
-   *         This type must implement the dim() function.
-   */
-  template <typename RealType, int Direction, typename Derived>
-  class matrix_selector_base<prob_tag, RealType, Direction, Derived>
-    : public matrix_base<prob_tag, RealType, Derived> {
-  public:
-    //! Default constructor
-    matrix_selector_base() { }
-
-    /**
-     * Returns a probability_matrix expression representing the product of
-     * a probability_matrix selector and a probability_vector expression.
-     */
-    LIBGM_JOIN_LEFT(operator*, std::multiplies<>(),
-                    matrix_selector_base, vector_base, prob_tag, RealType)
-
-    /**
-     * Returns a probability_matrix expression representing the product of
-     * a probability_vector expression and a probability_matrix selector.
-     */
-    LIBGM_JOIN_RIGHT(operator*, std::multiplies<>(),
-                     matrix_selector_base, vector_base, prob_tag, RealType)
-
-    /**
-     * Returns a probability_matrix expression representing the division of
-     * a probability_matrix selector and a probability_vector expression.
-     */
-    LIBGM_JOIN_LEFT(operator/, std::divides<>(),
-                     matrix_selector_base, vector_base, prob_tag, RealType)
-
-    /**
-     * Returns a probabilty_matrix expression representing the division of
-     * a probability_vector expression and a probability_matrix selector.
-     */
-    LIBGM_JOIN_RIGHT(operator/, std::divides<>(),
-                     matrix_selector_base, vector_base, prob_tag, RealType)
-
-    /**
-     * Returns a probability_vector expression obtained by eliminating
-     * the selected dimension from this expression.
-     */
-    template <typename AggOp>
-    matrix_eliminate<prob_tag, AggOp, Direction, const Derived&>
-    eliminate(AggOp agg_op) const& {
-      return { agg_op, this->derived().dim(), this->derived() };
-    }
-
-    template <typename AggOp>
-    matrix_eliminate<prob_tag, AggOp, Direction, Derived>
-    eliminate(AggOp agg_op) && {
-      return { agg_op, this->derived().dim(), std::move(this->derived()) };
-    }
-
-    /**
-     * Returns a probability_table expression representing the sum
-     * of this expression over the selected dimensions.
-     */
-    LIBGM_ELIMINATE(sum, member_sum())
-
-    /**
-     * Returns a probability_table expression representing the maximum
-     * of this expression over the selected dimensions.
-     */
-    LIBGM_ELIMINATE(max, member_maxCoeff())
-
-    /**
-     * Returns a probability_table expression representing the minimum
-     * of this expression over the selected dimensions.
-     */
-    LIBGM_ELIMINATE(min, member_minCoeff())
-
-    /**
-     * Multiplies a vector expression into this expression.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
-    Derived& operator*=(const vector_base<prob_tag, RealType, Other>& f) {
-      this->derived().update(multiplies_assign<>(), f.derived());
-      return this->derived();
-    }
-
-    /**
-     * Divides a probability_vector expression into this expression.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
-    Derived& operator/=(const vector_base<prob_tag, RealType, Other>& f) {
-      this->derived().update(divides_assign<>(), f.derived());
-      return this->derived();
-    }
-
-  }; // class matrix_selector_base<prob_tag, RealType, Derived>
 
   // Factor
   //============================================================================
@@ -918,8 +802,7 @@ namespace libgm { namespace experimental {
     typedef probability_matrix_ll<RealType>  ll_type;
     typedef probability_matrix_mle<RealType> mle_type;
 
-    template <typename Other>
-    using base = matrix_base<prob_tag, RealType, Other>;
+    using base = matrix_base<prob_tag, RealType, probability_matrix>;
 
     // Constructors and conversion operators
     //--------------------------------------------------------------------------
@@ -964,11 +847,8 @@ namespace libgm { namespace experimental {
     template <typename Other>
     probability_matrix&
     operator=(const matrix_base<prob_tag, RealType, Other>& f) {
-      if (f.derived().alias(param_)) {
-        param_ = f.derived().param();
-      } else {
-        f.derived().eval_to(param_);
-      }
+      assert(!f.derived().alias(param_));
+      f.derived().eval_to(param_);
       return *this;
     }
 
@@ -1004,6 +884,26 @@ namespace libgm { namespace experimental {
 
     // Accessors
     //--------------------------------------------------------------------------
+
+    //! Returns the number of arguments of this expression.
+    std::size_t arity() const {
+      return 2;
+    }
+
+    //! Returns the number of rows of the expression.
+    std::size_t rows() const {
+      return param_.rows();
+    }
+
+    //! Returns the number of columns of the expression.
+    std::size_t cols() const {
+      return param_.cols();
+    }
+
+    //! Returns the total number of elements of the expression.
+    std::size_t size() const {
+      return param_.size();
+    }
 
     /**
      * Returns the pointer to the first parameter or nullptr if the factor is
@@ -1042,16 +942,6 @@ namespace libgm { namespace experimental {
       return param_.data() == nullptr;
     }
 
-    //! Returns the parameter with the given linear index.
-    RealType& operator[](std::size_t i) {
-      return param_(i);
-    }
-
-    //! Returns the parameter with the given linear index.
-    const RealType& operator[](std::size_t i) const {
-      return param_(i);
-    }
-
     //! Provides mutable access to the parameter array of this factor.
     real_matrix<RealType>& param() {
       return param_;
@@ -1084,8 +974,241 @@ namespace libgm { namespace experimental {
       return param_(index[0], index[1]);
     }
 
+    //! Returns the parameter with the given linear index.
+    RealType& operator[](std::size_t i) {
+      return param_(i);
+    }
+
+    //! Returns the parameter with the given linear index.
+    const RealType& operator[](std::size_t i) const {
+      return param_(i);
+    }
+
+    //! Returns the value of the expression for the given row and column.
+    RealType operator()(std::size_t row, std::size_t col) const {
+      return param(row, col);
+    }
+
+    //! Returns the value of the expression for the given index.
+    RealType operator()(const uint_vector& index) const {
+      return param(index);
+    }
+
+    //! Returns the log-value of the expression for the given row and column.
+    RealType log(std::size_t row, std::size_t col) const {
+      return std::log(param(row, col));
+    }
+
+    //! Returns the log-value of the expression for the given index.
+    RealType log(const uint_vector& index) const {
+      return std::log(param(index));
+    }
+
+    // Optimized expressions
+    //--------------------------------------------------------------------------
+
+    /**
+     * Returns the the probability_matrix expression converting the elements
+     * of this factor to the given type.
+     */
+    template <typename NewRealType>
+    auto cast() const {
+      return make_matrix_view<prob_tag>(
+        [](const probability_matrix& f) -> decltype(auto) {
+          return f.param().template cast<NewRealType>();
+        }, *this);
+    }
+
+    /**
+     * Returns a probability_vector expression representing a row of this
+     * factor.
+     */
+    auto row(std::size_t index) const {
+      return make_vector_view<prob_tag>(
+        [index](const probability_matrix& f) {
+          return f.param().row(index).transpose(); },
+        *this);
+    }
+
+    /**
+     * Returns a probability_vector expression representing a column of this
+     * factor.
+     */
+    auto col(std::size_t index) const {
+      return make_vector_view<prob_tag>(
+        [index](const probability_matrix& f) { return f.param().col(index); },
+        *this);
+    }
+
+    /**
+     * Returns the probability_matrix expression representing the transpose of
+     * this factor.
+     */
+    auto transpose() const {
+      return make_matrix_view<prob_tag>(
+        [](const probability_matrix& f) { return f.param().transpose(); },
+        *this);
+    }
+
+    // Selectors
+    //--------------------------------------------------------------------------
+
+    // Bring the immutable selectors from the base into the scope.
+    using base::colwise;
+    using base::rowwise;
+    using base::head;
+    using base::tail;
+    using base::dim;
+    using base::dims;
+
+    /**
+     * Returns a mutable probability_matrix selector referencing the rows of
+     * this expression (i.e., performing column-wise operations).
+     */
+    matrix_selector<prob_tag, Eigen::Vertical, probability_matrix>
+    colwise() {
+      return *this;
+    }
+
+    /**
+     * Returns a mutable probability_matrix selector referencing the columns of
+     * this of this expression (i.e., performing row-wise operations).
+     */
+    matrix_selector<prob_tag, Eigen::Horizontal, probability_matrix>
+    rowwise() {
+      return *this;
+    }
+
+    /**
+     * Returns a mutable probability_matrix selector referencing the rows of
+     * this expression (i.e., performing column-wise operations).
+     *
+     * The optional argument is provided for compatibility with other factors
+     * and, if specified, must be equal to 1.
+     */
+    matrix_selector<prob_tag, Eigen::Vertical, probability_matrix>
+    head(std::size_t n = 1) {
+      assert(n == 1);
+      return *this;
+    }
+
+    /**
+     * Returns a mutable probability_matrix selector referencing the columns of
+     * this of this expression (i.e., performing row-wise operations).
+     *
+     * The optional argument is provided for compatibility with other factors
+     * and, if specified, must be equal to 1.
+     */
+    matrix_selector<prob_tag, Eigen::Horizontal, probability_matrix>
+    tail(std::size_t n = 1) {
+      assert(n == 1);
+      return *this;
+    }
+
+    /**
+     * Returns a mutable probability_matrix selector referencing a single
+     * dimension of this expression. The only valid dimensions are 0 and 1,
+     * with 0 representing column-wise operations and 1 row-wise operations.
+     */
+    matrix_selector<prob_tag, Eigen::BothDirections, probability_matrix>
+    dim(std::size_t index) {
+      return { index, *this };
+    }
+
+    /**
+     * Returns a mutable probability_matrix selector referencing a single
+     * dimension of this expression. The only valid dimensions are 0 and 1,
+     * with 0 representing column-wise operations and 1 row-wise operations.
+     * The second argument must be equal to 1.
+     */
+    matrix_selector<prob_tag, Eigen::BothDirections, probability_matrix>
+    dims(std::size_t index, std::size_t n = 1) {
+      assert(n == 1);
+      return { index, *this };
+    }
+
+    // Mutations
+    //--------------------------------------------------------------------------
+
+    //! Increments this factor by a constant.
+    probability_matrix& operator+=(RealType x) {
+      param_.array() += x;
+      return *this;
+    }
+
+    //! Decrements this factor by a constant.
+    probability_matrix& operator-=(RealType x) {
+      param_.array() -= x;
+      return *this;
+    }
+
+    //! Multiplies this factor by a constant.
+    probability_matrix& operator*=(RealType x) {
+      param_ *= x;
+      return *this;
+    }
+
+    //! Divides this factor by a constant.
+    probability_matrix& operator/=(RealType x) {
+      param_ /= x;
+      return *this;
+    }
+
+    //! Adds another expression to this factor element-wise.
+    template <typename Other>
+    probability_matrix&
+    operator+=(const matrix_base<prob_tag, RealType, Other>& f) {
+      assert(f.void_ptr() == this || !f.derived().alias(param_));
+      f.derived().transform_inplace(plus_assign<>(), param_);
+      return *this;
+    }
+
+    //! Subtracts another expression from this factor element-wise.
+    template <typename Other>
+    probability_matrix&
+    operator-=(const matrix_base<prob_tag, RealType, Other>& f) {
+      assert(f.void_ptr() == this || !f.derived().alias(param_));
+      f.derived().transform_inplace(minus_assign<>(), param_);
+      return *this;
+    }
+
+    //! Multiplies another expression into this factor element-wise.
+    template <typename Other>
+    probability_matrix&
+    operator*=(const matrix_base<prob_tag, RealType, Other>& f) {
+      assert(f.void_ptr() == this || !f.derived().alias(param_));
+      f.derived().transform_inplace(multiplies_assign<>(), param_);
+      return *this;
+    }
+
+    //! Divides another expression into this factor element-wise.
+    template <typename Other>
+    probability_matrix&
+    operator/=(const matrix_base<prob_tag, RealType, Other>& f) {
+      assert(f.void_ptr() == this || !f.derived().alias(param_));
+      f.derived().transform_inplace(divides_assign<>(), param_);
+      return *this;
+    }
+
+    //! Divides this factor by its norm inplace.
+    void normalize() {
+      *this /= this->sum();
+    }
+
     // Evaluation
     //--------------------------------------------------------------------------
+
+    //! Returns this probability_matrix (a noop).
+    const probability_matrix& eval() const {
+      return *this;
+    }
+
+    //! Copies the parameters to the given matrix.
+    void eval_to(real_matrix<RealType>& result) const {
+      if (result != param_) {
+        result = param_;
+      }
+    }
 
     /**
      * Returns true if this probability_matrix aliases the given parameters,
@@ -1109,36 +1232,11 @@ namespace libgm { namespace experimental {
       return &param_ == &param;
     }
 
-    //! Returns the Eigen Array view of this factor.
-    auto array() const {
-      // The following triggers a compilation error in Eigen 3.3-beta1
-      // return param_.array();
-      using map_type = Eigen::Map<
-        const Eigen::Array<RealType, Eigen::Dynamic, Eigen::Dynamic> >;
-      return map_type(param_.data(), param_.rows(), param_.cols());
-    }
-
-    //! Returns this probability_matrix (a noop).
-    const probability_matrix& eval() const& {
-      return *this;
-    }
-
-    //! Returns this probability_matrix (a noop).
-    probability_matrix&& eval() && {
-      return std::move(*this);
-    }
-
   private:
     //! The parameters of the factor, i.e., a matrix of probabilities.
     real_matrix<RealType> param_;
 
   }; // class probability_matrix
-
-  template <typename RealType>
-  struct is_primitive<probability_matrix<RealType> > : std::true_type { };
-
-  template <typename RealType>
-  struct is_mutable<probability_matrix<RealType> > : std::true_type { };
 
 } } // namespace libgm::experimental
 

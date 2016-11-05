@@ -142,7 +142,7 @@ namespace libgm {
     value_type sample(std::size_t row, const domain_type& dom) const {
       const auto& s = dataset().sample(rows_[row]);
       value_type result;
-      elements(s.first, dom.index(start_), first_).eval_to(result.first);
+      elements(s.first, dom.index(start_), first_).evalTo(result.first);
       result.second = s.second;
       return result;
     }
@@ -256,7 +256,7 @@ namespace libgm {
           ++it_;
         }
         if (it_) {
-          elements(it_->first, index_, first_).eval_to(value_.first);
+          elements(it_->first, index_, first_).evalTo(value_.first);
           value_.second = it_->second;
         }
       }
@@ -350,7 +350,7 @@ namespace libgm {
     std::size_t length_;            //!< the length of the window
     domain_type args_;              //!< the arguments of the view
     std::unordered_map<argument_type, std::size_t, hasher> start_; // arg start
-    std::vector<std::size_t> rows_; //!< mapping from relative to absolute rows
+    uint_vector rows_; //!< mapping from relative to absolute rows
 
   }; // class fixed_view
 

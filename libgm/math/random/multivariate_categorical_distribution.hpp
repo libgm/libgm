@@ -1,10 +1,8 @@
 #ifndef LIBGM_MULTIVARIATE_CATEGORICAL_DISTRIBUTION_HPP
 #define LIBGM_MULTIVARIATE_CATEGORICAL_DISTRIBUTION_HPP
 
-#include <libgm/datastructure/uint_vector.hpp>
 #include <libgm/datastructure/table.hpp>
 #include <libgm/functional/arithmetic.hpp>
-#include <libgm/functional/composition.hpp>
 #include <libgm/math/tags.hpp>
 
 #include <algorithm>
@@ -32,23 +30,22 @@ namespace libgm {
     typedef uint_vector tail_type;
 
     //! Constructor for a distribution in the probability space.
-    multivariate_categorical_distribution(const table<T>& p, std::size_t ntail)
-      : ntail_(ntail) {
-      init(p, identity());
+    multivariate_categorical_distribution(const table<T>& p, prob_tag)
+      : psum_(p) {
+      std::partial_sum(psum_.begin(), psum_.end(), psum_.begin());
     }
 
     //! Constructor for a distribution in the log space.
-    multivariate_categorical_distribution(const table<T>& lp, std::size_t ntail,
-                                          log_tag)
-      : ntail_(ntail) {
-      init(lp, exponent<T>());
+    multivariate_categorical_distribution(const table<T>& lp, log_tag)
+      : psum_(lp.shape()) {
+      std::transform(lp.begin(), lp.end(), psum_.begin(), exponent<T>());
+      std::partial_sum(psum_.begin(), psum_.end(), psum_.begin());
     }
 
     /**
      * Draws a random sample from a marginal distribution.
-     *
-     * \throw std::out_of_range
-     *        may be thrown if the distribution is not normalized
+     * The distribution parameters must be normalized, so that the values
+     * sum to 1.
      */
     template <typename Generator>
     uint_vector operator()(Generator& rng) const {
@@ -56,64 +53,31 @@ namespace libgm {
     }
 
     /**
-     * Draws a random sample from a distribution conditioned on the given
-     * assignment to tail dimensions.
-     *
-     * \throw std::out_of_range
-     *        may be thrown if the distribution is not normalized
+     * Draws a random sample from a conditional distribution.
+     * The distribution must be normalized, so that the all the values
+     * for the given tail index sum to one.
      */
     template <typename Generator>
     uint_vector operator()(Generator& rng, const uint_vector& tail) const {
-      assert(tail.size() == ntail_);
-
-      // compute the range of elements we search over
-      std::size_t d = psum_.arity() - ntail_;
-      const T* begin = psum_.begin() + psum_.offset().linear(tail, d);
-      const T* end = begin + psum_.offset().multiplier(d);
-
-      // compute the probability we search for
+      assert(tail.size() < psum_.arity());
+      std::size_t nhead = psum_.arity() - tail.size();
+      std::size_t nelem = psum_.offset().multiplier(nhead);
+      const T* begin = psum_.begin() + psum_.offset().linear(tail, nhead);
       T p = std::uniform_real_distribution<T>()(rng);
       if (begin > psum_.begin()) { p += *(begin-1); }
-
-      // compute the index
-      uint_vector index;
-      psum_.offset().vector(std::upper_bound(begin, end, p) - begin, d, index);
-      return index;
+      std::size_t i = std::upper_bound(begin, begin + nelem, p) - begin;
+      if (i < nelem) {
+        uint_vector index;
+        psum_.offset().vector(i, nhead, index);
+        return index;
+      } else {
+        throw std::invalid_argument("The total probability is less than 1");
+      }
     }
 
   private:
-    /**
-     * Reorders the elements of the input table such that the elements for each
-     * tail assignment are grouped together, and computes the partial sums,
-     * transforming the elements using the specified unary operation.
-     */
-    template <typename UnaryOp>
-    void init(const table<T>& param, UnaryOp unary_op) {
-      std::size_t n = param.arity();
-      assert(ntail_ < n);
-      assert(!param.empty());
-      if (ntail_ == 0) {
-        psum_ = param;
-      } else {
-        param.reorder(concat(range(ntail_, n), range(0, ntail_)), psum_);
-      }
-      psum_[0] = unary_op(psum_[0]);
-      std::partial_sum(psum_.begin(), psum_.end(), psum_.begin(),
-                       compose_right(std::plus<T>(), unary_op));
-    }
-
-    /**
-     * The number of tail dimensions.
-     */
-    std::size_t ntail_;
-
-    /**
-     * The table of partial sums of probabilities. The data is stored
-     * in such a way that all the elements for one tail assignment are
-     * stored contiguously (i.e., the reverse order than usual).
-     */
+    //! The table of partial sums of probabilities.
     table<T> psum_;
-
 
   }; // class multivariate_categorical_distribution
 

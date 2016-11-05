@@ -4,18 +4,27 @@
 #include <libgm/enable_if.hpp>
 #include <libgm/datastructure/table.hpp>
 #include <libgm/factor/traits.hpp>
-#include <libgm/factor/experimental/expression/macros.hpp>
-#include <libgm/factor/experimental/expression/table.hpp>
+#include <libgm/factor/experimental/expression/matrix_function.hpp>
+#include <libgm/factor/experimental/expression/matrix_view.hpp>
+#include <libgm/factor/experimental/expression/table_base.hpp>
+#include <libgm/factor/experimental/expression/table_function.hpp>
+#include <libgm/factor/experimental/expression/table_restrict.hpp>
+#include <libgm/factor/experimental/expression/table_selector.hpp>
+#include <libgm/factor/experimental/expression/table_transform.hpp>
+#include <libgm/factor/experimental/expression/vector_function.hpp>
+#include <libgm/factor/experimental/expression/vector_view.hpp>
 #include <libgm/functional/algorithm.hpp>
 #include <libgm/functional/arithmetic.hpp>
-#include <libgm/functional/composition.hpp>
+#include <libgm/functional/compose.hpp>
 #include <libgm/functional/entropy.hpp>
 #include <libgm/functional/tuple.hpp>
 #include <libgm/math/constants.hpp>
 #include <libgm/math/logarithmic.hpp>
+#include <libgm/math/numeric.hpp>
 #include <libgm/math/likelihood/canonical_table_ll.hpp>
 #include <libgm/math/random/multivariate_categorical_distribution.hpp>
-#include <libgm/traits/reference.hpp>
+#include <libgm/math/tags.hpp>
+#include <libgm/range/index_range.hpp>
 
 #include <initializer_list>
 #include <iostream>
@@ -31,7 +40,7 @@ namespace libgm { namespace experimental {
   template <typename Space, typename RealType> class vector_map;
   template <typename Space, typename RealType> class matrix_map;
 
-  // Base classes
+  // Base class
   //============================================================================
 
   /**
@@ -48,7 +57,7 @@ namespace libgm { namespace experimental {
    * \tparam Derived
    *         The expression type that derives from this base class.
    *         This type must implement the following functions:
-   *         alias(), eval_to().
+   *         arity(), alias(), eval_to().
    */
   template <typename RealType, typename Derived>
   class table_base<log_tag, RealType, Derived> {
@@ -66,75 +75,36 @@ namespace libgm { namespace experimental {
     typedef uint_vector     vector_type;
     typedef multivariate_categorical_distribution<RealType> distribution_type;
 
-    // Table specific declarations
-    typedef log_tag space_type;
-    static const std::size_t trans_arity = 1;
-
-    // Constructors
+    // Constructors and casts
     //--------------------------------------------------------------------------
 
     //! Default constructor.
     table_base() { }
 
-    // Accessors and comparison operators
-    //--------------------------------------------------------------------------
-
     //! Downcasts this object to the derived type.
-    Derived& derived() & {
+    Derived& derived() {
       return static_cast<Derived&>(*this);
     }
 
     //! Downcasts this object to the derived type.
-    const Derived& derived() const& {
+    const Derived& derived() const {
       return static_cast<const Derived&>(*this);
     }
 
-    //! Downcasts this object to the derived type.
-    Derived&& derived() && {
-      return static_cast<Derived&&>(*this);
+    //! Returns this as void-pointer.
+    const void* void_ptr() const {
+      return this;
     }
 
-    //! Returns the number of dimensions (guaranteed to be constant-time).
-    std::size_t arity() const {
-      return derived().param().arity();
-    }
-
-    //! Returns the total number of elements of the factor.
-    std::size_t size() const {
-      return derived().param().size();
-    }
-
-    //! Returns true if the factor has an empty table (same as size() == 0).
-    bool empty() const {
-      return derived().param().empty();
-    }
-
-    //! Evaluates the parameters to a temporary (may be overriden).
-    param_type param() const {
-      param_type tmp; derived().eval_to(tmp); return tmp;
-    }
-
-    //! Returns the parameter for the given index.
-    RealType param(const uint_vector& index) const {
-      return derived().param()(index);
-    }
-
-    //! Returns the value of the expression for the given index.
-    logarithmic<RealType> operator()(const uint_vector& index) const {
-      return { param(index), log_tag() };
-    }
-
-    //! Returns the log-value of the expression for the given index.
-    RealType log(const uint_vector& index) const {
-      return param(index);
-    }
+    // Comparison and output operators
+    //--------------------------------------------------------------------------
 
     /**
      * Returns true if the two expressions have the same parameters.
      */
     template <typename Other>
     friend bool
-    operator==(const table_base<log_tag, RealType, Derived>& f,
+    operator==(const table_base& f,
                const table_base<log_tag, RealType, Other>& g) {
       return f.derived().param() == g.derived().param();
     }
@@ -144,7 +114,7 @@ namespace libgm { namespace experimental {
      */
     template <typename Other>
     friend bool
-    operator!=(const table_base<log_tag, RealType, Derived>& f,
+    operator!=(const table_base& f,
                const table_base<log_tag, RealType, Other>& g) {
       return !(f == g);
     }
@@ -152,13 +122,12 @@ namespace libgm { namespace experimental {
     /**
      * Prints a human-readable representation of a logarithmic_table to stream.
      */
-    friend std::ostream&
-    operator<<(std::ostream& out, const table_base& f) {
+    friend std::ostream& operator<<(std::ostream& out, const table_base& f) {
       out << f.derived().param();
       return out;
     }
 
-    // Factor operations
+    // Transforms
     //--------------------------------------------------------------------------
 
     /**
@@ -166,179 +135,258 @@ namespace libgm { namespace experimental {
      * element-wise transform of this expression with a unary operation.
      */
     template <typename ResultSpace = log_tag, typename UnaryOp = void>
-    auto transform(UnaryOp unary_op) const& {
-      return make_table_transform<ResultSpace>(
-        compose(unary_op, derived().trans_op()),
-        derived().trans_data()
-      );
-    }
-
-    template <typename ResultSpace = log_tag, typename UnaryOp = void>
-    auto transform(UnaryOp unary_op) && {
-      return make_table_transform<ResultSpace>(
-        compose(unary_op, derived().trans_op()),
-        std::move(derived()).trans_data()
-      );
+    auto transform(UnaryOp unary_op) const {
+      return make_table_transform<ResultSpace>(unary_op, std::tie(derived()));
     }
 
     /**
      * Returns a logarithmic_table expression representing the element-wise
      * product of a logarithmic_table expression and a scalar.
      */
-    LIBGM_TRANSFORM_RIGHT(operator*, incremented_by<RealType>(x.lv),
-                          logarithmic<RealType>, table_base, log_tag, RealType)
+    friend auto operator*(const table_base& f, logarithmic<RealType> x) {
+      return f.derived().transform(incremented_by<RealType>(x.lv));
+    }
 
     /**
      * Returns a logarithmic_table expression representing the element-wise
      * product of a scalar and a logarithmic_table expression.
      */
-    LIBGM_TRANSFORM_LEFT(operator*, incremented_by<RealType>(x.lv),
-                         logarithmic<RealType>, table_base, log_tag, RealType)
+    friend auto operator*(logarithmic<RealType> x, const table_base& f) {
+      return f.derived().transform(incremented_by<RealType>(x.lv));
+    }
 
     /**
      * Returns a logarithmic_table expression representing the element-wise
      * division of a logarithmic_table expression and a scalar.
      */
-    LIBGM_TRANSFORM_RIGHT(operator/, decremented_by<RealType>(x.lv),
-                         logarithmic<RealType>, table_base, log_tag, RealType)
+    friend auto operator/(const table_base& f, logarithmic<RealType> x) {
+      return f.derived().transform(decremented_by<RealType>(x.lv));
+    }
 
     /**
      * Returns a logarithmic_table expression representing the element-wise
      * division of a scalar and a logarithmic_table expression.
      */
-    LIBGM_TRANSFORM_LEFT(operator/, subtracted_from<RealType>(x.lv),
-                         logarithmic<RealType>, table_base, log_tag, RealType)
+    friend auto operator/(logarithmic<RealType> x, const table_base& f) {
+      return f.derived().transform(subtracted_from<RealType>(x.lv));
+    }
 
     /**
      * Returns a logarithmic_table expression representing a logarithmic_table
      * expression raised to an exponent element-wise.
      */
-    LIBGM_TRANSFORM_RIGHT(pow, multiplied_by<RealType>(x),
-                          RealType, table_base, log_tag, RealType)
+    friend auto pow(const table_base& f, RealType x) {
+      return f.derived().transform(multiplied_by<RealType>(x));
+    }
 
     /**
      * Returns a logarithmic_table expression representing the element-wise
      * sum of two logarithmic_table expressions.
      */
-    LIBGM_TRANSFORM(operator+, log_plus_exp<RealType>(),
-                    table_base, log_tag, RealType)
+    template <typename Other>
+    friend auto operator+(const table_base& f,
+                          const table_base<log_tag, RealType, Other>& g) {
+      return libgm::experimental::transform(log_plus_exp<RealType>(), f, g);
+    }
 
     /**
-     * Returns a logarithmic_table expression representing the product of
-     * two logarithmic_table expressions.
+     * Returns a logarithmic_table expression representing the element-wise
+     * product of two logarithmic_table expressions.
      */
-    LIBGM_JOIN(operator*, std::plus<RealType>(),
-               table_base, log_tag, RealType)
-
+    template <typename Other>
+    friend auto operator*(const table_base& f,
+                          const table_base<log_tag, RealType, Other>& g) {
+      return libgm::experimental::transform(std::plus<RealType>(), f, g);
+    }
 
     /**
      * Returns a logarithmic_table expression representing the division of
      * two logarithmic_table expressions.
      */
-    LIBGM_JOIN(operator/, std::minus<RealType>(),
-               table_base, log_tag, RealType)
+    template <typename Other>
+    friend auto operator/(const table_base& f,
+                          const table_base<log_tag, RealType, Other>& g) {
+      return libgm::experimental::transform(std::minus<RealType>(), f, g);
+    }
 
     /**
      * Returns a logarithmic_table expression representing the element-wise
      * maximum of two logarithmic_table expressions.
      */
-    LIBGM_TRANSFORM(max, libgm::maximum<RealType>(),
-                    table_base, log_tag, RealType)
+    template <typename Other>
+    friend auto max(const table_base& f,
+                    const table_base<log_tag, RealType, Other>& g) {
+      return libgm::experimental::transform(libgm::maximum<RealType>(), f, g);
+    }
 
     /**
      * Returns a logarithmic_table expression representing the element-wise
      * minimum of two logarithmic_table expressions.
      */
-    LIBGM_TRANSFORM(min, libgm::minimum<RealType>(),
-                    table_base, log_tag, RealType)
+    template <typename Other>
+    friend auto min(const table_base& f,
+                    const table_base<log_tag, RealType, Other>& g) {
+      return libgm::experimental::transform(libgm::minimum<RealType>(), f, g);
+    }
 
     /**
      * Returns a logarithmic_table expression representing \f$f^{1-a} + g^a\f$
      * for two logarithmic_table expressions f and g.
      */
-    LIBGM_TRANSFORM_SCALAR(weighted_update, weighted_plus<RealType>(1 - x, x),
-                           RealType, table_base, log_tag, RealType)
+    template <typename Other>
+    friend auto weighted_update(const table_base& f,
+                                const table_base<log_tag, RealType, Other>& g,
+                                RealType x) {
+      return libgm::experimental::transform(weighted_plus<RealType>(1-x, x), f, g);
+    }
+
+    // Conversions
+    //--------------------------------------------------------------------------
+
+    /**
+     * Returns a logarithmic_table expression with the elements of this
+     * expression cast to a different RealType.
+     */
+    template <typename NewRealType>
+    auto cast() const {
+      return derived().transform(scalar_cast<NewRealType>());
+    }
+
+    /**
+     * Returns a probability_table expression equivalent to this expression.
+     */
+    auto probability() const {
+      return derived().template transform<prob_tag>(exponent<RealType>());
+    }
+
+    /**
+     * Returns a logarithmic_vector expression equivalent to this expression.
+     *
+     * \throw std::invalid_argument if this factor is not unary.
+     */
+    auto vector() const {
+      return vector_from_table<log_tag>(derived()); // in vector_function.hpp
+    }
+
+    /**
+     * Retuns a logarithmic_matrix expression equivalent to this expression.
+     *
+     * \throw std::invalid_argument if this factor is not binary.
+     */
+    auto matrix() const {
+      return matrix_from_table<log_tag>(derived()); // in matrix_function.hpp
+    }
+
+    // Joins
+    //--------------------------------------------------------------------------
+
+    /**
+     * Returns a logarithmic_table expression representing the outer product
+     * of two logarithmic_table expressions.
+     */
+    template <typename Other>
+    friend auto outer_prod(const table_base& f,
+                           const table_base<log_tag, RealType, Other>& g) {
+      return outer_join(std::plus<RealType>(), f, g); // in table_function.hpp
+    }
+
+    /**
+     * Returns a logarithmic_table expression representing the outer ratio
+     * of two logarithmic_table expressions.
+     */
+    template <typename Other>
+    friend auto outer_div(const table_base& f,
+                          const table_base<log_tag, RealType, Other>& g) {
+      return outer_join(std::minus<RealType>(), f, g); // in table_function.hpp
+    }
+
+    // Aggregates
+    //--------------------------------------------------------------------------
 
     /**
      * Returns a logarithmic_table expression representing the aggregate of
-     * this expression over a single dimension.
+     * this expression over a range of dimensions.
      */
-    template <typename AggOp>
-    auto aggregate(AggOp agg_op, RealType init, std::size_t retain) const& {
-      return table_aggregate<log_tag, AggOp, std::size_t, const Derived&>(
-        agg_op, init, retain, derived());
-    }
+    template <typename AggOp, typename IndexRange>
+    auto aggregate(AggOp agg_op, RealType init, IndexRange retain) const {
+      static_assert(std::is_trivially_copyable<IndexRange>::value,
+                    "The retained dimensions must be trivially copyable.");
+      return make_table_function<log_tag>(
+        [agg_op, init, retain](const Derived& f, param_type& result) {
+          f.param().aggregate(agg_op, init, retain, result);
+        }, retain.size(), derived()
+      );
 
-    template <typename AggOp>
-    auto aggregate(AggOp agg_op, RealType init, std::size_t retain) && {
-      return table_aggregate<log_tag, AggOp, std::size_t, Derived>(
-        agg_op, init, retain, std::move(derived()));
-    }
-
-    /**
-     * Returns a logarithmic_table expression representing the aggregate of
-     * this expression over a subset of dimensions.
-     */
-    template <typename AggOp>
-    auto aggregate(AggOp agg_op, RealType init, const uint_vector& retain) const& {
-      return table_aggregate<log_tag, AggOp, const uint_vector&, const Derived&>(
-        agg_op, init, retain, derived());
-    }
-
-    template <typename AggOp>
-    auto aggregate(AggOp agg_op, RealType init, const uint_vector& retain) && {
-      return table_aggregate<log_tag, AggOp, const uint_vector&, Derived>(
-        agg_op, init, retain, std::move(derived()));
     }
 
     /**
      * Returns a logarithmic_table expression representing the marginal
-     * of this expression over a single dimension.
+     * of this expression over a contiguous range of dimensions.
      */
-    LIBGM_AGGREGATE(marginal, std::size_t,
-                    log_plus_exp<RealType>(), -inf<RealType>())
+    auto marginal(std::size_t start, std::size_t n = 1) const {
+      return derived().aggregate(log_plus_exp<RealType>(), -inf<RealType>(),
+                                 span(start, n));
+    }
+
+    /**
+     * Returns a logarithmic_table expression representing the maximum
+     * of this expression over a contiguous range of dimensions.
+     */
+    auto maximum(std::size_t start, std::size_t n = 1) const {
+      return derived().aggregate(libgm::maximum<RealType>(), -inf<RealType>(),
+                                 span(start, n));
+    }
+
+    /**
+     * Returns a logarithmic_table expression representing the minimum
+     * of this expression over a contiguous range of dimensions.
+     */
+    auto minimum(std::size_t start, std::size_t n = 1) const {
+      return derived().aggregate(libgm::minimum<RealType>(), inf<RealType>(),
+                                 span(start, n));
+    }
 
     /**
      * Returns a logarithmic_table expression representing the marginal
      * of this expression over a subset of dimensions.
      */
-    LIBGM_AGGREGATE(marginal, const uint_vector&,
-                    log_plus_exp<RealType>(), -inf<RealType>())
-
-    /**
-     * Returns a logarithmic_table expression representing the maximum
-     * of this expression over a single dimension.
-     */
-    LIBGM_AGGREGATE(maximum, std::size_t,
-                    libgm::maximum<RealType>(), -inf<RealType>())
+    auto marginal(const uint_vector& retain) const {
+      return derived().aggregate(log_plus_exp<RealType>(), -inf<RealType>(),
+                                 iref(retain));
+    }
 
     /**
      * Returns a logarithmic_table expression representing the maximum
      * of this expression over a subset of dimensions.
      */
-    LIBGM_AGGREGATE(maximum, const uint_vector&,
-                    libgm::maximum<RealType>(), -inf<RealType>())
-
-    /**
-     * Returns a logarithmic_table expression representing the minimum
-     * of this expression over a single dimension.
-     */
-    LIBGM_AGGREGATE(minimum, std::size_t,
-                    libgm::minimum<RealType>(), +inf<RealType>())
+    auto maximum(const uint_vector& retain) const {
+      return derived().aggregate(libgm::maximum<RealType>(), -inf<RealType>(),
+                                 iref(retain));
+    }
 
     /**
      * Returns a logarithmic_table expression representing the minimum
      * of this expression over a subset of dimensions.
      */
-    LIBGM_AGGREGATE(minimum, const uint_vector&,
-                    libgm::minimum<RealType>(), +inf<RealType>())
+    auto minimum(const uint_vector& retain) const {
+      return derived().aggregate(libgm::minimum<RealType>(), inf<RealType>(),
+                                 iref(retain));
+    }
+
+    /**
+     * Accumulates the parameters with the given operator.
+     */
+    template <typename AccuOp>
+    RealType accumulate(RealType init, AccuOp accu_op) const {
+      return derived().param().accumulate(init, accu_op);
+    }
 
     /**
      * Returns the normalization constant of this expression.
      */
-    logarithmic<RealType> marginal() const {
+    logarithmic<RealType> sum() const {
       auto&& f = derived().eval();
-      RealType offset = f.maximum().lv;
+      RealType offset = f.max().lv;
       RealType sum = f.accumulate(RealType(0), plus_exponent<RealType>(-offset));
       return { std::log(sum) + offset, log_tag() };
     }
@@ -346,7 +394,7 @@ namespace libgm { namespace experimental {
     /**
      * Computes the maximum value of this expression.
      */
-    logarithmic<RealType> maximum() const {
+    logarithmic<RealType> max() const {
       RealType max_param =
         derived().accumulate(-inf<RealType>(), libgm::maximum<RealType>());
       return { max_param, log_tag() };
@@ -355,7 +403,7 @@ namespace libgm { namespace experimental {
     /**
      * Computes the minimum value of this expression.
      */
-    logarithmic<RealType> minimum() const {
+    logarithmic<RealType> min() const {
       RealType min_param =
         derived().accumulate(+inf<RealType>(), libgm::minimum<RealType>());
       return { min_param, log_tag() };
@@ -365,12 +413,11 @@ namespace libgm { namespace experimental {
      * Computes the maximum value of this expression and stores the
      * corresponding index to a vector.
      */
-    logarithmic<RealType> maximum(uint_vector* index) const {
-      assert(index != nullptr);
+    logarithmic<RealType> max(uint_vector& index) const {
       auto&& param = derived().param();
       auto it = std::max_element(param.begin(), param.end());
       assert(it != param.end());
-      param.offset().vector(it - param.begin(), *index);
+      param.offset().vector(it - param.begin(), index);
       return { *it, log_tag() };
     }
 
@@ -378,12 +425,11 @@ namespace libgm { namespace experimental {
      * Computes the minimum value of this expression and stores the
      * corresponding index to a vector.
      */
-    logarithmic<RealType> minimum(uint_vector* index) const {
-      assert(index != nullptr);
+    logarithmic<RealType> min(uint_vector& index) const {
       auto&& param = derived().param();
       auto it = std::min_element(param.begin(), param.end());
       assert(it != param.end());
-      param.offset().vector(it - param.begin(), *index);
+      param.offset().vector(it - param.begin(), index);
       return { *it, log_tag() };
     }
 
@@ -392,106 +438,125 @@ namespace libgm { namespace experimental {
      * constant > 0.
      */
     bool normalizable() const {
-      return maximum().lv > -inf<RealType>();
+      return max().lv > -inf<RealType>();
     }
 
-#if 0
-    /**
-     * If this expression represents p(head \cup tail), this function returns
-     * a logarithmic_table expression representing p(head | tail).
-     */
-    LIBGM_TABLE_CONDITIONAL(std::minus<RealType>())
-#endif
+    // Conditioning
+    //--------------------------------------------------------------------------
 
     /**
-     * Returns a logarithmic_table expression representing the tail values of
-     * this expression when the head dimensions are fixed to the given vector.
+     * If this expression represents a marginal distribution, this function
+     * returns a logarithmic_table expression representing the conditional
+     * distribution with n head (front) dimensions.
      */
-    LIBGM_BLOCK(tail, const uint_vector&, head_values,
-                table_restrict_head, log_tag, identity)
+    auto conditional(std::size_t nhead) const {
+      return make_table_function_noalias<log_tag>(
+        [nhead](const Derived& f, param_type& result) {
+          f.param().join_aggregated([](const RealType* b, const RealType* e) {
+              return log_sum_exp(b, e);
+            }, std::minus<RealType>(), nhead, result);
+        }, derived().arity(), derived()
+      );
+    }
 
     /**
-     * Returns a logarithmic_table expression representing the head values of
-     * this expression when the tail dimensions are fixed to the given vector.
+     * Returns a logarithmic_table expression representing the values for the
+     * tail dimensions of this expression when the head dimensions are fixed
+     * to the specified vector.
      */
-    LIBGM_BLOCK(head, const uint_vector&, tail_values,
-                table_restrict_tail, log_tag, identity)
+    auto restrict_head(const uint_vector& values) const {
+      assert(values.size() <= derived().arity());
+      return restrict(0, values.size(), values);
+    }
 
     /**
-     * Returns a logarithmic_table expression resulting when restricting the
+     * Returns a logarithmic_table expression representing the values for the
+     * head dimensions of this expression when the tail dimensions are fixed
+     * to the specified vector.
+     */
+    auto restrict_tail(const uint_vector& values) const {
+      assert(values.size() <= derived().arity());
+      return restrict(derived().arity() - values.size(), values.size(), values);
+    }
+
+    /**
+     * Returns a logarithmic_table expression resulting from restricting the
+     * specified span of dimensions of this expression to the specified values.
+     */
+    auto restrict(std::size_t start, std::size_t n,
+                  const uint_vector& values) const {
+      return make_table_restrict<log_tag>(span(start, n), values, derived());
+    }
+
+    /**
+     * Returns a logarithmic_table expression resulting from restricting the
      * specified dimensions of this expression to the specified values.
      */
-    LIBGM_RESTRICT(const uint_vector&, dims, const uint_vector&, values,
-                   table_restrict, log_tag, identity)
-
-    /**
-     * Returns the logarithmic_table factor resulting from evaluating this
-     * expression.
-     */
-    logarithmic_table<RealType> eval() const {
-      return *this;
+    auto restrict(const uint_vector& dims, const uint_vector& values) const {
+      return make_table_restrict<log_tag>(iref(dims), values, derived());
     }
 
-    // Index selectors
+    // Ordering
     //--------------------------------------------------------------------------
 
     /**
-     * Returns a logarithmic_table selector referencing a single dimension of
-     * this expression.
+     * Returns a logarithmic_table expression with the dimensions reordered
+     * according to the given index.
      */
-    LIBGM_SELECT1(dim, std::size_t, dim, table_selector, log_tag)
+    auto reorder(const uint_vector& dims) const {
+      assert(dims.size() == derived().arity());
+      return make_table_function<log_tag>(
+        [&dims](const Derived& f, param_type& result) {
+          f.param().reorder(iref(dims), result);
+        }, dims.size(), derived());
+    }
 
-    /**
-     * Returns a logarithmic_table selector referincing multiple dimensions of
-     * this expression.
-     */
-    LIBGM_SELECT1(dims, const uint_vector&, dims, table_selector, log_tag)
-
-    // Conversions
+    // Selectors
     //--------------------------------------------------------------------------
 
     /**
-     * Returns a probability_table expression equivalent to this expression.
+     * Returns a logarithmic_table selector referencing the head dimensions
+     * of this expression.
      */
-    auto probability() const& {
-      return derived().
-        template transform<prob_tag>(exponent<RealType>());
-    }
-
-    auto probability() && {
-      return std::move(derived()).
-        template transform<prob_tag>(exponent<RealType>());
+    table_selector<log_tag, front, const Derived>
+    head(std::size_t n) const {
+      return { front(n), derived() };
     }
 
     /**
-     * Returns a logarithmic_vector expression equivalent to this expression.
-     * Only supported when Arg is univariate and the expression is primitive
-     * (.e.g, a factor).
-     *
-     * \throw std::invalid_argument if this expression is not unary.
+     * Returns a logarithmic_table selector referencing the tail dimensions
+     * of this expression.
      */
-    LIBGM_ENABLE_IF(is_primitive<Derived>::value)
-    vector_map<log_tag, RealType> vector() const {
-      if (derived().arity() != 1) {
-        throw std::invalid_argument("The factor is not unary");
-      }
-      return { derived().param().shape()[0], derived().param().data() };
+    table_selector<log_tag, back, const Derived>
+    tail(std::size_t n) const {
+      return { back(derived().arity(), n), derived() };
     }
 
     /**
-     * Returns a logarithmic_matrix expression equivalent to this factor.
-     * Only supported when Arg is univariate and the expression is primitive
-     * (.e.g, a factor).
-     *
-     * \throw std::invalid_argument if this expression is not binary.
+     * Returns a logarithmic_table selector referencing a single dimensions
+     * of this expression.
      */
-    LIBGM_ENABLE_IF(is_primitive<Derived>::value)
-    matrix_map<log_tag, RealType> matrix() const {
-      if (derived().arity() != 2) {
-        throw std::invalid_argument("The factor is not binary");
-      }
-      const uint_vector& shape = derived().param().shape();
-      return { shape[0], shape[1], derived().param().data() };
+    table_selector<log_tag, single, const Derived>
+    dim(std::size_t index) const {
+      return { single(index), derived() };
+    }
+
+    /**
+     * Returns a logarithmic_table selector referencing a span of dimensions
+     * of this expression.
+     */
+    table_selector<log_tag, span, const Derived>
+    dims(std::size_t start, std::size_t n) const {
+      return { span(start, n), derived() };
+    }
+
+    /**
+     * Returns a logarithmic_table selector referincing a subset of dimensions
+     * of this expression.
+     */
+    table_selector<log_tag, iref, const Derived>
+    dims(const uint_vector& indices) const {
+      return { iref(indices), derived() } ;
     }
 
     // Sampling
@@ -502,8 +567,8 @@ namespace libgm { namespace experimental {
      * expression.
      */
     multivariate_categorical_distribution<RealType>
-    distribution(std::size_t ntail = 0) const {
-      return { derived().param(), ntail, log_tag() };
+    distribution() const {
+      return { derived().param(), log_tag() };
     }
 
     /**
@@ -545,11 +610,19 @@ namespace libgm { namespace experimental {
     }
 
     /**
-     * Computes the entropy for a single dimension (argument) of the
-     * distribution represented by this expression.
+     * Computes the entropy for a span of dimensions of the distribution
+     * represented by this expression.
      */
-    RealType entropy(std::size_t dim) const {
-      return derived().marginal(dim).entropy();
+    RealType entropy(std::size_t start, std::size_t n = 1) const {
+      return derived().marginal(start, n).entropy();
+    }
+
+    /**
+     * Computes the entropy for a span of dimensions of the distribution
+     * represented by this expression.
+     */
+    RealType entropy(span s) const {
+      return derived().marginal(s.start(), s.size()).entropy();
     }
 
     /**
@@ -561,14 +634,16 @@ namespace libgm { namespace experimental {
     }
 
     /**
-     * Computes the mutual information between two dimensions (arguments)
+     * Computes the mutual information between two spans of of dimensions
      * of the distribution represented by this expression.
      */
-    RealType mutual_information(std::size_t a, std::size_t b) const {
-      if (a == b) {
-        return entropy(a);
+    RealType mutual_information(std::size_t starta, std::size_t startb,
+                                std::size_t na = 1, std::size_t nb = 1) const {
+      span a(starta, na), b(startb, nb);
+      if (contiguous_union(a, b)) {
+        return entropy(a) + entropy(b) - entropy(a | b);
       } else {
-        return entropy(a) + entropy(b) - entropy({a, b});
+        return entropy(a) + entropy(b) - entropy(a + b);
       }
     }
 
@@ -587,7 +662,7 @@ namespace libgm { namespace experimental {
      */
     template <typename Other>
     friend RealType
-    cross_entropy(const table_base<log_tag, RealType, Derived>& p,
+    cross_entropy(const table_base& p,
                   const table_base<log_tag, RealType, Other>& q) {
       return transform_accumulate(
         entropy_log_op<RealType>(), std::plus<RealType>(), RealType(0),
@@ -601,7 +676,7 @@ namespace libgm { namespace experimental {
      */
     template <typename Other>
     friend RealType
-    kl_divergence(const table_base<log_tag, RealType, Derived>& p,
+    kl_divergence(const table_base& p,
                   const table_base<log_tag, RealType, Other>& q) {
       return transform_accumulate(
         kld_log_op<RealType>(), std::plus<RealType>(), RealType(0),
@@ -615,7 +690,7 @@ namespace libgm { namespace experimental {
      */
     template <typename Other>
     friend RealType
-    js_divergence(const table_base<log_tag, RealType, Derived>& p,
+    js_divergence(const table_base& p,
                   const table_base<log_tag, RealType, Other>& q) {
       return transform_accumulate(
         jsd_log_op<RealType>(), std::plus<RealType>(), RealType(0),
@@ -629,7 +704,7 @@ namespace libgm { namespace experimental {
      */
     template <typename Other>
     friend RealType
-    sum_diff(const table_base<log_tag, RealType, Derived>& p,
+    sum_diff(const table_base& p,
              const table_base<log_tag, RealType, Other>& q) {
       return transform_accumulate(
         abs_difference<RealType>(), std::plus<RealType>(), RealType(0),
@@ -643,7 +718,7 @@ namespace libgm { namespace experimental {
      */
     template <typename Other>
     friend RealType
-    max_diff(const table_base<log_tag, RealType, Derived>& p,
+    max_diff(const table_base& p,
              const table_base<log_tag, RealType, Other>& q) {
       return transform_accumulate(
         abs_difference<RealType>(), libgm::maximum<RealType>(), RealType(0),
@@ -651,74 +726,22 @@ namespace libgm { namespace experimental {
       );
     }
 
-    // Mutations
-    //--------------------------------------------------------------------------
-
-    /**
-     * Multiplies this expression by a constant.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
-    Derived& operator*=(logarithmic<RealType> x) {
-      derived().param().transform(incremented_by<RealType>(x.lv));
-      return derived();
-    }
-
-    /**
-     * Divides this expression by a constant.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
-    Derived& operator/=(logarithmic<RealType> x) {
-      derived().param().transform(decremented_by<RealType>(x.lv));
-      return derived();
-    }
-
-    /**
-     * Multiplies another expression into this expression.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
-    Derived& operator*=(const table_base<log_tag, RealType, Other>& f) {
-      f.derived().transform_inplace(std::plus<RealType>(),derived().param());
-      return derived();
-    }
-
-    /**
-     * Divides another expression into this expression.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
-    Derived& operator/=(const table_base<log_tag, RealType, Other>& f) {
-      f.derived().transform_inplace(std::minus<RealType>(), derived().param());
-      return derived();
-    }
-
-    /**
-     * Divides this expression by its norm inplace.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
-    void normalize() {
-      *this /= marginal();
-    }
-
     // Expression evaluations
     //--------------------------------------------------------------------------
 
-    //! Returns the transform operator associated with this expression.
-    identity trans_op() const {
-      return identity();
+    /**
+     * Evaluates the parameters to a temporary.
+     */
+    param_type param() const {
+      param_type tmp; derived().eval_to(tmp); return tmp;
     }
 
-    //! Returns a reference to this expression as a tuple.
-    std::tuple<const Derived&> trans_data() const& {
-      return std::tie(derived());
-    }
-
-    //! Encapsulates this expression temporary in a tuple.
-    std::tuple<Derived> trans_data() && {
-      return std::make_tuple(std::move(derived()));
+    /**
+     * Returns the logarithmic_table factor resulting from evaluating this
+     * expression.
+     */
+    logarithmic_table<RealType> eval() const {
+      return *this;
     }
 
     /**
@@ -735,19 +758,10 @@ namespace libgm { namespace experimental {
      * function is guaranteed to be safe even in the presence of aliasing.
      * \todo check if this is true
      */
-    template <typename JoinOp>
-    void join_inplace(JoinOp join_op,
-                      const uint_vector& dims,
+    template <typename JoinOp, typename It>
+    void join_inplace(JoinOp join_op, index_range<It> join_dims,
                       table<RealType>& result) const {
-      derived().param().join_inplace(join_op, dims, result);
-    }
-
-    /**
-     * Accumulates the parameters with the given operator.
-     */
-    template <typename AccuOp>
-    RealType accumulate(RealType init, AccuOp accu_op) const {
-      return derived().param().accumulate(init, accu_op);
+      derived().param().join_inplace(join_op, join_dims, result);
     }
 
     /**
@@ -764,70 +778,12 @@ namespace libgm { namespace experimental {
   }; // class logarithmic_table_base
 
 
-  /**
-   * Base class for logarithmic_table selectors.
-   *
-   * \tparam Derived
-   *         The expression type that derives from this base class.
-   *         This type must implement the eliminate() function.
-   */
-  template <typename RealType, typename Derived>
-  class table_selector_base<log_tag, RealType, Derived>
-    : public table_base<log_tag, RealType, Derived> {
-  public:
-    //! Default constructor
-    table_selector_base() { }
-
-    /**
-     * Returns a logarithmic_table expression representing the sum
-     * of this expression over the selected dimensions.
-     */
-    //LIBGM_ELIMINATE(sum, std::plus<RealType>(), RealType(0))
-    // TODO
-
-    /**
-     * Returns a logarithmic_table expression representing the maximum
-     * of this expression over the selected dimensions.
-     */
-    LIBGM_ELIMINATE(max, libgm::maximum<RealType>(), -inf<RealType>())
-
-    /**
-     * Returns a logarithmic_table expression representing the minimum
-     * of this expression over the selected dimensions.
-     */
-    LIBGM_ELIMINATE(min, libgm::minimum<RealType>(), +inf<RealType>())
-
-    /**
-     * Multiplies another expression into this expression.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
-    Derived& operator*=(const table_base<log_tag, RealType, Other>& f) {
-      f.derived().join_inplace(std::plus<RealType>(),
-                               this->derived().dims(), this->derived().param());
-      return this->derived();
-    }
-
-    /**
-     * Divides another expression into this expression.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
-    Derived& operator/=(const table_base<log_tag, RealType, Other>& f) {
-      f.derived().join_inplace(std::minus<RealType>(),
-                               this->derived().dims(), this->derived().param());
-      return this->derived();
-    }
-
-  }; // class table_selector_base<log_tag, RealType, Derived>
-
-
   // Factor
   //============================================================================
 
   /**
-   * A factor of a categorical probability distribution represented in the log
-   * space. This factor represents a non-negative function over finite variables
+   * A factor of a categorical distribution represented in the log space.
+   * This factor represents a non-negative function over finite variables
    * X as f(X | \theta) = exp(\sum_x \theta_x * 1(X=x)). In some cases,
    * e.g. in a Bayesian network, this factor also represents a probability
    * distribution in the log-space.
@@ -840,15 +796,15 @@ namespace libgm { namespace experimental {
   template <typename RealType = double>
   class logarithmic_table
     : public table_base<log_tag, RealType, logarithmic_table<RealType> > {
+
+    using base = table_base<log_tag, RealType, logarithmic_table>;
+
   public:
     // Public types
     //--------------------------------------------------------------------------
 
     // LearnableDistributionFactor types
     typedef canonical_table_ll<RealType> ll_type;
-
-    template <typename Other>
-    using base = table_base<log_tag, RealType, Other>;
 
     // Constructors and conversion operators
     //--------------------------------------------------------------------------
@@ -906,11 +862,8 @@ namespace libgm { namespace experimental {
     template <typename Other>
     logarithmic_table&
     operator=(const table_base<log_tag, RealType, Other>& f) {
-      if (f.derived().alias(param_)) {
-        param_ = f.derived().param();
-      } else {
-        f.derived().eval_to(param_);
-      }
+      assert(!f.derived().alias(param_));
+      f.derived().eval_to(param_);
       return *this;
     }
 
@@ -949,6 +902,21 @@ namespace libgm { namespace experimental {
     // Accessors
     //--------------------------------------------------------------------------
 
+    //! Returns the number of dimensions (guaranteed to be constant-time).
+    std::size_t arity() const {
+      return param_.arity();
+    }
+
+    //! Returns the total number of elements of the factor.
+    std::size_t size() const {
+      return param_.size();
+    }
+
+    //! Returns true if the factor has an empty table (same as size() == 0).
+    bool empty() const {
+      return param_.empty();
+    }
+
     //! Returns the shape of the underlying table.
     const uint_vector& shape() const {
       return param_.shape();
@@ -986,16 +954,6 @@ namespace libgm { namespace experimental {
       return param_.end();
     }
 
-    //! Provides mutable access to the parameter with the given linear index.
-    RealType& operator[](std::size_t i) {
-      return param_[i];
-    }
-
-    //! Returns the parameter with the given linear index.
-    const RealType& operator[](std::size_t i) const {
-      return param_[i];
-    }
-
     //! Provides mutable access to the parameter table of this factor.
     table<RealType>& param() {
       return param_;
@@ -1016,8 +974,153 @@ namespace libgm { namespace experimental {
       return param_(index);
     }
 
+    //! Provides mutable access to the parameter with the given linear index.
+    RealType& operator[](std::size_t i) {
+      return param_[i];
+    }
+
+    //! Returns the parameter with the given linear index.
+    const RealType& operator[](std::size_t i) const {
+      return param_[i];
+    }
+
+    //! Returns the value of the expression for the given index.
+    logarithmic<RealType> operator()(const uint_vector& index) const {
+      return { param_(index), log_tag() };
+    }
+
+    //! Returns the log-value of the expression for the given index.
+    RealType log(const uint_vector& index) const {
+      return param_(index);
+    }
+
+    // Optimized expressions
+    //--------------------------------------------------------------------------
+
+    /**
+     * Returns a logarithmic_vector expression equivalent to this expression.
+     *
+     * \throw std::invalid_argument if this expression is not unary.
+     */
+    auto vector() const {
+      if (arity() != 1) {
+        throw std::invalid_argument("The factor is not unary");
+      }
+      return vector_raw<log_tag>(param_.data(), param_.size(0)); // vector_view
+    }
+
+    /**
+     * Returns a logarithmic_matrix expression equivalent to this factor.
+     *
+     * \throw std::invalid_argument if this expression is not binary.
+     */
+    auto matrix() const {
+      if (arity() != 2) {
+        throw std::invalid_argument("The factor is not binary");
+      }
+      return matrix_raw<log_tag>(param_.data(), param_.size(0),
+                                 param_.size(1));                // matrix_view
+    }
+
+    // Selectors
+    //--------------------------------------------------------------------------
+
+    // Bring the immutable selectors from the base into the scope.
+    using base::head;
+    using base::tail;
+    using base::dim;
+    using base::dims;
+
+    /**
+     * Returns a mutable logarithmic_table selector referencing the head
+     * dimensions of this expression.
+     */
+    table_selector<log_tag, front, logarithmic_table>
+    head(std::size_t n) {
+      return { front(n), *this };
+    }
+
+    /**
+     * Returns a mutable logarithmic_table selector referencing the tail
+     * dimensions of this expression.
+     */
+    table_selector<log_tag, back, logarithmic_table>
+    tail(std::size_t n) {
+      return { back(arity(), n), *this };
+    }
+
+    /**
+     * Returns a mutable logarithmic_table selector referencing a single
+     * dimensions of this expression. The expression must be primitive.
+     */
+    table_selector<log_tag, single, logarithmic_table>
+    dim(std::size_t index) {
+      return { single(index), *this };
+    }
+
+    /**
+     * Returns a mutable logarithmic_table selector referencing a span of
+     * dimensions of this expression.
+     */
+    table_selector<log_tag, span, logarithmic_table>
+    dims(std::size_t start, std::size_t n) {
+      return { span(start, n), *this };
+    }
+
+    /**
+     * Returns a mutable logarithmic_table selector referincing a subset of
+     * dimensions of this expression.
+     */
+    table_selector<log_tag, iref, logarithmic_table>
+    dims(const uint_vector& indices) {
+      return { iref(indices), *this };
+    }
+
+    // Mutations
+    //--------------------------------------------------------------------------
+
+    //! Multiplies this factor by a constant.
+    logarithmic_table& operator*=(logarithmic<RealType> x) {
+      param_.transform(incremented_by<RealType>(x.lv));
+      return *this;
+    }
+
+    //! Divides this factor by a constant.
+    logarithmic_table& operator/=(logarithmic<RealType> x) {
+      param_.transform(decremented_by<RealType>(x.lv));
+      return *this;
+    }
+
+    //! Multiplies another expression into this factor.
+    template <typename Other>
+    logarithmic_table&
+    operator*=(const table_base<log_tag, RealType, Other>& f) {
+      assert(f.void_ptr() == this || !f.derived().alias(param_));
+      f.derived().transform_inplace(std::plus<RealType>(), param_);
+      return *this;
+    }
+
+    //! Divides another expression into this factor.
+    template <typename Other>
+    logarithmic_table&
+    operator/=(const table_base<log_tag, RealType, Other>& f) {
+      assert(f.void_ptr() == this || !f.derived().alias(param_));
+      f.derived().transform_inplace(std::minus<RealType>(), param_);
+      return *this;
+    }
+
+    //! Divides this factor by its norm inplace.
+    void normalize() {
+      *this /= this->sum();
+    }
+
     // Evaluation
     //--------------------------------------------------------------------------
+
+    //! Returns this logarithmic_table (a noop).
+    const logarithmic_table& eval() const {
+      return *this;
+    }
 
     /**
      * Returns true if evaluating this expression to the specified parameter
@@ -1028,27 +1131,11 @@ namespace libgm { namespace experimental {
       return false;
     }
 
-    //! Returns this logarithmic_table (a noop).
-    const logarithmic_table& eval() const& {
-      return *this;
-    }
-
-    //! Returns this logarithmic_table (a noop).
-    logarithmic_table&& eval() && {
-      return std::move(*this);
-    }
-
   private:
     //! The parameters, i.e., a table of log-probabilities.
     table<RealType> param_;
 
   }; // class logarithmic_table
-
-  template <typename RealType>
-  struct is_primitive<logarithmic_table<RealType> > : std::true_type { };
-
-  template <typename RealType>
-  struct is_mutable<logarithmic_table<RealType> > : std::true_type { };
 
 } } // namespace libgm::experimental
 

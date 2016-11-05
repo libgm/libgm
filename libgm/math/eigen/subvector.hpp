@@ -1,176 +1,126 @@
 #ifndef LIBGM_SUBVECTOR_HPP
 #define LIBGM_SUBVECTOR_HPP
 
+#include <libgm/enable_if.hpp>
 #include <libgm/datastructure/uint_vector.hpp>
 #include <libgm/functional/assign.hpp>
+#include <libgm/math/eigen/real.hpp>
+#include <libgm/range/index_range.hpp>
 
-#include <vector>
 #include <type_traits>
-
-#include <Eigen/Core>
 
 namespace libgm {
 
   /**
-   * A class that represents a view of an Eigen vector over a subsequence
-   * of rows. The selected rows are specified as a std::vector<std::size_t>.
-   * The indices must not be changed externally after this class is
-   * constructed and before it is destroyed, and the lifetime of both the
-   * referenced vector and the selected rows must extend past the lifetime
-   * of this object. The class supports standard mutating operations and
-   * can participate in Eigen expressions via the ref() call.
+   * A class that represents a view of an Eigen vector over a range of rows.
    *
-   * \tparam Vector The underlying container. Can be const for a const view.
+   * \tparam Vector
+   *         The underlying container. Can be const for an immutable view.
    */
-  template <typename Vector>
-  class subvector {
-  public:
-    typedef typename std::remove_const<Vector>::type plain_type;
-    typedef typename Vector::Scalar scalar_type;
-    typedef decltype(std::declval<Vector>().data()) pointer;
-
+  template <typename Vector, typename It>
+  class subvector : public Eigen::ReturnByValue<subvector<Vector, It> > {
     const static bool is_mutable = !std::is_const<Vector>::value;
 
+  public:
+    using plain_type  = std::remove_const_t<Vector>;
+    using scalar_type = typename Vector::Scalar;
+    using pointer =
+      std::conditional_t<is_mutable, scalar_type*, const scalar_type*>;
+
     //! Constructs a subvector for the given raw array.
-    subvector(pointer data, std::size_t size,
-              const std::vector<std::size_t>& rows)
+    subvector(pointer data, std::size_t size, index_range<It> rows)
       : data_(data), rows_(rows) {
-      assert(rows.empty() ||
-             *std::max_element(rows.begin(), rows.end()) < size);
-      contiguous_ = is_contiguous(rows);
+      assert(rows.stop() <= size);
     }
 
     //! Constructs a subvector with given row indices.
-    subvector(Vector& vec, const std::vector<std::size_t>& rows)
+    subvector(Vector& vec, index_range<It> rows)
       : subvector(vec.data(), vec.size(), rows) { }
 
     //! Returns the number of rows of this view.
-    std::size_t rows() const {
+    std::ptrdiff_t rows() const {
       return rows_.size();
     }
 
     //! Returns the number of columns of this view.
-    std::size_t cols() const {
+    std::ptrdiff_t cols() const {
       return 1;
     }
 
-    //! Returns true if this subvector represents a block.
-    bool contiguous() const {
-      return contiguous_;
+    //! Returns the number of elements of this view.
+    std::ptrdiff_t size() const {
+      return rows_.size();
     }
 
-    //! Returns a reference represented by this subvector.
-    Eigen::Ref<Vector> ref() {
-      if (contiguous_) {
-        return map();
-      } else {
-        if (plain_.rows() == 0) { eval_to(plain_); }
-        return plain_;
-      }
+    //! Returns a single element of the subvector.
+    scalar_type operator[](std::size_t i) const {
+      return data_[rows_[i]];
     }
 
-    //! Extracts a plain object represented by this subvector.
-    void eval_to(plain_type& result) const {
+    //! Returns a reference to a single element of the subvector.
+    LIBGM_ENABLE_IF(is_mutable)
+    scalar_type& operator[](std::size_t i) {
+      return data_[rows_[i]];
+    }
+
+    //! Evaluates this subvector to a vector-like object.
+    template <typename Dest>
+    void evalTo(Dest& result) const {
       result.resize(rows());
-      update_plain(result, assign<>());
+      update_to(result, assign<>());
     }
 
-    //! Extracts an std::vector represented by this subvector.
-    void eval_to(std::vector<scalar_type>& result) const {
-      result.resize(rows());
-      for (std::size_t i = 0; i < rows_.size(); ++i) {
-        result[i] = data_[rows_[i]];
-      }
+    //! Adds this subvector to a vector-like object.
+    template <typename Dest>
+    void addTo(Dest& result) const {
+      update_to(result, plus_assign<>());
     }
 
-    //! Adds a subvector to a dense vector element-wise.
-    friend plain_type& operator+=(plain_type& result, const subvector& a) {
-      return a.update_plain(result, plus_assign<>());
-    }
-
-    //! Subtracts a subvector from a dense vector element-wise.
-    friend plain_type& operator-=(plain_type& result, const subvector& a) {
-      return a.update_plain(result, minus_assign<>());
+    //! Subtracts this subvetor from a vector-like object.
+    template <typename Dest>
+    void subTo(Dest& result) const {
+      update_to(result, minus_assign<>());
     }
 
     //! Assigns the elements of a vector to this subvector.
-    template <bool B = is_mutable, typename = std::enable_if_t<B> >
-    subvector& operator=(const Vector& x) {
+    LIBGM_ENABLE_IF_N(is_mutable, typename Derived)
+    subvector& operator=(const Eigen::MatrixBase<Derived>& x) {
       return update(x, assign<>());
     }
 
     //! Adds a vector to this subvector element-wise.
-    template <bool B = is_mutable, typename = std::enable_if_t<B> >
-    subvector& operator+=(const Vector& x) {
+    LIBGM_ENABLE_IF_N(is_mutable, typename Derived)
+    subvector& operator+=(const Eigen::MatrixBase<Derived>& x) {
       return update(x, plus_assign<>());
     }
 
     //! Subtracts a vector from this subvector element-wise.
-    template <bool B = is_mutable, typename = std::enable_if_t<B> >
-    subvector& operator-=(const Vector& x) {
-      return update(x, minus_assign<>());
-    }
-
-    //! Assigns the elements of another subvector to this subvector.
-    template <bool B = is_mutable, typename = std::enable_if_t<B> >
-    subvector& operator=(const subvector<const Vector>& x) {
-      return update(x, assign<>());
-    }
-
-    //! Adds another subvector to this subvector element-wise.
-    template <bool B = is_mutable, typename = std::enable_if_t<B> >
-    subvector& operator+=(const subvector<const Vector>& x) {
-      return update(x, plus_assign<>());
-    }
-
-    //! Subtracts another subvector from this subvector element-wise.
-    template <bool B = is_mutable, typename = std::enable_if_t<B> >
-    subvector& operator-=(const subvector<const Vector>& x) {
+    LIBGM_ENABLE_IF_N(is_mutable, typename Derived)
+    subvector& operator-=(const Eigen::MatrixBase<Derived>& x) {
       return update(x, minus_assign<>());
     }
 
     //! Computes a dot product with a plain object.
-    scalar_type dot(const Vector& other) const {
-      if (contiguous_) {
-        return map().dot(other);
-      } else {
-        assert(rows() == other.rows());
-        scalar_type result(0);
-        for (std::ptrdiff_t i = 0; i < other.rows(); ++i) {
-          result += data_[rows_[i]] * other[i];
-        }
-        return result;
+    template <typename Derived>
+    scalar_type dot(const Eigen::MatrixBase<Derived>& other) const {
+      assert(other.size() == rows_.size());
+      scalar_type result(0);
+      for (std::ptrdiff_t i = 0; i < other.size(); ++i) {
+        result += data_[rows_[i]] * other.derived()[i];
       }
+      return result;
     }
 
   private:
     /**
-     * Returns the map equivalent to this subvector.
-     * The rows must be contiguous.
+     * Updates a vector-like object by applying a mutating operation to the
+     * coefficients of the result and the coefficients of this subvector.
      */
-    Eigen::Map<Vector> map() const {
-      assert(contiguous());
-      return Eigen::Map<Vector>(rows_.empty() ? data_ : data_ + rows_[0],
-                                rows_.size(), 1);
-    }
-
-    /**
-     * Updates a dense vector result by applying a mutating operation to the
-     * coefficients of the result and the coefficients of subvector a.
-     * Assumes no aliasing.
-     */
-    template <typename Op>
-    plain_type& update_plain(plain_type& result, Op op) const {
-      const subvector& x = *this;
-      assert(result.rows() == x.rows());
-
-      if (x.contiguous()) {
-        op(result, x.map());
-      } else {
-        scalar_type* dest = result.data();
-        for (std::ptrdiff_t i = 0; i < result.rows(); ++i) {
-          op(*dest++, x.data_[x.rows_[i]]);
-        }
+    template <typename Dest, typename Op>
+    Dest& update_to(Dest& result, Op op) const {
+      assert(result.size() == rows_.size());
+      for (std::size_t i = 0; i < rows_.size(); ++i) {
+        op(result[i], data_[rows_[i]]);
       }
       return result;
     }
@@ -178,75 +128,63 @@ namespace libgm {
     /**
      * Updates a subvector result by applying the mutation operation to the
      * coefficients of the result and the coefficients of a dense vector a.
-     * Assumes no aliasing.
      */
-    template <typename Op>
-    subvector& update(const Vector& x, Op op) {
-      subvector& result = *this;
-      assert(result.rows() == x.rows());
-      if (result.contiguous()) {
-        op(result.map(), x);
-      } else {
-        const scalar_type* src = x.data();
-        for (std::ptrdiff_t i = 0; i < x.rows(); ++i) {
-          op(result.data_[result.rows_[i]], *src++);
-        }
+    template <typename Derived, typename Op>
+    subvector& update(const Eigen::MatrixBase<Derived>& x, Op op) {
+      assert(x.rows() == rows_.size() && x.cols() == 1);
+      for (std::size_t i = 0; i < rows_.size(); ++i) {
+        op(data_[rows_[i]], x.coeff(i));
       }
-      return result;
-    }
-
-    /**
-     * Updates a subvector result by applying the mutation operation to the
-     * coefficients of the result and the coefficients of a subvector x.
-     * Assumes no aliasing.
-     */
-    template <typename Op>
-    subvector& update(const subvector<const Vector>& x, Op op) {
-      subvector& result = *this;
-      assert(result.rows() == x.rows());
-      if (result.contiguous() && x.contiguous()) {
-        op(result.map(), x.map());
-      } else {
-        for (std::size_t i = 0; i < x.rows(); ++i) {
-          op(result.data_[result.rows_[i]], x.data_[x.rows_[i]]);
-        }
-      }
-      return result;
+      return *this;
     }
 
     //! The underlying data.
     pointer data_;
 
     //! The selected rows.
-    const std::vector<std::size_t>& rows_;
-
-    //! A flag indicating whether the row sequence is contiguous.
-    bool contiguous_;
-
-    //! The evaluated vector used by ref().
-    plain_type plain_;
-
-    template <typename Vec> friend class subvector;
+    index_range<It> rows_;
 
   }; // class subvector
 
   /**
-   * Convenience function to create a subvector with deduced type.
+   * Creates a subvector for a range of indices.
+   * \relates subvector
+   */
+  template <typename Vector, typename It>
+  inline subvector<Vector, It> subvec(Vector& a, index_range<It> rows) {
+    return { a, rows };
+  }
+
+
+  /**
+   * Creates a subvector for a contigous range of indices.
+   * \relates subvector
    */
   template <typename Vector>
-  subvector<Vector> subvec(Vector& a, const std::vector<std::size_t>& rows) {
-    return subvector<Vector>(a, rows);
+  inline Eigen::VectorBlock<Vector, -1> subvec(Vector& a, span rows) {
+    return a.segment(rows.start(), rows.size());
   }
 
   /**
-   * Convenience function to select the elements of an arbitrary matrix.
+   * Creates a subvector consisting of elements with given indices.
+   * \relates subvector
    */
   template <typename Matrix>
-  subvector<const Eigen::Matrix<typename Matrix::Scalar, Eigen::Dynamic, 1> >
-  elements(Matrix& m, const std::vector<std::size_t>& rows, std::size_t col0) {
-    return { m.data() + m.rows() * col0, m.size() - m.rows() * col0, rows };
+  inline subvector<const real_vector<typename Matrix::Scalar>, const std::size_t*>
+  elements(Matrix& m, const uint_vector& elems, std::size_t col0) {
+    return { m.data() + m.rows() * col0, m.size() - m.rows() * col0, iref(elems) };
   }
 
 } // namespace libgm
+
+
+namespace Eigen { namespace internal {
+
+  template <typename Vector, typename It>
+  struct traits<libgm::subvector<Vector, It> > {
+    typedef std::remove_const_t<Vector> ReturnType;
+  };
+
+} } // namespace Eigen::internal
 
 #endif

@@ -1,6 +1,8 @@
 #ifndef LIBGM_FUNCTIONAL_MEMBER_HPP
 #define LIBGM_FUNCTIONAL_MEMBER_HPP
 
+#include <Eigen/Core>
+
 #include <cmath>
 
 namespace libgm {
@@ -72,6 +74,29 @@ namespace libgm {
   };
 
   /**
+   * An operator that inovkes the restrict_head() member function on the given
+   * object.
+   */
+  struct member_restrict_head {
+    template <typename F, typename... Args>
+    auto operator()(F&& f, Args&&... args) {
+      return std::forward<F>(f).restrict_head(std::forward<Args>(args)...);
+    }
+  };
+
+  /**
+   * An operator that inovkes the restrict_tail() member function on the given
+   * object.
+   */
+  struct member_restrict_tail {
+    template <typename F, typename... Args>
+    auto operator()(F&& f, Args&&... args) {
+      return std::forward<F>(f).restrict_tail(std::forward<Args>(args)...);
+    }
+  };
+
+
+  /**
    * An operator that invokes the sum() member function on the given object.
    */
   struct member_sum {
@@ -93,13 +118,35 @@ namespace libgm {
 
   /**
    * An operator that computes log-sum-exp on the given object.
-   * This does not work with vectorwise operations.
+   * This does not work for vectorwise operations.
+   * \sa member_logSumExpVectorwise
    */
   struct member_logSumExp {
-    template <typename A>
-    auto operator()(A&& a) const {
-      auto offset = a.maxCoeff();
-      return std::log((a - offset).exp().sum()) + offset;
+    template <typename Expr>
+    auto operator()(Expr&& e) const {
+      decltype(auto) array = e.array();
+      auto offset = array.maxCoeff();
+      return log((array - offset).exp().sum()) + offset;
+    }
+  };
+
+  /**
+   * An operator that computes log-sum-exp for vectorwise operations.
+   * \sa member_logSumExp
+   */
+  struct member_logSumExpVectorwise {
+    template <typename Expr>
+    auto operator()(const Eigen::VectorwiseOp<Expr, Eigen::Vertical>& e) const {
+      decltype(auto) array = e._expression().array();
+      auto offset = array.maxCoeff();
+      return log((array - offset).exp().colwise().sum()) + offset;
+    }
+
+    template <typename Expr>
+    auto operator()(const Eigen::VectorwiseOp<Expr, Eigen::Horizontal>& e) const {
+      decltype(auto) array = e._expression().array();
+      auto offset = array.maxCoeff();
+      return log((array - offset).exp().rowwise().sum()) + offset;
     }
   };
 
@@ -108,7 +155,7 @@ namespace libgm {
    */
   struct member_maxCoeff {
     template <typename A>
-    auto operator()(A&& a) const -> decltype(a.maxCoeff()) {
+    decltype(auto) operator()(A&& a) const {
       return a.maxCoeff();
     }
   };
@@ -118,7 +165,7 @@ namespace libgm {
    */
   struct member_minCoeff {
     template <typename A>
-    auto operator()(A&& a) const -> decltype(a.minCoeff()) {
+    decltype(auto) operator()(A&& a) const {
       return a.minCoeff();
     }
   };
@@ -134,9 +181,7 @@ namespace libgm {
       : row(row), col(col) { }
 
     template <typename A>
-    auto operator()(A&& a) const
-      -> decltype(a.maxCoeff(std::declval<std::ptrdiff_t*>(),
-                             std::declval<std::ptrdiff_t*>())) {
+    auto operator()(A&& a) const {
       std::ptrdiff_t i, j;
       auto result = a.maxCoeff(&i, &j);
       if (row) { *row = i; }
@@ -156,9 +201,7 @@ namespace libgm {
       : row(row), col(col) { }
 
     template <typename A>
-    auto operator()(A&& a) const
-      -> decltype(a.minCoeff(std::declval<std::ptrdiff_t*>(),
-                             std::declval<std::ptrdiff_t*>())) {
+    auto operator()(A&& a) const {
       std::ptrdiff_t i, j;
       auto result = a.minCoeff(&i, &j);
       if (row) { *row = i; }
@@ -169,33 +212,34 @@ namespace libgm {
 
   //! An operator that computes coefficient-wise maximum.
   struct member_max {
-    template <typename A, typename B>
-    auto operator()(A&& a, B&& b) -> decltype(a.max(std::forward<B>(b))) {
-      return a.max(std::forward<B>(b));
+    template <typename F, typename... Args>
+    decltype(auto) operator()(F&& f, Args&&... args) const {
+      return std::forward<F>(f).max(std::forward<Args>(args)...);
     }
   };
 
   //! An operator that computes coefficient-wise minimum.
   struct member_min {
-    template <typename A, typename B>
-    auto operator()(A&& a, B&& b) -> decltype(a.min(std::forward<B>(b))) {
-      return a.min(std::forward<B>(b));
+    template <typename F, typename... Args>
+    decltype(auto) operator()(F&& f, Args&&... args) const {
+      return std::forward<F>(f).min(std::forward<Args>(args)...);
     }
   };
 
   //! An operator that returns an array expression for the given matrix.
   struct member_array {
     template <typename M>
-    auto operator()(M&& m) -> decltype(m.array()) {
+    decltype(auto) operator()(M&& m) const {
       return m.array();
     }
   };
 
-  //! An operator that returns a matrix expression for the given array.
-  struct member_matrix {
+  //! An operator that returns an expression casting the object to a type.
+  template <typename RealType>
+  struct member_cast {
     template <typename A>
-    auto operator()(A&& a) -> decltype(a.matrix()) {
-      return a.matrix();
+    decltype(auto) operator()(A&& a) const {
+      return a.template cast<RealType>();
     }
   };
 
@@ -204,14 +248,6 @@ namespace libgm {
     template <typename Expr>
     decltype(auto) operator()(Expr&& expr) {
       return std::forward<Expr>(expr).param();
-    }
-  };
-
-  //! An operator that returns the Eigen expression for the given expression.
-  struct member_eigen {
-    template <typename Expr>
-    decltype(auto) operator()(Expr&& expr) {
-      return std::forward<Expr>(expr).eigen();
     }
   };
 
@@ -225,6 +261,15 @@ namespace libgm {
       return std::forward<Expr>(expr).alias(param);
     }
   };
+
+  /**
+   * Creates a member_alias object, automatically deducing its type.
+   * \relates member_alias
+   */
+  template <typename Param>
+  member_alias<Param> make_member_alias(const Param& param) {
+    return member_alias<Param>(param);
+  }
 
   //! An operator that computes the exponent (of possibly shifted) object.
   //! \deprecated remove once we migrate to new factors

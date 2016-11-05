@@ -3,12 +3,15 @@
 
 #include <libgm/enable_if.hpp>
 #include <libgm/factor/traits.hpp>
-#include <libgm/factor/experimental/expression/macros.hpp>
-#include <libgm/factor/experimental/expression/vector.hpp>
+#include <libgm/factor/experimental/expression/matrix_function.hpp>
+#include <libgm/factor/experimental/expression/vector_base.hpp>
+#include <libgm/factor/experimental/expression/vector_function.hpp>
+#include <libgm/factor/experimental/expression/vector_transform.hpp>
+#include <libgm/factor/experimental/expression/table_function.hpp>
 #include <libgm/functional/algorithm.hpp>
 #include <libgm/functional/arithmetic.hpp>
 #include <libgm/functional/assign.hpp>
-#include <libgm/functional/composition.hpp>
+#include <libgm/functional/compose.hpp>
 #include <libgm/functional/entropy.hpp>
 #include <libgm/functional/member.hpp>
 #include <libgm/math/eigen/real.hpp>
@@ -25,9 +28,6 @@ namespace libgm { namespace experimental {
 
   // Forward declaration of the factor
   template <typename RealType> class probability_vector;
-
-  // Forward declaration of the table raw buffer view.
-  template <typename Space, typename RealType> class table_map;
 
   // Base expression class
   //============================================================================
@@ -58,95 +58,36 @@ namespace libgm { namespace experimental {
     typedef uint_vector           vector_type;
     typedef categorical_distribution<RealType> distribution_type;
 
-    // Vector-specific types
-    typedef prob_tag space_type;
-    static const std::size_t trans_arity = 1;
-
-    // Constructors
+    // Constructors and casts
     //--------------------------------------------------------------------------
 
     //! Default constructor.
     vector_base() { }
 
-    // Accessors and comparison operators
-    //--------------------------------------------------------------------------
-
     //! Downcasts this object to the derived type.
-    Derived& derived() & {
+    Derived& derived() {
       return static_cast<Derived&>(*this);
     }
 
     //! Downcasts this object to the derived type.
-    const Derived& derived() const& {
+    const Derived& derived() const {
       return static_cast<const Derived&>(*this);
     }
 
-    //! Downcasts this object to the derived type.
-    Derived&& derived() && {
-      return static_cast<Derived&&>(*this);
+    //! Returns this as void-pointer.
+    const void* void_ptr() const {
+      return this;
     }
 
-    //! Returns the number of arguments of this expression.
-    std::size_t arity() const {
-      return 1;
-    }
-
-    //! Returns the total number of elements of the expression.
-    std::size_t size() const {
-      return derived().param().size();
-    }
-
-    //! Returns true if the expression has no data.
-    bool empty() const {
-      return derived().param().data() == nullptr;
-    }
-
-    /**
-     * Returns an Eigen expression representing the parameters of this
-     * probability_vector expression. This is guaranteed to be an object
-     * with trivial evaluation, and may be a real_vector temporary.
-     */
-    param_type param() const {
-      param_type tmp; derived().eval_to(tmp); return tmp;
-    }
-
-    //! Returns the parameter for the given row.
-    RealType param(std::size_t row) const {
-      return derived().param()[row];
-    }
-
-    //! Returns the parameter for the given index.
-    RealType param(const uint_vector& index) const {
-      assert(index.size() == 1);
-      return derived().param()[index[0]];
-    }
-
-    //! Retursn the value of the expression for the given row.
-    RealType operator()(std::size_t row) const {
-      return param(row);
-    }
-
-    //! Returns the value of the expression for the given index.
-    RealType operator()(const uint_vector& index) const {
-      return param(index);
-    }
-
-    //! Returns the log-value of the expression for the given row.
-    RealType log(std::size_t row) const {
-      return std::log(param(row));
-    }
-
-    //! Returns the log-value of the expression for the given index.
-    RealType log(const uint_vector& index) const {
-      return std::log(param(index));
-    }
+    // Comparison and output operators
+    //--------------------------------------------------------------------------
 
     /**
      * Returns true if the two expressions have the same parameters.
      */
     template <typename Other>
     friend bool
-    operator==(const vector_base<prob_tag, RealType, Derived>& f,
+    operator==(const vector_base& f,
                const vector_base<prob_tag, RealType, Other>& g) {
       return f.derived().param() == g.derived().param();
     }
@@ -156,7 +97,7 @@ namespace libgm { namespace experimental {
      */
     template <typename Other>
     friend bool
-    operator!=(const vector_base<prob_tag, RealType, Derived>& f,
+    operator!=(const vector_base& f,
                const vector_base<prob_tag, RealType, Other>& g) {
       return !(f == g);
     }
@@ -164,13 +105,12 @@ namespace libgm { namespace experimental {
     /**
      * Outputs a human-readable representation of the expression to the stream.
      */
-    friend std::ostream&
-    operator<<(std::ostream& out, const vector_base& f) {
+    friend std::ostream& operator<<(std::ostream& out, const vector_base& f) {
       out << f.derived().param();
       return out;
     }
 
-    // Factor operations
+    // Transforms
     //--------------------------------------------------------------------------
 
     /**
@@ -178,165 +118,233 @@ namespace libgm { namespace experimental {
      * element-wise transform of this expression with a unary operation.
      */
     template <typename ResultSpace = prob_tag, typename UnaryOp = void>
-    auto transform(UnaryOp unary_op) const& {
-      return make_vector_transform<ResultSpace>(
-        compose(unary_op, derived().trans_op()),
-        derived().trans_data()
-      );
-    }
-
-    template <typename ResultSpace = prob_tag, typename UnaryOp = void>
-    auto transform(UnaryOp unary_op) && {
-      return make_vector_transform<ResultSpace>(
-        compose(unary_op, derived().trans_op()),
-        std::move(derived()).trans_data()
-      );
+    auto transform(UnaryOp unary_op) const {
+      return make_vector_transform<ResultSpace>(unary_op, std::tie(derived()));
     }
 
     /**
      * Returns a probability_vector expression representing the element-wise
      * sum of a probability_vector expression and a scalar.
      */
-    LIBGM_TRANSFORM_RIGHT(operator+, incremented_by<RealType>(x),
-                          RealType, vector_base, prob_tag, RealType)
+    friend auto operator+(const vector_base& f, RealType x) {
+      return f.derived().transform(incremented_by<RealType>(x));
+    }
 
     /**
      * Returns a probability_vector expression representing the element-wise
      * sum of a scalar and a probability_vector expression.
      */
-    LIBGM_TRANSFORM_LEFT(operator+, incremented_by<RealType>(x),
-                         RealType, vector_base, prob_tag, RealType)
+    friend auto operator+(RealType x, const vector_base& f) {
+      return f.derived().transform(incremented_by<RealType>(x));
+    }
 
     /**
      * Returns a probability_vector expression representing the element-wise
      * difference of a probability_vector expression and a scalar.
      */
-    LIBGM_TRANSFORM_RIGHT(operator-, decremented_by<RealType>(x),
-                          RealType, vector_base, prob_tag, RealType)
+    friend auto operator-(const vector_base& f, RealType x) {
+      return f.derived().transform(decremented_by<RealType>(x));
+    }
 
     /**
      * Returns a probability_vector expression representing the element-wise
      * difference of a scalar and a probability_vector expression.
      */
-    LIBGM_TRANSFORM_LEFT(operator-, subtracted_from<RealType>(x),
-                         RealType, vector_base, prob_tag, RealType)
+    friend auto operator-(RealType x, const vector_base& f) {
+      return f.derived().transform(subtracted_from<RealType>(x));
+    }
 
     /**
      * Returns a probability_vector expression representing the element-wise
      * product of a probability_vector expression and a scalar.
      */
-    LIBGM_TRANSFORM_RIGHT(operator*, multiplied_by<RealType>(x),
-                          RealType, vector_base, prob_tag, RealType)
+    friend auto operator*(const vector_base& f, RealType x) {
+      return f.derived().transform(multiplied_by<RealType>(x));
+    }
 
     /**
      * Returns a probability_vector expression representing the element-wise
      * product of a scalar and a probability_vector expression.
      */
-    LIBGM_TRANSFORM_LEFT(operator*, multiplied_by<RealType>(x),
-                         RealType, vector_base, prob_tag, RealType)
+    friend auto operator*(RealType x, const vector_base& f) {
+      return f.derived().transform(multiplied_by<RealType>(x));
+    }
 
     /**
      * Returns a probability_vector expression representing the element-wise
      * division of a probability_vector expression and a scalar.
      */
-    LIBGM_TRANSFORM_RIGHT(operator/, divided_by<RealType>(x),
-                          RealType, vector_base, prob_tag, RealType)
+    friend auto operator/(const vector_base& f, RealType x) {
+      return f.derived().transform(divided_by<RealType>(x));
+    }
 
     /**
      * Returns a probability_vector expression representing the element-wise
      * division of a scalar and a probability_vector expression.
      */
-    LIBGM_TRANSFORM_LEFT(operator/, dividing<RealType>(x),
-                         RealType, vector_base, prob_tag, RealType)
+    friend auto operator/(RealType x, const vector_base& f) {
+      return f.derived().transform(dividing<RealType>(x));
+    }
 
     /**
      * Returns a probability_vector expression representing a probability_vector
      * expression raised to an exponent element-wise.
      */
-    LIBGM_TRANSFORM_RIGHT(pow, power<RealType>(x),
-                          RealType, vector_base, prob_tag, RealType)
+    friend auto pow(const vector_base& f, RealType x) {
+      return f.derived().transform(power<RealType>(x));
+    }
 
     /**
      * Returns a probability_table expression representing the element-wise
      * sum of two probability_table expressions.
      */
-    LIBGM_TRANSFORM(operator+, std::plus<>(),
-                    vector_base, prob_tag, RealType)
+    template <typename Other>
+    friend auto operator+(const vector_base& f,
+                          const vector_base<prob_tag, RealType, Other>& g) {
+      return libgm::experimental::transform(std::plus<>(), f, g);
+    }
 
     /**
      * Returns a probability_vector expression representing the element-wise
      * difference of two probability_vector expressions.
      */
-    LIBGM_TRANSFORM(operator-, std::minus<>(),
-                    vector_base, prob_tag, RealType)
+    template <typename Other>
+    friend auto operator-(const vector_base& f,
+                          const vector_base<prob_tag, RealType, Other>& g) {
+      return libgm::experimental::transform(std::minus<>(), f, g);
+    }
 
     /**
      * Returns a probability_vector expression representing the product of
      * two probability_vector expressions.
      */
-    LIBGM_TRANSFORM(operator*, std::multiplies<>(),
-                    vector_base, prob_tag, RealType)
+    template <typename Other>
+    friend auto operator*(const vector_base& f,
+                          const vector_base<prob_tag, RealType, Other>& g) {
+      return libgm::experimental::transform(std::multiplies<>(), f, g);
+    }
 
     /**
      * Returns a probability_vector expression representing the division of
      * two probability_vector expressions.
      */
-    LIBGM_TRANSFORM(operator/, std::divides<>(),
-                    vector_base, prob_tag, RealType)
-
-    /**
-     * Returns the probability_matrix expression representing the outer product
-     * of two probability_vector expressions.
-     */
-    LIBGM_OUTER(outer_prod, std::multiplies<>(),
-                vector_base, prob_tag, RealType);
-
-    /**
-     * Returns the probability_matrix expression reprsenting the outer division
-     * of two probability_vetor expressions.
-     */
-    LIBGM_OUTER(outer_div, std::divides<>(),
-                vector_base, prob_tag, RealType);
+    template <typename Other>
+    friend auto operator/(const vector_base& f,
+                          const vector_base<prob_tag, RealType, Other>& g) {
+      return libgm::experimental::transform(std::divides<>(), f, g);
+    }
 
     /**
      * Returns a probability_vector expression representing the element-wise
      * maximum of two probability_vector expressions.
      */
-    LIBGM_TRANSFORM(max, member_max(),
-                    vector_base, prob_tag, RealType)
+    template <typename Other>
+    friend auto max(const vector_base& f,
+                    const vector_base<prob_tag, RealType, Other>& g) {
+      return libgm::experimental::transform(member_max(), f, g);
+    }
 
     /**
      * Returns a probability_vector expression representing the element-wise
      * minimum of two probability_vector expressions.
      */
-    LIBGM_TRANSFORM(min, member_min(),
-                    vector_base, prob_tag, RealType)
+    template <typename Other>
+    friend auto min(const vector_base& f,
+                    const vector_base<prob_tag, RealType, Other>& g) {
+      return libgm::experimental::transform(member_min(), f, g);
+    }
 
     /**
      * Returns a probability_vector expression representing \f$f*(1-a) + g*a\f$
      * for two probability_vector expressions f and g.
      */
-    LIBGM_TRANSFORM_SCALAR(weighted_update, weighted_plus<RealType>(1 - x, x),
-                           RealType, vector_base, prob_tag, RealType)
+    template <typename Other>
+    friend auto weighted_update(const vector_base& f,
+                                const vector_base<prob_tag, RealType, Other>& g,
+                                RealType x) {
+      return libgm::experimental::transform(weighted_plus<RealType>(1-x, x), f, g);
+    }
+
+    // Conversions
+    //--------------------------------------------------------------------------
+
+    /**
+     * Returns a probability_vector expression with the elements of this
+     * expression cast to a different RealType.
+     */
+    template <typename NewRealType>
+    auto cast() const {
+      return derived().transform(member_cast<NewRealType>());
+    }
+
+    /**
+     * Returns a logarithmic_vector expression equivalent to this expression.
+     */
+    auto logarithmic() const {
+      return derived().template transform<log_tag>(logarithm<>());
+    }
+
+    /**
+     * Returns a probability_table expression equivalent to this vector.
+     */
+    auto table() const {
+      return table_from_vector<prob_tag>(derived()); // in table_function.hpp
+    }
+
+    // Joins
+    //--------------------------------------------------------------------------
+
+    /**
+     * Returns the probability_matrix expression representing the outer product
+     * of two probability_vector expressions.
+     */
+    template <typename Other>
+    friend auto
+    outer_prod(const vector_base& f,
+               const vector_base<prob_tag, RealType, Other>& g) {
+      return outer_join(std::multiplies<>(), f ,g); // in matrix_function.hpp
+    }
+
+    /**
+     * Returns the probability_matrix expression reprsenting the outer division
+     * of two probability_vetor expressions.
+     */
+    template <typename Other>
+    friend auto
+    outer_div(const vector_base& f,
+              const vector_base<prob_tag, RealType, Other>& g) {
+      return outer_join(std::divides<>(), f, g);    // in matrix_function.hpp
+    }
+
+    // Aggregates
+    //--------------------------------------------------------------------------
+
+    /**
+     * Accumulates the parameters with the given unary operator.
+     */
+    template <typename AccuOp>
+    RealType accumulate(AccuOp op) const {
+      return op(derived().param());
+    }
 
     /**
      * Computes the normalization constant of this expression.
      */
-    RealType marginal() const {
+    RealType sum() const {
       return derived().accumulate(member_sum());
     }
 
     /**
      * Computes the maximum value of this expression.
      */
-    RealType maximum() const {
+    RealType max() const {
       return derived().accumulate(member_maxCoeff());
     }
 
     /**
      * Computes the minimum value of this expression.
      */
-    RealType minimum() const {
+    RealType min() const {
       return derived().accumulate(member_minCoeff());
     }
 
@@ -344,34 +352,34 @@ namespace libgm { namespace experimental {
      * Computes the maximum value of this expression and stores the
      * corresponding row.
      */
-    RealType maximum(std::size_t* row) const {
-      return derived().accumulate(member_maxCoeffIndex(row));
+    RealType max(std::size_t& row) const {
+      return derived().accumulate(member_maxCoeffIndex(&row));
     }
 
     /**
      * Computes the maximum value of this expression and stores the
      * corresponding index to a vector.
      */
-    RealType maximum(uint_vector* index) const {
-      index->resize(1);
-      return maximum(&index->front());
+    RealType max(uint_vector& index) const {
+      index.resize(1);
+      return max(index.front());
     }
 
     /**
      * Computes the minimum value of this expression and stores the
      * corresponding row.
      */
-    RealType minimum(std::size_t* row) const {
-      return derived().accumulate(member_minCoeffIndex(row));
+    RealType min(std::size_t& row) const {
+      return derived().accumulate(member_minCoeffIndex(&row));
     }
 
     /**
      * Computes the minimum value of this expression and stores the
      * corresponding index to a vector.
      */
-    RealType minimum(uint_vector* index) const {
-      index->resize(1);
-      return minimum(&index->front());
+    RealType min(uint_vector& index) const {
+      index.resize(1);
+      return min(index.front());
     }
 
     /**
@@ -379,40 +387,8 @@ namespace libgm { namespace experimental {
      * constant > 0.
      */
     bool normalizable() const {
-      return marginal() > 0;
+      return sum() > 0;
     }
-
-    /**
-     * Returns the probability_vector object resulting by evaluating this
-     * expression.
-     */
-    probability_vector<RealType> eval() const {
-      return *this;
-    }
-
-    // Conversions
-    //--------------------------------------------------------------------------
-
-    /**
-     * Returns a logarithmic_vector expression equivalent to this expression.
-     */
-    auto logarithmic() const& {
-      return derived().template transform<log_tag>(logarithm<>());
-    }
-
-    auto logarithmic() && {
-      return std::move(derived()).template transform<log_tag>(logarithm<>());
-    }
-
-#if 0
-    /**
-     * Returns a probability_table expression equivalent to this expression.
-     */
-    LIBGM_ENABLE_IF(is_primitive<Derived>::value)
-    probability_table_map<RealType> table() const {
-      return { derived().param().size(), derived().param().data() };
-    }
-#endif
 
     // Sampling
     //--------------------------------------------------------------------------
@@ -421,7 +397,7 @@ namespace libgm { namespace experimental {
      * Returns a categorical distribution represented by this expression.
      */
     categorical_distribution<RealType> distribution() const {
-      return categorical_distribution<RealType>(derived().param());
+      return { derived().param(), prob_tag() };
     }
 
     /**
@@ -448,8 +424,11 @@ namespace libgm { namespace experimental {
 
     /**
      * Computes the entropy for the distribution represented by this expression.
+     * The optional parameters are provided only for compatibility with other
+     * factors; the function triggers an error if start != 0 or n != 1.
      */
-    RealType entropy() const {
+    RealType entropy(std::size_t start = 0, std::size_t n = 1) const {
+      assert(start == 0 && n == 1);
       auto&& param = derived().param();
       auto plus_entropy =
         compose_right(std::plus<RealType>(), entropy_op<RealType>());
@@ -463,7 +442,7 @@ namespace libgm { namespace experimental {
      */
     template <typename Other>
     friend RealType
-    cross_entropy(const vector_base<prob_tag, RealType, Derived>& p,
+    cross_entropy(const vector_base& p,
                   const vector_base<prob_tag, RealType, Other>& q) {
       return transform_accumulate(
         entropy_op<RealType>(), std::plus<RealType>(), RealType(0),
@@ -477,7 +456,7 @@ namespace libgm { namespace experimental {
      */
     template <typename Other>
     friend RealType
-    kl_divergence(const vector_base<prob_tag, RealType, Derived>& p,
+    kl_divergence(const vector_base& p,
                   const vector_base<prob_tag, RealType, Other>& q) {
       return transform_accumulate(
         kld_op<RealType>(), std::plus<RealType>(), RealType(0),
@@ -491,7 +470,7 @@ namespace libgm { namespace experimental {
      */
     template <typename Other>
     friend RealType
-    js_divergence(const vector_base<prob_tag, RealType, Derived>& p,
+    js_divergence(const vector_base& p,
                   const vector_base<prob_tag, RealType, Other>& q) {
       return transform_accumulate(
         jsd_op<RealType>(), std::plus<RealType>(), RealType(0),
@@ -505,7 +484,7 @@ namespace libgm { namespace experimental {
      */
     template <typename Other>
     friend RealType
-    sum_diff(const vector_base<prob_tag, RealType, Derived>& p,
+    sum_diff(const vector_base& p,
              const vector_base<prob_tag, RealType, Other>& q) {
       return transform_accumulate(
         abs_difference<RealType>(), std::plus<RealType>(), RealType(0),
@@ -519,7 +498,7 @@ namespace libgm { namespace experimental {
      */
     template <typename Other>
     friend RealType
-    max_diff(const vector_base<prob_tag, RealType, Derived>& p,
+    max_diff(const vector_base& p,
              const vector_base<prob_tag, RealType, Other>& q) {
       return transform_accumulate(
         abs_difference<RealType>(), libgm::maximum<RealType>(), RealType(0),
@@ -527,114 +506,24 @@ namespace libgm { namespace experimental {
       );
     }
 
-    // Mutations
-    //--------------------------------------------------------------------------
-
-    /**
-     * Increments this expression by a constant.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
-    Derived& operator+=(RealType x) {
-      derived().param().array() += x;
-      return derived();
-    }
-
-    /**
-     * Decrements this expression by a constant.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
-    Derived& operator-=(RealType x) {
-      derived().param().array() -= x;
-      return derived();
-    }
-
-    /**
-     * Multiplies this expression by a constant.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
-    Derived& operator*=(RealType x) {
-      derived().param() *= x;
-      return derived();
-    }
-
-    /**
-     * Divides this expression by a constant.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
-    Derived& operator/=(RealType x) {
-      derived().param() /= x;
-      return derived();
-    }
-
-    /**
-     * Adds an expression to this expression element-wise.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
-    Derived& operator+=(const vector_base<prob_tag, RealType, Other>& f) {
-      f.derived().transform_inplace(plus_assign<>(), derived().param());
-      return derived();
-    }
-
-    /**
-     * Subtracts an expression from this expression element-wise.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
-    Derived& operator-=(const vector_base<prob_tag, RealType, Other>& f) {
-      f.derived().transform_inplace(minus_assign<>(), derived().param());
-      return derived();
-    }
-
-    /**
-     * Multiplies an expression into this expression.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
-    Derived& operator*=(const vector_base<prob_tag, RealType, Other>& f) {
-      f.derived().transform_inplace(multiplies_assign<>(), derived().param());
-      return derived();
-    }
-
-    /**
-     * Divides an expression into this expression.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF_N(is_mutable<Derived>::value, typename Other)
-    Derived& operator/=(const vector_base<prob_tag, RealType, Other>& f) {
-      f.derived().transform_inplace(divides_assign<>(), derived().param());
-      return derived();
-    }
-
-    /**
-     * Divides this expression by its norm inplace.
-     * Only supported when this expression is mutable (e.g., a factor).
-     */
-    LIBGM_ENABLE_IF(is_mutable<Derived>::value)
-    void normalize() {
-      *this /= marginal();
-    }
-
     // Expression evaluations
     //--------------------------------------------------------------------------
 
-    //! Returns the transform operator associated with this expression.
-    identity trans_op() const {
-      return identity();
+    /**
+     * Returns an Eigen expression representing the parameters of this
+     * probability_vector expression. This is guaranteed to be an object
+     * with trivial evaluation, and may be a real_vector temporary.
+     */
+    param_type param() const {
+      param_type tmp; derived().eval_to(tmp); return tmp;
     }
 
-    //! Returns a reference to this expression as a tuple.
-    std::tuple<const Derived&> trans_data() const& {
-      return std::tie(derived());
-    }
-
-    //! Encapsulates this expression temporary in a tuple.
-    std::tuple<Derived> trans_data() && {
-      return std::make_tuple(std::move(derived()));
+    /**
+     * Returns the probability_vector object resulting by evaluating this
+     * expression.
+     */
+    probability_vector<RealType> eval() const {
+      return *this;
     }
 
     /**
@@ -644,14 +533,6 @@ namespace libgm { namespace experimental {
     template <typename AssignOp>
     void transform_inplace(AssignOp op, real_vector<RealType>& result) const {
       op(result.array(), derived().param().array());
-    }
-
-    /**
-     * Accumulates the parameters with the given unary operator.
-     */
-    template <typename AccuOp>
-    RealType accumulate(AccuOp op) const {
-      return op(derived().param().array());
     }
 
     /**
@@ -694,6 +575,9 @@ namespace libgm { namespace experimental {
   template <typename RealType = double>
   class probability_vector
     : public vector_base<prob_tag, RealType, probability_vector<RealType> > {
+
+    using base = vector_base<prob_tag, RealType, probability_vector>;
+
   public:
     // Public types
     //--------------------------------------------------------------------------
@@ -701,9 +585,6 @@ namespace libgm { namespace experimental {
     // LearnableDistributionFactor member types
     typedef probability_vector_ll<RealType>  ll_type;
     typedef probability_vector_mle<RealType> mle_type;
-
-    template <typename Other>
-    using base = vector_base<prob_tag, RealType, Other>;
 
     // Constructors and conversion operators
     //--------------------------------------------------------------------------
@@ -745,11 +626,8 @@ namespace libgm { namespace experimental {
     template <typename Other>
     probability_vector&
     operator=(const vector_base<prob_tag, RealType, Other>& f) {
-      if (f.derived().alias(param_)) {
-        param_ = f.derived().param();
-      } else {
-        f.derived().eval_to(param_);
-      }
+      assert(!f.derived().alias(param_));
+      f.derived().eval_to(param_);
       return *this;
     }
 
@@ -785,6 +663,21 @@ namespace libgm { namespace experimental {
     // Accessors
     //--------------------------------------------------------------------------
 
+    //! Returns the number of arguments of this factor.
+    std::size_t arity() const {
+      return 1;
+    }
+
+    //! Returns the total number of elements of the expression.
+    std::size_t size() const {
+      return param_.size();
+    }
+
+    //! Returns true if the expression has no data.
+    bool empty() const {
+      return param_.data() == nullptr;
+    }
+
     /**
      * Returns the pointer to the first parameter or nullptr if the factor is
      * empty.
@@ -815,16 +708,6 @@ namespace libgm { namespace experimental {
      */
     const RealType* end() const {
       return param_.data() + param_.size();
-    }
-
-    //! Returns the parameter with the given linear index.
-    RealType& operator[](std::size_t i) {
-      return param_[i];
-    }
-
-    //! Returns the parameter with the given linear index.
-    const RealType& operator[](std::size_t i) const {
-      return param_[i];
     }
 
     //! Provides mutable access to the parameter array of this factor.
@@ -859,8 +742,111 @@ namespace libgm { namespace experimental {
       return param_[index[0]];
     }
 
+    //! Returns the parameter with the given linear index.
+    RealType& operator[](std::size_t i) {
+      return param_[i];
+    }
+
+    //! Returns the parameter with the given linear index.
+    const RealType& operator[](std::size_t i) const {
+      return param_[i];
+    }
+
+    //! Retursn the value of the expression for the given row.
+    RealType operator()(std::size_t row) const {
+      return param(row);
+    }
+
+    //! Returns the value of the expression for the given index.
+    RealType operator()(const uint_vector& index) const {
+      return param(index);
+    }
+
+    //! Returns the log-value of the expression for the given row.
+    RealType log(std::size_t row) const {
+      return std::log(param(row));
+    }
+
+    //! Returns the log-value of the expression for the given index.
+    RealType log(const uint_vector& index) const {
+      return std::log(param(index));
+    }
+
+    // Mutations
+    //--------------------------------------------------------------------------
+
+    //! Increments this factor by a constant.
+    probability_vector& operator+=(RealType x) {
+      param_.array() += x;
+      return *this;
+    }
+
+    //! Decrements this factor by a constant.
+    probability_vector& operator-=(RealType x) {
+      param_.array() -= x;
+      return *this;
+    }
+
+    //! Multiplies this factor by a constant.
+    probability_vector& operator*=(RealType x) {
+      param_ *= x;
+      return *this;
+    }
+
+    //! Divides this factor by a constant.
+    probability_vector& operator/=(RealType x) {
+      param_ /= x;
+      return *this;
+    }
+
+    //! Adds an expression to this factor element-wise.
+    template <typename Other>
+    probability_vector&
+    operator+=(const vector_base<prob_tag, RealType, Other>& f) {
+      assert(f.void_ptr() == this || !f.derived().alias(param_));
+      f.derived().transform_inplace(plus_assign<>(), param_);
+      return *this;
+    }
+
+    //! Subtracts an expression from this factor element-wise.
+    template <typename Other>
+    probability_vector&
+    operator-=(const vector_base<prob_tag, RealType, Other>& f) {
+      assert(f.void_ptr() == this || !f.derived().alias(param_));
+      f.derived().transform_inplace(minus_assign<>(), param_);
+      return *this;
+    }
+
+    //! Multiplies an expression into this factor.
+    template <typename Other>
+    probability_vector&
+    operator*=(const vector_base<prob_tag, RealType, Other>& f) {
+      assert(f.void_ptr() == this || !f.derived().alias(param_));
+      f.derived().transform_inplace(multiplies_assign<>(), param_);
+      return *this;
+    }
+
+    //! Divides an expression into this factor.
+    template <typename Other>
+    probability_vector&
+    operator/=(const vector_base<prob_tag, RealType, Other>& f) {
+      assert(f.void_ptr() == this || !f.derived().alias(param_));
+      f.derived().transform_inplace(divides_assign<>(), param_);
+      return *this;
+    }
+
+    //! Divides this factor by its norm inplace.
+    void normalize() {
+      *this /= this->sum();
+    }
+
     // Evaluation
     //--------------------------------------------------------------------------
+
+    //! Returns this probability_vector (a noop).
+    const probability_vector& eval() const {
+      return *this;
+    }
 
     /**
      * Returns true if this probability_vector aliases the given parameters,
@@ -884,27 +870,11 @@ namespace libgm { namespace experimental {
       return false;
     }
 
-    //! Returns this probability_vector (a noop).
-    const probability_vector& eval() const& {
-      return *this;
-    }
-
-    //! Returns this probability_vector (a noop).
-    probability_vector&& eval() && {
-      return std::move(*this);
-    }
-
   private:
     //! The parameters of the factor, i.e., a vector of probabilities.
     real_vector<RealType> param_;
 
   }; // class probability_vector
-
-  template <typename RealType>
-  struct is_primitive<probability_vector<RealType> > : std::true_type { };
-
-  template <typename RealType>
-  struct is_mutable<probability_vector<RealType> > : std::true_type { };
 
 } } // namespace libgm::experimental
 

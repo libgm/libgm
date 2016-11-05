@@ -42,7 +42,7 @@ namespace libgm {
       }
 
       // read the table line by line, storing the values for each time step
-      std::vector<std::size_t> values;
+      uint_vector values;
       std::string line;
       std::size_t line_number = 0;
       std::size_t t = 0;

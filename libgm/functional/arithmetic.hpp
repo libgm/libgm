@@ -308,6 +308,17 @@ namespace libgm {
     }
   };
 
+  /**
+   * A function object that static-casts its input to the specified type.
+   */
+  template <typename T>
+  struct scalar_cast {
+    template <typename U>
+    T operator()(const U& u) const {
+      return static_cast<T>(u);
+    }
+  };
+
 } // namespace libgm
 
 #endif

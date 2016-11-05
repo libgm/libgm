@@ -56,7 +56,7 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   experimental::mixture<mgaussian> estimate = learner.fit(data, {x}, k);
 
   // retrieve the indices in the canonical order
-  std::vector<std::size_t> indices = {0, 1, 2};
+  uint_vector indices = {0, 1, 2};
   std::sort(indices.begin(), indices.end(), [&](std::size_t i, std::size_t j) {
       const real_vector<>& mi = estimate.param(i).mean;
       const real_vector<>& mj = estimate.param(j).mean;

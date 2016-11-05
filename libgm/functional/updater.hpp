@@ -181,6 +181,15 @@ namespace libgm {
     }
   };
 
+  /**
+   * Constructs an updater, automatically deducing its type.
+   * \relates updater
+   */
+  template <typename Op>
+  inline updater<Op> make_updater(Op op) {
+    return updater<Op>(op);
+  }
+
 } // namespace libgm
 
 #endif

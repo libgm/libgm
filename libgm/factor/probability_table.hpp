@@ -429,7 +429,7 @@ namespace libgm {
 
     //! Returns the distribution with the parameters of this factor.
     multivariate_categorical_distribution<T> distribution() const {
-      return { this->param_, 0 };
+      return { this->param_, prob_tag() };
     }
 
     //! Draws a random sample from a marginal distribution.

@@ -110,7 +110,7 @@ namespace libgm {
     void calibrate() {
       mpp_traversal(jt_, id_t(), [&](const edge_type& e) {
           jt_[e.target()] /= jt_[e];
-          jt_[e.source()].marginal(jt_.separator(e), jt_[e]);
+          jt_[e] = jt_[e.source()].marginal(jt_.separator(e));
           jt_[e.target()] *= jt_[e];
         });
     }

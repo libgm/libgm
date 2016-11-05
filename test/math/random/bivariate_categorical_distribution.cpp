@@ -41,13 +41,13 @@ double conditional_diff(const dist_type& d, const real_matrix<>& a) {
 BOOST_AUTO_TEST_CASE(test_marginal) {
   real_matrix<> a(2, 3);
   a << 0.1, 0.2, 0.05, 0.4, 0.05, 0.2;
-  BOOST_CHECK_SMALL(marginal_diff(dist_type(a), a), tol);
+  BOOST_CHECK_SMALL(marginal_diff(dist_type(a, prob_tag()), a), tol);
   BOOST_CHECK_SMALL(marginal_diff(dist_type(a.array().log(), log_tag()), a), tol);
 }
 
 BOOST_AUTO_TEST_CASE(test_conditional) {
   real_matrix<> a(3, 2);
   a << 0.1, 0.25, 0.4, 0.60, 0.5, 0.15;
-  BOOST_CHECK_SMALL(conditional_diff(dist_type(a), a), tol);
+  BOOST_CHECK_SMALL(conditional_diff(dist_type(a, prob_tag()), a), tol);
   BOOST_CHECK_SMALL(conditional_diff(dist_type(a.array().log(), log_tag()), a), tol);
 }

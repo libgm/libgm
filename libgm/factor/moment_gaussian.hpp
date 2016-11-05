@@ -42,7 +42,7 @@ namespace libgm {
     // ParametricFactor member types
     typedef moment_gaussian_param<T> param_type;
     typedef real_vector<T>           vector_type;
-    typedef std::vector<std::size_t> index_type;
+    typedef uint_vector index_type;
     typedef multivariate_normal_distribution<T> distribution_type;
 
     // LearnableDistributionFactor member types
@@ -195,18 +195,6 @@ namespace libgm {
       }
     }
 
-    //! Sets the arguments for the factor and deallocates the memory.
-    void reset_prototype(const domain_type& head,
-                         const domain_type& tail = domain_type()) {
-      if (head_ != head || tail_ != tail) {
-        head_ = head;
-        tail_ = tail;
-        if (tail.empty()) { args_.clear(); } else { args_ = head + tail; }
-        this->compute_start(head, tail);
-        param_.resize(0, 0);
-      }
-    }
-
     // Accessors and comparison operators
     //==========================================================================
 
@@ -332,13 +320,13 @@ namespace libgm {
     //! Returns the mean for a subset of the arguments
     real_vector<T> mean(const domain_type& args) const {
       index_type index = args.index(this->start_);
-      return subvec(param_.mean, index).ref();
+      return subvec(param_.mean, iref(index));
     }
 
     //! Returns the covariance matrix for a subset of the arguments
     real_matrix<T> covariance(const domain_type& args) const {
       index_type index = args.index(this->start_);
-      return submat(param_.cov, index, index).ref();
+      return submat(param_.cov, iref(index), iref(index));
     }
 
     //! Returns true of the two factors have the same domains and parameters.
@@ -377,18 +365,19 @@ namespace libgm {
     /**
      * Reorders the arguments according to the given head and tail.
      */
-    moment_gaussian
-    reorder(const domain_type& head,
-            const domain_type& tail = domain_type()) const {
+    moment_gaussian reorder(const domain_type& head,
+                            const domain_type& tail = domain_type()) const {
       if (!equivalent(head, head_)) {
         throw std::runtime_error("moment_gaussian::reorder: invalid head");
       }
       if (!equivalent(tail, tail_)) {
         throw std::runtime_error("moment_gaussian::reorder: invalid tail");
       }
-      index_type head_index = head.index(this->start_);
-      index_type tail_index = tail.index(this->start_);
-      return moment_gaussian(head, tail, param_.reorder(head_index, tail_index));
+      moment_gaussian result(head, tail);
+      param_.reorder(iref(head.index(this->start_)),
+                     iref(tail.index(this->start_)),
+                     result.param_);
+      return result;
     }
 
     /**
@@ -445,43 +434,78 @@ namespace libgm {
 
     //! Multiplies this factor by a constant in-place.
     moment_gaussian& operator*=(logarithmic<T> x) {
-      multiplies_assign_op(*this)(param_, x.lv);
+      param_.lm += x.lv;
       return *this;
     }
 
     //! Divides this factor by a constant in-place.
     moment_gaussian& operator/=(logarithmic<T> x) {
-      divides_assign_op(*this)(param_, x.lv);
+      param_.lm -= x.lv;
       return *this;
+    }
+
+    //! Multiplies a moment_gaussian by a constant.
+    friend moment_gaussian operator*(moment_gaussian f, logarithmic<T> x) {
+      f.param_.lm += x.lv;
+      return f;
+    }
+
+    //! Multiplies a moment_gaussian by a constant.
+    friend moment_gaussian operator*(logarithmic<T> x, moment_gaussian f) {
+      f.param_.lm += x.lv;
+      return f;
+    }
+
+    //! Divides a moment_gaussian by a constant.
+    friend moment_gaussian operator/(moment_gaussian f, logarithmic<T> x) {
+      f.param_.lm -= x.lv;
+      return f;
     }
 
     //! Multiplies two moment_gaussian factors.
     friend moment_gaussian
     operator*(const moment_gaussian& f, const moment_gaussian& g) {
-      moment_gaussian result;
-      multiplies_op(f, g, result)(f.param_, g.param_, result.param_);
+      const moment_gaussian& p = f.is_marginal() ? f : g;
+      const moment_gaussian& q = f.is_marginal() ? g : f;
+      if (p.is_marginal() && disjoint(f.head(), g.head())) {
+        domain<Arg> x = q.tail() & p.head();
+        domain<Arg> z = q.tail() - p.head();
+        moment_gaussian result(concat(f.head(), g.head()), z);
+        multiply_head_tail(p.param_, q.param_,
+                           iref(x.index(p.start())), iref(x.index(q.start())),
+                           f.is_marginal(),
+                           result.param_);
+        return result;
+      } else {
+        throw std::invalid_argument(
+          "moment_gaussian::operator*: unsupported argument domains."
+       );
+      }
+    }
+
+    /**
+     * Computes an aggregate (marginal or maximum) of the factor
+     * over a sequence of arguments.
+     * \throws invalid_argument if retained is not a subset of arguments
+     */
+    moment_gaussian aggregate(bool marginal, const domain_type& retain) const {
+      moment_gaussian result(retain & head(), retain & tail());
+      if (result.arity() != retain.size()) {
+        throw std::invalid_argument(
+          "moment_gaussian::marginal: some of the retained arguments "
+          "are not present in the factor"
+        );
+      }
+      if (result.tail_arity() != tail_arity()) {
+        throw std::invalid_argument(
+          "moment_gaussian::marginal cannot eliminate tail arguments"
+        );
+      }
+      param_.collapse(marginal,
+                      iref(result.head().index(this->start_)),
+                      iref(result.tail().index(this->start_)),
+                      result.param_);
       return result;
-    }
-
-    //! Multiplies a moment_gaussian by a constant.
-    friend moment_gaussian
-    operator*(moment_gaussian f, logarithmic<T> x) {
-      multiplies_assign_op(f)(f.param_, x.lv);
-      return f;
-    }
-
-    //! Multiplies a moment_gaussian by a constant.
-    friend moment_gaussian
-    operator*(logarithmic<T> x, moment_gaussian f) {
-      multiplies_assign_op(f)(f.param_, x.lv);
-      return f;
-    }
-
-    //! Divides a moment_gaussian by a constant.
-    friend moment_gaussian
-    operator/(moment_gaussian f, logarithmic<T> x) {
-      divides_assign_op(f)(f.param_, x.lv);
-      return f;
     }
 
     /**
@@ -489,9 +513,7 @@ namespace libgm {
      * \throws invalid_argument if retained is not a subset of arguments
      */
     moment_gaussian marginal(const domain_type& retain) const {
-      moment_gaussian result;
-      marginal(retain, result);
-      return result;
+      return aggregate(true, retain);
     }
 
     /**
@@ -499,34 +521,7 @@ namespace libgm {
      * \throws invalid_argument if retained is not a subset of arguments
      */
     moment_gaussian maximum(const domain_type& retain) const {
-      moment_gaussian result;
-      maximum(retain, result);
-      return result;
-    }
-
-    /**
-     * If this factor represents p(x, y), returns p(x | y).
-     */
-    moment_gaussian conditional(const domain_type& tail) const {
-      moment_gaussian result;
-      conditional_op(*this, tail, result)(param_, result.param_);
-      return result;
-    }
-
-    /**
-     * Computes the marginal of the factor over a sequence of arguments.
-     * \throws invalid_argument if retained is not a subset of arguments
-     */
-    void marginal(const domain_type& retain, moment_gaussian& result) const {
-      marginal_op(*this, retain, result)(param_, result.param_);
-    }
-
-    /**
-     * Computes the maximum of the factor over a sequence of arguments.
-     * \throws invalid_argument if retained is not a ubset of arguments
-     */
-    void maximum(const domain_type& retain, moment_gaussian& result) const {
-      maximum_op(*this, retain, result)(param_, result.param_);
+      return aggregate(false, retain);
     }
 
     //! Returns the normalization constant of the factor.
@@ -558,16 +553,53 @@ namespace libgm {
       return std::isfinite(param_.lm);
     }
 
-    //! Restricts the factor to the given assignment.
-    moment_gaussian restrict(const assignment_type& a) const {
-      moment_gaussian result;
-      restrict(a, result);
+    //! If this factor represents p(x, y), returns p(x | y).
+    moment_gaussian conditional(const domain_type& tail) const {
+      assert(is_marginal());
+      domain<Arg> head = head_ - tail;
+      if (head_.size() != head.size() + tail.size()) {
+        throw std::invalid_argument(
+          "moment_gaussian::conditional: some of the tail arguments "
+          "are note present in the factor"
+        );
+      }
+      typename param_type::conditional_workspace ws;
+      moment_gaussian reordered = reorder(concat(head, tail));
+      moment_gaussian result(head, tail);
+      reordered.param_.conditional(result.head_size(), ws, result.param_);
       return result;
     }
 
     //! Restricts the factor to the given assignment.
-    void restrict(const assignment_type& a, moment_gaussian& result) const {
-      restrict_op(*this, a, result)(param_, result.param_);
+    moment_gaussian restrict(const assignment_type& a) const {
+      if (subset(tail_, a)) {
+        // case 1: partially restricted head, fully restricted tail
+        domain<Arg> y, x; // restricted, retained
+        head_.partition(a, y, x);
+        moment_gaussian result(x);
+        typename param_type::restrict_workspace ws;
+        param_.restrict_both(iref(x.index(this->start_)),
+                             iref(y.index(this->start_)),
+                             a.values(y),
+                             a.values(tail_),
+                             ws,
+                             result.param_);
+        return result;
+      } else if (disjoint(head_, a)) {
+        // case 2: unrestricted head, partially restricted tail
+        domain<Arg> y, x; // restricted, retained
+        tail_.partition(a, y, x);
+        moment_gaussian result(head_, x);
+        param_.restrict_tail(iref(x.index(this->start_)),
+                             iref(y.index(this->start_)),
+                             a.values(y),
+                             result.param_);
+        return result;
+      } else {
+        throw std::invalid_argument(
+          "moment_gaussian::restrict: unsuported operation"
+        );
+      }
     }
 
     // Sampling
@@ -664,8 +696,6 @@ namespace libgm {
 
   }; // class moment_gaussian
 
-  // Input / outputx
-  //============================================================================
 
   /**
    * Prints the moment_gaussian to a stream.
@@ -677,169 +707,6 @@ namespace libgm {
     out << "moment_gaussian(" << f.head() << ", " << f.tail() << ")\n"
         << f.param() << std::endl;
     return out;
-  }
-
-  // Factor operation objects
-  //============================================================================
-
-  /**
-   * Returns an object that can add a constant to the log-multiplier of
-   * a moment Gaussian in-place.
-   */
-  template <typename Arg, typename T>
-  moment_gaussian_join_inplace<T, libgm::plus_assign<> >
-  multiplies_assign_op(moment_gaussian<Arg, T>& h) {
-    return { };
-  }
-
-  /**
-   * Returns an object that can subtract a constant from the log-multiplier
-   * of moment Gaussian in-place.
-   */
-  template <typename Arg, typename T>
-  moment_gaussian_join_inplace<T, libgm::minus_assign<> >
-  divides_assign_op(moment_gaussian<Arg, T>& h) {
-    return { };
-  }
-
-  /**
-   * Returns an object that can compute the parameters corresponding to the
-   * product of two moment Gaussians. Initializes the arguments of the result.
-   */
-  template <typename Arg, typename T>
-  moment_gaussian_multiplies<T>
-  multiplies_op(const moment_gaussian<Arg, T>& f,
-                const moment_gaussian<Arg, T>& g,
-                moment_gaussian<Arg, T>& h) {
-    const moment_gaussian<Arg, T>& p = f.is_marginal() ? f : g;
-    const moment_gaussian<Arg, T>& q = f.is_marginal() ? g : f;
-    if (p.is_marginal() && disjoint(f.head(), g.head())) {
-      domain<Arg> x1 = q.tail() & p.head();
-      domain<Arg> z  = q.tail() - p.head();
-      h.reset_prototype(concat(f.head(), g.head()), z);
-      moment_gaussian_multiplies<T> op;
-      op.p1 = x1.index(p.start());
-      op.q1 = x1.index(q.start());
-      op.qz = z.index(q.start());
-      return op;
-    } else {
-      throw std::invalid_argument(
-        "moment_gaussian::operator*: unsupported argument domains."
-      );
-    }
-  }
-
-  /**
-   * Returns an object that can compute the parameters corresponding to
-   * the marginal of a moment Gaussian over a subset of arguments.
-   * Initializes the arguments of the result.
-   */
-  template <typename Arg, typename T>
-  moment_gaussian_collapse<T>
-  marginal_op(const moment_gaussian<Arg, T>& f,
-              const domain<Arg>& retain,
-              moment_gaussian<Arg, T>& h) {
-    domain<Arg> head = retain & f.head();
-    domain<Arg> tail = retain & f.tail();
-    if (head.size() + tail.size() != retain.size()) {
-      throw std::invalid_argument(
-        "moment_gaussian::marginal: some of the retained arguments "
-        "are not present in the factor"
-      );
-    }
-    if (tail.size() != f.tail_size()) {
-      throw std::invalid_argument(
-        "moment_gaussian::marginal cannot eliminate tail arguments"
-      );
-    }
-    h.reset_prototype(head, tail);
-    return { head.index(f.start()), tail.index(f.start()) };
-  }
-
-  /**
-   * Returns an object that can compute the parameters corresponding to
-   * the maximum of a moment Gaussian over a subset of arguments.
-   * Initializes the arguments of the result.
-   */
-  template <typename Arg, typename T>
-  moment_gaussian_collapse<T>
-  maximum_op(const moment_gaussian<Arg, T>& f,
-             const domain<Arg>& retain,
-             moment_gaussian<Arg, T>& h) {
-    domain<Arg> head = retain & f.head();
-    domain<Arg> tail = retain & f.tail();
-    if (head.size() + tail.size() != retain.size()) {
-      throw std::invalid_argument(
-        "moment_gaussian::maximum: some of the retained arguments "
-        "are not present in the factor"
-      );
-    }
-    if (tail.size() != f.tail_size()) {
-      throw std::invalid_argument(
-        "moment_gaussian::maximum cannot eliminate tail arguments"
-      );
-    }
-    h.reset_prototype(head, tail);
-    return { head.index(f.start()), tail.index(f.start()), true /*keep max*/ };
-  }
-
-  /**
-   * Returns an object that can compute the parameters corresponding to
-   * conditioning a marginal moment Gaussian distribution.
-   * Initializes the arguments of the result.
-   */
-  template <typename Arg, typename T>
-  moment_gaussian_conditional<T>
-  conditional_op(const moment_gaussian<Arg, T>& f,
-                 const domain<Arg>& tail,
-                 moment_gaussian<Arg, T>& h) {
-    assert(f.is_marginal());
-    domain<Arg> head = f.head() - tail;
-    if (f.size() != head.size() + tail.size()) {
-      throw std::invalid_argument(
-        "moment_gaussian::conditional: some of the tail arguments "
-        "are note present in the factor"
-      );
-    }
-    return { head.index(f.start()), tail.index(f.start()) };
-  }
-
-  /**
-   * Returns an object that can compute the parameters corresponding to
-   * restricting a moment Gaussian to the given assignment.
-   * Initializes the arguments of the result.
-   */
-  template <typename Arg, typename T>
-  moment_gaussian_restrict<T>
-  restrict_op(const moment_gaussian<Arg, T>& f,
-              const real_assignment<Arg, T>& a,
-              moment_gaussian<Arg, T>& h) {
-    if (subset(f.tail(), a)) {
-      // case 1: partially restricted head, fully restricted tail
-      domain<Arg> y, x; // restricted, retained
-      f.head().partition(a, y, x);
-      h.reset_prototype(x);
-      moment_gaussian_restrict<T> op(moment_gaussian_restrict<T>::MARGINAL);
-      op.x = x.index(f.start());
-      op.y = y.index(f.start());
-      op.vec_y = a.values(y);
-      op.vec_z = a.values(f.tail());
-      return op;
-    } else if (disjoint(f.head(), a)) {
-      // case 2: unrestricted head, partially restricted tail
-      domain<Arg> y, x; // restricted, retained
-      f.tail().partition(a, y, x);
-      h.reset_prototype(f.head(), x);
-      moment_gaussian_restrict<T> op(moment_gaussian_restrict<T>::CONDITIONAL);
-      op.x = x.index(f.start());
-      op.y = y.index(f.start());
-      op.vec_y = a.values(y);
-      return op;
-    } else {
-      throw std::invalid_argument(
-        "moment_gaussian::restrict: unsuported operation"
-      );
-    }
   }
 
 } // namespace libgm

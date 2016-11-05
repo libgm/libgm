@@ -3,9 +3,10 @@
 
 #include <libgm/factor/experimental/probability_matrix.hpp>
 
-#include <libgm/datastructure/uint_vector_iterator.hpp>
+#include <libgm/iterator/uint_vector_iterator.hpp>
 #include <libgm/factor/experimental/logarithmic_matrix.hpp>
 #include <libgm/factor/experimental/probability_table.hpp>
+#include <libgm/factor/experimental/probability_vector.hpp>
 
 #include "predicates.hpp"
 
@@ -16,11 +17,10 @@ namespace libgm { namespace experimental {
 
 using namespace libgm;
 
-typedef experimental::logarithmic_vector<> lvector;
-typedef experimental::logarithmic_matrix<> lmatrix;
-typedef experimental::probability_vector<> pvector;
-typedef experimental::probability_matrix<> pmatrix;
-typedef experimental::probability_table<> ptable;
+using lmatrix = experimental::logarithmic_matrix<>;
+using pvector = experimental::probability_vector<>;
+using pmatrix = experimental::probability_matrix<>;
+using ptable = experimental::probability_table<>;
 
 BOOST_AUTO_TEST_CASE(test_constructors) {
   pmatrix a(2, 3);
@@ -101,13 +101,13 @@ BOOST_AUTO_TEST_CASE(test_operators) {
   pmatrix f(2, 3, {0, 1, 2, 3, 4, 5});
   pvector g({3, 4});
   pmatrix h;
-  h = f.tail() * g;
+  h = f.head(1) * g;
   BOOST_CHECK(matrix_properties(h, 2, 3));
   for (const uint_vector& v : uint_vectors({2, 3})) {
     BOOST_CHECK_CLOSE(h(v), f(v) * g(v[0]), 1e-8);
   }
 
-  h.tail() *= g;
+  h.head() *= g;
   BOOST_CHECK(matrix_properties(h, 2, 3));
   for (const uint_vector& v : uint_vectors({2, 3})) {
     BOOST_CHECK_CLOSE(h(v), f(v) * g(v[0]) * g(v[0]), 1e-8);
@@ -204,61 +204,63 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
   std::vector<double> hmin = {0, 2, 5};
 
   h = f.maximum(1);
-  h1 = f.tail().max();
+  h1 = f.head().max();
   BOOST_CHECK(vector_properties(h, 3));
   BOOST_CHECK(range_equal(h, hmax));
-  BOOST_CHECK_EQUAL(f.maximum(), 6.0);
-  BOOST_CHECK_EQUAL(f.maximum(&row, &col), 6.0);
+  BOOST_CHECK_EQUAL(f.max(), 6.0);
+  BOOST_CHECK_EQUAL(f.max(row, col), 6.0);
   BOOST_CHECK_EQUAL(row, 1);
   BOOST_CHECK_EQUAL(col, 2);
   BOOST_CHECK_EQUAL(h, h1);
 
   h = f.minimum(1);
-  h1 = f.tail().min();
+  h1 = f.head().min();
   BOOST_CHECK(vector_properties(h, 3));
   BOOST_CHECK(range_equal(h, hmin));
-  BOOST_CHECK_EQUAL(f.minimum(), 0.0);
-  BOOST_CHECK_EQUAL(f.minimum(&row, &col), 0.0);
+  BOOST_CHECK_EQUAL(f.min(), 0.0);
+  BOOST_CHECK_EQUAL(f.min(row, col), 0.0);
   BOOST_CHECK_EQUAL(row, 0);
   BOOST_CHECK_EQUAL(col, 0);
 
   pmatrix pxy(2, 3, {1.1, 0.5, 0.1, 0.2, 0.4, 0.0});
   pvector py({1.6, 0.3, 0.4});
   h = pxy.marginal(1);
-  h1 = pxy.tail().sum();
+  h1 = pxy.head().sum();
   BOOST_CHECK(vector_properties(h, 3));
   for (std::size_t i = 0; i < 3; ++i) {
     BOOST_CHECK_CLOSE(h[i], py[i], 1e-7);
   }
   BOOST_CHECK_EQUAL(h, h1);
-  BOOST_CHECK_CLOSE(pxy.marginal(), 1.1+0.5+0.1+0.2+0.4, 1e-8);
+  BOOST_CHECK_CLOSE(pxy.sum(), 1.1+0.5+0.1+0.2+0.4, 1e-8);
   h.normalize();
-  BOOST_CHECK_CLOSE(h.marginal(), 1.0, 1e-8);
+  BOOST_CHECK_CLOSE(h.sum(), 1.0, 1e-8);
 
   pvector qx({0.4, 0.6});
   pvector qy({0.2, 0.5, 0.3});
 
   pvector rx = (pxy.dim(1) * qy).marginal(0);
-  pvector rx1 = (pxy.head() * qy).sum();
+  pvector rx1 = (pxy.tail() * qy).tail().sum();
   BOOST_CHECK(vector_properties(rx, 2));
   BOOST_CHECK_CLOSE(rx[0], 1.1*0.2+0.1*0.5+0.4*0.3, 1e-8);
   BOOST_CHECK_CLOSE(rx[1], 0.5*0.2+0.2*0.5+0.0*0.3, 1e-8);
   BOOST_CHECK_EQUAL(rx, rx1);
 
   pvector ry = (qx * pxy.dim(0)).marginal(1);
-  pvector ry1 = (qx * pxy.tail()).sum();
+  pvector ry1 = (qx * pxy.head()).head().sum();
   BOOST_CHECK(vector_properties(ry, 3));
   BOOST_CHECK_CLOSE(ry[0], 1.1*0.4 + 0.5*0.6, 1e-8);
   BOOST_CHECK_CLOSE(ry[1], 0.1*0.4 + 0.2*0.6, 1e-8);
   BOOST_CHECK_CLOSE(ry[2], 0.4*0.4 + 0.0*0.6, 1e-8);
   BOOST_CHECK_EQUAL(ry, ry1);
 
+  /* unsupported
   pvector sx = (pxy.dim(0) * qx).marginal(0);
-  pvector sx1 = (pxy.tail() * qx).marginal(0);
+  pvector sx1 = (pxy.head() * qx).marginal(0);
   BOOST_CHECK(vector_properties(sx, 2));
   BOOST_CHECK_CLOSE(sx[0], (1.1+0.1+0.4)*0.4, 1e-8);
   BOOST_CHECK_CLOSE(sx[1], (0.5+0.2+0.0)*0.6, 1e-8);
   BOOST_CHECK_EQUAL(sx, sx1);
+  */
 }
 
 
@@ -267,12 +269,12 @@ BOOST_AUTO_TEST_CASE(test_restrict) {
   pvector h;
 
   std::vector<double> ft = {5, 6};
-  h = f.tail(2);
+  h = f.restrict_tail(2);
   BOOST_CHECK(vector_properties(h, 2));
   BOOST_CHECK(range_equal(h, ft));
 
   std::vector<double> fh = {0, 2, 5};
-  h = f.head(0);
+  h = f.restrict_head(0);
   BOOST_CHECK(vector_properties(h, 3));
   BOOST_CHECK(range_equal(h, fh));
 

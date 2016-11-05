@@ -1,5 +1,7 @@
 #include <libgm/factor/experimental/probability_matrix.hpp>
 #include <libgm/factor/experimental/logarithmic_matrix.hpp>
+#include <libgm/factor/experimental/probability_vector.hpp>
+#include <libgm/factor/experimental/logarithmic_vector.hpp>
 #include <libgm/factor/traits.hpp>
 #include <libgm/functional/assign.hpp>
 #include <libgm/functional/member.hpp>
@@ -30,7 +32,7 @@ const char* version(logd) {
 template <typename Matrix, std::size_t N, typename Op>
 void time_transform(Op op, std::size_t num_reps) {
   boost::timer t;
-  std::cout << version(result_t<Matrix>()) << std::flush;
+  std::cout << version(typename Matrix::result_type()) << std::flush;
   for (std::size_t n : num_values) {
     auto f = tuple_rep<N>(Matrix(n, n));
     Matrix g;
@@ -46,7 +48,7 @@ void time_transform(Op op, std::size_t num_reps) {
 template <typename Matrix, typename JoinOp>
 void time_matmat_transpose(JoinOp join_op, std::size_t num_reps) {
   boost::timer t;
-  std::cout << version(result_t<Matrix>()) << std::flush;
+  std::cout << version(typename Matrix::result_type()) << std::flush;
   for (std::size_t n : num_values) {
     Matrix f(n, n);
     Matrix g(n, n);
@@ -64,7 +66,7 @@ void time_matmat_transpose(JoinOp join_op, std::size_t num_reps) {
 template <typename Matrix, typename Vector, typename JoinOp>
 void time_matvec_join(JoinOp join_op, std::size_t d, std::size_t num_reps) {
   boost::timer t;
-  std::cout << version(result_t<Matrix>()) << std::flush;
+  std::cout << version(typename Matrix::result_type()) << std::flush;
   for (std::size_t n : num_values) {
     Matrix f(n, n);
     Vector g(n);
@@ -81,7 +83,7 @@ void time_matvec_join(JoinOp join_op, std::size_t d, std::size_t num_reps) {
 template <typename Matrix, typename Vector, typename JoinOp>
 void time_vecmat_join(JoinOp join_op, std::size_t d, std::size_t num_reps) {
   boost::timer t;
-  std::cout << version(result_t<Matrix>()) << std::flush;
+  std::cout << version(typename Matrix::result_type()) << std::flush;
   for (std::size_t n : num_values) {
     Vector f(n);
     Matrix g(n, n);
@@ -98,7 +100,7 @@ void time_vecmat_join(JoinOp join_op, std::size_t d, std::size_t num_reps) {
 template <typename Matrix, typename Vector, typename JoinOp>
 void time_matvec_outer_join(JoinOp join_op, std::size_t num_reps) {
   boost::timer t;
-  std::cout << version(result_t<Matrix>()) << std::flush;
+  std::cout << version(typename Matrix::result_type()) << std::flush;
   for (std::size_t n : num_values) {
     Matrix f(n, n);
     Vector gx(n);
@@ -116,7 +118,7 @@ void time_matvec_outer_join(JoinOp join_op, std::size_t num_reps) {
 template <typename Matrix, typename Vector, typename AggOp>
 void time_aggregate(AggOp agg_op, std::size_t retain, std::size_t num_reps) {
   boost::timer t;
-  std::cout << version(result_t<Matrix>()) << std::flush;
+  std::cout << version(typename Matrix::result_type()) << std::flush;
   for (std::size_t n : num_values) {
     Matrix f(n, n);
     Vector g;
@@ -132,14 +134,14 @@ void time_aggregate(AggOp agg_op, std::size_t retain, std::size_t num_reps) {
 template <typename Matrix, typename Vector, typename Op>
 auto time_find(Op op, std::size_t num_reps) {
   boost::timer t;
-  std::cout << version(result_t<Matrix>()) << std::flush;
-  result_t<Matrix> value;
+  std::cout << version(typename Matrix::result_type()) << std::flush;
+  typename Matrix::result_type value;
   for (std::size_t n : num_values) {
     Matrix f(n, n);
     std::size_t row, col;
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
-      value *= op(f, &row, &col);
+      value *= op(f, row, col);
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }
@@ -151,7 +153,7 @@ template <typename Matrix, typename Vector, typename JoinOp, typename AggOp>
 void time_join_aggregate(JoinOp join_op, AggOp agg_op, std::size_t d,
                          std::size_t num_reps) {
   boost::timer t;
-  std::cout << version(result_t<Matrix>()) << std::flush;
+  std::cout << version(typename Matrix::result_type()) << std::flush;
   for (std::size_t n : num_values) {
     Matrix f(n, n);
     Vector g(n);
@@ -168,7 +170,7 @@ void time_join_aggregate(JoinOp join_op, AggOp agg_op, std::size_t d,
 template <typename Matrix, typename Vector>
 void time_restrict(std::size_t d, std::size_t num_reps) {
   boost::timer t;
-  std::cout << version(result_t<Matrix>()) << std::flush;
+  std::cout << version(typename Matrix::result_type()) << std::flush;
   for (std::size_t n : num_values) {
     Matrix f(n, n);
     Vector g;
@@ -185,7 +187,7 @@ template <typename Matrix, typename Vector, typename UpdateOp>
 void time_restrict_update(std::size_t d, UpdateOp update_op,
                           std::size_t num_reps) {
   boost::timer t;
-  std::cout << version(result_t<Matrix>()) << std::flush;
+  std::cout << version(typename Matrix::result_type()) << std::flush;
   for (std::size_t n : num_values) {
     Matrix f(n, n);
     Vector g(n);
@@ -288,9 +290,9 @@ int main(int argc, char** argv) {
   time_aggregate<pmatrix, pvector>(member_marginal(), 1, num_reps);
   time_aggregate<lmatrix, lvector>(member_marginal(), 1, num_reps / 10);
 
-  std::cout << std::endl << "matrix.maximum(&row, &col)" << std::endl;
-  time_find<pmatrix, pvector>(member_maximum(), num_reps);
-  time_find<lmatrix, lvector>(member_maximum(), num_reps);
+  std::cout << std::endl << "matrix.maximum(row, col)" << std::endl;
+  time_find<pmatrix, pvector>(member_max(), num_reps);
+  time_find<lmatrix, lvector>(member_max(), num_reps);
 
   std::cout << std::endl << "(matrix * vector).marginal(0)" << std::endl;
   time_join_aggregate<pmatrix, pvector>(mult, member_marginal(), 0, num_reps);

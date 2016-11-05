@@ -1,8 +1,9 @@
 #ifndef LIBGM_SUBMATRIX_HPP
 #define LIBGM_SUBMATRIX_HPP
 
-#include <libgm/datastructure/uint_vector.hpp>
+#include <libgm/enable_if.hpp>
 #include <libgm/functional/assign.hpp>
+#include <libgm/range/index_range.hpp>
 
 #include <type_traits>
 
@@ -11,289 +12,215 @@
 namespace libgm {
 
   /**
-   * A class that represents a view of an Eigen matrix over a subsequence
-   * of rows and columns. The selected rows and columns are specified as a
-   * std::vector<std::size_t>. The indices must not be changed externally after
-   * this class is constructed and before it is destroyed, and the lifetime
-   * of both the referenced matrix and the row/column sequences must extend
-   * past the lifetime of this object. The class supports standard mutating
-   * operations and can participate in Eigen expressions via the ref() call.
+   * A class that represents a view of an Eigen matrix over a subset
+   * of rows and columns, specified as either a span or an uint_vector.
+   * All the operations of this class assume no aliasing.
+   * For now, we only support matrices in column-major order.
    *
-   * \tparam Matrix The underlying container. Can be const for a const view,
+   * \tparam Matrix
+   *         The underlying container. Can be const for an immutable view,
    *         but must be in a column major format.
+   * \tparam RowIt
+   *         An iterator over the rows.
+   * \tparam ColIt
+   *         An iterator over the columns.
    */
-  template <typename Matrix>
-  class submatrix {
-  public:
-    typedef typename std::remove_const<Matrix>::type plain_type;
-    typedef typename Matrix::Scalar scalar_type;
+  template <typename Matrix, typename RowIt, typename ColIt>
+  class submatrix
+    : public Eigen::ReturnByValue<submatrix<Matrix, RowIt, ColIt> > {
 
     const static bool is_mutable = !std::is_const<Matrix>::value;
 
-    //! Constructs a submatrix with the given row and column indices.
-    submatrix(Matrix& mat,
-              const std::vector<std::size_t>& rows,
-              const std::vector<std::size_t>& cols)
-      : mat_(mat), rows_(rows), cols_(cols) {
-      row_contiguous_ = is_contiguous(rows);
-      col_contiguous_ = is_contiguous(cols);
-      col_all_ = false;
-    }
+  public:
+    using plain_type = std::remove_const_t<Matrix>;
+    using scalar_type = typename Matrix::Scalar;
 
-    //! Constructs a submatrix with the given row indices and all columns.
-    submatrix(Matrix& mat,
-              const std::vector<std::size_t>& rows)
-      : mat_(mat), rows_(rows), cols_(rows) {
-      row_contiguous_ = is_contiguous(rows);
-      col_contiguous_ = true;
-      col_all_ = true;
+    //! Constructs a submatrix with the given row and column indices.
+    submatrix(Matrix& mat, index_range<RowIt> rows, index_range<ColIt> cols)
+      : mat_(mat), rows_(rows), cols_(cols) {
+      assert(rows.stop() <= std::size_t(mat_.rows()) &&
+             cols.stop() <= std::size_t(mat_.cols()));
     }
 
     //! Returns the number of rows of this view.
-    std::size_t rows() const {
+    std::ptrdiff_t rows() const {
       return rows_.size();
     }
 
     //! Returns the number of columns of this view.
-    std::size_t cols() const {
-      return col_all_ ? mat_.cols() : cols_.size();
-    }
-
-    //! Returns true if row subsequence of the matrix is contiguous.
-    bool row_contiguous() const {
-      return row_contiguous_;
-    }
-
-    //! Returns true if column subsequence of the matrix is contiguous.
-    bool col_contiguous() const {
-      return col_contiguous_;
-    }
-
-    //! Returns true if the matrix represents a block.
-    bool contiguous() const {
-      return row_contiguous_ && col_contiguous_;
+    std::ptrdiff_t cols() const {
+      return cols_.size();
     }
 
     //! Returns the pointer to the beginning of the given column.
-    auto colptr(std::size_t i) const {
-      return mat_.data() + mat_.rows() * (col_all_ ? i : cols_[i]);
+    const scalar_type* colptr(std::size_t i) const {
+      return mat_.data() + mat_.rows() * cols_[i];
     }
 
-    //! Returns a reference represented by this submatrix.
-    Eigen::Ref<Matrix> ref() {
-      if (contiguous()) {
-        return block();
-      } else {
-        if (plain_.rows() == 0 && plain_.cols() == 0) { eval_to(plain_); }
-        return plain_;
-      }
+    //! Returns a single coefficient in the submatrix.
+    scalar_type coeff(std::ptrdiff_t row, std::ptrdiff_t col) const {
+      return mat_.coeff(rows_[row], cols_[col]);
+    }
+
+    //! Returns the pointer ot the beginning of the given column.
+    LIBGM_ENABLE_IF(is_mutable)
+    scalar_type* colptr(std::size_t i) {
+      return mat_.data() + mat_.rows() * cols_[i];
     }
 
     //! Extracts a plain object represented by this submatrix.
-    void eval_to(plain_type& result) const {
+    template <typename Dest>
+    void evalTo(Dest& result) const {
       result.resize(rows(), cols());
-      update_plain(result, assign<>());
+      update_to(result, assign<>());
     }
 
-    //! Adds a submatrix to a dense matrix element-wise.
-    friend plain_type& operator+=(plain_type& result, const submatrix& a) {
-      return a.update_plain(result, plus_assign<>());
+    //! Adds a submatrix to a matrix-like object element-wise.
+    template <typename Dest>
+    void addTo(Dest& result) const {
+      update_to(result, plus_assign<>());
     }
 
     //! Subtracts a submatrix from a dense matrix element-wise.
-    friend plain_type& operator-=(plain_type& result, const submatrix& a) {
-      return a.update_plain(result, minus_assign<>());
+    template <typename Dest>
+    void subTo(Dest& result) const {
+      update_to(result, minus_assign<>());
     }
 
     //! Assigns the elements of a matrix to this submatrix.
-    template <bool B = is_mutable, typename = std::enable_if_t<B> >
-    submatrix& operator=(const Matrix& a) {
+    LIBGM_ENABLE_IF_N(is_mutable, typename Derived)
+    submatrix& operator=(const Eigen::MatrixBase<Derived>& a) {
       return update(a, assign<>());
     }
 
     //! Adds a matrix to this submatrix element-wise.
-    template <bool B = is_mutable, typename = std::enable_if_t<B> >
-    submatrix& operator+=(const Matrix& a) {
+    LIBGM_ENABLE_IF_N(is_mutable, typename Derived)
+    submatrix& operator+=(const Eigen::MatrixBase<Derived>& a) {
       return update(a, plus_assign<>());
     }
 
     //! Subtracts a matrix from this submatrix element-wise.
-    template <bool B = is_mutable, typename = std::enable_if_t<B> >
-    submatrix& operator-=(const Matrix& a) {
-      return update(a, minus_assign<>());
-    }
-
-    //! Assigns the elements of another submatrix to this submatrix.
-    template <bool B = is_mutable, typename = std::enable_if_t<B> >
-    submatrix& operator=(const submatrix<const Matrix>& a) {
-      return update(a, assign<>());
-    }
-
-    //! Adds another submatrix to this submatrix element-wise.
-    template <bool B = is_mutable, typename = std::enable_if_t<B> >
-    submatrix& operator+=(const submatrix<const Matrix>& a) {
-      return update(a, plus_assign<>());
-    }
-
-    //! Subtracts another submatrix from this submatrix element-wise.
-    template <bool B = is_mutable, typename = std::enable_if_t<B> >
-    submatrix& operator-=(const submatrix<const Matrix>& a) {
+    LIBGM_ENABLE_IF_N(is_mutable, typename Derived)
+    submatrix& operator-=(const Eigen::MatrixBase<Derived>& a) {
       return update(a, minus_assign<>());
     }
 
   private:
     /**
-     * Returns the block equivalent to this submatrix.
-     * Both row and column subsequences must be contiguous.
+     * Updates a matrix-like object by applying a mutating operation to the
+     * coefficients of the result and the coefficients of this submatrix.
      */
-    Eigen::Block<Matrix> block() const {
-      assert(contiguous());
-      return mat_.block(rows_.empty() ? 0 : rows_[0],
-                        cols_.empty() || col_all_ ? 0 : cols_[0],
-                        rows(),
-                        cols());
-    }
-
-    /**
-     * Updates a dense matrix result by applying a mutating operation to the
-     * coefficients of the matrix result and the coefficients of submatrix a.
-     * Assumes no aliasing.
-     */
-    template <typename Op>
-    plain_type& update_plain(plain_type& result, Op op) const {
-      const submatrix& a = *this;
-      assert(result.rows() == a.rows());
-      assert(result.cols() == a.cols());
-
-      if (a.contiguous()) {
-        op(result, a.block());
-      } else if (a.row_contiguous()) {
-        scalar_type* dest = result.data();
-        for (std::ptrdiff_t j = 0; j < result.cols(); ++j) {
-          const scalar_type* src = a.colptr(j) + a.rows_[0];
-          for (std::ptrdiff_t i = 0; i < result.rows(); ++i) {
-            op(*dest++, *src++);
-          }
+    template <typename Dest, typename Op>
+    void update_to(Dest& result, Op op) const {
+      assert(result.rows() == rows_.size());
+      assert(result.cols() == cols_.size());
+      scalar_type* data = result.data();
+      for (std::size_t j = 0; j < cols_.size(); ++j) {
+        const scalar_type* src = colptr(j);
+        scalar_type* dest = data;
+        for (std::size_t i = 0; i < rows_.size(); ++i) {
+          op(*dest, src[rows_[i]]);
+          dest += result.rowStride();
         }
-      } else {
-        scalar_type* dest = result.data();
-        for (std::ptrdiff_t j = 0; j < result.cols(); ++j) {
-          const scalar_type* src = a.colptr(j);
-          for (std::ptrdiff_t i = 0; i < result.rows(); ++i) {
-            op(*dest++, src[a.rows_[i]]);
-          }
-        }
+        data += result.colStride();
       }
-      return result;
     }
 
     /**
      * Updates this submatrix by applying the mutation operation to the
-     * coefficients of result and the coefficients of a dense matrix a.
-     * Assumes no aliasing.
+     * coefficients of this submatrix and the coefficients of a dense matrix a.
      */
-    template <typename Op>
-    submatrix& update(const plain_type& a, Op op) {
-      submatrix& result = *this;
-      assert(result.rows() == a.rows());
-      assert(result.cols() == a.cols());
-      if (result.contiguous()) {
-        op(result.block(), a);
-      } else if (result.row_contiguous()) {
-        const scalar_type* src = a.data();
-        for (std::ptrdiff_t j = 0; j < a.cols(); ++j) {
-          scalar_type* dest = result.colptr(j) + result.rows_[0];
-          for (std::ptrdiff_t i = 0; i < a.rows(); ++i) {
-            op(*dest++, *src++);
-          }
-        }
-      } else {
-        const scalar_type* src = a.data();
-        for (std::ptrdiff_t j = 0; j < a.cols(); ++j) {
-          scalar_type* dest = result.colptr(j);
-          for (std::ptrdiff_t i = 0; i < a.rows(); ++i) {
-            op(dest[result.rows_[i]], *src++);
-          }
+    template <typename Derived, typename Op>
+    submatrix& update(const Eigen::MatrixBase<Derived>& a, Op op) {
+      assert(a.rows() == rows_.size());
+      assert(a.cols() == cols_.size());
+      for (std::size_t j = 0; j < cols_.size(); ++j) {
+        scalar_type* dest = colptr(j);
+        for (std::size_t i = 0; i < rows_.size(); ++i) {
+          // a decent compiler will optimze the coefficient access
+          op(dest[rows_[i]], a.coeff(i, j));
         }
       }
-      return result;
-    }
-
-    /**
-     * Updates this submatrix by applying the mutation operation to the
-     * coefficients of result and the coefficients of another submatrix a.
-     * Assumes no aliasing.
-     */
-    template <typename Op>
-    submatrix& update(const submatrix<const Matrix>& a, Op op) {
-      submatrix& result = *this;
-      assert(result.rows() == a.rows());
-      assert(result.cols() == a.cols());
-      if (result.contiguous() && a.contiguous()) {
-        op(result.block(), a.block());
-      } else if (result.row_contiguous() && a.row_contiguous()) {
-        for (std::size_t j = 0; j < a.cols(); ++j) {
-          const scalar_type* src = a.colptr(j) + a.rows_[0];
-          scalar_type* dest = result.colptr(j) + result.rows_[0];
-          for (std::size_t i = 0; i < a.rows(); ++i) {
-            op(*dest++, *src++);
-          }
-        }
-      } else {
-        for (std::size_t j = 0; j < a.cols(); ++j) {
-          const scalar_type* src = a.colptr(j);
-          scalar_type* dest = result.colptr(j);
-          for (std::size_t i = 0; i < a.rows(); ++i) {
-            op(dest[result.rows_[i]], src[a.rows_[i]]);
-          }
-        }
-      }
-      return result;
+      return *this;
     }
 
     //! The underlying matrix.
     Matrix& mat_;
 
     //! The selected rows.
-    const std::vector<std::size_t>& rows_;
+    index_range<RowIt> rows_;
 
     //! The selected columns.
-    const std::vector<std::size_t>& cols_;
+    index_range<ColIt> cols_;
 
-    //! A flag indicating whether the row subsequence is contiguous.
-    bool row_contiguous_;
-
-    //! A flag indicating whether the column subsequence is contiguous.
-    bool col_contiguous_;
-
-    //! A flag indicating whether we use all columns.
-    bool col_all_;
-
-    //! The evaluated matrix used by ref().
-    plain_type plain_;
-
-    template <typename Mat> friend class submatrix;
   };
 
   /**
-   * A convenience function to create a submatrix of an Eigen matrix.
+   * Creates a view of a matrix for generic row and column ranges.
+   * \relates submatrix
    */
-  template <typename Matrix>
-  submatrix<Matrix> submat(Matrix& a,
-                           const std::vector<std::size_t>& rows,
-                           const std::vector<std::size_t>& cols) {
-    return submatrix<Matrix>(a, rows, cols);
+  template <typename Matrix, typename RowIt, typename ColIt>
+  inline submatrix<Matrix, RowIt, ColIt>
+  submat(Matrix& a, index_range<RowIt> rows, index_range<ColIt> cols) {
+    return { a, rows, cols };
   }
 
   /**
-   * A convenience function to create a submatrix of an Eigen matrix,
-   * containing all the columns.
+   * Creates a view of a matrix over a range of rows and all columns.
+   * \relates submatrix
+   */
+  template <typename Matrix, typename RowIt>
+  inline submatrix<Matrix, RowIt, counting_iterator>
+  subrows(Matrix& a, index_range<RowIt> rows) {
+    return { a, rows, span(0, a.cols()) };
+  }
+
+  /**
+   * Creates a view of a matrix over a range of columns and all rows.
+   * \relates submatrix
+   */
+  template <typename Matrix, typename ColIt>
+  inline submatrix<Matrix, counting_iterator, ColIt>
+  subcols(Matrix& a, index_range<ColIt> cols) {
+    return { a, span(0, a.rows()), cols };
+  }
+
+  /**
+   * Creates a view of a matrix for contiguous row and column ranges.
+   * \relates submatrix
    */
   template <typename Matrix>
-  submatrix<Matrix> rows(Matrix& a, const std::vector<std::size_t>& rows) {
-    return submatrix<Matrix>(a, rows);
+  inline Eigen::Block<Matrix> submat(Matrix& a, span rows, span cols) {
+    return a.block(rows.start(), cols.start(), rows.size(), cols.size());
+  }
+
+  /**
+   * Creates a view of a matrix over a contiguous range of rows and all columns.
+   * \relates submatrix
+   */
+  template <typename Matrix>
+  inline Eigen::Block<Matrix> subrows(Matrix& a, span rows) {
+    return a.block(rows.start(), 0, rows.size(), a.cols());
+  }
+  /**
+   * Creates a view of a matrix over a contiguous range of columns and all rows.
+   * \relates submatrix
+   */
+  template <typename Matrix>
+  inline Eigen::Block<Matrix> subcols(Matrix& a, span cols) {
+    return a.block(0, cols.start(), a.rows(), cols.size());
   }
 
 } // namespace libgm
+
+
+namespace Eigen { namespace internal {
+
+  template <typename Matrix, typename RowIt, typename ColIt>
+  struct traits<libgm::submatrix<Matrix, RowIt, ColIt> > {
+    typedef std::remove_const_t<Matrix> ReturnType;
+  };
+
+} } // namespace Eigen::internal
 
 #endif

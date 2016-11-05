@@ -140,7 +140,7 @@ namespace libgm {
       const auto& s = dataset().sample(r);
 
       value_type result;
-      elements(s.first, dom.index(start_), t).eval_to(result.first);
+      elements(s.first, dom.index(start_), t).evalTo(result.first);
       result.second = s.second;
       return result;
     }
@@ -254,7 +254,7 @@ namespace libgm {
           time_ = 0;
         }
         if (it_) {
-          elements(it_->first, index_, time_).eval_to(value_.first);
+          elements(it_->first, index_, time_).evalTo(value_.first);
           value_.second = it_->second;
         }
       }
@@ -357,7 +357,7 @@ namespace libgm {
     std::size_t length_;               //!< the length of the window
     domain_type args_;                 //!< the arguments of the view
     std::unordered_map<argument_type, std::size_t, hasher> start_; // arg start
-    std::vector<std::size_t> cumsize_; //!< cumulative sums of datapoint counts
+    uint_vector cumsize_; //!< cumulative sums of datapoint counts
 
   }; // class sliding_view
 

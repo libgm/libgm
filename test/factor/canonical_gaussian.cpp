@@ -271,9 +271,9 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
 
   // test plain marginal
   h = f.marginal({z, x});
-  std::vector<std::size_t> ind = {2, 0};
-  mat_type lamzx = submat(lambda.inverse().eval(), ind, ind).ref().inverse();
-  vec_type etazx = lamzx * subvec((lambda.inverse() * eta).eval(), ind).ref();
+  ivec ind = {2, 0};
+  mat_type lamzx = submat(lambda.inverse().eval(), ind, ind).inverse();
+  vec_type etazx = lamzx * subvec((lambda.inverse() * eta).eval(), ind);
   double czx = 2.0 + 0.5*(std::log(pi<double>()) + 0.125);
   BOOST_CHECK(cg_properties(h, {z, x}));
   BOOST_CHECK(cg_params(h, etazx, lamzx, czx));
@@ -316,7 +316,7 @@ BOOST_AUTO_TEST_CASE(test_restrict) {
   // test restrict-multiply
   param_type p = h.param();
   h = cgaussian({y}, vec1(1), mat11(1.5), 2.0);
-  f.restrict_multiply(a, h);
+  h *= f.restrict(a);
   BOOST_CHECK(cg_properties(h, {y}));
   BOOST_CHECK(cg_params(h, p.eta + vec1(1), p.lambda + mat11(1.5), p.lm + 2.0));
 }

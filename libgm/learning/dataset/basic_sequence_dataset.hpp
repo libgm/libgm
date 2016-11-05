@@ -33,7 +33,7 @@ namespace libgm {
     typedef domain<sequence<Arg> >   domain_type;
     typedef Vector                   vector_type;
     typedef Weight                   weight_type;
-    typedef std::vector<std::size_t> index_type;
+    typedef uint_vector index_type;
     class weight_iterator;
 
     // Range concept types
@@ -130,7 +130,7 @@ namespace libgm {
     //! Returns a single datapoint in the dataset over a subset of arguments.
     value_type sample(std::size_t row, const domain_type& dom) const {
       value_type value;
-      rows(samples_[row].first, dom.index(col_)).eval_to(value.first);
+      subrows(samples_[row].first, iref(dom.index(col_))).evalTo(value.first);
       value.second = samples_[row].second;
       return value;
     }
@@ -307,14 +307,14 @@ namespace libgm {
     private:
       void load() {
         if (cur_ != end_ && !direct_) {
-          rows(cur_->first, index_).eval_to(value_.first);
+          subrows(cur_->first, iref(index_)).evalTo(value_.first);
           value_.second = cur_->second;
         }
       }
 
       void save() {
         if (cur_ != end_ && !direct_) {
-          rows(cur_->first, index_) = value_.first;
+          subrows(cur_->first, iref(index_)) = value_.first;
           cur_->second = value_.second;
         }
       }
@@ -446,7 +446,7 @@ namespace libgm {
     private:
       void load() {
         if (cur_ != end_ && !direct_) {
-          rows(cur_->first, index_).eval_to(value_.first);
+          subrows(cur_->first, iref(index_)).evalTo(value_.first);
           value_.second = cur_->second;
         }
       }

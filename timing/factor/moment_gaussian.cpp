@@ -13,15 +13,7 @@ namespace po = boost::program_options;
 
 using namespace libgm;
 
-const char* version(var) {
-  return "var";
-}
-
-const char* version(vec) {
-  return "vec";
-}
-
-template <typename Arg, typename Op>
+template <typename Op>
 void time_transform(Op op,
                     const uint_vector& num_dims,
                     std::size_t num_reps) {

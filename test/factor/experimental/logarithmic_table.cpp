@@ -3,10 +3,10 @@
 
 #include <libgm/factor/experimental/logarithmic_table.hpp>
 
-#include <libgm/datastructure/uint_vector_iterator.hpp>
+#include <libgm/iterator/uint_vector_iterator.hpp>
 #include <libgm/factor/experimental/probability_table.hpp>
-//#include <libgm/factor/experimental/logarithmic_vector.hpp>
-//#include <libgm/factor/experimental/logarithmic_matrix.hpp>
+#include <libgm/factor/experimental/logarithmic_vector.hpp>
+#include <libgm/factor/experimental/logarithmic_matrix.hpp>
 
 #include "predicates.hpp"
 
@@ -19,9 +19,8 @@ using namespace libgm;
 
 BOOST_TEST_DONT_PRINT_LOG_VALUE(uint_vector)
 
-typedef experimental::logarithmic_table<> ltable;
-typedef experimental::probability_table<> ptable;
-
+using ltable = experimental::logarithmic_table<>;
+using ptable = experimental::probability_table<>;
 
 BOOST_AUTO_TEST_CASE(test_constructors) {
   ltable a;
@@ -107,7 +106,7 @@ BOOST_AUTO_TEST_CASE(test_operators) {
     BOOST_CHECK_CLOSE(h.log(v), f.log({v[0],v[1]}) + 2*g.log({v[1],v[2]}), 1e-8);
   }
 
-  h = f.dim(1) / g.dim(0);
+  h = f.tail(1) / g.head(1);
   BOOST_CHECK(table_properties(h, {2, 2, 3}));
   for (const uint_vector& v : uint_vectors({2, 2, 3})) {
     BOOST_CHECK_CLOSE(h.log(v), f.log({v[0],v[1]}) - g.log({v[1],v[2]}), 1e-8);
@@ -190,19 +189,19 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
   std::vector<double> hmin = {0, 2, 5};
   std::vector<double> reordered = {0, 2, 5, 1, 3, 6};
 
-  h = f.maximum({1});
+  h = f.maximum(1);
   BOOST_CHECK(table_properties(h, {3}));
   BOOST_CHECK(range_equal(h, hmax));
-  BOOST_CHECK_EQUAL(f.maximum().lv, 6.0);
-  BOOST_CHECK_EQUAL(f.maximum(&vec).lv, 6.0);
+  BOOST_CHECK_EQUAL(f.max().lv, 6.0);
+  BOOST_CHECK_EQUAL(f.max(vec).lv, 6.0);
   BOOST_CHECK_EQUAL(vec[0], 1);
   BOOST_CHECK_EQUAL(vec[1], 2);
 
-  h = f.minimum({1});
+  h = f.minimum(1);
   BOOST_CHECK(table_properties(h, {3}));
   BOOST_CHECK(range_equal(h, hmin));
-  BOOST_CHECK_EQUAL(f.minimum().lv, 0.0);
-  BOOST_CHECK_EQUAL(f.minimum(&vec).lv, 0.0);
+  BOOST_CHECK_EQUAL(f.min().lv, 0.0);
+  BOOST_CHECK_EQUAL(f.min(vec).lv, 0.0);
   BOOST_CHECK_EQUAL(vec[0], 0);
   BOOST_CHECK_EQUAL(vec[1], 0);
 
@@ -210,14 +209,15 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
   double py[] = {1.6, 0.3, 0.4};
   ltable g({2, 3});
   std::transform(pxy, pxy + 6, g.begin(), logarithm<double>());
-  h = g.marginal({1});
+  h = g.marginal(1);
   BOOST_CHECK(table_properties(h, {3}));
   for (std::size_t i = 0; i < 3; ++i) {
     BOOST_CHECK_CLOSE(std::exp(h[i]), py[i], 1e-7);
   }
-  BOOST_CHECK_CLOSE(double(g.marginal()), std::accumulate(pxy, pxy + 6, 0.0), 1e-8);
+  BOOST_CHECK_EQUAL(h, g.marginal(uint_vector({1})));
+  BOOST_CHECK_CLOSE(double(g.sum()), std::accumulate(pxy, pxy + 6, 0.0), 1e-8);
   h.normalize();
-  BOOST_CHECK_CLOSE(double(h.marginal()), 1.0, 1e-8);
+  BOOST_CHECK_CLOSE(double(h.sum()), 1.0, 1e-8);
 }
 
 
@@ -226,12 +226,12 @@ BOOST_AUTO_TEST_CASE(test_restrict) {
   ltable h;
 
   std::vector<double> fall2 = {5, 6};
-  h = f.tail({2});
+  h = f.restrict_tail({2});
   BOOST_CHECK(table_properties(h, {2}));
   BOOST_CHECK(range_equal(h, fall2));
 
   std::vector<double> f1all = {1, 3, 6};
-  h = f.head({1});
+  h = f.restrict_head({1});
   BOOST_CHECK(table_properties(h, {3}));
   BOOST_CHECK(range_equal(h, f1all));
 
@@ -261,13 +261,13 @@ BOOST_AUTO_TEST_CASE(test_sample) {
   }
 
   // test conditional sample
-  ltable g = f.dim(0) / f.marginal(0); // f.conditional(0);
-  auto gd = g.distribution(1);
+  ltable g = f.conditional(1);
+  auto gd = g.distribution();
   for (std::size_t xv = 0; xv < 2; ++xv) {
     uint_vector tail = {xv};
     for (std::size_t i = 0; i < 20; ++i) {
       uint_vector sample = gd(rng1, tail);
-      BOOST_CHECK_EQUAL(g.head(tail).sample(rng2), sample);
+      BOOST_CHECK_EQUAL(g.restrict_tail(tail).sample(rng2), sample);
     }
   }
 }
@@ -293,9 +293,9 @@ BOOST_AUTO_TEST_CASE(test_entropy) {
   }
   double jspq = (kl_divergence(p, m) + kl_divergence(q, m)) / 2;
   BOOST_CHECK_CLOSE(p.entropy(), hpxy, 1e-6);
-  BOOST_CHECK_CLOSE(p.entropy({0}), hpx, 1e-6);
+  BOOST_CHECK_CLOSE(p.entropy(uint_vector{0}), hpx, 1e-6);
   BOOST_CHECK_CLOSE(p.entropy(1), hpy, 1e-6);
-  BOOST_CHECK_CLOSE(p.mutual_information({0}, {1}), klpq, 1e-6);
+  BOOST_CHECK_CLOSE(p.mutual_information(0, 1), klpq, 1e-6);
   BOOST_CHECK_CLOSE(cross_entropy(p, q), hpq, 1e-6);
   BOOST_CHECK_CLOSE(kl_divergence(p, q), klpq, 1e-6);
   BOOST_CHECK_CLOSE(js_divergence(p, q), jspq, 1e-6);

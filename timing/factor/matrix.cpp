@@ -31,7 +31,7 @@ void time_transform(Op op,
                     std::size_t num_reps) {
   universe u;
   boost::timer t;
-  std::cout << version(result_t<Matrix>()) << std::flush;
+  std::cout << version(typename Matrix::result_type()) << std::flush;
   for (std::size_t n : num_values) {
     var x = var::discrete(u, "x", n);
     var y = var::discrete(u, "y", n);
@@ -53,7 +53,7 @@ void time_matmat_join(JoinOp join_op,
                       std::size_t num_reps) {
   universe u;
   boost::timer t;
-  std::cout << version(result_t<Matrix>()) << std::flush;
+  std::cout << version(typename Matrix::result_type()) << std::flush;
   for (std::size_t n : num_values) {
     var x = var::discrete(u, "x", n);
     var y = var::discrete(u, "y", n);
@@ -77,7 +77,7 @@ void time_matvec_join(JoinOp join_op,
                       std::size_t num_reps) {
   universe u;
   boost::timer t;
-  std::cout << version(result_t<Matrix>()) << std::flush;
+  std::cout << version(typename Matrix::result_type()) << std::flush;
   for (std::size_t n : num_values) {
     var x = var::discrete(u, "x", n);
     var y = var::discrete(u, "y", n);
@@ -100,7 +100,7 @@ void time_vecmat_join(JoinOp join_op,
                       std::size_t num_reps) {
   universe u;
   boost::timer t;
-  std::cout << version(result_t<Matrix>()) << std::flush;
+  std::cout << version(typename Matrix::result_type()) << std::flush;
   for (std::size_t n : num_values) {
     var x = var::discrete(u, "x", n);
     var y = var::discrete(u, "y", n);
@@ -123,7 +123,7 @@ void time_matvec_outer_join(JoinOp join_op,
                             std::size_t num_reps) {
   universe u;
   boost::timer t;
-  std::cout << version(result_t<Matrix>()) << std::flush;
+  std::cout << version(typename Matrix::result_type()) << std::flush;
   for (std::size_t n : num_values) {
     var x = var::discrete(u, "x", n);
     var y = var::discrete(u, "y", n);
@@ -147,7 +147,7 @@ void time_aggregate(AggOp agg_op,
                     std::size_t num_reps) {
   universe u;
   boost::timer t;
-  std::cout << version(result_t<Matrix>()) << std::flush;
+  std::cout << version(typename Matrix::result_type()) << std::flush;
   for (std::size_t n : num_values) {
     var x = var::discrete(u, "x", n);
     var y = var::discrete(u, "y", n);
@@ -168,13 +168,13 @@ void time_assignment(Op op,
                      std::size_t num_reps) {
   universe u;
   boost::timer t;
-  std::cout << version(result_t<Matrix>()) << std::flush;
+  std::cout << version(typename Matrix::result_type()) << std::flush;
   for (std::size_t n : num_values) {
     Matrix f({var::discrete(u, "x", n), var::discrete(u, "y", n)});
     uint_assignment<var> a;
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
-      result_t<Matrix> value = op(f, a);
+      typename Matrix::result_type value = op(f, a);
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }
@@ -189,7 +189,7 @@ void time_join_aggregate(JoinOp join_op,
                          std::size_t num_reps) {
   universe u;
   boost::timer t;
-  std::cout << version(result_t<Matrix>()) << std::flush;
+  std::cout << version(typename Matrix::result_type()) << std::flush;
   for (std::size_t n : num_values) {
     var x = var::discrete(u, "x", n);
     var y = var::discrete(u, "y", n);
@@ -211,7 +211,7 @@ void time_restrict(bool colwise,
                    std::size_t num_reps) {
   universe u;
   boost::timer t;
-  std::cout << version(result_t<Matrix>()) << std::flush;
+  std::cout << version(typename Matrix::result_type()) << std::flush;
   for (std::size_t n : num_values) {
     var x = var::discrete(u, "x", n);
     var y = var::discrete(u, "y", n);
@@ -234,7 +234,7 @@ void time_restrict_update(bool colwise,
                           std::size_t num_reps) {
   universe u;
   boost::timer t;
-  std::cout << version(result_t<Matrix>()) << std::flush;
+  std::cout << version(typename Matrix::result_type()) << std::flush;
   for (std::size_t n : num_values) {
     var x = var::discrete(u, "x", n);
     var y = var::discrete(u, "y", n);

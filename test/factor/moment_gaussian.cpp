@@ -314,9 +314,9 @@ BOOST_AUTO_TEST_CASE(test_collapse) {
 
   // test plain marginal
   h = f.marginal({z, x});
-  std::vector<std::size_t> ind = {2, 0};
-  vec_type meanzx = subvec(mean, ind).ref();
-  mat_type covzx = submat(cov, ind, ind).ref();
+  ivec ind = {2, 0};
+  vec_type meanzx = subvec(mean, ind);
+  mat_type covzx = submat(cov, ind, ind);
   BOOST_CHECK(mg_properties(h, {z, x}));
   BOOST_CHECK(mg_params(h, meanzx, covzx, mat_type(2,0), f.log_multiplier()));
   BOOST_CHECK_CLOSE(h.marginal().lv, 2.0, 1e-8);

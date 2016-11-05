@@ -30,7 +30,7 @@ const char* version(logd) {
 template <typename Factor, std::size_t N, typename Op>
 void time_transform(Op op) {
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
+  std::cout << version(typename Factor::result_type()) << std::flush;
   for (std::size_t len : num_values) {
     auto f = tuple_rep<N>(Factor(len));
     Factor g;
@@ -46,8 +46,8 @@ void time_transform(Op op) {
 template <typename Factor, typename Op>
 auto time_accumulate(Op op) {
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
-  result_t<Factor> value;
+  std::cout << version(typename Factor::result_type()) << std::flush;
+  typename Factor::result_type value;
   for (std::size_t len : num_values) {
     Factor f(len);
     t.restart();
@@ -63,14 +63,14 @@ auto time_accumulate(Op op) {
 template <typename Factor, typename Op>
 auto time_find(Op op) {
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
-  result_t<Factor> value;
+  std::cout << version(typename Factor::result_type()) << std::flush;
+  typename Factor::result_type value;
   for (std::size_t len : num_values) {
     Factor f(len);
     std::size_t pos;
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
-      value *= op(f, &pos);
+      value *= op(f, pos);
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }
@@ -140,24 +140,24 @@ int main(int argc, char** argv) {
   time_transform<lvector, 3>(ternary_multiplies());
 
   std::cout << std::endl << "vector.marginal()" << std::endl;
-  time_accumulate<pvector>(member_marginal());
-  time_accumulate<lvector>(member_marginal());
+  time_accumulate<pvector>(member_sum());
+  time_accumulate<lvector>(member_sum());
 
   std::cout << std::endl << "vector.maximum()" << std::endl;
-  time_accumulate<pvector>(member_maximum());
-  time_accumulate<lvector>(member_maximum());
+  time_accumulate<pvector>(member_max());
+  time_accumulate<lvector>(member_max());
 
   std::cout << std::endl << "vector.minimum()" << std::endl;
-  time_accumulate<pvector>(member_minimum());
-  time_accumulate<lvector>(member_minimum());
+  time_accumulate<pvector>(member_min());
+  time_accumulate<lvector>(member_min());
 
-  std::cout << std::endl << "vector.maximum(pos)" << std::endl;
-  time_find<pvector>(member_maximum());
-  time_find<lvector>(member_maximum());
+  std::cout << std::endl << "vector.max(pos)" << std::endl;
+  time_find<pvector>(member_max());
+  time_find<lvector>(member_max());
 
-  std::cout << std::endl << "vector.minimum(pos)" << std::endl;
-  time_find<pvector>(member_minimum());
-  time_find<lvector>(member_minimum());
+  std::cout << std::endl << "vector.min(pos)" << std::endl;
+  time_find<pvector>(member_min());
+  time_find<lvector>(member_min());
 
   return 0;
 }

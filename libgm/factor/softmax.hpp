@@ -211,7 +211,7 @@ namespace libgm {
      *        missing features are assumed to be 0.
      */
     T operator()(const assignment_type& a, bool strict = true) const {
-      std::vector<std::size_t> label = a.uint().values({head()});
+      uint_vector label = a.uint().values({head()});
       assert(label.size() == 1);
       if (strict) {
         return param_(a.real().values(tail()))[label[0]];

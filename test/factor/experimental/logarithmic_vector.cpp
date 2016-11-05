@@ -15,9 +15,9 @@ namespace libgm { namespace experimental {
 
 using namespace libgm;
 
-typedef experimental::logarithmic_vector<> lvector;
-typedef experimental::probability_vector<> pvector;
-typedef experimental::logarithmic_table<> ltable;
+using lvector = experimental::logarithmic_vector<>;
+using pvector = experimental::probability_vector<>;
+using ltable = experimental::logarithmic_table<>;
 
 BOOST_AUTO_TEST_CASE(test_constructors) {
   lvector a(3);

@@ -24,7 +24,7 @@ namespace libgm {
     typedef std::size_t result_type;
 
     //! Constructor for a distribution in the probability space.
-    explicit categorical_distribution(const real_vector<T>& p)
+    categorical_distribution(const real_vector<T>& p, prob_tag)
       : psum_(p) {
       std::partial_sum(psum_.data(), psum_.data() + psum_.size(), psum_.data());
     }

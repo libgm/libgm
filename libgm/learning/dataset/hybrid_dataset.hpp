@@ -270,7 +270,7 @@ namespace libgm {
     }
 
     //! Reorders the rows according the given permutation.
-    void permute(const std::vector<std::size_t>& permutation) {
+    void permute(const uint_vector& permutation) {
       assert(permutation.size() == inserted_);
       hybrid_dataset ds;
       ds.initialize(args_, allocated_);

@@ -296,7 +296,7 @@ namespace libgm {
     LIBGM_ENABLE_IF_OLD(A = Arg, is_multivariate<A>::value, uint_vector)
     dim_map(const domain_type& args, bool strict = true) const {
       // compute the first dimension of each argument in args
-      std::vector<std::size_t> dim(args.size());
+      uint_vector dim(args.size());
       for (std::size_t i = 1; i < args.size(); ++i) {
         dim[i] = dim[i-1] + arg_traits::num_dimensions(args[i-1]);
       }
@@ -381,8 +381,7 @@ namespace libgm {
       if (finite_args_ == f.finite_args_) {
         param_.transform(f.param_, op);
       } else {
-        uint_vector f_map = f.dim_map(finite_args_);
-        table_join_inplace<T, T, Op>(param_, f.param_, f_map, op)();
+        f.param_.join_inplace(op, iref(f.dim_map(finite_args_)), param_);
       }
     }
 
@@ -406,9 +405,7 @@ namespace libgm {
     void aggregate(const domain_type& retain, T init, Op op,
                    table_factor& result) const {
       result.reset(retain);
-      result.param_.fill(init);
-      uint_vector result_map = result.dim_map(finite_args_);
-      table_aggregate<T, T, Op>(result.param_, param_, result_map, op)();
+      param_.aggregate(op, init, iref(result.dim_map(finite_args_)), result.param_);
     }
 
     /**
@@ -418,16 +415,13 @@ namespace libgm {
      * and store the result in a canonical_table or vice versa.
      */
     void restrict(const assignment_type& a, table_factor& result) const {
-      domain_type new_args;
-      for (Arg v : finite_args_) {
-        if (!a.count(v)) { new_args.push_back(v); }
-      }
-      result.reset(new_args);
-      if (finite_args_.prefix(result.finite_args_)) {
-        result.param_.restrict(param_, index(a, false));
+      domain_type y, x; // restricted, retained
+      finite_args_.partition(a, y, x);
+      result.reset(x);
+      if (finite_args_.prefix(y)) {
+        param_.restrict(span(0, y.num_dimensions()), a.values(y), result.param_);
       } else {
-        uint_vector map = dim_map(result.finite_args_, false);
-        table_restrict<T>(result.param_, param_, map, index(a, false))();
+        param_.restrict(iref(y.index(finite_args_)), a.values(y), result.param_);
       }
     }
 
@@ -471,10 +465,8 @@ namespace libgm {
       return result;
     } else {
       Result result(f.finite_args() + g.finite_args());
-      uint_vector f_map = f.dim_map(result.finite_args());
-      uint_vector g_map = g.dim_map(result.finite_args());
-      table_join<T, T, Op>(result.param(), f.param(), g.param(),
-                           f_map, g_map, op)();
+      join(op, f.param(), g.param(), iref(g.dim_map(result.finite_args())),
+           result.param());
       return result;
     }
   }

@@ -205,14 +205,14 @@ namespace libgm {
       : uint_(elements(m.uint(), rows.uint, start_col)),
         real_(elements(m.real(), rows.real, start_col)) { }
 
-    void eval_to(hybrid_vector<T>& result) const {
-      uint_.eval_to(result.uint());
-      real_.eval_to(result.real());
+    void evalTo(hybrid_vector<T>& result) const {
+      uint_.evalTo(result.uint());
+      real_.evalTo(result.real());
     }
 
   private:
-    subvector<const Eigen::Matrix<std::size_t, Eigen::Dynamic, 1> > uint_;
-    subvector<const real_vector<T> > real_;
+    subvector<const real_vector<std::size_t>, const std::size_t*> uint_;
+    subvector<const real_vector<T>, const std::size_t*> real_;
   };
 
   /**

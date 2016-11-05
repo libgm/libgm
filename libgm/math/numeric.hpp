@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iterator>
+#include <limits>
 #include <numeric>
 
 namespace libgm {
@@ -17,15 +18,17 @@ namespace libgm {
   template <typename InForwardIt, typename OutForwardIt>
   typename std::iterator_traits<InForwardIt>::value_type
   log_sum_exp(InForwardIt s_begin, InForwardIt s_end, OutForwardIt d_begin) {
-    typedef typename std::iterator_traits<InForwardIt>::value_type real_type;
-    if (s_begin == s_end) { return real_type(0); }
+    using real_type = typename std::iterator_traits<InForwardIt>::value_type;
 
-    // compute the offset used to avoid underflow
-    real_type offset = *std::max_element(s_begin, s_end);
+    // the sum of an empty range is 0, i.e., log-sum is -infinity
+    if (s_begin == s_end) {
+      return -std::numeric_limits<real_type>::infinity();
+    }
 
     // compute the unnormalized probabilities and their sum
-    OutForwardIt d_end = d_begin;
     real_type sum(0);
+    real_type offset = *std::max_element(s_begin, s_end);
+    OutForwardIt d_end = d_begin;
     for (InForwardIt it = s_begin; it != s_end; ++it, ++d_end) {
       *d_end = std::exp(*it - offset);
       sum += *d_end;
@@ -33,6 +36,30 @@ namespace libgm {
 
     // normalize the probabilities and return the log-sum-exp
     std::transform(d_begin, d_end, d_begin, divided_by<real_type>(sum));
+    return std::log(sum) + offset;
+  }
+
+  /**
+   * Returns the log-sum-exp of the given source range.
+   */
+  template <typename InForwardIt>
+  typename std::iterator_traits<InForwardIt>::value_type
+  log_sum_exp(InForwardIt s_begin, InForwardIt s_end) {
+    using real_type = typename std::iterator_traits<InForwardIt>::value_type;
+
+    // the sum of an empty range is 0, i.e., log-sum is -infinity
+    if (s_begin == s_end) {
+      return -std::numeric_limits<real_type>::infinity();
+    }
+
+    // compute the sum of the unnormalized probabilities
+    real_type sum(0);
+    real_type offset = *std::max_element(s_begin, s_end);
+    for (InForwardIt it = s_begin; it != s_end; ++it) {
+      sum += std::exp(*it - offset);
+    }
+
+    // return the log-sum-exp
     return std::log(sum) + offset;
   }
 

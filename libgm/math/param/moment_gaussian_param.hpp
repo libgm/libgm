@@ -8,6 +8,8 @@
 #include <libgm/math/eigen/submatrix.hpp>
 #include <libgm/math/eigen/subvector.hpp>
 #include <libgm/math/numerical_error.hpp>
+#include <libgm/range/index_range.hpp>
+#include <libgm/range/index_range_complement.hpp>
 #include <libgm/serialization/eigen.hpp>
 
 #include <algorithm>
@@ -18,7 +20,7 @@
 namespace libgm {
 
   // Forward declaration
-  template <typename T> struct canonical_gaussian_param;
+  template <typename RealType> struct canonical_gaussian_param;
 
   /**
    * The parameters of a conditional multivariate normal (Gaussian) distribution
@@ -35,59 +37,52 @@ namespace libgm {
    *
    * \tparam T a real type for storing the parameters
    */
-  template <typename T = double>
+  template <typename RealType = double>
   struct moment_gaussian_param {
 
     // Public types
     //--------------------------------------------------------------------------
 
-    //! The dense matrix type storing the covariance and coefficient matrices.
-    typedef real_matrix<T> mat_type;
-
-    //! The dense vector type storing the mean vector.
-    typedef real_vector<T> vec_type;
-
-    //! A vector of indices to a subset of parameters.
-    typedef std::vector<std::size_t> index_type;
-
     //! The type storing the parameters.
-    typedef T value_type;
+    typedef RealType value_type;
+
+    //! The type of the LLT Cholesky decomposition object.
+    typedef Eigen::LLT<real_matrix<RealType> > cholesky_type;
 
     //! The struct storing the temporaries for conditioning computation.
     struct conditional_workspace {
-      Eigen::LLT<mat_type> chol_yy;
-      mat_type cov_yy;
-      mat_type sol_yx;
+      cholesky_type chol_yy;
+      real_matrix<RealType> sol_yx;
     };
 
     //! The struct storing the temporaries for restrict computation.
     struct restrict_workspace {
-      Eigen::LLT<mat_type> chol_yy;
-      mat_type cov_yy;
-      mat_type sol_yx;
-      vec_type res_y;
+      cholesky_type chol_yy;
+      real_matrix<RealType> cov_yy;
+      real_matrix<RealType> sol_yx;
+      real_vector<RealType> res_y;
     };
 
     // The parameters
     //--------------------------------------------------------------------------
 
     //! The conditional mean.
-    vec_type mean;
+    real_vector<RealType> mean;
 
     //! The covariance matrix.
-    mat_type cov;
+    real_matrix<RealType> cov;
 
     //! The coefficient matrix.
-    mat_type coef;
+    real_matrix<RealType> coef;
 
     //! The log-multiplier.
-    T lm;
+    RealType lm;
 
     // Constructors and initialization
     //--------------------------------------------------------------------------
 
     //! Constructs an empty moment Gaussian with the given log-multiplier.
-    moment_gaussian_param(T lm = T(0))
+    moment_gaussian_param(RealType lm = RealType(0))
       : lm(lm) { }
 
     //! Constructs a marginal Gaussian with the given sizes.
@@ -97,30 +92,32 @@ namespace libgm {
     }
 
     //! Constructs a marginal Gaussian with given parameters.
-    moment_gaussian_param(const vec_type& mean,
-                          const mat_type& cov,
-                          T lm)
+    moment_gaussian_param(const real_vector<RealType>& mean,
+                          const real_matrix<RealType>& cov,
+                          RealType lm)
       : mean(mean), cov(cov), coef(mean.size(), 0), lm(lm) {
       check();
     }
 
     //! Constructs a conditional Gaussian with given parameters.
-    moment_gaussian_param(const vec_type& mean,
-                          const mat_type& cov,
-                          const mat_type& coef,
-                          T lm)
+    moment_gaussian_param(const real_vector<RealType>& mean,
+                          const real_matrix<RealType>& cov,
+                          const real_matrix<RealType>& coef,
+                          RealType lm)
       : mean(mean), cov(cov), coef(coef), lm(lm) {
       check();
     }
 
     // Conversion from a canonical Gaussian representing a marginal distribution
-    explicit moment_gaussian_param(const canonical_gaussian_param<T>& cg) {
+    explicit moment_gaussian_param(
+        const canonical_gaussian_param<RealType>& cg) {
       *this = cg;
     }
 
     //! Conversion from a canonical Gaussian.
-    moment_gaussian_param& operator=(const canonical_gaussian_param<T>& cg) {
-      Eigen::LLT<mat_type> chol(cg.lambda);
+    moment_gaussian_param&
+    operator=(const canonical_gaussian_param<RealType>& cg) {
+      cholesky_type chol(cg.lambda);
       if (chol.info() != Eigen::Success) {
         throw numerical_error(
           "moment_gaussian: Cannot invert the precision matrix. "
@@ -130,9 +127,9 @@ namespace libgm {
       std::size_t n = cg.size();
       resize(n);
       mean = chol.solve(cg.eta);
-      cov = chol.solve(mat_type::Identity(n, n));
-      lm = cg.lm + T(0.5) * (n*std::log(two_pi<T>()) - logdet(chol)
-                             + mean.dot(cg.eta));
+      cov = chol.solve(real_matrix<RealType>::Identity(n, n));
+      lm = cg.lm + (n * std::log(two_pi<RealType>()) - logdet(chol)
+                    + mean.dot(cg.eta)) / RealType(2);
       return *this;
     }
 
@@ -171,7 +168,7 @@ namespace libgm {
       mean.setZero(nhead);
       cov.setZero(nhead, nhead);
       coef.setZero(nhead, ntail);
-      lm = T(0);
+      lm = RealType(0);
     }
 
     // Accessors and function evaluation
@@ -251,19 +248,21 @@ namespace libgm {
     /**
      * Computes the log-value for the given head and tail vectors.
      */
-    T operator()(const vec_type& x, const vec_type& y = vec_type()) const {
-      Eigen::LLT<mat_type> chol(cov);
-      vec_type z = x - mean - coef * y;
-      T log_norm = -std::log(two_pi<T>()) * head_size() - logdet(chol);
-      T exponent = -z.transpose() * chol.solve(z);
-      return T(0.5) * (log_norm + exponent) + lm;
+    RealType operator()(const real_vector<RealType>& x,
+                        const real_vector<RealType>& y =
+                          real_vector<RealType>()) const {
+      cholesky_type chol(cov);
+      real_vector<RealType> z = x - mean - coef * y;
+      RealType log_norm = -std::log(two_pi<RealType>()) * head_size() - logdet(chol);
+      RealType exponent = -z.transpose() * chol.solve(z);
+      return RealType(0.5) * (log_norm + exponent) + lm;
     }
 
     /**
      * Returns the marginal (in the log space) of the function represented
      * by these parameters.
      */
-    T marginal() const {
+    RealType marginal() const {
       return lm;
     }
 
@@ -271,9 +270,10 @@ namespace libgm {
      * Returns the maximum value (in the log space) attained by the function
      * represented by these parameters. The function must be normalizable.
      */
-    T maximum() const {
-      Eigen::LLT<mat_type> chol(cov);
-      return T(0.5) * (-std::log(two_pi<T>())*head_size() - logdet(chol)) + lm;
+    RealType maximum() const {
+      cholesky_type chol(cov);
+      return (-std::log(two_pi<RealType>()) * head_size() - logdet(chol))
+        / RealType(2) + lm;
     }
 
     /**
@@ -281,7 +281,7 @@ namespace libgm {
      * represented by these parameters and stores the corresponding value to
      * a vector. The function must be normalizable.
      */
-    T maximum(vec_type& vec) const {
+    RealType maximum(real_vector<RealType>& vec) const {
       assert(is_marginal());
       vec = mean;
       return maximum();
@@ -291,38 +291,39 @@ namespace libgm {
      * Returns the entropy for the marginal distribution represented by these
      * parameters.
      */
-    T entropy() const {
+    RealType entropy() const {
       assert(is_marginal());
-      Eigen::LLT<mat_type> chol(cov);
-      return (size() * (std::log(two_pi<T>()) + T(1)) + logdet(chol)) / T(2);
+      cholesky_type chol(cov);
+      return (size() * (std::log(two_pi<RealType>()) + RealType(1))
+              + logdet(chol)) / RealType(2);
     }
 
     /**
      * Returns the Kullback-Leibler divergence from p to q.
      */
-    friend T kl_divergence(const moment_gaussian_param& p,
-                           const moment_gaussian_param& q) {
+    friend RealType kl_divergence(const moment_gaussian_param& p,
+                                  const moment_gaussian_param& q) {
       assert(p.is_marginal() && q.is_marginal());
       assert(p.head_size() == q.head_size());
       std::size_t m = p.head_size();
-      Eigen::LLT<mat_type> cholp(p.cov);
-      Eigen::LLT<mat_type> cholq(q.cov);
-      auto identity = mat_type::Identity(m, m);
-      T trace = (p.cov.array() * cholq.solve(identity).array()).sum();
-      T means = (p.mean - q.mean).transpose() * cholq.solve(p.mean - q.mean);
-      T logdets = -logdet(cholp) + logdet(cholq);
-      return (trace + means + logdets - m) / T(2);
+      cholesky_type cholp(p.cov);
+      cholesky_type cholq(q.cov);
+      auto identity = real_matrix<RealType>::Identity(m, m);
+      RealType trace = (p.cov.array() * cholq.solve(identity).array()).sum();
+      RealType means = (p.mean - q.mean).transpose() * cholq.solve(p.mean - q.mean);
+      RealType logdets = -logdet(cholp) + logdet(cholq);
+      return (trace + means + logdets - m) / RealType(2);
     }
 
     /**
      * Returns the maximum difference between the means, covariances,
      * and coefficients of two moment Gaussians.
      */
-    friend T max_diff(const moment_gaussian_param& f,
-                      const moment_gaussian_param& g) {
-      T dmean = (f.mean - g.mean).array().abs().maxCoeff();
-      T dcov  = (f.cov - g.cov).array().abs().maxCoeff();
-      T dcoef = (f.coef - g.coef).array().abs().maxCoeff();
+    friend RealType max_diff(const moment_gaussian_param& f,
+                             const moment_gaussian_param& g) {
+      RealType dmean = (f.mean - g.mean).array().abs().maxCoeff();
+      RealType dcov  = (f.cov - g.cov).array().abs().maxCoeff();
+      RealType dcoef = (f.coef - g.coef).array().abs().maxCoeff();
       return std::max({dmean, dcov, dcoef});
     }
 
@@ -335,8 +336,8 @@ namespace libgm {
      * samples, use multivariate_normal_distribution.
      */
     template <typename Generator>
-    vec_type sample(Generator& rng) const {
-      return sample(rng, vec_type());
+    real_vector<RealType> sample(Generator& rng) const {
+      return sample(rng, real_vector<RealType>());
     }
 
     /**
@@ -345,15 +346,16 @@ namespace libgm {
      * samples, use multivariate_normal_distribution.
      */
     template <typename Generator>
-    vec_type sample(Generator& rng, const vec_type& tail) const {
-      Eigen::LLT<mat_type> chol(cov);
+    real_vector<RealType>
+    sample(Generator& rng, const real_vector<RealType>& tail) const {
+      cholesky_type chol(cov);
       if (chol.info() != Eigen::Success) {
         throw numerical_error(
           "moment_gaussian::sample: Cannot compute the Cholesky decomposition"
         );
       }
-      vec_type z(mean.size());
-      std::normal_distribution<T> normal;
+      real_vector<RealType> z(mean.size());
+      std::normal_distribution<RealType> normal;
       for (std::ptrdiff_t i = 0; i < z.size(); ++i) {
         z[i] = normal(rng);
       }
@@ -364,84 +366,128 @@ namespace libgm {
     //--------------------------------------------------------------------------
 
     /**
-     * Multiplies two moment Gaussians.
-     * At this time, we only support a special form of multiplication
-     * where one of the functions represents a marginal distribution,
-     * whose head is disjoint from the head of the other distribution.
-     *
-     * \param p       a marginal distribution p(x)
-     * \param q       a conditional distribution q(y | x_1, z)
-     * \param p1      the indices of x_1 in the head of p
-     * \param q1      the indices of x_1 in the tail of q
-     * \param qz      the indices of z in the tail of q
-     * \param forward if true, the head of result is (x, y); (y, x) otherwise
-     * \param result  the output of the operation
+     * Transforms the parameters with the given vector and scalar operations.
      */
-    friend void multiply(const moment_gaussian_param& p,
-                         const moment_gaussian_param& q,
-                         const index_type& p1,
-                         const index_type& q1,
-                         const index_type& qz,
-                         bool forward,
-                         moment_gaussian_param& result) {
-
-      // compute the position of x & y in h and their lengths
-      std::size_t sx = forward ? 0 : q.head_size();
-      std::size_t sy = forward ? p.head_size() : 0;
-      std::size_t nx = p.head_size();
-      std::size_t ny = q.head_size();
-
-      // compute the "all" indices for x and y in p and q, respectively
-      std::vector<std::size_t> px = range(0, p.head_size());
-      std::vector<std::size_t> qy = range(0, q.head_size());
-
-      // allocate and initialize the parameters
-      result.resize(nx + ny, qz.size());
-      result.coef.fill(T(0));
-      result.lm = p.lm + q.lm;
-
-      // extract the coefficients
-      result.coef.block(sy, 0, ny, qz.size()) = submat(q.coef, qy, qz).ref();
-      auto a = submat(q.coef, qy, q1);
-
-      // create the blocks over the partitioned mean and covariance matrix
-      auto mean_x = result.mean.segment(sx, nx).noalias();
-      auto mean_y = result.mean.segment(sy, ny).noalias();
-      auto cov_xx = result.cov.block(sx, sx, nx, nx).noalias();
-      auto cov_yy = result.cov.block(sy, sy, ny, ny).noalias();
-      auto cov_xy = result.cov.block(sx, sy, nx, ny).noalias();
-      auto cov_yx = result.cov.block(sy, sx, ny, nx).noalias();
-
-      // compute the new conditional mean and covariance
-      mean_x = p.mean;
-      mean_y = q.mean + a.ref() * subvec(p.mean, p1).ref();
-      cov_xx = p.cov;
-      cov_yy = q.cov + a.ref() * submat(p.cov, p1, p1).ref() * a.ref().transpose();
-      cov_xy = submat(p.cov, px, p1).ref() * a.ref().transpose();
-      cov_yx = result.cov.block(sx, sy, nx, ny).transpose();
+    template <typename VectorOp, typename ScalarOp, typename OtherT>
+    void transform(VectorOp vector_op, ScalarOp scalar_op,
+                   moment_gaussian_param<OtherT>& result) const {
+      result.mean = vector_op(mean);
+      result.cov  = vector_op(cov);
+      result.coef = vector_op(coef);
+      result.lm   = scalar_op(lm);
     }
 
     /**
-     * Computes an integral or a maximum of the function represented by these
-     * parameters over a subset of dimensions, storing the result to an output
-     * variable.
+     * Multiplies two moment_gaussians when (a range of) the head of one operand
+     * matches (a range of) the tail of the other operand. The ordering of the
+     * operands is specified via the forward flag.
+     */
+    template <typename HeadIt, typename TailIt>
+    friend void multiply_head_tail(const moment_gaussian_param& f,
+                                   const moment_gaussian_param& g,
+                                   index_range<HeadIt> f_head,
+                                   index_range<TailIt> g_tail,
+                                   bool forward,
+                                   moment_gaussian_param& r) {
+      assert(f_head.size() == g_tail.size());
+
+      // compute the positions of the head and tail of f and g in the output
+      std::size_t n = f_head.size();
+      span x(forward ? 0 : g.head_size(), f.head_size());     // head of f
+      span y(forward ? f.head_size() : 0, g.head_size());     // head of g
+      span v(forward ? 0 : g.tail_size() - n, f.tail_size()); // tail of f
+      span w(forward ? f.tail_size() : 0, g.tail_size() - n); // tail of g
+
+      // compute the result
+      r.resize(f.head_size() + g.head_size(),
+               f.tail_size() + g.tail_size() - n);
+      real_matrix<RealType> coef = subcols(g.coef, g_tail); // used frequently
+      subvec(r.mean, x) = f.mean;
+      subvec(r.mean, y).noalias() = g.mean + coef * subvec(f.mean, f_head);
+      submat(r.cov, x, x) = f.cov;
+      submat(r.cov, x, y).noalias() = subcols(f.cov, f_head) * coef.transpose();
+      submat(r.cov, y, x) = submat(r.cov, x, y).transpose();
+      submat(r.cov, y, y).noalias() =
+        g.cov + coef * submat(f.cov, f_head, f_head) * coef.transpose();
+      submat(r.coef, x, v) = f.coef;
+      submat(r.coef, x, w) = real_matrix<RealType>::Zero(x.size(), w.size());
+      submat(r.coef, y, v).noalias() = coef * subrows(f.coef, f_head);
+      submat(r.coef, y, w) = subcols(g.coef, complement(g_tail, g.tail_size()));
+      r.lm = f.lm + g.lm;
+    }
+
+    /**
+     * Multiplies two moment_gugaussians when (a range of) the tail of the left
+     * operand matches (a range of) the tail of the right operand.
+     */
+    template <typename TailIt1, typename TailIt2>
+    friend void multiply_tails(const moment_gaussian_param& f,
+                               const moment_gaussian_param& g,
+                               index_range<TailIt1> f_tail,
+                               index_range<TailIt2> g_tail,
+                               moment_gaussian_param& r) {
+      assert(f_tail.size() == g_tail.size());
+      std::size_t n = f_tail.size();
+      r.zero(f.head_size() + g.head_size(),
+             f.tail_size() + g.tail_size() - n);
+      span x(0, f.head_size());
+      span y(f.head_size(), g.head_size());
+      span v(0, f.tail_size());
+      span w(f.tail_size(), g.tail_size() - n);
+      subvec(r.mean, x) = f.mean;
+      subvec(r.mean, y) = g.mean;
+      submat(r.cov, x, x) = f.cov;
+      submat(r.cov, y, y) = g.cov;
+      submat(r.coef, x, v) = f.coef;
+      submat(r.coef, y, f_tail) = subcols(g.coef, g_tail);
+      submat(r.coef, y, w) = subcols(g.coef, complement(g_tail, g.tail_size()));
+      r.lm = f.lm + g.lm;
+    }
+
+    /**
+     * Computes a marginal or a maximum of the function represented by these
+     * parameters over a subset of head dimensions, storing the result to an
+     * output variable.
      *
-     * \param head     the indices of the retained head dimensions
-     * \param tail     the indices of the retained tail dimensions
      * \param marginal if true, will compute the marginal (false maximum)
+     * \param head     the retained head dimensions
      * \param result   the output of the operation
      */
-    void collapse(const index_type& head,
-                  const index_type& tail,
-                  bool marginal,
-                  moment_gaussian_param& result) const {
-      assert(tail.size() == tail_size());
-      subvec(mean, head).eval_to(result.mean);
-      submat(cov,  head, head).eval_to(result.cov);
-      submat(coef, head, tail).eval_to(result.coef);
-      result.lm = lm;
+    template <typename It>
+    void collapse(bool marginal,
+                  index_range<It> head,
+                  moment_gaussian_param& r) const {
+      r.mean = subvec(mean, head);
+      r.cov  = submat(cov, head, head);
+      r.coef = subrows(coef, head);
+      r.lm   = lm;
       if (!marginal) {
-        result.lm += maximum() - result.maximum();
+        r.lm += maximum() - r.maximum();
+      }
+    }
+
+    /**
+     * Computes a marginal or a maximum of the function represented by these
+     * parameters over a subset of head dimensions, storing the result to an
+     * output variable.
+     *
+     * \param marginal if true, will compute the marginal (false maximum)
+     * \param head     the retained head dimensions
+     * \param tail     the reshuffled tail dimensions
+     * \param result   the output of the operation
+     */
+    template <typename It>
+    void collapse(bool marginal,
+                  index_range<It> head,
+                  iref tail,
+                  moment_gaussian_param& r) const {
+      assert(tail.size() == tail_size());
+      r.mean = subvec(mean, head);
+      r.cov  = submat(cov, head, head);
+      r.coef = submat(coef, head, tail);
+      r.lm   = lm;
+      if (!marginal) {
+        r.lm += maximum() - r.maximum();
       }
     }
 
@@ -449,21 +495,21 @@ namespace libgm {
      * Computes the conditional of the marginal distribution represented by
      * these parameters, storing the result to an output variable.
      *
-     * \param x      the indices of the head dimensions
-     * \param y      the indices of the tail dimensions
-     * \param ws     the workspace for copmuting the conditional
+     * \param n      the dimensionality of the head
+     * \param ws     the workspace for computing the conditional
      * \param result the output of the operation
      */
-    void conditional(const index_type& x,
-                     const index_type& y,
+    void conditional(std::size_t n,
                      conditional_workspace& ws,
                      moment_gaussian_param& result) const {
       assert(is_marginal());
+      assert(n <= head_size());
+      std::size_t m = head_size() - n; // dimensionality of tail
 
       // compute sol_yx = cov_yy^{-1} cov_yx using Cholesky decomposition
-      submat(cov, y, y).eval_to(ws.cov_yy);
-      submat(cov, y, x).eval_to(ws.sol_yx);
-      ws.chol_yy.compute(ws.cov_yy);
+      // where x are the head dimensions and y are the tail dimensions
+      ws.sol_yx = cov.block(n, 0, m, n);
+      ws.chol_yy.compute(cov.block(n, n, m, m));
       if (ws.chol_yy.info() != Eigen::Success) {
         throw numerical_error(
           "moment_gaussian::conditional: Cholesky decomposition failed"
@@ -472,35 +518,50 @@ namespace libgm {
       ws.chol_yy.solveInPlace(ws.sol_yx);
 
       // compute the parameters of the conditional
-      subvec(mean, x).eval_to(result.mean);
-      submat(cov, x, x).eval_to(result.cov);
-      result.mean.noalias() -= ws.sol_yx.transpose() * subvec(mean, y).ref();
-      result.cov.noalias() -= submat(cov, x, y).ref() * ws.sol_yx;
-      result.coef.noalias() = ws.sol_yx.transpose();
+      result.mean = mean.segment(0, n);
+      result.cov  = cov.block(0, 0, n, n);
+      result.coef = ws.sol_yx.transpose();
+      result.mean.noalias() -= ws.sol_yx.transpose() * mean.segment(n, m);
+      result.cov.noalias()  -= ws.sol_yx.transpose() * cov.block(n, 0, m, n);
       result.lm = lm;
     }
 
     /**
-     * Restricts the function represented by these parameters to a subset
-     * of head dimensions and all tail dimensions, storing the result to
-     * an output variable.
+     * Restricts the head of this conditional Gaussian to the given vector
+     * and multiplies the result into an output variable.
+     */
+    template <typename It>
+    void restrict_head_multiply(index_range<It> join_dims,
+                                const real_vector<RealType>& values,
+                                moment_gaussian_param& result) const {
+      assert(false);
+    }
+
+    /**
+     * Restricts the moment_gaussian to a range of head dimensions and all
+     * tail dimensions, storing the result to an output variable.
      *
-     * \param x      the indices of the retained head dimensions
-     * \param y      the indices of the restricted head dimensions
-     * \param vec_y  the values for the restricted head dimensions
-     * \param vec_z  the values for the tail dimensions
-     * \param ws     the workspace for copmuting the conditional
+     * \param x      the retained head dimensions
+     * \param y      the restricted head dimensions
+     * \param vals_y the values for the restricted head dimensions
+     * \param vals_t the values for the tail dimensions
+     * \param ws     the workspace for computing the conditional
      * \param result the output of the operation
      */
-    void restrict_both(const index_type& x,
-                       const index_type& y,
-                       const vec_type& vec_y,
-                       const vec_type& vec_z,
+    template <typename RetainedIt, typename RestrictIt>
+    void restrict_both(index_range<RetainedIt> x,
+                       index_range<RestrictIt> y,
+                       const real_vector<RealType>& vals_y,
+                       const real_vector<RealType>& vals_t,
                        restrict_workspace& ws,
-                       moment_gaussian_param& result) const {
+                       moment_gaussian_param& r) const {
+      assert(x.size() + y.size() == head_size());
+      assert(vals_y.size() == y.size());
+      assert(vals_t.size() == tail_size());
+
       // compute sol_yx = cov_yy^{-1} cov_yx using Cholesky decomposition
-      submat(cov, y, y).eval_to(ws.cov_yy);
-      submat(cov, y, x).eval_to(ws.sol_yx);
+      ws.cov_yy = submat(cov, y, y);
+      ws.sol_yx = submat(cov, y, x);
       ws.chol_yy.compute(ws.cov_yy);
       if (ws.chol_yy.info() != Eigen::Success) {
         throw numerical_error(
@@ -509,350 +570,93 @@ namespace libgm {
       }
       ws.chol_yy.solveInPlace(ws.sol_yx);
 
-      // some useful submatrices
-      std::vector<std::size_t> z = range(0, tail_size());
-      submatrix<const mat_type> coef_xz(coef, x, z);
-      submatrix<const mat_type> coef_yz(coef, y, z);
-      result.resize(x.size());
-
       // compute the residual over y (observation vec_y - the prediction)
-      ws.res_y.noalias() = vec_y - subvec(mean, y).ref() - coef_yz.ref() * vec_z;
+      ws.res_y = vals_y - subvec(mean, y);
+      if (!is_marginal()) {
+        ws.res_y.noalias() -= subrows(coef, y) * vals_t;
+      }
 
-      // compute the mean: original mean + scaled residual
-      subvec(mean, x).eval_to(result.mean);
-      result.mean.noalias() +=
-        coef_xz.ref() * vec_z + ws.sol_yx.transpose() * ws.res_y;
-
-      // compute the covariance: original covariance - shrinking factor
-      submat(cov, x, x).eval_to(result.cov);
-      result.cov.noalias() -= submat(cov, x, y).ref() * ws.sol_yx;
-
-      // compute the log-multiplier
-      result.lm = lm
-        - T(0.5) * (y.size() * std::log(two_pi<T>()) + logdet(ws.chol_yy))
-        - T(0.5) * ws.res_y.dot(ws.chol_yy.solve(ws.res_y));
+      // compute the output
+      r.resize(x.size());
+      r.mean.noalias() = subvec(mean, x) + ws.sol_yx.transpose() * ws.res_y;
+      if (!is_marginal()) {
+        r.mean.noalias() += subrows(coef, x) * vals_t;
+      }
+      r.cov.noalias() = submat(cov, x, x) - submat(cov, x, y) * ws.sol_yx;
+      r.lm = lm -
+        (y.size() * std::log(two_pi<RealType>()) + logdet(ws.chol_yy) +
+         ws.res_y.dot(ws.chol_yy.solve(ws.res_y))) / RealType(2);
     }
 
     /**
-     * Restricts the function represented by these parameters to a subset
-     * of tail dimensions, storing the result to an output variable.
+     * Restricts a range of head dimensions of this momnet_gaussian to a vector,
+     * storing the result to an output variable.
      *
-     * \param x      the indices of the retained tail dimensions
-     * \param y      the indices of the restricted tail dimensions
-     * \param vec_y  the values for hte restricted tail dimensions
-     * \param result the output of the operation
+     * \param x      the retained head dimensions
+     * \param y      the restricted head dimensions
+     * \param values the values for the restricted dimensions
+     * \param r      the output
      */
-    void restrict_tail(const index_type& x,
-                       const index_type& y,
-                       const vec_type& vec_y,
-                       moment_gaussian_param& result) const {
-      std::vector<std::size_t> z = range(0, head_size());
-      result.mean.noalias() = mean + submat(coef, z, y).ref() * vec_y;
-      result.cov = cov;
-      result.lm = lm;
-      submat(coef, z, x).eval_to(result.coef);
+    template <typename RetainedIt, typename RestrictIt>
+    void restrict_head(index_range<RetainedIt> x,
+                       index_range<RestrictIt> y,
+                       const real_vector<RealType>& values,
+                       restrict_workspace& ws,
+                       moment_gaussian_param& r) const {
+      assert(is_marginal());
+      restrict_both(x, y, values, real_vector<RealType>(), ws, r);
     }
 
     /**
-     * Returns the parameter reordered according to the given index.
+     * Restricts a range of tail dimensions of this moment_gaussian to a vector,
+     * storing the result to an output variable.
+     *
+     * \param x the retained tail dimensions
+     * \param y the restricted tail dimensions
+     * \param values the values for the restricted tail dimensions
+     * \param r the output of the operation
      */
-    moment_gaussian_param
-    reorder(const index_type& head, const index_type& tail) const {
-      assert(head_size() == head.size());
-      assert(tail_size() == tail.size());
-      moment_gaussian_param result;
-      subvec(mean, head).eval_to(result.mean);
-      submat(cov, head, head).eval_to(result.cov);
-      submat(coef, head, tail).eval_to(result.coef);
-      result.lm = lm;
-      return result;
+    template <typename RetainedIt, typename RestrictIt>
+    void restrict_tail(index_range<RetainedIt> x,
+                       index_range<RestrictIt> y,
+                       const real_vector<RealType>& values,
+                       moment_gaussian_param& r) const {
+      assert(x.size() + y.size() == tail_size());
+      r.mean.noalias() = mean + subcols(coef, y) * values;
+      r.coef = subcols(coef, x);
+      r.cov = cov;
+      r.lm = lm;
     }
-
-  }; // struct moment_gaussian_param
-
-  /**
-   * Prints the parameters to an output stream.
-   */
-  template <typename T>
-  std::ostream&
-  operator<<(std::ostream& out, const moment_gaussian_param<T>& p) {
-    out << p.mean << std::endl
-        << p.cov << std::endl
-        << p.coef << std::endl
-        << p.lm;
-    return out;
-  }
-
-  // Join operations
-  //============================================================================
-
-  /**
-   * A class that updates the log-multiplier of a moment Gaussian with constant.
-   */
-  template <typename T, typename Update>
-  struct moment_gaussian_join_inplace {
-    typedef moment_gaussian_param<T> param_type;
 
     /**
-     * Constructs the operation for joining with a constant.
+     * Returns the parameters reordered according to the given head
+     * and tail indices.
      */
-    moment_gaussian_join_inplace() { }
-
-    //! Joins a factor in-place with a constant.
-    void operator()(param_type& result, T x) const {
-      Update update;
-      update(result.lm, x);
+    template <typename It>
+    void reorder(iref head, index_range<It> tail,
+                 moment_gaussian_param& r) const {
+      assert(head.size() == head_size());
+      assert(tail.size() == tail_size());
+      r.resize(head_size(), tail_size());
+      r.mean = subvec(mean, head);
+      r.cov  = submat(cov, head, head);
+      r.coef = submat(coef, head, tail);
+      r.lm   = lm;
     }
-  };
-
-  /**
-   * A class that multiplies two moment Gaussians.
-   * We only support a special form of multiplication at the moment,
-   * where one of the functions represents a marginal distribution,
-   * whose head is disjoint from the head of the other factor.
-   *
-   * In the notation below, p(x) is one factor, and q(y | x_1, z) is another,
-   * where x_1 is a subset of x. Then h(x, y | z) or h(y, x | z) is the result
-   * (depending on the ordering of p and q).
-   */
-  template <typename T>
-  struct moment_gaussian_multiplies {
-    typedef moment_gaussian_param<T> param_type;
-
-    std::vector<std::size_t> p1; //!< the indices of x_1 in the head of p
-    std::vector<std::size_t> q1; //!< the indices of x_1 in the tail of q
-    std::vector<std::size_t> qz; //!< the indices of z   in the tail of q
-
-    //! Default constructor (the caller must initialize indices manually).
-    moment_gaussian_multiplies() { }
-
-    //! Performs the multiplication operation
-    void operator()(const param_type& f, const param_type& g,
-                    param_type& h) const {
-      // figure out which input factor is p and which q (see multiplies_op)
-      const param_type& p = f.is_marginal() ? f : g;
-      const param_type& q = f.is_marginal() ? g : f;
-
-      // compute the position of x & y in h and their lengths
-      std::size_t sx = f.is_marginal() ? 0 : f.head_size();
-      std::size_t sy = f.is_marginal() ? f.head_size() : 0;
-      std::size_t nx = p.head_size();
-      std::size_t ny = q.head_size();
-
-      // compute the "all" indices for x and y in p and q, respectively
-      std::vector<std::size_t> px = range(0, p.head_size());
-      std::vector<std::size_t> qy = range(0, q.head_size());
-
-      // allocate and initialize the parameters
-      h.resize(nx + ny, qz.size());
-      h.coef.fill(T(0));
-      h.lm = f.lm + g.lm;
-
-      // extract the coefficients
-      h.coef.block(sy, 0, ny, qz.size()) = submat(q.coef, qy, qz).ref();
-      auto a = submat(q.coef, qy, q1);
-
-      // create the blocks over the partitioned mean and covariance matrix
-      auto mean_x = h.mean.segment(sx, nx).noalias();
-      auto mean_y = h.mean.segment(sy, ny).noalias();
-      auto cov_xx = h.cov.block(sx, sx, nx, nx).noalias();
-      auto cov_yy = h.cov.block(sy, sy, ny, ny).noalias();
-      auto cov_xy = h.cov.block(sx, sy, nx, ny).noalias();
-      auto cov_yx = h.cov.block(sy, sx, ny, nx).noalias();
-
-      // compute the new conditional mean and covariance
-      mean_x = p.mean;
-      mean_y = q.mean + a.ref() * subvec(p.mean, p1).ref();
-      cov_xx = p.cov;
-      cov_yy = q.cov + a.ref() * submat(p.cov, p1, p1).ref() * a.ref().transpose();
-      cov_xy = submat(p.cov, px, p1).ref() * a.ref().transpose();
-      cov_yx = h.cov.block(sx, sy, nx, ny).transpose();
-    }
-  };
-
-  // Aggregate operations
-  //============================================================================
-
-  /**
-   * A class that computes the marginal or maximum of a moment Gaussian.
-   */
-  template <typename T>
-  struct moment_gaussian_collapse {
-    typedef moment_gaussian_param<T> param_type;
 
     /**
-     * Constructs a collapse operator.
-     * \param head_map the sequence of retained head indices
-     * \param tail_map the sequence of retained tail indices
-     * \param preserve_maximum if true, adjusts the log-multiplier so that the
-     *        maximum value of the function is preserved
+     * Prints the parameters to an output stream.
      */
-    moment_gaussian_collapse(std::vector<std::size_t>&& head_map,
-                             std::vector<std::size_t>&& tail_map,
-                             bool preserve_maximum = false)
-      : head_map(std::move(head_map)),
-        tail_map(std::move(tail_map)),
-        preserve_maximum(preserve_maximum) { }
-
-    //! Performs the marginalization operation on f, storing the result in h.
-    void operator()(const param_type& f, param_type& h) {
-      subvec(f.mean, head_map).eval_to(h.mean);
-      submat(f.cov,  head_map, head_map).eval_to(h.cov);
-      submat(f.coef, head_map, tail_map).eval_to(h.coef);
-      h.lm = f.lm;
-      if (preserve_maximum) {
-        h.lm += f.maximum() - h.maximum();
-      }
+    friend std::ostream&
+    operator<<(std::ostream& out, const moment_gaussian_param& p) {
+      out << p.mean << std::endl
+          << p.cov << std::endl
+          << p.coef << std::endl
+          << p.lm;
+      return out;
     }
 
-    std::vector<std::size_t> head_map;
-    std::vector<std::size_t> tail_map;
-    bool preserve_maximum;
-  };
-
-  // Conditioning operations
-  //============================================================================
-
-  /**
-   * A class that can condition a marginal moment Gaussian distribution.
-   * Specifically, if f represents p(x, y), this class computes p(x | y).
-   */
-  template <typename T>
-  struct moment_gaussian_conditional {
-    typedef moment_gaussian_param<T> param_type;
-    typedef real_matrix<T> mat_type;
-    typedef real_vector<T> vec_type;
-
-    //! Constructs a conditioning operator.
-    moment_gaussian_conditional(std::vector<std::size_t>&& x,
-                                std::vector<std::size_t>&& y)
-      : x(std::move(x)), y(std::move(y)) { }
-
-    //! Performs the conditioning operation.
-    void operator()(const param_type& f, param_type& h) {
-      assert(f.is_marginal());
-
-      // compute sol_yx = cov_yy^{-1} cov_yx using Cholesky decomposition
-      submat(f.cov, y, y).eval_to(cov_yy);
-      submat(f.cov, y, x).eval_to(sol_yx);
-      chol_yy.compute(cov_yy);
-      if (chol_yy.info() != Eigen::Success) {
-        throw numerical_error(
-          "moment_gaussian::conditional: Cholesky decomposition failed"
-        );
-      }
-      chol_yy.solveInPlace(sol_yx);
-
-      // compute the parameters of the conditional
-      subvec(f.mean, x).eval_to(h.mean);
-      submat(f.cov, x, x).eval_to(h.cov);
-      h.mean.noalias() -= sol_yx.transpose() * subvec(f.mean, y).ref();
-      h.cov.noalias() -= submat(f.cov, x, y).ref() * sol_yx;
-      h.coef.noalias() = sol_yx.transpose();
-      h.lm = f.lm;
-    }
-
-    std::vector<std::size_t> x;
-    std::vector<std::size_t> y;
-    Eigen::LLT<mat_type> chol_yy;
-    mat_type cov_yy;
-    mat_type sol_yx;
-  };
-
-  /**
-   * A class that restricts a moment Gaussian.
-   *
-   * There are two operations that this class supports:
-   * 1) Marginal: given a distribution p(x, y | z), we partially restrict the
-   *    head y = vec_y and fully restrict the tail z = vec_z. The result is a
-   *    marginal distribution over x.
-   * 2) Conditional: given a distribution p(z | x, y), we partially restrict
-   *    the tail y = vec_y. The result is a conditional distribution with head
-   *    z and tail x.
-   */
-  template <typename T>
-  struct moment_gaussian_restrict {
-    typedef moment_gaussian_param<T> param_type;
-    typedef real_matrix<T> mat_type;
-    typedef real_vector<T> vec_type;
-
-    enum restrict_type { MARGINAL, CONDITIONAL };
-    restrict_type type; //!< which version to perform
-
-    std::vector<std::size_t> x; //!< the indices of the retained arguments in f
-    std::vector<std::size_t> y; //!< the indices of the restricted arguments in f
-    vec_type vec_y; //!< the assignment to the restricted arguments
-    vec_type vec_z; //!< the assignment to the tail (for type = MARGINAL)
-
-    //! Constructs a restrict operator of the given kind.
-    moment_gaussian_restrict(restrict_type type)
-      : type(type) { }
-
-    //! Performs the restrict operation on f, storing the result in h.
-    void operator()(const param_type& f, param_type& h) {
-      if (type == MARGINAL) {
-        restrict_marginal(f, h);
-      } else if (type == CONDITIONAL) {
-        restrict_conditional(f, h);
-      } else {
-        throw std::runtime_error("moment_gaussian: invalid restriction type");
-      }
-    }
-
-    //! Performs a marginal restrict operation on f, storing the result in h.
-    void restrict_marginal(const param_type f, param_type& h) {
-      // compute sol_yx = cov_yy^{-1} cov_yx using Cholesky decomposition
-      submat(f.cov, y, y).eval_to(cov_yy);
-      submat(f.cov, y, x).eval_to(sol_yx);
-      chol_yy.compute(cov_yy);
-      if (chol_yy.info() != Eigen::Success) {
-        throw numerical_error(
-          "moment_gaussian restrict: Cholesky decomposition failed"
-        );
-      }
-      chol_yy.solveInPlace(sol_yx);
-
-      // some useful submatrices
-      std::vector<std::size_t> z = range(0, f.tail_size());
-      submatrix<const mat_type> coef_xz(f.coef, x, z);
-      submatrix<const mat_type> coef_yz(f.coef, y, z);
-      h.resize(x.size());
-
-      // compute the residual over y (observation vec_y - the prediction)
-      res_y.noalias() = vec_y - subvec(f.mean, y).ref() - coef_yz.ref() * vec_z;
-
-      // compute the mean: original mean + scaled residual
-      subvec(f.mean, x).eval_to(h.mean);
-      h.mean.noalias() += coef_xz.ref() * vec_z + sol_yx.transpose() * res_y;
-
-      // compute the covariance: original covariance - shrinking factor
-      submat(f.cov, x, x).eval_to(h.cov);
-      h.cov.noalias() -= submat(f.cov, x, y).ref() * sol_yx;
-
-      // compute the log-multiplier
-      h.lm = f.lm
-        - T(0.5) * (y.size() * std::log(two_pi<T>()) + logdet(chol_yy))
-        - T(0.5) * res_y.dot(chol_yy.solve(res_y));
-    }
-
-    //! Performs a conditional restrict operation on f, storing the result in h
-    void restrict_conditional(const param_type& f, param_type& h) {
-      std::vector<std::size_t> z = range(0, f.head_size());
-      h.mean.noalias() = f.mean + submat(f.coef, z, y).ref() * vec_y;
-      h.cov.noalias() = f.cov;
-      h.lm = f.lm;
-      submat(f.coef, z, x).eval_to(h.coef);
-    }
-
-    // temporary storage
-    mat_type cov_yy;
-    mat_type sol_yx;
-    vec_type res_y;
-    Eigen::LLT<mat_type> chol_yy;
-
-  }; // struct moment_gaussian_restrict
-
-  // TODO: KL project
+  }; // class moment_gaussian_param
 
 } // namespace libgm
 

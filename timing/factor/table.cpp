@@ -27,7 +27,7 @@ const char* version(logd) {
 template <typename Factor, std::size_t N, typename Op>
 void time_transform(Op op, const domain<var>& args, std::size_t num_reps) {
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
+  std::cout << version(typename Factor::result_type()) << std::flush;
   for (std::size_t arity = 0; arity < args.size(); ++arity) {
     auto f = tuple_rep<N>(Factor(args.prefix(arity)));
     Factor g;
@@ -46,7 +46,7 @@ void time_join(JoinOp join_op,
                const domain<var>& y,
                std::size_t num_reps) {
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
+  std::cout << version(typename Factor::result_type()) << std::flush;
   for (std::size_t arity = 1; arity < x.size(); ++arity) {
     Factor f(x.prefix(arity));
     Factor g(y.prefix(arity));
@@ -65,7 +65,7 @@ void time_aggregate(AggOp agg_op,
                     const domain<var>& x,
                     std::size_t num_reps) {
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
+  std::cout << version(typename Factor::result_type()) << std::flush;
   for (std::size_t arity = 1; arity < x.size(); ++arity) {
     Factor f(x.prefix(arity));
     Factor g;
@@ -86,7 +86,7 @@ void time_join_aggregate(JoinOp join_op,
                          const domain<var>& y,
                          std::size_t num_reps) {
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
+  std::cout << version(typename Factor::result_type()) << std::flush;
   for (std::size_t arity = 1; arity < x.size(); ++arity) {
     Factor f(x.prefix(arity));
     Factor g(y.prefix(arity));
@@ -109,13 +109,13 @@ void time_join_accumulate(JoinOp join_op,
                           const domain<var>& y,
                           std::size_t num_reps) {
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
+  std::cout << version(typename Factor::result_type()) << std::flush;
   for (std::size_t arity = 1; arity < x.size(); ++arity) {
     Factor f(x.prefix(arity));
     Factor g(y.prefix(arity));
     domain<var> z = {x[0]};
     t.restart();
-    result_t<Factor> e;
+    typename Factor::result_type e;
     for (std::size_t i = 0; i < num_reps; ++i) {
       e += accu_op(join_op(f, g));
     }
@@ -127,7 +127,7 @@ void time_join_accumulate(JoinOp join_op,
 template <typename Factor>
 void time_restrict(bool prefix, const domain<var>& x, std::size_t num_reps) {
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
+  std::cout << version(typename Factor::result_type()) << std::flush;
   for (std::size_t arity = 1; arity < x.size(); ++arity) {
     Factor f(x.prefix(arity));
     Factor g;
@@ -146,7 +146,7 @@ void time_update(UpdateOp update_op,
                  const domain<var>& x,
                  std::size_t num_reps) {
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
+  std::cout << version(typename Factor::result_type()) << std::flush;
   for (std::size_t arity = 1; arity < x.size(); ++arity) {
     Factor f(x.prefix(arity));
     Factor g(x.prefix(arity - 1));
@@ -164,7 +164,7 @@ void time_restrict_update(UpdateOp update_op,
                           const domain<var>& x,
                           std::size_t num_reps) {
   boost::timer t;
-  std::cout << version(result_t<Factor>()) << std::flush;
+  std::cout << version(typename Factor::result_type()) << std::flush;
   for (std::size_t arity = 1; arity < x.size(); ++arity) {
     Factor f(x.prefix(arity));
     Factor g(x.prefix(arity));

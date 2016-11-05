@@ -144,8 +144,8 @@ namespace libgm {
     value_type sample(std::size_t row, const domain_type& dom) const {
       index_type idx = dom.index(col_);
       value_type value;
-      rows(samples_[row].first.uint(), idx.uint).eval_to(value.first.uint());
-      rows(samples_[row].first.real(), idx.real).eval_to(value.first.real());
+      subrows(samples_[row].first.uint(), iref(idx.uint)).evalTo(value.first.uint());
+      subrows(samples_[row].first.real(), iref(idx.real)).evalTo(value.first.real());
       value.second = samples_[row].second;
       return value;
     }
@@ -324,16 +324,16 @@ namespace libgm {
     private:
       void load() {
         if (cur_ != end_ && !direct_) {
-          rows(cur_->first.uint(), index_.uint).eval_to(value_.first.uint());
-          rows(cur_->first.real(), index_.real).eval_to(value_.first.real());
+          subrows(cur_->first.uint(), iref(index_.uint)).evalTo(value_.first.uint());
+          subrows(cur_->first.real(), iref(index_.real)).evalTo(value_.first.real());
           value_.second = cur_->second;
         }
       }
 
       void save() {
         if (cur_ != end_ && !direct_) {
-          rows(cur_->first.uint(), index_.uint) = value_.first.uint();
-          rows(cur_->first.real(), index_.real) = value_.first.real();
+          subrows(cur_->first.uint(), iref(index_.uint)) = value_.first.uint();
+          subrows(cur_->first.real(), iref(index_.real)) = value_.first.real();
           cur_->second = value_.second;
         }
       }
@@ -466,8 +466,8 @@ namespace libgm {
     private:
       void load() {
         if (cur_ != end_ && !direct_) {
-          rows(cur_->first.uint(), index_.uint).eval_to(value_.first.uint());
-          rows(cur_->first.real(), index_.real).eval_to(value_.first.real());
+          subrows(cur_->first.uint(), iref(index_.uint)).evalTo(value_.first.uint());
+          subrows(cur_->first.real(), iref(index_.real)).evalTo(value_.first.real());
           value_.second = cur_->second;
         }
       }

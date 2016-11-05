@@ -88,7 +88,7 @@ BOOST_AUTO_TEST_CASE(test_insert) {
   ++it;
 
   // check the remaining samples
-  std::vector<std::size_t> rest(3, -1);
+  uint_vector rest(3, -1);
   for (std::size_t i = 0; i < 10; ++i) {
     BOOST_CHECK_EQUAL(it->first.uint(), rest);
     BOOST_CHECK_EQUAL(it->second, 1.0);

@@ -28,7 +28,7 @@ namespace libgm {
     typedef std::size_t tail_type;
 
     //! Constructor for a distribution in the probability space.
-    explicit bivariate_categorical_distribution(const real_matrix<T>& p)
+    bivariate_categorical_distribution(const real_matrix<T>& p, prob_tag)
       : psum_(p) {
       std::partial_sum(psum_.data(), psum_.data() + psum_.size(), psum_.data());
     }
