@@ -1,3 +1,5 @@
 add_executable(table_experimental_timing table.cpp)
 add_executable(vector_experimental_timing vector.cpp)
 add_executable(matrix_experimental_timing matrix.cpp)
+add_executable(moment_gaussian_experimental_timing moment_gaussian.cpp)
+add_executable(canonical_gaussian_experimental_timing canonical_gaussian.cpp)

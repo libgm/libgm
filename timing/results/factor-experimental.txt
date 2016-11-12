@@ -1,0 +1,329 @@
+../release/timing/factor/experimental/table_experimental_timing --num-values 2 --max-arity 9 --num-reps 50000
+Measuring table factors with num_values=2 max_arity=9 num_reps=50000
+
+table * constant
+probability 1.096e-08 2.362e-08 8.418e-08 4.576e-08 5.996e-08 7.584e-08 5.642e-07 1.131e-07 1.648e-07 2.925e-07
+logarithmic 1.164e-08 2.572e-08 5.066e-08 6.204e-08 5.256e-08 6.754e-08 8.660e-08 1.109e-07 1.669e-07 2.494e-07
+
+table + table
+probability 1.342e-08 3.124e-08 4.498e-08 4.708e-08 5.784e-08 7.140e-08 8.518e-08 1.130e-07 1.441e-07 2.213e-07
+logarithmic 2.914e-08 5.714e-08 9.952e-08 1.370e-07 2.504e-07 4.695e-07 1.043e-06 1.750e-06 3.276e-06 6.746e-06
+
+table + table + table
+probability 1.354e-08 2.878e-08 3.832e-08 5.016e-08 6.376e-08 8.416e-08 1.119e-07 1.661e-07 2.856e-07 4.590e-07
+logarithmic 5.796e-08 1.155e-07 2.110e-07 4.233e-07 8.552e-07 1.580e-06 3.066e-06 6.138e-06 1.197e-05 2.434e-05
+
+table * table
+probability 4.767e-07 5.026e-07 5.520e-07 5.516e-07 7.700e-07 8.826e-07 1.205e-06 2.005e-06
+logarithmic 5.103e-07 4.422e-07 5.208e-07 6.139e-07 7.699e-07 8.415e-07 1.207e-06 1.916e-06
+
+table / table
+probability 4.908e-07 6.733e-07 8.203e-07 1.146e-06 2.181e-06 2.900e-06 1.222e-06 2.054e-06
+logarithmic 4.713e-07 4.268e-07 5.779e-07 5.674e-07 7.524e-07 8.748e-07 1.221e-06 1.864e-06
+
+table.marginal(dom)
+probability 9.410e-08 2.930e-07 3.325e-07 3.258e-07 3.545e-07 5.278e-07 6.201e-07 8.638e-07
+logarithmic 1.029e-07 3.388e-07 3.456e-07 4.591e-07 5.955e-07 9.034e-07 1.307e-06 2.246e-06
+
+table.maximum(dom)
+probability 1.309e-07 2.706e-07 3.269e-07 3.267e-07 3.642e-07 4.476e-07 6.922e-07 9.018e-07
+logarithmic 9.520e-08 2.806e-07 2.860e-07 3.093e-07 3.666e-07 4.926e-07 5.745e-07 8.492e-07
+
+(table * table).marginal(dom)
+probability 6.672e-07 7.029e-07 7.485e-07 8.281e-07 1.017e-06 1.078e-06 1.533e-06 2.274e-06
+logarithmic 9.271e-07 9.883e-07 1.095e-06 1.235e-06 1.506e-06 2.262e-06 3.085e-06 5.312e-06
+
+(table * table).maximum(dom)
+probability 7.311e-07 7.092e-07 7.574e-07 8.573e-07 1.005e-06 1.497e-06 1.542e-06 2.307e-06
+logarithmic 7.792e-07 7.436e-07 8.258e-07 8.312e-07 9.668e-07 1.162e-06 1.515e-06 2.237e-06
+
+(table * table).sum()
+probability 4.375e-07 4.512e-07 5.036e-07 5.553e-07 6.608e-07 1.282e-06 1.085e-06 1.716e-06
+logarithmic 8.473e-07 9.094e-07 9.516e-07 1.070e-06 1.311e-06 1.925e-06 3.112e-06 4.749e-06
+
+(table * table).max()
+probability 4.312e-07 4.408e-07 5.417e-07 5.276e-07 6.795e-07 8.391e-07 1.124e-06 1.706e-06
+logarithmic 4.101e-07 4.609e-07 4.975e-07 5.329e-07 6.556e-07 8.791e-07 1.219e-06 1.803e-06
+
+table.restrict(dims, vals)
+probability 1.981e-07 3.690e-07 3.629e-07 4.199e-07 4.195e-07 5.402e-07 6.354e-07 7.117e-07
+logarithmic 1.922e-07 3.859e-07 3.875e-07 4.223e-07 4.203e-07 5.724e-07 5.910e-07 7.630e-07
+
+table.restrict_head(vals)
+probability 2.066e-08 3.482e-08 4.660e-08 5.732e-08 6.742e-08 8.618e-08 1.400e-07 1.611e-07
+logarithmic 2.060e-08 3.338e-08 4.640e-08 5.708e-08 6.686e-08 8.264e-08 1.110e-07 1.477e-07
+
+table.restrict_tail(vals)
+probability 1.910e-08 3.378e-08 4.464e-08 5.396e-08 6.398e-08 7.574e-08 8.838e-08 1.097e-07
+logarithmic 1.912e-08 3.476e-08 4.354e-08 5.324e-08 6.580e-08 7.710e-08 1.101e-07 1.088e-07
+
+table *= table
+probability 7.872e-08 8.272e-08 8.678e-08 1.148e-07 1.372e-07 1.909e-07 3.254e-07 6.073e-07
+logarithmic 7.400e-08 7.714e-08 8.742e-08 1.082e-07 1.356e-07 1.934e-07 3.095e-07 5.451e-07
+
+table /= table
+probability 1.648e-07 8.316e-08 5.036e-07 6.092e-07 1.486e-07 5.447e-07 6.496e-07 5.630e-07
+logarithmic 6.952e-08 7.618e-08 8.672e-08 1.091e-07 1.935e-07 2.484e-07 3.158e-07 5.643e-07
+
+table *= table.restrict(a)
+probability 1.843e-07 1.999e-07 2.747e-07 2.433e-07 2.760e-07 3.876e-07 4.842e-07 8.427e-07
+logarithmic 1.874e-07 1.998e-07 2.688e-07 3.602e-07 3.745e-07 3.796e-07 5.093e-07 7.839e-07
+../release/timing/factor/experimental/table_experimental_timing --num-values 5 --max-arity 7 --num-reps 1000
+Measuring table factors with num_values=5 max_arity=7 num_reps=1000
+
+table * constant
+probability 1.500e-08 1.180e-07 3.450e-07 8.400e-08 2.600e-07 1.387e-06 6.188e-06 4.678e-05
+logarithmic 1.100e-08 2.500e-08 3.800e-08 7.800e-08 2.370e-07 1.272e-06 5.956e-06 4.572e-05
+
+table + table
+probability 2.100e-08 3.300e-08 4.600e-08 7.900e-08 1.910e-07 1.377e-06 1.092e-05 5.576e-05
+logarithmic 3.800e-08 8.500e-08 3.430e-07 1.560e-06 7.636e-06 4.044e-05 1.938e-04 9.514e-04
+
+table + table + table
+probability 1.500e-08 3.200e-08 5.100e-08 1.230e-07 4.680e-07 3.783e-06 1.571e-05 8.325e-05
+logarithmic 6.400e-08 2.480e-07 1.165e-06 5.577e-06 3.082e-05 1.432e-04 7.321e-04 3.637e-03
+
+table * table
+probability 5.080e-07 5.500e-07 1.106e-06 3.422e-06 1.676e-05 7.936e-05
+logarithmic 4.990e-07 5.460e-07 1.109e-06 3.422e-06 1.579e-05 8.048e-05
+
+table / table
+probability 7.390e-07 2.804e-06 6.165e-06 1.810e-05 7.481e-05 2.792e-04
+logarithmic 5.040e-07 5.500e-07 1.118e-06 4.548e-06 1.630e-05 7.874e-05
+
+table.marginal(dom)
+probability 9.800e-08 2.720e-07 3.450e-07 7.340e-07 2.564e-06 1.431e-05
+logarithmic 1.320e-07 4.360e-07 8.970e-07 3.612e-06 2.008e-05 1.194e-04
+
+table.maximum(dom)
+probability 9.600e-08 2.900e-07 3.560e-07 7.660e-07 2.676e-06 1.285e-05
+logarithmic 9.700e-08 3.090e-07 3.780e-07 7.910e-07 2.569e-06 1.185e-05
+
+(table * table).marginal(dom)
+probability 7.600e-07 9.700e-07 3.169e-06 4.539e-06 2.006e-05 1.979e-04
+logarithmic 1.167e-06 2.992e-06 5.123e-06 1.911e-05 9.331e-05 4.627e-04
+
+(table * table).maximum(dom)
+probability 8.040e-07 9.340e-07 1.505e-06 9.959e-05 2.714e-05 1.082e-04
+logarithmic 8.330e-07 9.780e-07 1.665e-06 4.833e-06 2.159e-05 1.060e-04
+
+(table * table).sum()
+probability 4.320e-07 5.220e-07 2.906e-06 1.042e-04 2.308e-05 7.845e-05
+logarithmic 9.190e-07 1.351e-06 3.916e-06 1.754e-05 9.255e-05 5.792e-04
+
+(table * table).max()
+probability 5.060e-07 6.130e-07 3.342e-06 5.203e-06 1.266e-04 7.233e-05
+logarithmic 4.760e-07 6.100e-07 1.076e-06 3.319e-06 1.484e-05 7.560e-05
+
+table.restrict(dims, vals)
+probability 1.870e-07 3.380e-07 3.790e-07 5.050e-07 1.040e-06 4.093e-06
+logarithmic 2.930e-07 4.370e-07 4.720e-07 5.040e-07 1.040e-06 3.691e-06
+
+table.restrict_head(vals)
+probability 2.000e-08 3.400e-08 5.200e-08 1.060e-07 3.180e-07 2.331e-06
+logarithmic 1.900e-08 3.400e-08 5.100e-08 1.050e-07 4.050e-07 4.247e-06
+
+table.restrict_tail(vals)
+probability 2.200e-08 3.800e-08 5.100e-08 7.100e-08 1.370e-07 1.162e-06
+logarithmic 2.100e-08 3.900e-08 5.100e-08 7.100e-08 1.380e-07 1.161e-06
+
+table *= table
+probability 7.800e-08 1.020e-07 1.760e-07 5.590e-07 2.479e-06 1.135e-05
+logarithmic 7.300e-08 8.700e-08 1.570e-07 5.070e-07 4.318e-06 1.189e-05
+
+table /= table
+probability 1.210e-07 2.330e-07 1.950e-07 6.950e-07 3.796e-06 1.544e-05
+logarithmic 7.200e-08 8.800e-08 1.570e-07 5.100e-07 2.254e-06 1.336e-05
+
+table *= table.restrict(a)
+probability 1.910e-07 2.580e-07 3.500e-07 7.400e-07 2.665e-06 1.365e-05
+logarithmic 2.120e-07 2.360e-07 3.170e-07 6.890e-07 2.421e-06 1.339e-05
+../release/timing/factor/experimental/vector_experimental_timing --step-size 10 --max-values 101 --num-reps=100000
+Measuring vector factors with  min_values=1 max_values=101 step_size=10 num_reps=100000
+
+vector * constant
+probability 3.450e-09 2.111e-07 3.261e-07 5.373e-08 9.645e-08 1.620e-07 2.183e-08 6.495e-08 1.080e-07 3.018e-08 1.220e-07
+logarithmic 3.650e-09 7.360e-09 1.011e-08 1.354e-08 1.454e-08 1.897e-08 2.030e-08 2.270e-08 2.511e-08 2.827e-08 3.094e-08
+
+vector + vector
+probability 8.170e-09 1.181e-08 1.631e-08 2.232e-08 2.611e-08 3.109e-08 3.626e-08 4.008e-08 4.919e-08 6.572e-08 5.450e-08
+logarithmic 2.068e-08 1.506e-07 2.412e-07 3.762e-07 4.925e-07 5.727e-07 7.518e-07 9.147e-07 9.637e-07 1.065e-06 1.231e-06
+
+vector * vector * vector
+probability 1.646e-08 2.362e-08 3.253e-08 4.018e-08 4.855e-08 8.107e-08 7.130e-08 8.451e-08 8.689e-08 1.020e-07 1.212e-07
+logarithmic 1.487e-08 2.134e-08 3.254e-08 3.950e-08 4.891e-08 5.757e-08 6.753e-08 7.946e-08 9.404e-08 1.228e-07 1.104e-07
+
+vector.marginal()
+probability 8.800e-10 3.250e-09 5.600e-09 5.890e-09 7.150e-09 8.200e-09 9.780e-09 1.139e-08 1.339e-08 1.934e-08 2.082e-08
+logarithmic 1.240e-08 9.305e-08 1.344e-07 1.961e-07 2.493e-07 3.322e-07 3.556e-07 4.562e-07 5.570e-07 5.200e-07 6.206e-07
+
+vector.maximum()
+probability 8.900e-10 3.240e-09 5.890e-09 5.590e-09 7.060e-09 8.680e-09 9.730e-09 1.125e-08 1.321e-08 1.480e-08 1.691e-08
+logarithmic 9.600e-10 3.240e-09 9.620e-09 1.025e-08 1.299e-08 1.340e-08 1.111e-08 1.258e-08 1.459e-08 1.631e-08 1.852e-08
+
+vector.minimum()
+probability 9.500e-10 3.450e-09 5.940e-09 5.940e-09 7.200e-09 8.560e-09 1.012e-08 1.177e-08 2.500e-08 2.388e-08 1.864e-08
+logarithmic 9.800e-10 3.560e-09 6.140e-09 6.140e-09 7.750e-09 9.060e-09 1.269e-08 1.218e-08 1.414e-08 1.552e-08 1.702e-08
+
+vector.max(pos)
+probability 8.900e-10 8.840e-09 1.703e-08 2.867e-08 4.049e-08 5.202e-08 6.417e-08 8.109e-08 9.420e-08 1.018e-07 1.116e-07
+logarithmic 8.900e-10 7.780e-09 1.750e-08 2.895e-08 4.072e-08 5.278e-08 6.422e-08 7.615e-08 8.886e-08 1.009e-07 1.189e-07
+
+vector.min(pos)
+probability 9.400e-10 8.190e-09 1.763e-08 2.918e-08 4.051e-08 5.280e-08 6.430e-08 9.796e-08 9.533e-08 1.115e-07 1.169e-07
+logarithmic 9.700e-10 8.680e-09 1.857e-08 3.078e-08 4.122e-08 6.584e-08 7.180e-08 7.807e-08 8.823e-08 1.008e-07 1.122e-07
+../release/timing/factor/experimental/matrix_experimental_timing --step-size 10 --max-values 32 --num-reps=100000
+Measuring matrix factors with  min_values=2 max_values=32 step_size=10 num_reps=100000
+
+matrix * constant
+probability 3.669e-08 5.728e-08 1.515e-07 2.823e-07
+logarithmic 2.277e-08 5.897e-08 1.471e-07 3.132e-07
+
+matrix + matrix
+probability 2.728e-08 1.165e-07 3.451e-07 7.448e-07
+logarithmic 6.890e-08 1.794e-06 5.622e-06 1.180e-05
+
+matrix * matrix -- direct
+probability 2.581e-08 1.432e-07 3.897e-07 8.661e-07
+logarithmic 2.840e-08 1.210e-07 3.649e-07 7.461e-07
+
+matrix * matrix -- transposed
+probability 2.758e-08 1.527e-07 3.189e-07 6.434e-07
+logarithmic 2.708e-08 1.379e-07 3.513e-07 5.949e-07
+
+matrix * vector -- direct
+probability 3.318e-08 1.250e-07 2.796e-07 4.931e-07
+logarithmic 3.582e-08 1.287e-07 2.855e-07 4.591e-07
+
+matrix * vector -- transposed
+probability 3.363e-08 3.784e-07 2.419e-07 4.213e-07
+logarithmic 4.669e-08 1.251e-07 2.464e-07 4.191e-07
+
+vector * matrix -- direct
+probability 3.438e-08 1.149e-06 1.154e-06 5.377e-07
+logarithmic 3.695e-08 1.550e-07 3.058e-07 4.948e-07
+
+vector * matrix -- transposed
+probability 3.540e-08 1.534e-07 3.434e-07 6.415e-07
+logarithmic 4.170e-08 1.440e-07 3.270e-07 6.245e-07
+
+matrix * outer(vector * vector)
+probability 1.039e-07 2.841e-07 6.827e-07 1.518e-06
+logarithmic 1.065e-07 2.730e-07 6.737e-07 1.120e-06
+
+matrix.marginal(0)
+probability 8.630e-09 6.944e-08 2.018e-07 4.539e-07
+logarithmic 3.490e-08 6.495e-07 2.690e-06 4.598e-06
+
+matrix.marginal(1)
+probability 1.154e-08 1.210e-07 1.610e-07 3.322e-07
+logarithmic 4.680e-08 7.326e-07 3.133e-06 5.094e-06
+
+matrix.maximum(row, col)
+probability 5.000e-09 1.927e-07 5.813e-07 1.317e-06
+logarithmic 4.790e-09 1.749e-07 6.059e-07 1.317e-06
+
+(matrix * vector).marginal(0)
+probability 2.609e-08 7.314e-08 1.476e-06 3.080e-07
+logarithmic 1.210e-07 1.391e-06 3.708e-06 7.863e-06
+
+(matrix * vector).marginal(1)
+probability 2.980e-08 3.188e-07 1.057e-06 1.639e-06
+logarithmic 1.190e-07 1.183e-06 3.902e-06 7.912e-06
+
+(matrix * vector).maximum(0)
+probability 9.440e-08 7.079e-07 5.065e-07 2.275e-06
+logarithmic 1.034e-07 3.322e-07 5.159e-07 8.421e-07
+
+(matrix * vector).maximum(1)
+probability 9.158e-08 6.336e-07 2.009e-06 3.700e-06
+logarithmic 8.908e-08 2.426e-07 5.297e-07 1.002e-06
+
+matrix.restrict(0, val)
+probability 3.020e-09 6.180e-09 8.910e-09 1.090e-08
+logarithmic 2.950e-09 6.180e-09 9.160e-09 1.089e-08
+
+matrix.restrict(1, val)
+probability 3.830e-09 7.400e-09 6.590e-09 7.380e-09
+logarithmic 4.060e-09 5.700e-09 6.240e-09 6.820e-09
+
+vector *= matrix.restrict(0, val)
+probability 7.016e-08 7.285e-08 7.685e-08 1.733e-07
+logarithmic 7.624e-08 6.974e-08 7.091e-08 1.514e-07
+
+vector *= matrix.restrict(1, val)
+probability 6.802e-08 6.789e-08 6.836e-08 1.404e-07
+logarithmic 5.766e-08 6.948e-08 6.776e-08 1.431e-07
+../release/timing/factor/experimental/moment_gaussian_experimental_timing --max-dims 50 --step-size 5 --num-reps=10000
+Measuring matrix factors with  min_dims=2 max_dims=50 step_size=5 num_reps=10000
+
+mg * constant
+ 2.100e-08 3.550e-08 6.340e-08 1.076e-07 1.559e-07 2.199e-07 3.262e-07 3.714e-07 4.382e-07 6.987e-07
+
+mg.head() * mg.tail() -- span
+ 1.610e-06 2.902e-06 2.943e-06 3.869e-06 4.888e-06 6.751e-06 8.532e-06 1.023e-05 1.232e-05 1.504e-05
+
+mg.head() * mg.tail() -- iref
+ 1.955e-06 2.883e-06 3.048e-06 4.197e-06 5.275e-06 6.836e-06 8.287e-06 1.187e-05 1.183e-05 1.530e-05
+
+mg.marginal(dom) -- span
+ 3.340e-08 3.270e-08 3.280e-08 3.260e-08 3.270e-08 3.280e-08 3.270e-08 3.280e-08 3.260e-08 3.330e-08
+
+mg.marginal(dom) -- iref
+ 9.070e-08 8.940e-08 8.740e-08 9.040e-08 9.070e-08 9.080e-08 9.060e-08 8.780e-08 8.520e-08 8.510e-08
+
+mg.head().sum(dom) -- span
+ 1.975e-07 4.465e-07 4.379e-07 5.150e-07 7.010e-07 8.596e-07 1.135e-06 1.633e-06 2.189e-06 2.338e-06
+
+mg.head().sum(dom) -- iref
+ 5.507e-07 4.976e-07 5.227e-07 6.959e-07 8.084e-07 9.912e-07 1.269e-06 1.742e-06 2.153e-06 2.733e-06
+
+mg.restrict_head() -- span
+ 6.676e-07 2.357e-06 2.304e-06 2.669e-06 3.118e-06 3.472e-06 4.385e-06 5.492e-06 5.627e-06 7.331e-06
+
+mg.restrict_head() -- iref
+ 1.081e-06 2.096e-06 2.489e-06 2.761e-06 2.912e-06 3.804e-06 4.610e-06 5.413e-06 5.910e-06 7.459e-06
+
+mg.restrict_tail() -- span
+ 1.231e-07 3.603e-07 3.853e-07 4.903e-07 6.562e-07 8.285e-07 1.115e-06 1.673e-06 2.076e-06 2.309e-06
+
+mg.restrict_tail() -- iref
+ 3.487e-07 5.752e-07 5.564e-07 8.307e-07 8.019e-07 1.164e-06 1.350e-06 1.614e-06 2.058e-06 2.490e-06
+../release/timing/factor/experimental/canonical_gaussian_experimental_timing --max-dims 50 --step-size 5 --num-reps=10000
+Measuring matrix factors with  min_dims=2 max_dims=50 step_size=5 num_reps=10000
+
+cg * constant
+ 1.678e-07 2.330e-07 1.956e-07 2.674e-07 3.809e-07 4.913e-07 7.248e-07 9.338e-07 1.448e-06 1.654e-06
+
+cg * cg -- direct
+ 1.770e-08 3.790e-08 8.120e-08 1.440e-07 3.111e-07 4.410e-07 4.996e-07 6.285e-07 9.481e-07 1.229e-06
+
+cg * cg -- span
+ 1.687e-07 3.755e-07 3.985e-07 7.102e-07 1.053e-06 1.654e-06 2.747e-06 3.157e-06 3.966e-06 4.895e-06
+
+cg * cg -- iref
+ 1.185e-07 2.387e-07 4.727e-07 7.288e-07 1.053e-06 1.679e-06 2.651e-06 3.377e-06 4.230e-06 5.166e-06
+
+cg *= cg -- span
+ 1.340e-08 5.160e-08 1.066e-07 1.813e-07 3.023e-07 4.031e-07 5.815e-07 7.638e-07 1.015e-06 1.127e-06
+
+cg *= cg -- iref
+ 6.600e-09 3.610e-08 9.580e-08 1.851e-07 3.158e-07 4.600e-07 6.613e-07 8.550e-07 1.325e-06 1.606e-06
+
+cg.marginal(dom) -- span
+ 1.518e-07 2.048e-06 3.091e-06 4.307e-06 5.260e-06 7.349e-06 9.295e-06 1.546e-05 1.773e-05 2.270e-05
+
+cg.marginal(dom) -- iref
+ 2.900e-07 2.180e-06 3.170e-06 4.098e-06 5.494e-06 8.120e-06 9.476e-06 1.535e-05 1.673e-05 2.234e-05
+
+cg.head().sum() -- span
+ 7.353e-07 1.085e-06 1.408e-06 1.698e-06 1.973e-06 2.424e-06 3.332e-06 3.458e-06 3.975e-06 4.852e-06
+
+cg.dims().sum() -- iref
+ 9.272e-07 1.752e-06 2.045e-06 2.271e-06 2.629e-06 2.888e-06 3.254e-06 4.477e-06 4.571e-06 5.545e-06
+
+cg.restrict() -- span
+ 3.217e-07 7.583e-07 5.513e-07 5.556e-07 6.025e-07 7.887e-07 8.262e-07 1.037e-06 1.298e-06 1.555e-06
+
+cg.restrict() -- iref
+ 5.545e-07 8.496e-07 8.818e-07 1.155e-06 1.113e-06 1.233e-06 1.588e-06 1.813e-06 1.999e-06 2.238e-06

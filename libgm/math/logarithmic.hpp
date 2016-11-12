@@ -357,8 +357,15 @@ namespace libgm {
 
   /**
    * Logarithmic value with double storage.
+   * \relates logarithmic
    */
-  typedef logarithmic<double> logd;
+  using logd = logarithmic<double>;
+
+  /**
+   * Logarithmic value with float storage.
+   * \relates logarithmic
+   */
+  using logf = logarithmic<float>;
 
 } // namespace libgm
 

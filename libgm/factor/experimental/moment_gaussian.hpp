@@ -188,10 +188,8 @@ namespace libgm { namespace experimental {
      * Returns a moment_gaussian expression representing the aggregate (marginal
      * or maximum) of this expression over a range of dimensions.
      */
-    template <typename IndexRange>
-    auto aggregate(bool marginal, IndexRange retain) const {
-      static_assert(std::is_trivially_copyable<IndexRange>::value,
-                    "The retained dimensions must be trivially copyable.");
+    template <typename It>
+    auto aggregate(bool marginal, index_range<It> retain) const {
       return make_moment_gaussian_function<void>(
         [marginal, retain](const Derived& f, param_type& result) {
           f.param().collapse(marginal, retain, result);

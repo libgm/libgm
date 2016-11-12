@@ -1,5 +1,4 @@
-#include <libgm/argument/var.hpp>
-#include <libgm/factor/moment_gaussian.hpp>
+#include <libgm/factor/experimental/moment_gaussian.hpp>
 
 #include <iostream>
 #include <iomanip>
@@ -11,29 +10,16 @@ namespace po = boost::program_options;
 
 using namespace libgm;
 
-using mgaussian = moment_gaussian<var>;
+using mgaussian = experimental::moment_gaussian<double>;
 
 // global options
 uint_vector num_dims;
 std::size_t num_reps;
 
-domain<var> make_domain(universe& u, std::size_t n) {
-  domain<var> result;
-  for (std::size_t i = 0; i < n; ++i) {
-    result.push_back(var::continuous(u, "x"));
-  }
-  return result;
-}
-
-domain<var> endpoints(const domain<var>& x) {
-  return { x.front(), x.back() };
-}
-
 void time_multiply_constant() {
-  universe u;
   boost::timer t;
   for (std::size_t n : num_dims) {
-    mgaussian f(make_domain(u, n));
+    mgaussian f(n);
     mgaussian g;
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
@@ -45,18 +31,18 @@ void time_multiply_constant() {
 }
 
 void time_multiply_head_tail(bool contiguous) {
-  universe u;
   boost::timer t;
   for (std::size_t n : num_dims) {
-    domain<var> head1 = make_domain(u, n);
-    domain<var> head2 = make_domain(u, n);
-    domain<var> tail2 = contiguous ? head1.prefix(2) : endpoints(head1);
-    mgaussian f(head1);
-    mgaussian g(head2, tail2);
+    mgaussian f(n);
+    mgaussian g(n, 2);
     mgaussian h;
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
-      h = f * g;
+      if (contiguous) {
+        h = f.head(0, 2) * g.tail();
+      } else {
+        h = f.head(uint_vector{0, n-1}) * g.tail();
+      }
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }
@@ -64,16 +50,17 @@ void time_multiply_head_tail(bool contiguous) {
 }
 
 void time_marginal(bool contiguous) {
-  universe u;
   boost::timer t;
   for (std::size_t n : num_dims) {
-    domain<var> args = make_domain(u, n);
-    domain<var> retain = contiguous ? args.prefix(2) : endpoints(args);
-    mgaussian f(args);
+    mgaussian f(n);
     mgaussian g;
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
-      g = f.marginal(retain);
+      if (contiguous) {
+        g = f.marginal(0, 2);
+      } else {
+        g = f.marginal(uint_vector{0, n-1});
+      }
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }
@@ -81,16 +68,17 @@ void time_marginal(bool contiguous) {
 }
 
 void time_sum(bool contiguous) {
-  universe u;
   boost::timer t;
   for (std::size_t n : num_dims) {
-    domain<var> args = make_domain(u, n);
-    domain<var> retain = contiguous ? args.prefix(2) : endpoints(args);
-    mgaussian f(args);
+    mgaussian f(n);
     mgaussian g;
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
-      g = f.marginal(args - retain);
+      if (contiguous) {
+        g = f.head(0, 2).sum();
+      } else {
+        g = f.head(uint_vector{0, n-1}).sum();
+      }
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }
@@ -98,18 +86,19 @@ void time_sum(bool contiguous) {
 }
 
 void time_restrict_head(bool contiguous) {
-  universe u;
   boost::timer t;
   for (std::size_t n : num_dims) {
-    domain<var> head = make_domain(u, n);
-    real_assignment<var> a;
-    a[head[0]] = 2.0;
-    a[contiguous ? head[1] : head.back()] = 3.0;
-    mgaussian f(head, real_vector<>::Zero(n), real_matrix<>::Identity(n, n));
+    mgaussian f(real_vector<>::Zero(n), real_matrix<>::Identity(n, n));
     mgaussian g;
+    uint_vector dims = {0, n-1};
+    real_vector<> vals = real_vector<>::Ones(2);
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
-      g = f.restrict(a);
+      if (contiguous) {
+        g = f.restrict_head(0, 2, vals);
+      } else {
+        g = f.restrict_head(dims, vals);
+      }
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }
@@ -117,21 +106,20 @@ void time_restrict_head(bool contiguous) {
 }
 
 void time_restrict_tail(bool contiguous) {
-  universe u;
   boost::timer t;
   for (std::size_t n : num_dims) {
-    domain<var> head = make_domain(u, n);
-    domain<var> tail = make_domain(u, n);
-    real_assignment<var> a;
-    a[tail[0]] = 2.0;
-    a[contiguous ? tail[1] : tail.back()] = 3.0;
-    mgaussian f(head, tail,
-                real_vector<>::Zero(n), real_matrix<>::Identity(n, n),
+    mgaussian f(real_vector<>::Zero(n), real_matrix<>::Identity(n, n),
                 real_matrix<>::Identity(n, n));
     mgaussian g;
+    uint_vector dims = {0, n-1};
+    real_vector<> vals = real_vector<>::Ones(2);
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
-      g = f.restrict(a);
+      if (contiguous) {
+        g = f.restrict_tail(0, 2, vals);
+      } else {
+        g = f.restrict_tail(dims, vals);
+      }
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }

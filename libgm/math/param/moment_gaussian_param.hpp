@@ -568,7 +568,9 @@ namespace libgm {
           "moment_gaussian restrict: Cholesky decomposition failed"
         );
       }
-      ws.chol_yy.solveInPlace(ws.sol_yx);
+      if (!y.empty()) {
+        ws.chol_yy.solveInPlace(ws.sol_yx);
+      }
 
       // compute the residual over y (observation vec_y - the prediction)
       ws.res_y = vals_y - subvec(mean, y);

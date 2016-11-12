@@ -371,8 +371,10 @@ namespace libgm {
           "canonical_gaussian collapse: Cholesky decomposition failed"
         );
       }
-      ws.chol_yy.solveInPlace(ws.sol_yx);
-      ws.chol_yy.solveInPlace(ws.sol_y);
+      if (!y.empty()) {
+        ws.chol_yy.solveInPlace(ws.sol_yx);
+        ws.chol_yy.solveInPlace(ws.sol_y);
+      }
 
       // store the aggregate parameters
       result.eta = subvec(eta, x);

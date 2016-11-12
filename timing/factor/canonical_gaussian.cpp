@@ -1,5 +1,6 @@
 #include <libgm/argument/var.hpp>
-#include <libgm/factor/moment_gaussian.hpp>
+#include <libgm/factor/canonical_gaussian.hpp>
+#include <libgm/functional/arithmetic.hpp>
 
 #include <iostream>
 #include <iomanip>
@@ -11,7 +12,7 @@ namespace po = boost::program_options;
 
 using namespace libgm;
 
-using mgaussian = moment_gaussian<var>;
+using cgaussian = canonical_gaussian<var>;
 
 // global options
 uint_vector num_dims;
@@ -29,34 +30,82 @@ domain<var> endpoints(const domain<var>& x) {
   return { x.front(), x.back() };
 }
 
-void time_multiply_constant() {
+template <typename Op>
+void time_unary_transform(Op op) {
   universe u;
   boost::timer t;
   for (std::size_t n : num_dims) {
-    mgaussian f(make_domain(u, n));
-    mgaussian g;
+    cgaussian f(make_domain(u, n));
+    cgaussian g;
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
-      g = f * logd(2);
+      g = op(f);
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }
   std::cout << std::endl;
 }
 
-void time_multiply_head_tail(bool contiguous) {
+template <typename Op>
+void time_binary_transform(Op op) {
   universe u;
   boost::timer t;
   for (std::size_t n : num_dims) {
-    domain<var> head1 = make_domain(u, n);
-    domain<var> head2 = make_domain(u, n);
-    domain<var> tail2 = contiguous ? head1.prefix(2) : endpoints(head1);
-    mgaussian f(head1);
-    mgaussian g(head2, tail2);
-    mgaussian h;
+    domain<var> args = make_domain(u, n);
+    cgaussian f(args);
+    cgaussian g(args);
+    cgaussian h;
+    t.restart();
+    for (std::size_t i = 0; i < num_reps; ++i) {
+      h = op(f, g);
+    }
+    std::cout << " " << t.elapsed() / num_reps << std::flush;
+  }
+  std::cout << std::endl;
+}
+
+void time_multiply(bool contiguous) {
+  universe u;
+  boost::timer t;
+  for (std::size_t n : num_dims) {
+    domain<var> x = make_domain(u, n);
+    domain<var> y = make_domain(u, n);
+    if (contiguous) {
+      y[0] = x[0];
+      y[1] = x[1];
+    } else {
+      y[0] = x[0];
+      y[n-1] = x[n-1];
+    }
+    cgaussian f(x);
+    cgaussian g(y);
+    cgaussian h;
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
       h = f * g;
+    }
+    std::cout << " " << t.elapsed() / num_reps << std::flush;
+  }
+  std::cout << std::endl;
+}
+
+void time_multiply_in(bool contiguous) {
+  universe u;
+  boost::timer t;
+  for (std::size_t n : num_dims) {
+    domain<var> x = make_domain(u, n);
+    domain<var> y;
+    if (contiguous) {
+      y = x.prefix(n-1);
+    } else {
+      y = x.suffix(n-1);
+      y[0] = x[0];
+    }
+    cgaussian f(x);
+    cgaussian g(y);
+    t.restart();
+    for (std::size_t i = 0; i < num_reps; ++i) {
+      f *= g;
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }
@@ -68,12 +117,15 @@ void time_marginal(bool contiguous) {
   boost::timer t;
   for (std::size_t n : num_dims) {
     domain<var> args = make_domain(u, n);
-    domain<var> retain = contiguous ? args.prefix(2) : endpoints(args);
-    mgaussian f(args);
-    mgaussian g;
+    cgaussian f(args, real_vector<>::Ones(n), real_matrix<>::Identity(n, n));
+    cgaussian g;
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
-      g = f.marginal(retain);
+      if (contiguous) {
+        g = f.marginal(args.prefix(2));
+      } else {
+        g = f.marginal(endpoints(args));
+      }
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }
@@ -85,50 +137,31 @@ void time_sum(bool contiguous) {
   boost::timer t;
   for (std::size_t n : num_dims) {
     domain<var> args = make_domain(u, n);
-    domain<var> retain = contiguous ? args.prefix(2) : endpoints(args);
-    mgaussian f(args);
-    mgaussian g;
+    cgaussian f(args, real_vector<>::Ones(n), real_matrix<>::Identity(n, n));
+    cgaussian g;
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
-      g = f.marginal(args - retain);
+      if (contiguous) {
+        g = f.marginal(args.suffix(n-2));
+      } else {
+        g = f.marginal(args - endpoints(args));
+      }
     }
     std::cout << " " << t.elapsed() / num_reps << std::flush;
   }
   std::cout << std::endl;
 }
 
-void time_restrict_head(bool contiguous) {
+void time_restrict(bool contiguous) {
   universe u;
   boost::timer t;
   for (std::size_t n : num_dims) {
-    domain<var> head = make_domain(u, n);
+    domain<var> args = make_domain(u, n);
+    cgaussian f(args);
+    cgaussian g;
     real_assignment<var> a;
-    a[head[0]] = 2.0;
-    a[contiguous ? head[1] : head.back()] = 3.0;
-    mgaussian f(head, real_vector<>::Zero(n), real_matrix<>::Identity(n, n));
-    mgaussian g;
-    t.restart();
-    for (std::size_t i = 0; i < num_reps; ++i) {
-      g = f.restrict(a);
-    }
-    std::cout << " " << t.elapsed() / num_reps << std::flush;
-  }
-  std::cout << std::endl;
-}
-
-void time_restrict_tail(bool contiguous) {
-  universe u;
-  boost::timer t;
-  for (std::size_t n : num_dims) {
-    domain<var> head = make_domain(u, n);
-    domain<var> tail = make_domain(u, n);
-    real_assignment<var> a;
-    a[tail[0]] = 2.0;
-    a[contiguous ? tail[1] : tail.back()] = 3.0;
-    mgaussian f(head, tail,
-                real_vector<>::Zero(n), real_matrix<>::Identity(n, n),
-                real_matrix<>::Identity(n, n));
-    mgaussian g;
+    a[args[0]] = 2.0;
+    a[contiguous ? args[1] : args.back()] = 3.0;
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
       g = f.restrict(a);
@@ -176,38 +209,41 @@ int main(int argc, char** argv) {
 
   std::cout << std::scientific << std::setprecision(3);
 
-  std::cout << std::endl << "mg * constant" << std::endl;
-  time_multiply_constant();
+  std::cout << std::endl << "cg * constant" << std::endl;
+  time_unary_transform(multiplied_by<logd>(logd(3.0, log_tag())));
 
-  std::cout << std::endl << "mg.head() * mg.tail() -- span" << std::endl;
-  time_multiply_head_tail(true);
+  std::cout << std::endl << "cg * cg -- direct" << std::endl;
+  time_binary_transform(std::multiplies<>());
 
-  std::cout << std::endl << "mg.head() * mg.tail() -- iref" << std::endl;
-  time_multiply_head_tail(false);
+  std::cout << std::endl << "cg * cg -- span" << std::endl;
+  time_multiply(true);
 
-  std::cout << std::endl << "mg.marginal(dom) -- span" << std::endl;
+  std::cout << std::endl << "cg * cg -- iref" << std::endl;
+  time_multiply(false);
+
+  std::cout << std::endl << "cg *= cg -- span" << std::endl;
+  time_multiply_in(true);
+
+  std::cout << std::endl << "cg *= cg -- iref" << std::endl;
+  time_multiply_in(false);
+
+  std::cout << std::endl << "cg.marginal(dom) -- span" << std::endl;
   time_marginal(true);
 
-  std::cout << std::endl << "mg.marginal(dom) -- iref" << std::endl;
+  std::cout << std::endl << "cg.marginal(dom) -- iref" << std::endl;
   time_marginal(false);
 
-  std::cout << std::endl << "mg.head().sum(dom) -- span" << std::endl;
+  std::cout << std::endl << "cg.head().sum() -- span" << std::endl;
   time_sum(true);
 
-  std::cout << std::endl << "mg.head().sum(dom) -- iref" << std::endl;
+  std::cout << std::endl << "cg.dims().sum() -- iref" << std::endl;
   time_sum(false);
 
-  std::cout << std::endl << "mg.restrict_head() -- span" << std::endl;
-  time_restrict_head(true);
+  std::cout << std::endl << "cg.restrict() -- span" << std::endl;
+  time_restrict(true);
 
-  std::cout << std::endl << "mg.restrict_head() -- iref" << std::endl;
-  time_restrict_head(false);
-
-  std::cout << std::endl << "mg.restrict_tail() -- span" << std::endl;
-  time_restrict_tail(true);
-
-  std::cout << std::endl << "mg.restrict_tail() -- iref" << std::endl;
-  time_restrict_tail(false);
+  std::cout << std::endl << "cg.restrict() -- iref" << std::endl;
+  time_restrict(false);
 
   return 0;
 }

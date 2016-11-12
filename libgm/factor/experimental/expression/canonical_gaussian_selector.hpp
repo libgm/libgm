@@ -106,7 +106,7 @@ namespace libgm { namespace experimental {
       return make_canonical_gaussian_function<workspace_type>(
         [marginal, dims = dims_](const F& f, workspace_type& ws,
                                  param_type& result) {
-          f.param().collapse(marginal, dims.complement(f.arity()), dims, ws,
+          f.param().collapse(marginal, complement(dims, f.arity()), dims, ws,
                              result);
         }, f_.arity() - dims_.size(), f_);
     }

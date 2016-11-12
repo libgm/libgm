@@ -50,7 +50,7 @@ namespace libgm {
    */
   inline back complement(front f, std::size_t arity) {
     assert(f.size() <= arity);
-    return back(f.size(), arity);
+    return back(arity, arity - f.size());
   }
 
   /**

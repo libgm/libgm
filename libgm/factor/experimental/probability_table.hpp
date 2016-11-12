@@ -338,10 +338,8 @@ namespace libgm { namespace experimental {
      * Returns a probability_table expression representing the aggregate of
      * this expression over a range of dimensions.
      */
-    template <typename AggOp, typename IndexRange>
-    auto aggregate(AggOp agg_op, RealType init, IndexRange retain) const {
-      static_assert(std::is_trivially_copyable<IndexRange>::value,
-                    "The retained dimensions must be trivially copyable.");
+    template <typename AggOp, typename It>
+    auto aggregate(AggOp agg_op, RealType init, index_range<It> retain) const {
       return make_table_function<prob_tag>(
         [agg_op, init, retain](const Derived& f, param_type& result) {
           f.param().aggregate(agg_op, init, retain, result);
