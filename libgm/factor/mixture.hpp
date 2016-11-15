@@ -1,444 +1,459 @@
 #ifndef LIBGM_MIXTURE_HPP
 #define LIBGM_MIXTURE_HPP
 
-#include <libgm/factor/base/factor.hpp>
+#include <libgm/enable_if.hpp>
 #include <libgm/factor/traits.hpp>
+#include <libgm/factor/substituted_param.hpp>
+#include <libgm/functional/arithmetic.hpp>
 #include <libgm/math/random/mixture_distribution.hpp>
 #include <libgm/serialization/vector.hpp>
+
+#include <vector>
 
 namespace libgm {
 
   /**
-   * A factor representing a finite weighted mixture (sum) of distributions.
+   * A model representing a finite mixture (sum) of distributions.
    *
-   * \tparam F The factor type representing each mixture component.
-   *           Must model the ParametricFactor concept and support prototypes.
+   * \tparam F
+   *         The factor type representing each mixture component.
    *
-   * \ingroup factor_types
+   * \ingroup model
    */
   template <typename F>
-  class mixture : public factor {
+  class mixture {
   public:
     // Public types
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     // Factor member types
-    typedef typename F::real_type       real_type;
-    typedef typename F::result_type     result_type;
-    typedef typename F::argument_type   argument_type;
-    typedef typename F::domain_type     domain_type;
-    typedef typename F::assignment_type assignment_type;
+    using real_type   = typename F::real_type;
+    using result_type = typename F::result_type;
+    using factor_type = mixture<F>;
 
     // ParametricFactor member types
-    typedef std::vector<typename F::param_type> param_type;
-    typedef typename F::vector_type              vector_type;
-    typedef mixture_distribution<typename F::distribution_type>
-      distribution_type;
+    using param_type = std::vector<typename F::param_type>;
+    using shape_type = std::pair<std::size_t, typename F::shape_type>;
+    using index_type = typename F::index_type;
 
-    // Constructors and conversion operators
-    //==========================================================================
+    // Constructors and initialization
+    //--------------------------------------------------------------------------
 
-    //! Default constructor. Creates an empty factor.
+    //! Default constructor. Constructs an empty mixture.
     mixture() { }
 
     /**
-     * Constructs a mixture with given number of components and arguments.
-     * Allocates but does not initialize the parameters.
+     * Constructs a mixture with the specified number of components and
+     * default-constructed mixture components.
      */
-    explicit mixture(std::size_t k, const domain_type& args)
-      : prototype_(args), param_(k, prototype_.param()) {
-      typename F::param_type(std::move(prototype_.param())); // free memory
+    explicit mixture(std::size_t k)
+      : components_(k) {
+      assert(k > 0);
     }
 
     /**
-     * Constructs a mixture with k identical components equal to
-     * the specified factor.
+     * Constructs a mixture with the specified number of components,
+     * each initialized to the given shape.
+     */
+    mixure(std::size_t k, const typename F::shape_type& shape)
+      : components_(k) {
+      assert(k > 0);
+      for (std::size_t i = 0; i < k; ++i) {
+        components_.reset(shape);
+      }
+    }
+
+    /**
+     * Constructs a mixture with the specified number of components,
+     * each initialized to the given parameter.
+     */
+    mixture(std::size_t k, const typename F::param_type& param)
+      : components_(k) {
+      assert(k > 0);
+      for (std::size_t i = 0; i < k; ++i) {
+        components_[i].param() = param;
+      }
+    }
+
+    /**
+     * Constructs a mixutre with the specified number of components,
+     * all initialized to the given factor.
      */
     mixture(std::size_t k, const F& factor)
-      : prototype_(factor), param_(k, factor.param()) {
-      typename F::param_type(std::move(prototype_.param())); // free memory
+      : components_(k, factor) {
+      assert(k > 0);
     }
 
     /**
-     * Constructs a mixture with a single component equal to
-     * the specified factor.
+     * Constructs a mixture with the specified parameters.
      */
-    explicit mixture(const F& factor)
-      : prototype_(factor) {
-      param_.push_back(std::move(prototype_.param()));
-    }
-
-    /**
-     * Constructs a mixture equivalent to a constant.
-     * The mixture has exactly one component and no arguments.
-     */
-    explicit mixture(result_type value)
-      : prototype_(value) {
-      param_.push_back(std::move(prototype_.param()));
-    }
-
-    //! Assigns a single component to this factor.
-    mixture& operator=(const F& factor) {
-      prototype_ = factor;
-      param_.clear();
-      param_.push_back(std::move(prototype_.param()));
-      return *this;
-    }
-
-    //! Assigns a constant to this factor.
-    mixture& operator=(result_type value) {
-      prototype_ = value;
-      param_.clear();
-      param_.push_back(std::move(prototype_.param()));
-      return *this;
+    explicit mixture(const param_type& param)
+      : components_(param.size()) {
+      assert(param.size() > 0);
+      for (std::size_t i = 0; i < param.size(); ++i) {
+        components_[i].param() = param[i];
+      }
     }
 
     //! Exchanges the contents of two mixtures.
-    friend void swap(mixture& f, mixture& g) {
-      swap(f.prototype_, g.prototype_);
-      swap(f.param_, g.param_);
+    friend void swap(mixture& m, mixture& n) {
+      swap(m.components_, n.components_);
     }
 
-    // Serialization
-    //==========================================================================
-
-    //! Serializes the factor to an archive.
+    //! Serializes the model to an archive.
     void save(oarchive& ar) const {
-      ar << prototype_ << param_;
+      ar << components_;
     }
 
-    //! Deserializes the factor from an archive.
-    void load(iarchive& ar) const {
-      ar >> prototype_ >> param_;
+    //! Deserializes the model from an archive.
+    void load(iarchive& ar) {
+      ar >> components_;
     }
 
-    // Accessors and comparison operators
-    //==========================================================================
-
-    //! Returns the arguments of this mixture.
-    const domain_type& arguments() const {
-      return prototype_.arguments();
+    //! Resets the mixture to the given number of components with given shape.
+    void reset(std::size_t k, const typename F::shape_type& shape) {
+      components_.resize(k);
+      for (std::size_t i = 0; i < k; ++i) {
+        components_[k].reset(shape);
+      }
     }
 
-    //! Returns the number of arguments of this mixture.
+    // Accessors
+    //--------------------------------------------------------------------------
+
+    //! Returns the number dimensions of each component.
     std::size_t arity() const {
-      return prototype_.arity();
+      return components_.arity();
     }
 
-    //! Returns true if the mixture is empty (has 0 components).
+    //! Returns true if the mixture has no components.
     bool empty() const {
-      return param_.empty();
+      return components_.empty();
     }
 
-    //! Returns the number of components of this mixture.
+    //! Returns the number of components of the mixture.
     std::size_t size() const {
-      return param_.size();
+      return components_.size();
     }
 
-    //! Returns the prototype factor.
-    const F& prototype() const {
-      return prototype_;
-    }
-
-    //! Returns the parameter vector.
-    param_type& param() {
-      return param_;
-    }
-
-    //! Returns the parameter vector.
-    const param_type& param() const {
-      return param_;
-    }
-
-    //! Returns the parameters associated with component i.
-    typename F::param_type& param(std::size_t i) {
+    //! Returns the parameters associated with the given component index.
+    param_type& param(std::size_t i) {
       return param_[i];
     }
 
-    //! Returns the parameters associated with component i.
-    const typename F::param_type& param(std::size_t i) const {
+    //! Returns the parameters associated with the given component index.
+    const param_type& param(std::size_t i) const {
       return param_[i];
     }
 
-    //! Returns true if the two mixtures have the same domains and parameters.
-    bool operator==(const mixture& other) const {
-      return prototype_.arguments() == other.prototype_.arguments()
-        && param_ == other.param_;
+    //! Returns the parameter vector (a copy).
+    param_type param() const {
+      param_type result(size());
+      for (std::size_t i = 0; i < result.size(); ++i) {
+        result[i] = param(i);
+      }
+      return result;
     }
 
-    //! Returns true if the mixtures do not have the same domain or parameters.
-    bool operator!=(const mixture& other) const {
-      return !(*this == other);
+    //! Returns the factor representing the given component.
+    F& operator[](std::size_t i) {
+      return components_[i];
     }
 
-    // Indexing
-    //==========================================================================
-
-    /**
-     * Converts the given index to an assignment over head variables.
-     */
-    void assignment(const vector_type& index, assignment_type& a) const {
-      prototype_.assignment(index, a);
+    //! Returns the factor representing the given component.
+    const F& operator[](std::size_t i) const {
+      return components_[i];
     }
 
-    /**
-     * Substitutes the arguments in-place according to the given map.
-     */
-    void subst_args(const std::unordered_map<argument_type, argument_type>& m) {
-      prototype_.subst_args(m);
+    //! Outputs a human-readable representation of the mixture to a stream.
+    friend std::ostream& operator<<(std::ostream& out, const mixture& m) {
+      for (std::size_t i = 0; i < m.size(); ++i) {
+        out << m.param(i) << std::endl;
+      }
+      return out;
     }
 
-    // Factor evaluation
-    //==========================================================================
+    // Queries
+    //--------------------------------------------------------------------------
 
-    //! Evaluates the factor for an assignment.
-    result_type operator()(const assignment_type& a) const {
-      return operator()(extract(a, arguments()));
-    }
-
-    //! Evaluates the factor for the given index.
-    result_type operator()(const vector_type& index) const {
+    //! Evaluates the mixture for the given vector.
+    result_type operator()(const index_type& index) const {
       result_type result(0);
-      for (const auto& p : param_) {
-        result += p(index);
-      }
-      return ;
-    }
-
-    //! Returns the log-value of the factor for an assignment.
-    real_type log(const assignment_type& a) const {
-      return log(extract(a, arguments()));
-    }
-
-    //! Returns the log-value of the factor for an index.
-    real_type log(const vector_type& index) const {
-      using std::log;
-      return log(operator()(index));
-    }
-
-    // Factor operations
-    //==========================================================================
-
-    //! Multiplies a mixture by a constant in-place component-wise.
-    friend mixture& operator*=(mixture& h, result_type val) {
-      auto op = multiplies_assign_op(h.prototype_);
-      for (auto& p : h.param_) { op(p, val); }
-      return h;
-    }
-
-    //! Divides a mixture by a constant in-place component-wise.
-    friend mixture& operator/=(mixture& h, result_type val) {
-      auto op = divides_assign_op(h.prototype_);
-      for (auto& p : h.param_) { op(p, val); }
-      return h;
-    }
-
-    //! Multiplies a mixture by a factor in-place component-wise.
-    friend mixture& operator*=(mixture& h, const F& f) {
-      auto op = multiplies_assign_op(h.prototype_, f);
-      for (auto& p : h.param_) { op(p, f.param()); }
-      return h;
-    }
-
-    //! Divides a mixture by a factor in-place component-wise.
-    friend mixture& operator/=(mixture& h, const F& f) {
-      auto op = divides_assign_op(h.prototype_, f);
-      for (auto& p : h.param_) { op(p, f.param()); }
-      return h;
-    }
-
-    //! Multiplies a mixture by a constant component-wise.
-    friend mixture operator*(mixture h, result_type val) {
-      auto op = multiplies_assign_op(h.prototype_);
-      for (auto& p : h.param_) { op(p, val); }
-      return h;
-    }
-
-    //! Multiplies a mixture by a constant component-wise.
-    friend mixture operator*(result_type val, mixture h) {
-      auto op = multiplies_assign_op(h.prototype_);
-      for (auto& p : h.param_) { op(p, val); }
-      return h;
-    }
-
-    //! Divides a mixture by a constant component-wise.
-    friend mixture operator/(mixture h, result_type val) {
-      auto op = divides_assign_op(h.prototype_);
-      for (auto& p : h.param_) { op(p, val); }
-      return h;
-    }
-
-    //! Multiplies a mixture by a factor component-wise.
-    friend mixture operator*(const mixture& h, const F& f) {
-      mixture result(h.size());
-      auto op = multiplies_op(h.prototype_, f, result.prototype_);
-      for (std::size_t i = 0; i < h.size(); ++i) {
-        op(h.param(i), f.param(), result.param(i));
-      }
-      return result;
-    }
-
-    //! Multiplies a factor by a mixture component-wise.
-    friend mixture operator*(const F& f, const mixture& h) {
-      mixture result(h.size());
-      auto op = multiplies_op(f, h.prototype_, result.prototype_);
-      for (std::size_t i = 0; i < h.size(); ++i) {
-        op(f.param(), h.param(i), result.param(i));
-      }
-      return result;
-    }
-
-    //! Divides a mixture by a factor component-wise.
-    friend mixture operator/(const mixture& h, const F& f) {
-      mixture result(h.size());
-      auto op = divides_op(h.prototype_, f, result.prototype_);
-      for (std::size_t i = 0; i < h.size(); ++i) {
-        op(h.param(i), f.param(), result.param(i));
-      }
-      return result;
-    }
-
-    //! Multiplies two mixtures together.
-    friend mixture operator*(const mixture& f, const mixture& g) {
-      mixture result(f.size() * g.size());
-      auto op = multiplies_op(f.prototype_, g.prototype_, result.prototype_);
-      for (std::size_t i = 0; i < f.size(); ++i) {
-        for (std::size_t j = 0; j < g.size(); ++j) {
-          op(f.param(i), g.param(j), result.param(i * g.size() + j));
-        }
-      }
-      return result;
-    }
-
-    //! Multiplies two mixtures component-wise.
-    friend mixture operator%(const mixture& f, const mixture& g) {
-      assert(f.size() == g.size());
-      mixture result(f.size());
-      auto op = multiplies_op(f.prototype_, g.prototype_, result.prototype_);
-      for (std::size_t i = 0; i < f.size(); ++i) {
-        op(f.param(i), g.param(i), result.param(i));
-      }
-      return result;
-    }
-
-    /**
-     * Computes a marginal of the mixture over a sequence of variables.
-     * \throws invalid_argument if retained is not a subset of arguments
-     */
-    mixture marginal(const domain_type& retain) const {
-      mixture result;
-      maginal(retain, result);
-      return result;
-    }
-
-    /**
-     * Computes a marginal of the mixture over a sequence of variables.
-     * \throws invalid_argument if retained is not a subset of arguments
-     */
-    void marginal(const domain_type& retain, mixture& result) const {
-      auto op = marginal_op(prototype_, retain, result.prototype_);
-      result.param_.resize(size());
       for (std::size_t i = 0; i < size(); ++i) {
-        op(param(i), result.param(i));
+        result += factor(i)(index);
       }
+      return result;
+    }
+
+    //! Returns the log-value of the factor for the given vector.
+    real_type log(const index_type& vec) const {
+      using std::log;
+      return log(operator()(vec));
+    }
+
+    // Aggregation
+    //--------------------------------------------------------------------------
+
+    /**
+     * Return a marginal of the mixture over a contiguous range of dimensions.
+     */
+    mixture<F> marginal(std::size_t start, std::size_t n = 1) const {
+      return componentwise([start, n](const F& f) {
+          return f.marginal(start, n);
+        });
     }
 
     /**
-     * Returns the normalization constant of the factor.
+     * Returns a maximum of the mixture over a subset of dimensions.
      */
-    result_type marginal() const {
+    mixture<F> marginal(const uint_vector& retain) const {
+      return componentwise([&retain](const F& f) {
+          return f.marginal(retain);
+        });
+    }
+
+    /**
+     * Returns the normalization constant of the mixture.
+     */
+    result_type sum() const {
       result_type result(0);
-
+      for (std::size_t i = 0; i < size(); ++i) {
+        result += factor(i).sum();
+      }
+      return result;
     }
 
-    //! implements DistributionFactor::normalize
-    //! uses the standard parameterization
-    mixture& normalize() {
-      return (*this /= marginal());
+    /**
+     * Returns the normalization constants of all the components.
+     */
+    std::vector<result_type> sums() const {
+      std::vector<result_type> result;
+      for (std::size_t i = 0; i < size(); ++i) {
+        result[i] = factor(i).sum();
+      }
+      return result;
     }
 
-    //! implements DistributionFactor::is_normalizable
-    bool normalizable() const {
-      foreach(const F& factor, comps)
-        if (factor.is_normalizable()) return true;
-      return false;
+    /**
+     * Returns true if the mixture is normalizable.
+     */
+    bool normlizable() const {
+      return sum() > result_type(0);
     }
 
-    //! implements Factor::restrict
-    mixture restrict(const assignment_type& a) const {
-      domain_type bound_vars = keys(a);
+    // Conditioning
+    //--------------------------------------------------------------------------
 
-      // If the arguments are disjoint from the bound variables,
-      // we can simply return a copy of the factor
-      if (set_disjoint(bound_vars, arguments()))
-        return *this;
+    /**
+     * Returns a mixture where a contiguous range of dimensions has been
+     * restricted to given values.
+     */
+    mixture restrict(std::size_t start, std::size_t n,
+                     const index_type& values) const {
+      return componentwise([start, n, &index](const F& f) {
+          return f.restrict(start, n, index);
+        });
+    }
 
-      // Restrict each component factor
-      domain_type retained = set_difference(arguments(), bound_vars);
-      mixture factor(size(), retained);
-
-      for(size_t i = 0; i < size(); i++)
-        factor.comps[i] = comps[i].restrict(a);
-
-      return factor;
+    /**
+     * Returns a mixture where a subset of dimensions has been restricted
+     * to the given values.
+     */
+    mixure restrict(const uint_vector& dims, const index_type& values) const {
+      return componentwise([&dims, &values](const F& f) {
+          return f.restrict(dims, values);
+        });
     }
 
     // Sampling
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
-    //! Returns the distribution with the parameters of this factor.
-    distribution_type  distribution() const {
-      return multivariate_normal_distribution<T>(param_);
+    /**
+     * Draws a random component from this mixture.
+     */
+    template <typename Generator>
+    std::size_t sample_component(Generator& rng) const {
+      categorical_distribution<real_type> dist(probabilities(), prob_tag());
+      return dist(rng);
+    }
 
-    // Private data members
-    //==========================================================================
+    /**
+     * Draws a random sample from the distribution represented by this mixture.
+     */
+    index_type sample(Generator& rng) const {
+      return factor(sample_component(rng)).sample(rng);
+    }
+
+    /**
+     * Returns the distribution for this mixture.
+     */
+    auto distribution() const {
+      return mixture_distribution<typename F::distribution_type>(param());
+    }
+
+    // Selectors
+    //--------------------------------------------------------------------------
+
+    /**
+     * Returns a mixture selector referencing the head dimensions of each
+     * component.
+     */
+    mixture_selector<span, const mixture>
+    head(std::size_t n) const {
+      return { front(n), *this };
+    }
+
+    /**
+     * Returns a mutable mixture selector referencing the head dimensions of
+     * each component.
+     */
+    mixture_selector<span, mixture>
+    head(std::size_t n) {
+      return { front(n), *this };
+    }
+
+    /**
+     * Returns a mixture selector referencing the tail dimensions of each
+     * component.
+     */
+    mixture_selector<span, const mixture>
+    tail(std::size_t n) const {
+      return { back(arity(), n), *this };
+    }
+
+    /**
+     * Returns a mutable mixture selector referencing the tail dimensions of
+     * each component.
+     */
+    mixture_selector<span, mixture>
+    tail(std::size_t n) {
+      return { back(arity(), n), *this };
+    }
+
+    /**
+     * Returns a mixture selector referencing a single dimension of each
+     * component.
+     */
+    mixture_selector<std::size_t, const mixture>
+    dim(std::size_t index) const {
+      return { index, *this };
+    }
+
+    /**
+     * Returns a mutable mixture selector referencing a single dimension of
+     * each component.
+     */
+    mixture_selector<std::size_t, mixture>
+    dim(std::size_t index) {
+      return { index, *this };
+    }
+
+    /**
+     * Returns a mixture selector referencing a contiguous range of dimensions
+     * of each component.
+     */
+    mixture_selector<span, const mixture>
+    dims(std::size_t start, std::size_t n) const {
+      return { span(start, n), *this };
+    }
+
+    /**
+     * Returns a mutabl emixture selector referencing a contiguous range of
+     * dimensions of each component.
+     */
+    mixture_selector<span, mixture>
+    dims(std::size_t start, std::size_t n) {
+      return { span(start, n), *this };
+    }
+
+    /**
+     * Returns a mixture selector referencing a subset of dimensions of each
+     * component.
+     */
+    mixture_selector<const uint_vector&, const mixture>
+    dims(const uint_vector& indices) const {
+      return { indices, *this };
+    }
+
+    /**
+     * Returns a mixture selector referencing a subset of dimensions of each
+     * component.
+     */
+    mixture_selector<const uint_vector&, mixture>
+    dims(const uint_vector& indices) {
+      return { indices, *this };
+    }
+
+    // Mutations
+    //--------------------------------------------------------------------------
+
+    //! Multiplies each component by a constant.
+    mixture& operator*=(result_type x) {
+      return update_components(multiplied_by<result_type>(x));
+    }
+
+    //! Divides each component by a constant.
+    mixture& operator/=(result_type x) {
+      return update_components(divided_by<result_type>(x));
+    }
+
+    //! Multiplies each component by a factor in place.
+    LIBGM_ENABLE_IF(has_multiplies_assign<F>::value)
+    mixture& operator*=(const F& f) {
+      return update_components(multiplied_by<const F&>(f));
+    }
+
+    //! Divides each component by a factor in place.
+    LIBGM_ENABLE_IF(has_divides_assign<F>::value)
+    mixture& operator/=(const F& f) {
+      return update_components(divided_by<const F&>(f));
+    }
+
+    //! Normalizes the distribution represented by this mixture.
+    void normalize() {
+      *this /= sum();
+    }
+
   private:
 
-    //! The mixture components
-    std::vector<F> comps;
+    /**
+     * Applies the given update operation to each component.
+     */
+    template <typename Op>
+    mixture& update_components(Op op) {
+      for (std::size_t i = 0; i < size(); ++i) {
+        op.update(factor(i));
+      }
+      return *this;
+    }
+
+    /**
+     * Returns the result of an operation applied to all components.
+     *
+     * \param f    a reference to the component
+     * \param expr the expression object evaluating the component f
+     */
+    template <typename Op>
+    mixture componentwise(Op op) {
+      mixture result(size());
+      for (std::size_t i = 0; i < size(); ++i) {
+        result[i] = op(components_[i]);
+      }
+      return result;
+    }
+
+    //! The mixture components.
+    std::vector<F> components_;
 
   }; // class mixture
 
-  //! \relates mixture
+  /**
+   * Projects the mixture to a single component.
+   * \relates mixture
+   */
   template <typename F>
-  std::ostream& operator<<(std::ostream& out, const mixture<F>& mixture) {
-    out << "#F(M | " << mixture.arguments();
-    foreach(const F& factor, mixture.components())
-      out << "\n | " << factor;
-    out << ")\n";
-    return out;
-  }
-
-  // Free functions
-  //============================================================================
-
-  //! Computes the KL projection of a mixture of Gaussians to a Gausian
-  //! using moment matching.
-  //! \relates mixture
-  moment_gaussian project(const mixture_gaussian& mixture) {
-    // Do moment matching
-    vector_var_vector args = make_vector(mixture.arguments());
-    size_t n = mixture[0].size();
-    double norm = mixture.norm_constant();
-    assert(norm > 0);
-
-    // Match the mean
-    vec mean = zeros(n);
-    // std::cout << mean << std::endl;
-    for(size_t i = 0; i < mixture.size(); i++) {
-      double w = mixture[i].norm_constant() / norm;
-      mean += w * mixture[i].mean(args);
-      // std::cout << mean << std::endl;
-    }
-
-    // Match the covariance
-    mat cov = zeros(n, n);
-    for(size_t i = 0; i < mixture.size(); i++) {
-      double w = mixture[i].norm_constant() / norm;
-      vec x = mixture[i].mean(args) - mean;
-      cov += w * (mixture[i].covariance(args) + outer_product(x, x));
-    }
-    return moment_gaussian(args, mean, cov, norm);
+  F kl_project(const mixture<F>& m) {
+    return F(m.arguments(), kl_project(m.param()));
   }
 
 } // namespace libgm

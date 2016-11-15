@@ -13,10 +13,10 @@
 #include <random>
 #include <vector>
 
-
 using namespace libgm;
-typedef canonical_gaussian<var> cgaussian;
-typedef probability_table<var> ptable;
+using cgaussian = canonical_gaussian<>;
+
+using ptable = probability_table<var>;
 
 namespace libgm {
   template class sum_product<ptable>;

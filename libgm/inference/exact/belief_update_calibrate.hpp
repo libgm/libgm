@@ -12,30 +12,36 @@ namespace libgm {
    * An algorithm for compute the marginal of a factorized probability model
    * using the division belief update algorithm on a junction tree.
    *
-   * \tparam F the factor type
+   * \tparam Arg
+   *         A type that represents an individual argument (node).
+   * \tparam F
+   *         A type representing the factors. The type must support
+   *         multiplication, division, and marginalization operations.
    * \ingroup inference
    */
-  template <typename F>
+  template <typename Arg, typename F>
   class belief_update_calibrate {
 
     // Public type declarations
-    //==========================================================================
+    //--------------------------------------------------------------------------
   public:
-    // FactorizedInference types
-    typedef typename F::real_type       real_type;
-    typedef typename F::result_type     result_type;
-    typedef typename F::argument_type   argument_type;
-    typedef typename F::domain_type     domain_type;
-    typedef typename F::assignment_type assignment_type;
-    typedef F                           factor_type;
-    typedef cluster_graph<domain_type, F, F> graph_type;
+    // Graph types
+    using graph_type  = cluster_graph<Arg, F, F>;
+    using vertex_type = typename graph_type::vertex_type;
+    using edge_type   = typename graph_type::edge_type;
 
-    // The descriptors for the junction tree
-    typedef typename graph_type::vertex_type vertex_type;
-    typedef typename graph_type::edge_type edge_type;
+    // Argument types
+    using argument_type     = Arg;
+    using argument_hasher   = typename argument_traits<Arg>::hasher;
+    using argument_iterator = typename graph_type::argument_iterator;
+
+    // Factor types
+    using real_type   = typename F::real_type;
+    using result_type = typename F::result_type;
+    using factor_type = F;
 
     // Constructors
-    //==========================================================================
+    //--------------------------------------------------------------------------
   public:
     /**
      * Default constructor. Constructs a belief update algorithm with no model.
@@ -48,9 +54,8 @@ namespace libgm {
      * \tparam Range A forward range with elements convertible to F.
      */
     template <typename Range>
-    explicit belief_update_calibrate(
-        const Range& factors,
-        typename std::enable_if<is_range<Range, F>::value>::type* = 0) {
+    explicit belief_update_calibrate(const Range& factors) {
+      // TODO: some fancy ENABLE_IF
       reset(factors);
     }
 
@@ -66,28 +71,27 @@ namespace libgm {
      * \tparam Range A forward range with elements convertible to F.
      */
     template <typename Range>
-    typename std::enable_if<is_range<Range, F>::value>::type
-    reset(const Range& factors) {
+    void reset(const Range& factors) { // TODO: fancy enable_if
       // compute the junction tree for the given factors
-      undirected_graph<argument_type> mg;
-      for (const F& factor : factors) {
-        make_clique(mg, factor.arguments());
+      undirected_graph<Arg> mg;
+      for (const auto& factor : factors) {
+        make_clique(mg, factor.first);
       }
       jt_.triangulated(mg, min_degree_strategy());
 
       // intialize the clique and separator potentials to unity
       for (vertex_type v : jt_.vertices()) {
-        jt_[v] = F(jt_.cluster(v), result_type(1));
+        jt_[v] = F(F::shape(jt_.cluster(v)), result_type(1));
       }
       for (edge_type e : jt_.edges()) {
-        jt_[e] = F(jt_.separator(e), result_type(1));
+        jt_[e] = F(F::shape(jt_.separator(e)), result_type(1));
       }
 
       // multiply in the factors to cliques that cover them
       for (const F& factor : factors) {
-        vertex_type v = jt_.find_cluster_cover(factor.arguments());
+        vertex_type v = jt_.find_cluster_cover(factor.first);
         assert(v);
-        jt_[v] *= factor;
+        jt_[v].dims(jt_.index(v, factor.first)) *= factor.second;
       }
     }
 
@@ -109,9 +113,9 @@ namespace libgm {
      */
     void calibrate() {
       mpp_traversal(jt_, id_t(), [&](const edge_type& e) {
-          jt_[e.target()] /= jt_[e];
-          jt_[e] = jt_[e.source()].marginal(jt_.separator(e));
-          jt_[e.target()] *= jt_[e];
+          jt_[e.target()].dims(target_index(e)) /= jt_[e];
+          jt_[e] = jt_[e.source()].marginal(jt_.source_index(e));
+          jt_[e.target()].dims(target_index(e)) *= jt_[e];
         });
     }
 
@@ -132,19 +136,22 @@ namespace libgm {
      * This is a mutable operation. Note that calibrate() needs to be called
      * afterwards.
      */
-    void condition(const assignment_type& a) {
+    void condition(const assignment<Arg, real_type>& a) {
       // Extract the restricted arguments
-      domain_type vars;
-      for (const auto& p : a) { vars.push_back(p.first); }
+      domain<Arg> args = a.keys();
 
       // Update the factors and messages
-      jt_.intersecting_clusters(vars, [&](vertex_type v) {
-          jt_[v] = jt_[v].restrict(a);
-          jt_.update_cluster(v, jt_[v].arguments());
+      jt_.intersecting_clusters(args, [&](vertex_type v) {
+          domain<Arg> y, x; // restricted, retained
+          jt_.cluster(v).partition(a, y, x);
+          jt_[v] = jt_[v].restrict(jt_.index(v, y), a.values(y)).eval();
+          jt_.update_cluster(v, x);
         });
       jt_.intersecting_separators(vars, [&](const edge_type& e) {
-          jt_[e] = jt_[e].restrict(a);
-          jt_.update_separator(e, jt_[e].arguments());
+          domain<Arg> y, x; // restricted, retained
+          jt_.separator(e).partition(a, y, x);
+          jt_[e] = jt_[e].restrict(jt_.index(v, y), a.values(y)).eval();
+          jt_.update_separator(e, x);
         });
     }
 
@@ -157,8 +164,8 @@ namespace libgm {
     }
 
     /**
-     * Returns the belief assocaited with a vertex.
-     * The caller must not alter the belief arguments.
+     * Returns the belief associated with a vertex.
+     * The caller must not alter the shape.
      */
     F& belief(vertex_type v) {
       return jt_[v];
@@ -175,19 +182,23 @@ namespace libgm {
     }
 
     /**
-     * Returns the belief for a set of variables.
+     * Returns the belief for a set of arguments.
      * \throw std::invalid_argument
      *        if the specified set is not covered by a clique of
      *        the junction tree constructed by the engine.
      */
-    F belief(const domain_type& vars) const {
+    F belief(const domain<Arg>& args) const {
       // Try to find a separator that covers the variables
-      edge_type e = jt_.find_separator_cover(vars);
-      if (e) { return jt_[e].marginal(vars); }
+      edge_type e = jt_.find_separator_cover(args);
+      if (e) {
+        return jt_[e].marginal(jt_.index(e, args));
+      }
 
       // Next, look for a clique that covers the variables
-      vertex_type v = jt_.find_cluster_cover(vars);
-      if (v) { return jt_[v].marginal(vars); }
+      vertex_type v = jt_.find_cluster_cover(args);
+      if (v) {
+        return jt_[v].marginal(jt_.index(v, args));
+      }
 
       // Did not find a suitable clique / separator
       throw std::invalid_argument(
@@ -204,10 +215,10 @@ namespace libgm {
      */
     bool valid() const {
       for (vertex_type v : jt_.vertices()) {
-        if (jt_.cluster(v) != jt_[v].arguments()) { return false; }
+        if (jt_[v].shape() != F::shape(jt_.cluster(v))) { return false; }
       }
       for (edge_type e : jt_.edges()) {
-        if (jt_.separator(e) != jt_[e].arguments()) { return false; }
+        if (jt_.[e].shape() != F::shape(jt_.separator(e))) { return false; }
       }
       return true;
     }

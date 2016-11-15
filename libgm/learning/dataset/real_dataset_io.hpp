@@ -38,7 +38,7 @@ namespace libgm {
 
     std::string line;
     std::size_t line_number = 0;
-    real_vector<T> values(ds.num_cols());
+    dense_vector<T> values(ds.num_cols());
     std::vector<const char*> tokens;
     while (std::getline(in, line)) {
       if (format.tokenize(ds.num_cols(), line, line_number, tokens)) {

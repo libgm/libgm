@@ -16,13 +16,13 @@
 #include <random>
 
 namespace libgm {
-  template class basic_dataset<var, real_vector<>, double>;
-  template class basic_dataset<vec, real_vector<>, double>;
+  template class basic_dataset<var, dense_vector<>, double>;
+  template class basic_dataset<vec, dense_vector<>, double>;
 }
 
 using namespace libgm;
 
-typedef std::pair<real_vector<>, double> sample_type;
+typedef std::pair<dense_vector<>, double> sample_type;
 // typedef std::pair<real_assignment<>, double> sample_assignment_type;
 BOOST_TEST_DONT_PRINT_LOG_VALUE(sample_type);
 // BOOST_TEST_DONT_PRINT_LOG_VALUE(sample_assignment_type);
@@ -40,7 +40,7 @@ BOOST_AUTO_TEST_CASE(test_insert) {
   BOOST_CHECK(ds.empty());
 
   // insert a record
-  real_vector<> values(4);
+  dense_vector<> values(4);
   values[0] = 2.0;
   values[1] = 0.0;
   values[2] = 1.0;
@@ -190,8 +190,8 @@ BOOST_AUTO_TEST_CASE(test_weight_iterator) {
   real_dataset<vec> ds(domain<vec>{});
 
   // insert 2 records
-  ds.insert(real_vector<>(), 0.5);
-  ds.insert(real_vector<>(), 0.2);
+  ds.insert(dense_vector<>(), 0.5);
+  ds.insert(dense_vector<>(), 0.2);
 
   real_dataset<vec>::weight_iterator it, end;
   std::tie(it, end) = ds.weights();
@@ -269,7 +269,7 @@ BOOST_FIXTURE_TEST_CASE(test_reconstruction, fixture) {
 
 BOOST_FIXTURE_TEST_CASE(test_sample, fixture) {
   // draw samples from the dataset and attempt to recover the mean
-  real_vector<> mean = real_vector<>::Zero(3);
+  dense_vector<> mean = dense_vector<>::Zero(3);
   std::uniform_int_distribution<std::size_t> unif(0, ds.size() - 1);
   for (std::size_t i = 0; i < 600; ++i) {
     auto sample = ds.sample(unif(rng));

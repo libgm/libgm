@@ -21,7 +21,7 @@ std::size_t nsamples = 10000;
 double tol = 0.05;
 
 BOOST_AUTO_TEST_CASE(test_mle) {
-  typedef real_vector<double> vec_type;
+  typedef dense_vector<double> vec_type;
   moment_gaussian_param<> param(3, 0);
   param.mean << 1.0, 3.0, 2.0;
   param.cov  << 3.0, 2.0, 1.0,

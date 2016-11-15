@@ -73,9 +73,9 @@ namespace libgm {
      * the slope of the log-likelihood along the given direction.
      */
     template <typename Label>
-    real_pair<T> value_slope(const Label& label, const real_vector<T>& x,
+    real_pair<T> value_slope(const Label& label, const dense_vector<T>& x,
                              const softmax_param<T>& dir) const {
-      std::pair<T, real_vector<T> > d = slope_delta(label, x);
+      std::pair<T, dense_vector<T> > d = slope_delta(label, x);
       T wslope = dir.weight().cwiseProduct(d.second * x.transpose()).sum();
       return {d.first, dir.bias().dot(d.second) + wslope};
     }
@@ -89,7 +89,7 @@ namespace libgm {
     real_pair<T> value_slope(const Label& label,
                              const Eigen::SparseVector<T>& x,
                              const softmax_param<T>& dir) const {
-      std::pair<T, real_vector<T> > d = slope_delta(label, x);
+      std::pair<T, dense_vector<T> > d = slope_delta(label, x);
       real_pair<T> result(d.first, dir.bias().dot(d.second));
       for (typename Eigen::SparseVector<T>::InnerIterator it(x); it; ++it) {
         result.second += dir.weight().col(it.index()).dot(d.second)*it.value();
@@ -106,7 +106,7 @@ namespace libgm {
     real_pair<T> value_slope(const Label& label,
                              const std::vector<std::size_t>& x,
                              const softmax_param<T>& dir) const {
-      std::pair<T, real_vector<T> > d = slope_delta(label, x);
+      std::pair<T, dense_vector<T> > d = slope_delta(label, x);
       real_pair<T> result(d.first, dir.bias().dot(d.second));
       for (std::size_t i : x) {
         result.second += dir.weight().col(i).dot(d.second);
@@ -129,9 +129,9 @@ namespace libgm {
      * specified as a label and a dense Eigen feature vector.
      */
     template <typename Label>
-    void add_gradient(const Label& label, const real_vector<T>& x, T w,
+    void add_gradient(const Label& label, const dense_vector<T>& x, T w,
                       softmax_param<T>& g) const {
-      real_vector<T> p = gradient_delta(label, x, w);
+      dense_vector<T> p = gradient_delta(label, x, w);
       g.weight().noalias() += p * x.transpose();
       g.bias() += p;
     }
@@ -143,7 +143,7 @@ namespace libgm {
     template <typename Label>
     void add_gradient(const Label& label, const Eigen::SparseVector<T>& x, T w,
                       softmax_param<T>& g) const {
-      real_vector<T> p = gradient_delta(label, x, w);
+      dense_vector<T> p = gradient_delta(label, x, w);
       for (typename Eigen::SparseVector<T>::InnerIterator it(x); it; ++it) {
         g.weight().col(it.index()) += p * it.value();
       }
@@ -158,7 +158,7 @@ namespace libgm {
     void add_gradient(const Label& label,
                       const std::vector<std::size_t>& x, T w,
                       softmax_param<T>& g) const {
-      real_vector<T> p = gradient_delta(label, x, w);
+      dense_vector<T> p = gradient_delta(label, x, w);
       for (std::size_t i : x) { g.weight().col(i) += p; }
       g.bias() += p;
     }
@@ -176,9 +176,9 @@ namespace libgm {
      * Adds the Hessian diagonal of log-likelihood to h for a datapoint
      * specified as a dense Eigen feature vector.
      */
-    void add_hessian_diag(const real_vector<T>& x, T w,
+    void add_hessian_diag(const dense_vector<T>& x, T w,
                           softmax_param<T>& h) const {
-      real_vector<T> v = hessian_delta(x, w);
+      dense_vector<T> v = hessian_delta(x, w);
       h.weight().noalias() += v * x.cwiseProduct(x).transpose();
       h.bias() += v;
     }
@@ -189,7 +189,7 @@ namespace libgm {
      */
     void add_hessian_diag(const Eigen::SparseVector<T>& x, T w,
                           softmax_param<T>& h) const {
-      real_vector<T> v = hessian_delta(x, w);
+      dense_vector<T> v = hessian_delta(x, w);
       for (typename Eigen::SparseVector<T>::InnerIterator it(x); it; ++it) {
         h.weight().col(it.index()) += v * (it.value() * it.value());
       }
@@ -202,7 +202,7 @@ namespace libgm {
      */
     void add_hessian_diag(const std::vector<std::size_t>& x, T w,
                           softmax_param<T>& h) const {
-      real_vector<T> v = hessian_delta(x, w);
+      dense_vector<T> v = hessian_delta(x, w);
       for (std::size_t i : x) { h.weight().col(i) += v; }
       h.bias() += v;
     }
@@ -218,9 +218,9 @@ namespace libgm {
 
   private:
     template <typename Features>
-    std::pair<T, real_vector<T> >
+    std::pair<T, dense_vector<T> >
     slope_delta(std::size_t label, const Features& x) const {
-      real_vector<T> p = f(x);
+      dense_vector<T> p = f(x);
       T value = std::log(p[label]);
       p[label] -= T(1);
       p = -p;
@@ -228,10 +228,10 @@ namespace libgm {
     }
 
     template <typename Features>
-    std::pair<T, real_vector<T> >
-    slope_delta(const Eigen::Ref<const real_vector<T> >& plabel,
+    std::pair<T, dense_vector<T> >
+    slope_delta(const Eigen::Ref<const dense_vector<T> >& plabel,
                 const Features& x) const {
-      real_vector<T> p = f(x);
+      dense_vector<T> p = f(x);
       T value = p.unaryExpr(logarithm<T>()).dot(plabel);
       p -= plabel;
       p = -p;
@@ -239,27 +239,27 @@ namespace libgm {
     }
 
     template <typename Features>
-    real_vector<T>
+    dense_vector<T>
     gradient_delta(std::size_t label, const Features& x, T w) const {
-      real_vector<T> p = f(x);
+      dense_vector<T> p = f(x);
       p[label] -= T(1);
       p *= -w;
       return p;
     }
 
     template <typename Features>
-    real_vector<T>
-    gradient_delta(const Eigen::Ref<const real_vector<T> >& plabel,
+    dense_vector<T>
+    gradient_delta(const Eigen::Ref<const dense_vector<T> >& plabel,
                    const Features& x, T w) const {
-      real_vector<T> p = f(x);
+      dense_vector<T> p = f(x);
       p -= plabel;
       p *= -w;
       return p;
     }
 
     template <typename Features>
-    real_vector<T> hessian_delta(const Features& x, T w) const {
-      real_vector<T> v = f(x);
+    dense_vector<T> hessian_delta(const Features& x, T w) const {
+      dense_vector<T> v = f(x);
       v -= v.cwiseProduct(v);
       v *= -w;
       return v;

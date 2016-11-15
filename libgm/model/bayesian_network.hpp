@@ -19,82 +19,84 @@ namespace libgm {
    *
    * \ingroup model
    */
-  template <typename F>
+  template <typename Arg, typename F>
   class bayesian_network
-    : public directed_graph<typename F::argument_type, F> {
+    : public directed_graph<Arg, std::pair<domain<Arg>, F> > {
 
-    typedef directed_graph<typename F::argument_type, F> base;
+    using base = directed_graph<Arg, std::pair<const domain<Arg>, F> >;
 
     // Public type declarations
-    //==========================================================================
+    //--------------------------------------------------------------------------
   public:
-    // FactorizedModel types
-    typedef typename F::real_type       real_type;
-    typedef logarithmic<real_type>      result_type;
-    typedef typename F::argument_type   argument_type;
-    typedef typename F::domain_type     domain_type;
-    typedef typename F::assignment_type assignment_type;
-    typedef F                           value_type;
+    // Argument types
+    using argument_type     = Arg;
+    using argument_hasher   = typename argument_traits<Arg>::hasher;
+    using argument_iterator = typename graph_type::vertex_iterator;
 
-    typedef boost::transform_iterator<
-      vertex_property_fn<base>, typename base::vertex_iterator
-    > iterator;
+    // Factor types
+    using real_type      = typename F::real_type;
+    using result_type    = typename F::result_type;
+    using factor_type    = F;
+    using value_type     = std::pair<const domain<Arg>, F>;
+    using iterator       = boost::transform_iterator<
+      vertex_property_fn<base>, typename base::vertex_iterator>;
+    using const_iterator = boost::transform_iterator<
+      vertex_property_fn<const base>, typename base::vertex_iterator>;
 
-    typedef boost::transform_iterator<
-      vertex_property_fn<const base>, typename base::vertex_iterator
-    > const_iterator;
+    //typedef typename F::assignment_type assignment_type;
 
     // Shortcuts
-    typedef typename base::vertex_type vertex_type;
+    //typedef typename base::vertex_type vertex_type;
 
     // Constructors
-    //==========================================================================
+    //--------------------------------------------------------------------------
   public:
     //! Default constructor. Creates an empty Bayesian network.
     bayesian_network() { }
 
     //! Constructs a Bayesian network with the given arguments and no edges.
-    explicit bayesian_network(const domain_type& args) {
-      for (argument_type arg : args) {
+    explicit bayesian_network(const domain<Arg>& args) {
+      for (Arg arg : args) {
         this->add_vertex(arg);
       }
     }
 
     // Accessors
-    //==========================================================================
+    //--------------------------------------------------------------------------
+
+    //! Returns the number of arguments (the same as the number of vertices).
+    std::size_t num_arguments() const {
+      return this->num_vertices();
+    }
 
     //! Returns the arguments of this model (the range of all the vertices).
-    iterator_range<typename base::vertex_iterator> arguments() const {
+    iterator_range<argument_iterator> arguments() const {
       return this->vertices();
     }
 
-    //! Returns the arguments of the factor associated with an argument.
-    const domain_type& arguments(argument_type arg) const {
-      return (*this)[arg].arguments();
+    //! Returns the arguments of the factor with the given head.
+    const domain<Arg>& arguments(Arg head) const {
+      return (*this)[arg].first;
     }
 
     //! Returns the iterator to the first factor.
     iterator begin() {
-      return iterator(this->vertices().begin(),
-                      vertex_property_fn<base>(this));
+      return { this->vertices().begin(), vertex_property_fn<base>(this) };
     }
 
     //! Returns the iterator to the first factor.
     const_iterator begin() const {
-      return const_iterator(this->vertices().begin(),
-                            vertex_property_fn<const base>(this));
+      return { this->vertices().begin(), vertex_property_fn<const base>(this) };
     }
 
     //! Returns the iterator past the last factor.
     iterator end() {
-      return iterator(this->vertices().end(),
-                      vertex_property_fn<base>(this));
+      return { this->vertices().end(), vertex_property_fn<base>(this) };
     }
 
     //! Returns the iterator past the last factor.
     const_iterator end() const {
-      return const_iterator(this->vertices().end(),
-                            vertex_property_fn<const base>(this));
+      return { this->vertices().end(), vertex_property_fn<const base>(this) };
     }
 
     // Queries
@@ -132,8 +134,8 @@ namespace libgm {
     /**
      * Computes a minimal Markov graph capturing dependencies in this model.
      */
-    void markov_graph(undirected_graph<argument_type>& mg) const {
-      for (vertex_type v : this->vertices()) {
+    void markov_graph(undirected_graph<Arg>& mg) const {
+      for (Arg v : this->vertices()) {
         mg.add_vertex(v);
         make_clique(mg, arguments(v));
       }
@@ -144,8 +146,8 @@ namespace libgm {
      * vertex itself and its parents.
      */
     bool valid() const {
-      for (vertex_type v : this->vertices()) {
-        domain_type args(this->parents(v).begin(), this->parents(v).end());
+      for (Arg v : this->vertices()) {
+        domain<Arg> args(this->parents(v));
         args.push_back(v);
         if (!equivalent(args, arguments(v))) { return false; }
       }
@@ -153,7 +155,7 @@ namespace libgm {
     }
 
     // Modifiers
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     /**
      * Adds a factor representing the conditional distribution p(v | rest) to
@@ -163,15 +165,15 @@ namespace libgm {
      * Note: It is the responsibility of the caller to ensure that the
      * graph remains a DAG.
      */
-    void add_factor(argument_type v, const F& f) {
-      if (this->contains(v)) {
-        this->remove_vertex(v);
+    void add_factor(const domain<Arg> args, const F& f) {
+      Arg head = args.front();
+      if (this->contains(head)) {
+        this->remove_vertex(head);
       }
-      assert(f.arguments().count(v));
-      this->add_vertex(v, f);
-      for (argument_type u : f.arguments()) {
-        if (u != v) {
-          this->add_edge(u, v);
+      this->add_vertex(head, value_type(args, f));
+      for (Arg arg : args) {
+        if (arg != head) {
+          this->add_edge(head, arg);
         }
       }
     }

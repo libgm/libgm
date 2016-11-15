@@ -3,7 +3,7 @@
 
 #include <libgm/datastructure/hybrid_index.hpp>
 #include <libgm/datastructure/uint_vector.hpp>
-#include <libgm/math/eigen/real.hpp>
+#include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/eigen/uint.hpp>
 #include <libgm/math/eigen/subvector.hpp>
 #include <libgm/parser/range_io.hpp>
@@ -20,7 +20,7 @@ namespace libgm {
    */
   template <typename T = double>
   struct hybrid_vector
-    : public uint_vector, real_vector<T> {
+    : public uint_vector, dense_vector<T> {
 
     //! Default constructor; constructs empty vector.
     hybrid_vector() { }
@@ -32,19 +32,19 @@ namespace libgm {
      */
     hybrid_vector(std::size_t nint, std::size_t nreal)
       : uint_vector(nint),
-        real_vector<T>(nreal) { }
+        dense_vector<T>(nreal) { }
 
     //! Constructs a vector with the given integral and real components.
     hybrid_vector(const uint_vector& uint,
-                  const real_vector<T>& real)
+                  const dense_vector<T>& real)
       : uint_vector(uint),
-        real_vector<T>(real) { }
+        dense_vector<T>(real) { }
 
     //! Constructs an vector with the given finite and vector components.
     hybrid_vector(std::initializer_list<std::size_t> uint,
                   std::initializer_list<T> real)
       : uint_vector(uint),
-        real_vector<T>(real.size()) {
+        dense_vector<T>(real.size()) {
       std::copy(real.begin(), real.end(), this->real().data());
     }
 
@@ -59,12 +59,12 @@ namespace libgm {
     }
 
     //! Returns the real component.
-    real_vector<T>& real() {
+    dense_vector<T>& real() {
       return *this;
     }
 
     //! Returns the real component.
-    const real_vector<T>& real() const {
+    const dense_vector<T>& real() const {
       return *this;
     }
 
@@ -119,7 +119,7 @@ namespace libgm {
    */
   template <typename T = double>
   struct hybrid_matrix
-    : public uint_matrix, real_matrix<T> {
+    : public uint_matrix, dense_matrix<T> {
 
     //! Default constructor; constructs empty matrix
     hybrid_matrix() { }
@@ -131,13 +131,13 @@ namespace libgm {
     hybrid_matrix(std::size_t uint_rows, std::size_t uint_cols,
                   std::size_t real_rows, std::size_t real_cols)
       : uint_matrix(uint_rows, uint_cols),
-        real_matrix<T>(real_rows, real_cols) { }
+        dense_matrix<T>(real_rows, real_cols) { }
 
     //! Constructs a matrix with the given integral and real components.
     hybrid_matrix(Eigen::Ref<const uint_matrix> uint,
-                  Eigen::Ref<const real_matrix<T> > real)
+                  Eigen::Ref<const dense_matrix<T> > real)
       : uint_matrix(uint),
-        real_matrix<T>(real) { }
+        dense_matrix<T>(real) { }
 
     //! Returns the integral component..
     uint_matrix& uint() {
@@ -150,12 +150,12 @@ namespace libgm {
     }
 
     //! Returns the real component.
-    real_matrix<T>& real() {
+    dense_matrix<T>& real() {
       return *this;
     }
 
     //! Returns the real component.
-    const real_matrix<T>& real() const {
+    const dense_matrix<T>& real() const {
       return *this;
     }
 
@@ -211,8 +211,8 @@ namespace libgm {
     }
 
   private:
-    subvector<const real_vector<std::size_t>, const std::size_t*> uint_;
-    subvector<const real_vector<T>, const std::size_t*> real_;
+    subvector<const dense_vector<std::size_t>, const std::size_t*> uint_;
+    subvector<const dense_vector<T>, const std::size_t*> real_;
   };
 
   /**

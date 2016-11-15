@@ -1,4 +1,4 @@
-#include <libgm/factor/experimental/canonical_gaussian.hpp>
+#include <libgm/factor/canonical_gaussian.hpp>
 
 #include <iostream>
 #include <iomanip>
@@ -90,7 +90,7 @@ void time_multiply_in(bool contiguous) {
 void time_marginal(bool contiguous) {
   boost::timer t;
   for (std::size_t n : num_dims) {
-    cgaussian f(real_vector<>::Ones(n), real_matrix<>::Identity(n, n));
+    cgaussian f(dense_vector<>::Ones(n), dense_matrix<>::Identity(n, n));
     cgaussian g;
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
@@ -108,7 +108,7 @@ void time_marginal(bool contiguous) {
 void time_sum(bool contiguous) {
   boost::timer t;
   for (std::size_t n : num_dims) {
-    cgaussian f(real_vector<>::Ones(n), real_matrix<>::Identity(n, n));
+    cgaussian f(dense_vector<>::Ones(n), dense_matrix<>::Identity(n, n));
     cgaussian g;
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
@@ -129,7 +129,7 @@ void time_restrict(bool contiguous) {
     cgaussian f(n);
     cgaussian g;
     uint_vector dims = {0, n-1};
-    real_vector<> vals = real_vector<>::Ones(2);
+    dense_vector<> vals = dense_vector<>::Ones(2);
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
       if (contiguous) {

@@ -31,20 +31,20 @@ namespace libgm {
     static_assert(are_pairwise_compatible<NodeF, EdgeF>::value,
                   "The node & edge factor types are not pairwise compatible");
     // Public types
-    //==========================================================================
+    //--------------------------------------------------------------------------
   public:
-    // Factorized Inference types
-    typedef typename NodeF::real_type        real_type;
-    typedef typename NodeF::result_type      result_type;
-    typedef typename NodeF::argument_type    argument_type;
-    typedef typename NodeF::assignment_type  assignment_type;
-    typedef typename NodeF::probability_type belief_type;
+    // Graph types
+    using graph_type = bipartite_graph<Vertex1, Vertex2, NodeF, NodeF, EdgeF>;
+    using vertex1_hasher = typename vertex_traits<Vertex1>::hasher;
+    using vertex2_hasher = typename vertex_traits<Vertex2>::hasher;
 
-    typedef bipartite_graph<Vertex1, Vertex2, NodeF, NodeF, EdgeF> model_type;
-    typedef typename model_type::edge_type edge_type;
+    // Factor types
+    using real_type   = typename NodeF::real_type;
+    using result_type = typename NOdeF::result_type;
+    using belief_type = typename NodeF::probability_type;
 
     // Public functions
-    //==========================================================================
+    //--------------------------------------------------------------------------
   public:
     /**
      * Creates a mean field engine for the given graph.
@@ -53,22 +53,22 @@ namespace libgm {
      *
      * \param num_threads the number of worker threads
      */
-    explicit mean_field_bipartite(const model_type* model,
+    explicit mean_field_bipartite(const graph_type* graph,
                                   std::size_t nthreads = 1)
-      : model_(*model), nthreads_(nthreads) {
-      vertices1_.reserve(model_.num_vertices1());
-      vertices2_.reserve(model_.num_vertices2());
-      beliefs1_.reserve(model_.num_vertices1());
-      beliefs2_.reserve(model_.num_vertices2());
+      : graph_(*graph), nthreads_(nthreads) {
+      vertices1_.reserve(graph_.num_vertices1());
+      vertices2_.reserve(graph_.num_vertices2());
+      beliefs1_.reserve(graph_.num_vertices1());
+      beliefs2_.reserve(graph_.num_vertices2());
 
-      for (Vertex1 v : model_.vertices1()) {
+      for (Vertex1 v : graph_.vertices1()) {
         vertices1_.push_back(v);
-        beliefs1_[v] = belief_type(model_[v].arguments(), real_type(1));
+        beliefs1_[v] = belief_type(NodeF::shape(v), real_type(1));
       }
 
-      for (Vertex2 v : model_.vertices2()) {
+      for (Vertex2 v : graph_.vertices2()) {
         vertices2_.push_back(v);
-        beliefs2_[v] = belief_type(model_[v].arguments(), real_type(1));
+        beliefs2_[v] = belief_type(NodeF::shape(v), real_type(1));
       }
     }
 
@@ -92,7 +92,7 @@ namespace libgm {
     real_type iterate() {
       real_type diff1 = update_all(vertices1_);
       real_type diff2 = update_all(vertices2_);
-      return (diff1 + diff2) / model_.num_vertices();
+      return (diff1 + diff2) / graph_.num_vertices();
     }
 
     /**
@@ -133,23 +133,23 @@ namespace libgm {
      */
     template <typename Vertex>
     real_type update(Vertex v) {
-      NodeF result = model_[v];
-      for (edge_type e : model_.in_edges(v)) {
+      NodeF result = graph_[v];
+      for (bipartite_edge<Vertex1, Vertex2> e : graph_.in_edges(v)) {
         if (e.forward()) {
-          model_[e].exp_log_multiply(belief(e.v1()), result);
+          result *= graph_[e].head().expected_log(belief(e.v1()));
         } else {
-          model_[e].exp_log_multiply(belief(e.v2()), result);
+          result *= graph_[e].tail().expected_log(belief(e.v2()));
         }
       }
-      result /= result.maximum();
-      belief_type new_belief(result);
+      result /= result.max();
+      belief_type new_belief = result.probability();
       new_belief.normalize();
       swap(const_cast<belief_type&>(belief(v)), new_belief);
       return sum_diff(new_belief, belief(v));
     }
 
     //! The underlying graphical model.
-    const model_type& model_;
+    const graph_type& graph_;
 
     //! The number of worker threads.
     std::size_t nthreads_;
@@ -161,10 +161,10 @@ namespace libgm {
     std::vector<Vertex2> vertices2_;
 
     //! A map of current beliefs for type-1 vertices
-    std::unordered_map<Vertex1, belief_type> beliefs1_;
+    std::unordered_map<Vertex1, belief_type, vertex1_hasher> beliefs1_;
 
     //! A map of current beliefs for type-2 vertices
-    std::unordered_map<Vertex2, belief_type> beliefs2_;
+    std::unordered_map<Vertex2, belief_type, vertex2_hasher> beliefs2_;
 
   };
 

@@ -27,15 +27,6 @@ namespace libgm {
   }
 
   /**
-   * Returns true if the vector represents a contiguous range.
-   * \relates uint_vector
-   */
-  inline bool contiguous(const uint_vector& vec) {
-    auto pred = [] (std::size_t i, std::size_t j) { return i + 1 != j; };
-    return std::adjacent_find(vec.begin(), vec.end(), pred) == vec.end();
-  }
-
-  /**
    * Returns the concatenation of two sequences.
    * \relates uint_vector
    */
@@ -59,16 +50,6 @@ namespace libgm {
     r.insert(r.end(), b.begin(), b.end());
     std::sort(r.begin(), r.end());
     r.erase(std::unique(r.begin(), r.end()), r.end());
-    return r;
-  }
-
-  /**
-   * Returns a half-open contiguous range of indices [start; stop).
-   */
-  inline uint_vector range(std::size_t start, std::size_t stop) {
-    assert(start <= stop);
-    uint_vector r(stop - start);
-    std::iota(r.begin(), r.end(), start);
     return r;
   }
 

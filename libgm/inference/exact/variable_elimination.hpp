@@ -15,8 +15,12 @@ namespace libgm {
    * this method efficiently combines the factors and collapses the result
    * to the desired arguments.
    *
-   * \tparam F A type representing the factor
-   * \tparam Strategy A type that model EliminationStrategy concept
+   * \tparam Arg
+   *         A type that represents an individual argument (node).
+   * \tparam F
+   *         A type representing the factor
+   * \tparam Strategy
+   *         A type that model EliminationStrategy concept
    *
    * \param factors
    *        The collection of factors, modified in place.
@@ -31,37 +35,33 @@ namespace libgm {
    *
    * \ingroup inference
    */
-  template <typename F, typename Strategy = min_degree_strategy>
-  void variable_elimination(std::list<F>& factors,
-                            const typename F::domain_type& retain,
-                            const commutative_semiring<F>& csr,
+  template <typename Arg, typename F, typename Strategy = min_degree_strategy>
+  void variable_elimination(std::list<std::pair<domain<Arg>, F> >& factors,
+                            const domain<Arg>& retain,
+                            const commutative_semiring<Arg, F>& csr,
                             Strategy strategy = Strategy()) {
-    typedef typename F::argument_type argument_type;
 
     // construct the Markov graph for the input factors
-    undirected_graph<argument_type> graph;
+    undirected_graph<Arg> graph;
     for (const F& factor : factors) {
-      make_clique(graph, factor.arguments());
+      make_clique(graph, factor.first);
     }
 
     // eliminate variables
-    eliminate(graph, [&](argument_type v) {
+    eliminate(graph, [&](Arg v) {
         if (!retain.count(v)) {
           // Combine all factors that have this variable as an argument
+          domain<Arg> args;
           F combination = csr.combine_init();
           for (auto it = factors.begin(); it != factors.end();) {
-            if (it->arguments().count(v)) {
-              if (superset(combination.arguments(), it->arguments())) {
-                csr.combine_in(combination, *it);
-              } else {
-                combination = csr.combine(combination, *it);
-              }
+            if (it->first.count(v)) {
+              csr.combine_in(args, combination, it->first, it->second);
               factors.erase(it++);
             } else {
               ++it;
             }
           }
-          factors.push_back(csr.collapse_out(combination, {v}));
+          factors.push_back(csr.eliminate(args, combination, v));
         }
       }, strategy);
   }

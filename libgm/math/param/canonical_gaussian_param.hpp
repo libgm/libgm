@@ -2,7 +2,7 @@
 #define LIBGM_CANONICAL_GAUSSIAN_PARAM_HPP
 
 #include <libgm/math/constants.hpp>
-#include <libgm/math/eigen/real.hpp>
+#include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/eigen/logdet.hpp>
 #include <libgm/math/eigen/submatrix.hpp>
 #include <libgm/math/eigen/subvector.hpp>
@@ -36,24 +36,24 @@ namespace libgm {
     typedef RealType value_type;
 
     //! The type of the LLT Cholesky decomposition object.
-    typedef Eigen::LLT<real_matrix<RealType> > cholesky_type;
+    typedef Eigen::LLT<dense_matrix<RealType> > cholesky_type;
 
     //! The struct storing the temporaries for collapse computations.
     struct collapse_workspace {
       cholesky_type chol_yy;
-      real_matrix<RealType> lam_yy;
-      real_matrix<RealType> sol_yx;
-      real_vector<RealType> sol_y;
+      dense_matrix<RealType> lam_yy;
+      dense_matrix<RealType> sol_yx;
+      dense_vector<RealType> sol_y;
     };
 
     // The parameters
     //--------------------------------------------------------------------------
 
     //! The information vector.
-    real_vector<RealType> eta;
+    dense_vector<RealType> eta;
 
     //! The information matrix.
-    real_matrix<RealType> lambda;
+    dense_matrix<RealType> lambda;
 
     //! The log-multiplier.
     RealType lm;
@@ -79,8 +79,8 @@ namespace libgm {
     }
 
     //! Constructor for the given natural parameters.
-    canonical_gaussian_param(const real_vector<RealType>& eta,
-                             const real_matrix<RealType>& lambda,
+    canonical_gaussian_param(const dense_vector<RealType>& eta,
+                             const dense_matrix<RealType>& lambda,
                              RealType lm)
       : eta(eta), lambda(lambda), lm(lm) {
       check();
@@ -101,7 +101,7 @@ namespace libgm {
           "Are you passing in a non-singular moment Gaussian distribution?"
         );
       }
-      real_matrix<RealType> sol_xy = chol.solve(mg.coef);
+      dense_matrix<RealType> sol_xy = chol.solve(mg.coef);
 
       std::size_t m = mg.head_size();
       std::size_t n = mg.tail_size();
@@ -110,7 +110,7 @@ namespace libgm {
       eta.segment(0, m) = chol.solve(mg.mean);
       eta.segment(m, n).noalias() = -sol_xy.transpose() * mg.mean;
 
-      lambda.block(0, 0, m, m) = chol.solve(real_matrix<RealType>::Identity(m, m));
+      lambda.block(0, 0, m, m) = chol.solve(dense_matrix<RealType>::Identity(m, m));
       lambda.block(0, m, m, n) = -sol_xy;
       lambda.block(m, 0, n, m) = -sol_xy.transpose();
       lambda.block(m, m, n, n).noalias() = mg.coef.transpose() * sol_xy;
@@ -206,7 +206,7 @@ namespace libgm {
     }
 
     //! Returns the log-value for the given vector.
-    RealType operator()(const real_vector<RealType>& x) const {
+    RealType operator()(const dense_vector<RealType>& x) const {
       return -RealType(0.5) * x.transpose() * lambda * x + eta.dot(x) + lm;
     }
 
@@ -227,7 +227,7 @@ namespace libgm {
      * distribution represtend by this parameter struct.
      */
     RealType maximum() const {
-      real_vector<RealType> vec;
+      dense_vector<RealType> vec;
       return maximum(vec);
     }
 
@@ -236,7 +236,7 @@ namespace libgm {
      * distribution represtend by this parameter struct and stores the
      * corresponding assignment to a vector.
      */
-    RealType maximum(real_vector<RealType>& vec) const {
+    RealType maximum(dense_vector<RealType>& vec) const {
       cholesky_type chol(lambda);
       if (chol.info() == Eigen::Success) {
         vec = chol.solve(eta);
@@ -266,9 +266,9 @@ namespace libgm {
       assert(p.size() == q.size());
       cholesky_type cholp(p.lambda);
       cholesky_type cholq(q.lambda);
-      real_vector<RealType> mup = cholp.solve(p.eta);
-      real_vector<RealType> muq = cholq.solve(q.eta);
-      auto identity = real_matrix<RealType>::Identity(p.size(), p.size());
+      dense_vector<RealType> mup = cholp.solve(p.eta);
+      dense_vector<RealType> muq = cholq.solve(q.eta);
+      auto identity = dense_matrix<RealType>::Identity(p.size(), p.size());
       RealType trace = (q.lambda.array() * cholp.solve(identity).array()).sum();
       RealType means = (mup - muq).transpose() * q.lambda * (mup - muq);
       RealType logdets = logdet(cholp) - logdet(cholq);
@@ -445,7 +445,7 @@ namespace libgm {
     template <typename RetainedIt, typename RestrictIt>
     void restrict(index_range<RetainedIt> x,
                   index_range<RestrictIt> y,
-                  const real_vector<RealType>& values,
+                  const dense_vector<RealType>& values,
                   canonical_gaussian_param& r) const {
       assert(x.size() + y.size() == size());
       r.eta.noalias() = subvec(eta, x) - submat(lambda, x, y) * values;

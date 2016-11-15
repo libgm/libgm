@@ -1,7 +1,7 @@
 #ifndef LIBGM_CATEGORICAL_DISTRIBUTION_HPP
 #define LIBGM_CATEGORICAL_DISTRIBUTION_HPP
 
-#include <libgm/math/eigen/real.hpp>
+#include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/tags.hpp>
 
 #include <numeric>
@@ -18,19 +18,19 @@ namespace libgm {
   class categorical_distribution {
   public:
     //! The underlying parameter type.
-    typedef real_vector<T> param_type;
+    typedef dense_vector<T> param_type;
 
     //! The type representing the sample.
     typedef std::size_t result_type;
 
     //! Constructor for a distribution in the probability space.
-    categorical_distribution(const real_vector<T>& p, prob_tag)
+    categorical_distribution(const dense_vector<T>& p, prob_tag)
       : psum_(p) {
       std::partial_sum(psum_.data(), psum_.data() + psum_.size(), psum_.data());
     }
 
     //! Constructor for a distribution in the log space.
-    categorical_distribution(const real_vector<T>& p, log_tag)
+    categorical_distribution(const dense_vector<T>& p, log_tag)
       : psum_(exp(p.array())) {
       std::partial_sum(psum_.data(), psum_.data() + psum_.size(), psum_.data());
     }
@@ -51,7 +51,7 @@ namespace libgm {
 
   private:
     //! Partial sums.
-    real_vector<T> psum_;
+    dense_vector<T> psum_;
 
   }; // class categorical_distribution
 

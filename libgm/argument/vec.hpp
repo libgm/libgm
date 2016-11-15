@@ -47,19 +47,19 @@ namespace libgm {
     struct description;
 
     //! The argument arity (multivariate).
-    typedef multivariate_tag argument_arity;
+    using argument_arity = multivariate_tag;
 
     //! The argument category (mixed).
-    typedef mixed_tag argument_category;
+    using argument_category = mixed_tag;
 
     //! The descriptor of the variable and the field based on it.
-    typedef const description* descriptor;
+    using descriptor = const description*;
 
     //! The argument index (integral).
-    typedef std::size_t index_type;
+    using index_type = std::size_t;
 
     //! The instance of a vector (void because vectors are not indexable).
-    typedef void instance_type;
+    using instance_type = void;
 
     //! An enum representing the category of the vector.
     enum category_enum { NONE = 0, DISCRETE = 1, CONTINUOUS = 2 };
@@ -146,7 +146,7 @@ namespace libgm {
     }
 
     // Comparisons and hashing
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     //! Compares two vectors.
     friend bool operator==(vec x, vec y) {
@@ -186,25 +186,17 @@ namespace libgm {
       return seed;
     }
 
-    // Implementation of argument traits
-    //==========================================================================
-
-    //! Returns true if two vectors are compatible.
-    static bool compatible(vec x, vec y) {
-      assert(x.desc_ && y.desc_);
-      return x.desc_->category == y.desc_->category
-        && x.desc_->length == y.desc_->length
-        && x.desc_->cardinality == y.desc_->cardinality;
-    }
+    // Argument properties
+    //--------------------------------------------------------------------------
 
     //! Returns the number of dimensions of a vector.
-    std::size_t num_dimensions() const {
+    std::size_t arity() const {
       assert(desc_);
       return desc_->length;
     }
 
     //! Returns the total number of values for a discrete vector.
-    std::size_t num_values() const {
+    std::size_t size() const {
       assert(desc_);
       if (desc_->category == DISCRETE) {
         return std::accumulate(desc_->cardinality.begin(),
@@ -219,7 +211,7 @@ namespace libgm {
     }
 
     //! Returns the number of values for the given position of discrete vector.
-    std::size_t num_values(std::size_t pos) const {
+    std::size_t size(std::size_t pos) const {
       assert(desc_);
       if (desc_->category == DISCRETE) {
         assert(pos < desc_->length);
@@ -259,7 +251,7 @@ namespace libgm {
     }
 
     // Vector description
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     //! A struct describing a vector.
     struct description : universe::managed {
@@ -410,27 +402,6 @@ namespace libgm {
     std::size_t index_;
 
   }; // class vec
-
-  // Traits
-  //============================================================================
-
-  /**
-   * A specialization of vertex_traits for vector.
-   */
-  template <>
-  struct vertex_traits<vec> {
-    //! Returns the default-constructed vector.
-    static vec null() { return vec(); }
-
-    //! Returns a special "deleted" vector.
-    static vec deleted() { static vec::description desc; return vec(&desc); }
-
-    //! Prints the vector to an output stream.
-    static void print(std::ostream& out, vec v) { out << v; }
-
-    //! Vectors use the default hasher.
-    typedef std::hash<vec> hasher;
-  };
 
 } // namespace libgm
 

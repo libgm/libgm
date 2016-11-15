@@ -14,39 +14,42 @@ namespace libgm {
   /**
    * A class that represents a random field. A field is parameterized by
    * the argument type (such as var or vec) and the index type (such as
-   * std::size_t or double).
+   * std::size_t or double). The field inherits its properties, including
+   * the arity and size, from the underlying argument.
    *
-   * \tparam Arg type representing an instantiation of the field for one index
-   * \tparam Index the index of the field
+   * \tparam Arg
+   *         A type representing an instantiation of the field for one index.
+   * \tparam Index
+   *         The index type.
    */
   template <typename Arg, typename Index>
   class field {
   public:
 
     //! The category of the field (the same as the category of the argument).
-    typedef typename argument_traits<Arg>::argument_category argument_category;
+    using argument_category = typename argument_traits<Arg>::argument_category;
 
     //! The arity of the field (the same as the arity of the argument).
-    typedef typename argument_traits<Arg>::argument_arity argument_arity;
+    using argument_arity = typename argument_traits<Arg>::argument_arity;
 
     //! The argument without its index (taken from the underlying argument).
-    typedef typename argument_traits<Arg>::descriptor descriptor;
+    using descriptor = typename argument_traits<Arg>::descriptor;
 
     //! The index associated with a field.
-    typedef Index index_type;
+    using index_type = Index;
 
     //! The instance for one index value.
-    typedef Arg instance_type;
+    using instance_type = Arg;
 
     // Constructors and accessors
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     /**
      * Constructs a null field. This is the field with the same descriptor
      * as the null argument Arg, as given by vertex_traits<Arg>:null().
      */
     field()
-      : desc_(argument_traits<Arg>::desc(vertex_traits<Arg>::null())) { }
+      : desc_(argument_descriptor(vertex_traits<Arg>::null())) { }
 
     /**
      * Constructs a field with the given descriptor. This constructor is
@@ -58,12 +61,12 @@ namespace libgm {
 
     //! Saves the field to an archive.
     void save(oarchive& ar) const {
-      //ar << desc_;
+      ar << desc_;
     }
 
     //! Loads the field from an archive.
     void load(iarchive& ar) {
-      //ar >> desc_;
+      ar >> desc_;
     }
 
     //! Prints a field to an output stream.
@@ -77,7 +80,7 @@ namespace libgm {
     }
 
     // Comparisons
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     //! Compares two fields.
     friend bool operator==(field f, field g) {
@@ -109,57 +112,37 @@ namespace libgm {
       return f.desc_ >= g.desc_;
     }
 
-    // Traits
-    //==========================================================================
-    /**
-     * Returns true if two fields are compatible.
-     */
-    static bool compatible(field f, field g) {
-      return argument_traits<Arg>::compatible(f(Index()), g(Index()));
+    // Properties
+    //--------------------------------------------------------------------------
+
+    //! Returns the arity of the field.
+    std::size_t arity() const {
+      using libgm::argument_arity;
+      return argument_arity(Arg(desc_, Index()));
     }
 
-    /**
-     * Returns the dimensionality of the field.
-     */
-    std::size_t num_dimensions() const {
-      return argument_traits<Arg>::num_dimensions(Arg(desc_, Index()));
+    //! Returns the number of values of a discrete, univariate field.
+    LIBGM_ENABLE_IF(is_discrete<Arg>::value && is_univariate<Arg>::value)
+    std::size_t size() const {
+      return argument_size(Arg(desc_, Index()));
     }
 
-    /**
-     * Returns the number of values of a field.
-     * This function is only supported for discrete-valued fields.
-     */
-    template <bool B = is_discrete<Arg>::value>
-    typename std::enable_if<B, std::size_t>::type num_values() const {
-      return argument_traits<Arg>::num_values(Arg(desc_, Index()));
+    //! Returns the number of values of a discrete field.
+    LIBGM_ENABLE_IF(is_discrete<Arg>::value)
+    std::size_t size(std::size_t pos) const {
+      return argument_size(Arg(desc_, Index()), pos);
     }
 
-    /**
-     * Returns the number of values of a field at a particular position.
-     * This function is only supported for multivariate discrete-valued fields.
-     */
-    template <bool B = is_discrete<Arg>::value && is_multivariate<Arg>::value>
-    typename std::enable_if<B, std::size_t>::type
-    num_values(std::size_t pos) const {
-      return argument_traits<Arg>::num_values(Arg(desc_, Index()), pos);
+    //! Returns true if a mixed field is discrete-valued.
+    LIBGM_ENABLE_IF(is_mixed<Arg>::value)
+    bool discrete() const {
+      return argument_discrete(Arg(desc_, Index()));
     }
 
-    /**
-     * Returns true if the field is discrete-valued.
-     * This function is only supported for mixed arguments.
-     */
-    template <bool B = is_mixed<Arg>::value>
-    typename std::enable_if<B, bool>::type discrete() const {
-      return argument_traits<Arg>::discrete(Arg(desc_, Index()));
-    }
-
-    /**
-     * Returns true if the field is continuous-valued.
-     * This function is only supported for mixed arguments.
-     */
-    template <bool B = is_mixed<Arg>::value>
-    typename std::enable_if<B, bool>::type continuous() const {
-      return argument_traits<Arg>::continuous(Arg(desc_, Index()));
+    //! Returns true if a mixed field is continuous-valued.
+    LIBGM_ENABLE_IF(is_mixed<Arg>::value)
+    bool continuous() const {
+      return argument_continuous(Arg(desc_, Index()));
     }
 
     //! Returns the descriptor of the field.

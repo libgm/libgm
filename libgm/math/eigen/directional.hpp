@@ -1,7 +1,7 @@
 #ifndef LIBGM_EIGEN_DIRECTIONAL_HPP
 #define LIBGM_EIGEN_DIRECTIONAL_HPP
 
-#include <libgm/math/eigen/real.hpp>
+#include <libgm/math/eigen/dense.hpp>
 
 namespace libgm {
 
@@ -54,7 +54,7 @@ namespace libgm {
   directional_eliminate(AggOp agg_op,
                         int_constant<Eigen::Vertical>, std::size_t /* dim */,
                         const Eigen::ArrayBase<Input>& input,
-                        real_vector<T>& result) {
+                        dense_vector<T>& result) {
     result = agg_op(input.derived().colwise()).transpose();
   }
 
@@ -66,7 +66,7 @@ namespace libgm {
   directional_eliminate(member_logSumExp /* agg_op */,
                         int_constant<Eigen::Vertical>, std::size_t /* dim */,
                         const Eigen::ArrayBase<Input>& input,
-                        real_vector<T>& result) {
+                        dense_vector<T>& result) {
     auto&& eval = input.derived().eval();
     T offset = eval.maxCoeff();
     result = (eval - offset).exp().colwise().sum().log().transpose() + offset;
@@ -80,7 +80,7 @@ namespace libgm {
   directional_eliminate(AggOp agg_op,
                         int_constant<Eigen::Horizontal>, std::size_t /* dim */,
                         const Eigen::ArrayBase<Input>& input,
-                        real_vector<T>& result) {
+                        dense_vector<T>& result) {
     result = agg_op(input.derived().rowwise());
   }
 
@@ -92,7 +92,7 @@ namespace libgm {
   directional_eliminate(member_logSumExp /* agg_op */,
                         int_constant<Eigen::Horizontal>, std::size_t /* dim */,
                         const Eigen::ArrayBase<Input>& input,
-                        real_vector<T>& result) {
+                        dense_vector<T>& result) {
     auto&& eval = input.derived().eval();
     T offset = eval.maxCoeff();
     result = (eval - offset).exp().rowwise().sum().log().transpose() + offset;
@@ -106,7 +106,7 @@ namespace libgm {
   directional_eliminate(AggOp agg_op,
                         int_constant<Eigen::BothDirections>, std::size_t dim,
                         const Eigen::ArrayBase<Input>& input,
-                        real_vector<T>& result) {
+                        dense_vector<T>& result) {
     if (dim == 0) {
       directional_eliminate(agg_op, int_constant<Eigen::Vertical>(), 0,
                             input, result);

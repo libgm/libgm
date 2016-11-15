@@ -2,7 +2,7 @@
 #define LIBGM_REAL_SEQUENCE_DATASET_HPP
 
 #include <libgm/learning/dataset/basic_sequence_dataset.hpp>
-#include <libgm/math/eigen/real.hpp>
+#include <libgm/math/eigen/dense.hpp>
 
 namespace libgm {
 
@@ -21,7 +21,7 @@ namespace libgm {
    */
   template <typename Arg, typename T = double>
   using real_sequence_dataset =
-    basic_sequence_dataset<Arg, real_vector<T>, real_matrix<T>, T>;
+    basic_sequence_dataset<Arg, dense_vector<T>, dense_matrix<T>, T>;
 
 } // namespace libgm
 

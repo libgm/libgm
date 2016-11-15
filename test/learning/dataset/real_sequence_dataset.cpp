@@ -11,13 +11,13 @@
 #include <random>
 
 namespace libgm {
-  template class basic_sequence_dataset<var, real_vector<>, real_matrix<>, double>;
-  template class basic_sequence_dataset<vec, real_vector<>, real_matrix<>, double>;
+  template class basic_sequence_dataset<var, dense_vector<>, dense_matrix<>, double>;
+  template class basic_sequence_dataset<vec, dense_vector<>, dense_matrix<>, double>;
 }
 
 using namespace libgm;
 
-typedef std::pair<real_matrix<>, double> sample_type;
+typedef std::pair<dense_matrix<>, double> sample_type;
 // typedef std::pair<real_assignment<double>, double> sample_assignment_type;
 BOOST_TEST_DONT_PRINT_LOG_VALUE(sample_type);
 // BOOST_TEST_DONT_PRINT_LOG_VALUE(sample_assignment_type);
@@ -26,7 +26,7 @@ struct fixture {
   universe u;
   sequence<vec> a, b;
   domain<sequence<vec> > ab;
-  real_matrix<> seq0, seq1;
+  dense_matrix<> seq0, seq1;
   real_sequence_dataset<vec> ds;
 
   fixture()
@@ -238,7 +238,7 @@ BOOST_AUTO_TEST_CASE(test_load) {
   load({dir + "/real_seq0.txt", dir + "/real_seq1.txt"}, format, ds);
 
   // check the sequences
-  real_matrix<> seq0(3, 3), seq1(3, 2);
+  dense_matrix<> seq0(3, 3), seq1(3, 2);
   seq0 << 0.1, 0.2, 0.1, 0.2, 0.3, 0.4, 1.0, 0.9, 0.8;
   seq1 << -0.1, -0.2, -0.2, -0.3, 0.8, 0.9;
   BOOST_CHECK_EQUAL(ds.size(), 2);

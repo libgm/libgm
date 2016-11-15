@@ -1,6 +1,7 @@
 #ifndef LIBGM_DECOMPOSABLE_HPP
 #define LIBGM_DECOMPOSABLE_HPP
 
+#include <libgm/argument/domain.hpp>
 #include <libgm/factor/util/operations.hpp>
 #include <libgm/graph/algorithm/min_degree_strategy.hpp>
 #include <libgm/graph/algorithm/tree_traversal.hpp>
@@ -23,47 +24,49 @@ namespace libgm {
    * The distribution is equal to to the product of clique marginals,
    * divided by the product of separator marginals.
    *
-   * \tparam F A type representing the factors. The type must support
-   *           multiplication and division operations.
+   * \tparam Arg
+   *         A type that represents an individual argument (node).
+   * \tparam F
+   *         A type representing the factors. The type must support
+   *         multiplication and division operations.
    *
    * \ingroup model
    */
-  template <typename F>
+  template <typename Arg, typename F>
   class decomposable {
 
-    typedef cluster_graph<typename F::domain_type, F, F> graph_type;
+    using graph_type = cluster_graph<Arg, F, F>;
 
     // Public type declarations
-    //==========================================================================
+    //--------------------------------------------------------------------------
   public:
-    // FactorizedModel types
-    typedef typename F::real_type       real_type;
-    typedef typename F::result_type     result_type;
-    typedef typename F::argument_type   argument_type;
-    typedef typename F::domain_type     domain_type;
-    typedef typename F::assignment_type assignment_type;
-    typedef F                           value_type;
-    class /* forward declaration */     const_iterator;
-    typedef const_iterator              iterator;
-
     // Graph vertex, edge, and properties
-    typedef id_t                  vertex_type;
-    typedef undirected_edge<id_t> edge_type;
-    typedef F                     vertex_property;
-    typedef F                     edge_property;
+    using vertex_type     = id_t;
+    using edge_type       = undirected_edge<id_t> ;
+    using vertex_property = VertexProperty;
+    using edge_property   = EdgeProperty;
 
     // Graph iterators
-    typedef typename graph_type::vertex_iterator   vertex_iterator;
-    typedef typename graph_type::neighbor_iterator neighbor_iterator;
-    typedef typename graph_type::edge_iterator     edge_iterator;
-    typedef typename graph_type::in_edge_iterator  in_edge_iterator;
-    typedef typename graph_type::out_edge_iterator out_edge_iterator;
+    using vertex_iterator   = typename graph_type::vertex_iterator;
+    using neighbor_iterator = typename graph_type::neighbor_iterator;
+    using edge_iterator     = typename graph_type::edge_iterator;
+    using in_edge_iterator  = typename graph_type::in_edge_iterator;
+    using out_edge_iterator = typename graph_type::out_edge_iterator;
 
-    // Model iterators
-    typedef typename graph_type::argument_iterator argument_iterator;
+    // Argument types
+    using argument_type     = Arg;
+    using argument_hasher   = typename argument_traits<Arg>::hasher;
+    using argument_iterator = typename graph_type::argument_iterator;
+
+    // Factor types
+    using real_type   = typename F::real_type;
+    using result_type = typename F::result_type;
+    using factor_type = F;
+    using value_type  = std::pair<const domain<Arg>&, const F&>;
+    class iterator; // forward declaration
 
     // Constructors and destructors
-    //==========================================================================
+    //--------------------------------------------------------------------------
   public:
     /**
      * Default constructor. The distribution has no arguments and
@@ -210,13 +213,33 @@ namespace libgm {
     }
 
     //! Returns the clique associated with a vertex.
-    const domain_type& clique(id_t v) const {
+    const domain<Arg>& clique(id_t v) const {
       return jt_.cluster(v);
     }
 
     //! Returns the separator associated with an edge.
-    const domain_type& separator(const edge_type& e) const {
+    const domain<Arg>& separator(const edge_type& e) const {
       return jt_.separator(e);
+    }
+
+    //! Returns the index mapping from a domain to the given clique.
+    uint_vector index(id_t v, const domain<Arg>& dom) const {
+      return jt_.index(v, dom);
+    }
+
+    //! Returns the index mapping from a domain to the given separator.
+    uint_vector index(edge_type e, const domain<Arg>& dom) const {
+      return jt_.index(e, dom);
+    }
+
+    //! Returns the index mapping from the separator to the source clique.
+    const uint_vector& source_index(const edge_type& e) const {
+      return jt_.source_index(e);
+    }
+
+    //! Returns the index mapping from the separator to the target clique.
+    const uint_vector& target_index(const edge_type& e) const {
+      return jt_.target_index(e);
     }
 
     //! Returns the iterator to the first factor.
@@ -245,12 +268,12 @@ namespace libgm {
     }
 
     // Queries
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     /**
      * Computes the Markov graph capturing the dependencies in this model.
      */
-    void markov_graph(undirected_graph<argument_type>& mg) const {
+    void markov_graph(undirected_graph<Arg>& mg) const {
       for (argument_type v : arguments()) {
         mg.add_vertex(v);
       }
@@ -269,31 +292,29 @@ namespace libgm {
      */
     bool valid(std::string* msg = nullptr) const {
       if (!jt_.tree()) {
-        if (msg) { *msg = "The underlying graph is not a tree"; }
+        if (msg) {
+          *msg = "The underlying graph is not a tree";
+        }
         return false;
       }
       if (!jt_.running_intersection()) {
-        if (msg) { *msg = "The underlying graph does not satisfiy RIP"; }
+        if (msg) {
+          *msg = "The underlying graph does not satisfiy RIP";
+        }
         return false;
       }
       for (id_t v : vertices()) {
-        if (clique(v) != jt_[v].arguments()) {
+        if (jt_[v].shape() != F::param_shape(clique(v))) {
           if (msg) {
-            std::ostringstream out;
-            out << "Inconsistent clique and factor arguments: "
-                << clique(v) << " != " << jt_[v].arguments();
-            *msg = out.str();
+            *msg = "Inconsistent shape for clique " + clique(v).str();
           }
           return false;
         }
       }
       for (edge_type e : edges()) {
-        if (separator(e) != jt_[e].arguments()) {
+        if (jt_[e].shape() != F::param_shape(separator(e))) {
           if (msg) {
-            std::ostringstream out;
-            out << "Incosistent separator and factor arguments: "
-                << separator(e) << " != " << jt_[e].arguments();
-            *msg = out.str();
+            *msg = "Inconsistent shape for separator " + separator(e).str();
           }
           return false;
         }
@@ -305,47 +326,52 @@ namespace libgm {
      * Computes a marginal over an arbitrary subset of arguments.
      * The arguments must be all present in this decomposble model.
      */
-    F marginal(const domain_type& domain) const {
-      if (domain.empty()) {
-        return F(typename F::result_type(1));
+    F marginal(const domain<Arg>& dom) const {
+      if (dom.empty()) {
+        return F(result_type(1));
       }
 
       // Look for a separator that covers the arguments.
-      edge_type e = jt_.find_separator_cover(domain);
-      if (e) { return jt_[e].marginal(domain); }
+      edge_type e = jt_.find_separator_cover(dom);
+      if (e) {
+        return jt_[e].marginal(index(e, dom));
+      }
 
       // Look for a clique that covers the arguments.
-      id_t v = jt_.find_cluster_cover(domain);
-      if (v) { return jt_[v].marginal(domain); }
+      id_t v = jt_.find_cluster_cover(dom);
+      if (v) {
+        return jt_[v].marginal(index(v, dom));
+      }
 
       // Otherwise, compute the factors whose product represents
       // the marginal
-      std::list<F> factors;
+      std::list<std::pair<domain<Arg>, F> > factors;
       marginal(domain, factors);
-      return prod_all(factors).marginal(domain); // TODO: should be reoder()
+      return prod_all(factors).marginal(domain); // TODO: what to do here?
     }
 
     /**
      * Computes a list of factors whose product represents
      * a marginal over a subset of arguments.
      */
-    void marginal(const domain_type& domain, std::list<F>& factors) const {
+    void marginal(const domain<Arg>& dom,
+                  std::list<std::pair<domain<Arg>, F> >& factors) const {
       factors.clear();
       if (domain.empty()) return;
 
-      const_cast<graph_type&>(jt_).mark_subtree_cover(domain, false);
+      const_cast<graph_type&>(jt_).mark_subtree_cover(dom, false);
       for (id_t v : vertices()) {
         if (jt_.marked(v)) {
-          factors.push_back(jt_[v]);
+          factors.emplace_back(clique(v), jt_[v]);
         }
       }
       for (edge_type e : edges()) {
         if (jt_.marked(e)) {
-          factors.push_back(typename F::result_type(1) / jt_[e]);
+          factors.emmplace_back(separator(e), result_type(1) / jt_[e]);
         }
       }
 
-      variable_elimination(factors, domain, sum_product<F>());
+      variable_elimination(factors, dom, sum_product<F>());
     }
 
     /**
@@ -353,8 +379,8 @@ namespace libgm {
      * distribution over one ore more arguments.
      * Note: This operation can create large cliques.
      */
-    void marginal(const domain_type& domain, decomposable& result) const {
-      std::list<F> factors;
+    void marginal(const domain<Arg>& domain, decomposable& result) const {
+      std::list<std::pair<domain<Arg>, F> > factors;
       marginal(domain, factors);
       result.reset(factors);
     }
@@ -365,21 +391,29 @@ namespace libgm {
      */
     real_type entropy() const {
       real_type result(0);
-      for (id_t v : vertices()) { result += jt_[v].entropy(); }
-      for (edge_type e : edges()) { result -= jt_[e].entropy(); }
+      for (id_t v : vertices()) {
+        result += jt_[v].entropy();
+      }
+      for (edge_type e : edges()) {
+        result -= jt_[e].entropy();
+      }
       return result;
     }
 
     /**
      * Computes the entropy over a subset of arguments.
      */
-    real_type entropy(const domain_type& domain) const {
+    real_type entropy(const domain<Arg>& domain) const {
       // first try to compute the entropy directly from the marginals
-      edge_type e = jt_.find_separator_cover(domain);
-      if (e) { return jt_[e].entropy(domain); }
+      edge_type e = jt_.find_separator_cover(dom);
+      if (e) {
+        return jt_[e].entropy(index(e, dom));
+      }
 
       id_t v = jt_.find_cluster_cover(domain);
-      if (v) { return jt_[v].entropy(domain); }
+      if (v) {
+        return jt_[v].entropy(index(v, dom));
+      }
 
       // failing that, compute the marginal of the model
       decomposable tmp;
@@ -424,7 +458,7 @@ namespace libgm {
      * Compute the maximum probability and stores the corresponding
      * assignment to a.
      */
-    result_type maximum(assignment_type& a) const {
+    result_type maximum(assignment_type& a) const { // ??
       a.clear();
       if (empty()) { return result_type(1); }
 
@@ -516,24 +550,26 @@ namespace libgm {
     /**
      * Initializes the decomposable model to the given range of marginals.
      * The argument domains of the marginals must be triangulated.
-     * \tparam Range a single pass range with elements convertible to F
+     *
+     * \tparam Range
+     *         A single pass range with elements convertible to value_type.
      */
     template <typename Range>
     void reset_marginals(const Range& marginals) {
       clear();
 
       // initialize the clique marginals and the tree structure
-      for (const F& marginal : marginals) {
-        jt_.add_cluster(marginal.arguments(), marginal);
+      for (const auto& marginal : marginals) {
+        jt_.add_cluster(marginal.first, marginal.second);
       }
       jt_.mst_edges();
 
       // compute the separator marginals
       for (edge_type e : edges()) {
         if (clique(e.source()).size() < clique(e.target()).size()) {
-          jt_[e] = jt_[e.source()].marginal(separator(e));
+          jt_[e] = jt_[e.source()].marginal(source_index(e));
         } else {
-          jt_[e] = jt_[e.target()].marginal(separator(e));
+          jt_[e] = jt_[e.target()].marginal(target_index(e));
         }
       }
 
@@ -545,9 +581,9 @@ namespace libgm {
     /**
      * Initializes the decomposable model to a single marginal.
      */
-    void reset_marginal(const F& marginal) {
+    void reset_marginal(const domain<Arg>& dom, const F& factor) {
       clear();
-      jt_.add_cluster(marginal.arguments(), marginal);
+      jt_.add_cluster(dom, factor);
     }
 
     /**
@@ -556,7 +592,8 @@ namespace libgm {
      * (which are not present in this model). In this case, the
      * marginals over these new arguments will be set to 1.
      *
-     * \tparam Range A single pass range with elements convertible to Domain
+     * \tparam Range
+     *         A single pass range with elements convertible to domain<Arg>.
      *
      * \todo right now we retriangulate the entire model, but only
      *       the subtree containing the parameter vars must be
@@ -565,11 +602,11 @@ namespace libgm {
     template <typename Range>
     void retriangulate(const Range& cliques) {
       // Create a graph with the cliques of this decomposable model.
-      undirected_graph<argument_type> mg;
+      undirected_graph<Arg> mg;
       markov_graph(mg);
 
       // Add the new cliques
-      for (const domain_type& clique : cliques) {
+      for (const domain<Arg>& clique : cliques) {
         make_clique(mg, clique);
       }
 
@@ -578,10 +615,12 @@ namespace libgm {
       graph_type jt;
       jt.triangulated(mg, min_degree_strategy());
       for (id_t v : jt.vertices()) {
+        // ??
         jt[v] = F(jt.cluster(v), typename F::result_type(1));
         jt[v] *= marginal(intersecting_args(jt.cluster(v)));
       }
       for (edge_type e : jt.edges()) {
+        // ??
         jt[e] = F(jt.separator(e), typename F::result_type(1));
         jt[e] = marginal(intersecting_args(jt.separator(e)));
       }
@@ -595,13 +634,13 @@ namespace libgm {
      * that covers the supplied arguments, and returns the vertex
      * associated with this clique.
      */
-    id_t make_cover(const domain_type& domain) {
-      id_t v = jt_.find_cluster_cover(domain);
+    id_t make_cover(const domain<Arg>& dom) {
+      id_t v = jt_.find_cluster_cover(dom);
       if (v) {
         return v;
       } else {
-        retriangulate(iterator_range<const domain_type*>(&domain, &domain+1));
-        return jt_.find_cluster_cover(domain);
+        retriangulate(make_singleton_range(dom));
+        return jt_.find_cluster_cover(dom);
       }
     }
 
@@ -619,8 +658,8 @@ namespace libgm {
       if (superset(clique(u), clique(v))) {
         marginal = std::move(jt_[u]);
       } else {
-        marginal = jt_[u] * jt_[v];
-        marginal /= jt_[e];
+        marginal = jt_[u].dims(source_index(e)) * jt_[v].dims(target_index(e));
+        marginal.dims(?.index(separator(e))) /= jt_[e];
       }
 
       // merge the edge and set the new marginal
@@ -652,7 +691,7 @@ namespace libgm {
      * \tparam Range A forward range over factors that can be multiplied to F.
      */
     template <typename Range>
-    decomposable& operator*=(const Range& factors) {
+    decomposable& multiply_in(const Range& factors) {
       // Retriangulate the model so that it contains a clique for each factor.
       std::vector<std::reference_wrapper<const domain_type> > domains;
       for (const auto& factor : factors) {
@@ -679,9 +718,9 @@ namespace libgm {
      * Multiplies the supplied factor into this decomposable model and
      * renormalizes the model.
      */
-    decomposable& operator*=(const F& factor) {
-      id_t v = make_cover(factor.arguments());
-      jt_[v] *= factor;
+    decomposable& multiply_in(const domain<Arg>& dom, const F& factor) {
+      id_t v = make_cover(dom);
+      jt_[v].dims(index(v, dom)) *= factor;
       distribute_evidence(v);
       return *this;
     }
@@ -757,7 +796,7 @@ namespace libgm {
       const F& operator*() const {
         assert(remaining_ > 0);
         if (remaining_ > dm_->num_edges()) {
-          return (*dm_)[*vit_];
+          return dm_.marginal(*vi);
         } else {
           return inv_potential_;
         }
@@ -805,15 +844,21 @@ namespace libgm {
     // Private members
     //==========================================================================
   private:
+
+    /**
+     * Passes the flow along an edge.
+     */
+    void pass_flow(edge_type e) {
+      jt_[e.target()].dims(target_index(e)) /= jt_[e];
+      jt_[e] = jt_[e.source()].marginal(source_index(e));
+      jt_[e.target()].dims(target_index(e)) *= jt_[e];
+    }
+
     /**
      * Passes flows outwards from the supplied vertex.
      */
     void distribute_evidence(id_t v) {
-      pre_order_traversal(jt_, v, [&](const edge_type& e) {
-          jt_[e.target()] /= jt_[e];
-          jt_[e.source()].marginal(separator(e), jt_[e]);
-          jt_[e.target()] *= jt_[e];
-        });
+      pre_order_traversal(jt_, v, [&](const edge_type& e) { pass_flow(e); });
     }
 
     /**
@@ -821,11 +866,7 @@ namespace libgm {
      * passing protocol.
      */
     void calibrate() {
-      mpp_traversal(jt_, id_t(), [&](const edge_type& e) {
-          jt_[e.target()] /= jt_[e];
-          jt_[e.source()].marginal(separator(e), jt_[e]);
-          jt_[e.target()] *= jt_[e];
-        });
+      mpp_traversal(jt_, id_t(), [&](const edge_type& e) { pass_flow(e); });
     }
 
     /**
@@ -841,9 +882,9 @@ namespace libgm {
      * Returns the arguments of this model that are restricted by an
      * assignment.
      */
-    domain_type restricted_args(const assignment_type& a) const {
+    domain<Arg> restricted_args(const assignment_type& a /* ??? */) const {
       domain_type result;
-      for (argument_type v : arguments()) {
+      for (Arg v : arguments()) {
         if (a.count(v)) {
           result.push_back(v);
         }
@@ -854,9 +895,9 @@ namespace libgm {
     /**
      * Returns the arguments in this model intersecting the given domain.
      */
-    domain_type intersecting_args(const domain_type& dom) const {
-      domain_type result;
-      for (argument_type v : dom) {
+    domain_type intersecting_args(const domain<Arg>& dom) const {
+      domain<Arg> result;
+      for (Arg v : dom) {
         if (jt_.count(v)) {
           result.push_back(v);
         }
@@ -874,10 +915,10 @@ namespace libgm {
 namespace boost {
 
   //! A traits class that lets decomposable_model work in BGL algorithms
-  template <typename F>
-  struct graph_traits< libgm::decomposable<F> >
+  template <typename Arg, typename F>
+  struct graph_traits< libgm::decomposable<Arg, F> >
     : public graph_traits<
-        libgm::cluster_graph<typename F::argument_type, F, F> > { };
+        libgm::cluster_graph<Arg, F, F> > { };
 
 } // namespace boost
 

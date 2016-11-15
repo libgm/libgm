@@ -117,7 +117,7 @@ void time_marginal(bool contiguous) {
   boost::timer t;
   for (std::size_t n : num_dims) {
     domain<var> args = make_domain(u, n);
-    cgaussian f(args, real_vector<>::Ones(n), real_matrix<>::Identity(n, n));
+    cgaussian f(args, dense_vector<>::Ones(n), dense_matrix<>::Identity(n, n));
     cgaussian g;
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
@@ -137,7 +137,7 @@ void time_sum(bool contiguous) {
   boost::timer t;
   for (std::size_t n : num_dims) {
     domain<var> args = make_domain(u, n);
-    cgaussian f(args, real_vector<>::Ones(n), real_matrix<>::Identity(n, n));
+    cgaussian f(args, dense_vector<>::Ones(n), dense_matrix<>::Identity(n, n));
     cgaussian g;
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {

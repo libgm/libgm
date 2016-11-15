@@ -3,7 +3,7 @@
 
 #include <libgm/datastructure/uint_vector.hpp>
 #include <libgm/datastructure/real_pair.hpp>
-#include <libgm/math/eigen/real.hpp>
+#include <libgm/math/eigen/dense.hpp>
 
 #include <utility>
 
@@ -25,7 +25,7 @@ namespace libgm {
     typedef T regul_type;
 
     //! The array of natural parameters.
-    typedef real_matrix<T> param_type;
+    typedef dense_matrix<T> param_type;
 
     //! A pair of matrix indices.
     typedef std::pair<std::size_t, std::size_t> index_pair;
@@ -34,7 +34,7 @@ namespace libgm {
      * Constructs a log-likelihood function for a canonical array
      * with the specified parameters.
      */
-    explicit logarithmic_matrix_ll(const real_matrix<T>& l)
+    explicit logarithmic_matrix_ll(const dense_matrix<T>& l)
       : l_(l) { }
 
     /**
@@ -64,7 +64,7 @@ namespace libgm {
      * and the slope along the given direction.
      */
     real_pair<T>
-    value_slope(std::size_t i, std::size_t j, const real_matrix<T>& dir) const {
+    value_slope(std::size_t i, std::size_t j, const dense_matrix<T>& dir) const {
       assert(l_.rows() == dir.rows() && l_.cols() == dir.cols());
       return { l_(i, j), dir(i, j) };
     }
@@ -74,7 +74,7 @@ namespace libgm {
      * and the slope along the given direction.
      */
     real_pair<T>
-    value_slope(index_pair x, const real_matrix<T>& dir) const {
+    value_slope(index_pair x, const dense_matrix<T>& dir) const {
       return value_slope(x.first, x.second, dir);
     }
 
@@ -83,7 +83,7 @@ namespace libgm {
      * and the slope along the given direction.
      */
     real_pair<T>
-    value_slope(const uint_vector& x, const real_matrix<T>& dir) const {
+    value_slope(const uint_vector& x, const dense_matrix<T>& dir) const {
       assert(x.size() == 2);
       return value_slope(x[0], x[1], dir);
     }
@@ -93,7 +93,7 @@ namespace libgm {
      * point with weight w to the gradient array g
      */
     void add_gradient(std::size_t i, std::size_t j, T w,
-                      real_matrix<T>& g) const {
+                      dense_matrix<T>& g) const {
       assert(l_.rows() == g.rows() && l_.cols() == g.cols());
       g(i, j) += w;
     }
@@ -102,7 +102,7 @@ namespace libgm {
      * Adds a gradient of the log-likelihood of the specified data
      * point with weight w to the gradient array g
      */
-    void add_gradient(index_pair x, T w, real_matrix<T>& g) const {
+    void add_gradient(index_pair x, T w, dense_matrix<T>& g) const {
       add_gradient(x.first, x.second, w, g);
     }
 
@@ -110,7 +110,7 @@ namespace libgm {
      * Adds a gradient of the log-likelihood of the specified data
      * point with weight w to the gradient array g
      */
-    void add_gradient(const uint_vector& x, T w, real_matrix<T>& g) const {
+    void add_gradient(const uint_vector& x, T w, dense_matrix<T>& g) const {
       assert(x.size() == 2);
       add_gradient(x[0], x[1], w, g);
     }
@@ -121,8 +121,8 @@ namespace libgm {
      * \param phead the distribution over the row index of f
      * \param j the column index
      */
-    void add_gradient(const real_vector<T>& phead, std::size_t j, T w,
-                      real_matrix<T>& g) const {
+    void add_gradient(const dense_vector<T>& phead, std::size_t j, T w,
+                      dense_matrix<T>& g) const {
       g.col(j) += w * phead;
     }
 
@@ -131,7 +131,7 @@ namespace libgm {
      * data point with weight w to the Hessian diagonal h.
      */
     void add_hessian_diag(std::size_t i, std::size_t j, T w,
-                          real_matrix<T>& h) const {
+                          dense_matrix<T>& h) const {
       assert(l_.rows() == h.rows() && l_.cols() == h.cols());
     }
 
@@ -139,13 +139,13 @@ namespace libgm {
      * Adds the diagonal of the Hessian of log-likelihood of the specified
      * data point with weight w to the Hessian diagonal h.
      */
-    void add_hessian_diag(index_pair x, T w, real_matrix<T>& h) const { }
+    void add_hessian_diag(index_pair x, T w, dense_matrix<T>& h) const { }
 
     /**
      * Adds the diagonal of the Hessian of log-likelihood of the specified
      * data point with weight w to the Hessian diagonal h.
      */
-    void add_hessian_diag(const uint_vector& x, T w, real_matrix<T>& h) const {
+    void add_hessian_diag(const uint_vector& x, T w, dense_matrix<T>& h) const {
       assert(x.size() == 2);
     }
 
@@ -155,12 +155,12 @@ namespace libgm {
      * \param phead the distribution over the row index of f
      * \param j the column index
      */
-    void add_hessian_diag(const real_matrix<T>& phead, std::size_t j, T w,
+    void add_hessian_diag(const dense_matrix<T>& phead, std::size_t j, T w,
                           param_type& h) const { }
 
   private:
     //! The parameters at which we evaluate the log-likelihood derivatives.
-    const real_matrix<T>& l_;
+    const dense_matrix<T>& l_;
 
   }; // class logarithmic_matrix_ll
 

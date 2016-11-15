@@ -2,7 +2,7 @@
 #define LIBGM_PROBABILITY_MATRIX_MLE_HPP
 
 #include <libgm/datastructure/uint_vector.hpp>
-#include <libgm/math/eigen/real.hpp>
+#include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/likelihood/mle_eval.hpp>
 
 namespace libgm {
@@ -19,7 +19,7 @@ namespace libgm {
     typedef T regul_type;
 
     //! The parameters of the distribution computed by this estimator.
-    typedef real_matrix<T> param_type;
+    typedef dense_matrix<T> param_type;
 
     //! The type that represents an unweighted observation.
     typedef uint_vector data_type;
@@ -44,7 +44,7 @@ namespace libgm {
      * \tparam Range a range of values convertible to std::pair<data_type, T>
      */
     template <typename Range>
-    real_matrix<T> operator()(const Range& samples,
+    dense_matrix<T> operator()(const Range& samples,
                               std::size_t m, std::size_t n) {
       return incremental_mle_eval(*this, samples, std::make_pair(m, n));
     }
@@ -56,7 +56,7 @@ namespace libgm {
      * \tparam Range a range of values convertible to std::pair<data_type, T>
      */
     template <typename Range>
-    real_matrix<T> operator()(const Range& samples, const shape_type& shape) {
+    dense_matrix<T> operator()(const Range& samples, const shape_type& shape) {
       return incremental_mle_eval(*this, samples, shape);
     }
 
@@ -84,7 +84,7 @@ namespace libgm {
      * \param head an index of size 1 containing the row
      * \param tail a distribution over the column indices
      */
-    void process(const uint_vector& head, const real_vector<T>& ptail) {
+    void process(const uint_vector& head, const dense_vector<T>& ptail) {
       assert(head.size() == 1);
       assert(ptail.size() == counts_.cols());
       counts_.row(head[0]) += ptail.transpose();
@@ -100,7 +100,7 @@ namespace libgm {
     T regul_;
 
     //! An array that counts the occurrences of each assignment.
-    real_matrix<T> counts_;
+    dense_matrix<T> counts_;
 
   }; // class probability_matrix_mle
 

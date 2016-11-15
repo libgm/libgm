@@ -4,7 +4,7 @@
 #include <libgm/model/mixture.hpp>
 
 #include <libgm/argument/vec.hpp>
-#include <libgm/factor/experimental/moment_gaussian.hpp>
+#include <libgm/factor/moment_gaussian.hpp>
 
 #include "../math/eigen/helpers.hpp"
 
@@ -14,8 +14,8 @@ namespace libgm { namespace experimental {
 
 using namespace libgm;
 
-using mgaussian = experimental::moment_gaussian<vec>;
-using gaussian_mixture = experimental::mixture<mgaussian>;
+using mgaussian = moment_gaussian<vec>;
+using gaussian_mixture = mixture<mgaussian>;
 
 BOOST_AUTO_TEST_CASE(test_constructors) {
   universe u;

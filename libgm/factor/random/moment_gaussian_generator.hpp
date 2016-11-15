@@ -120,8 +120,8 @@ namespace libgm {
   private:
     param_type param_;
 
-    typedef real_vector<T> vec_type;
-    typedef real_matrix<T> mat_type;
+    typedef dense_vector<T> vec_type;
+    typedef dense_matrix<T> mat_type;
 
     template <typename RNG>
     void generate_moments(RNG& rng, vec_type& mean, mat_type& cov) const {

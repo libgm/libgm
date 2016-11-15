@@ -1,5 +1,5 @@
-#include <libgm/factor/experimental/probability_table.hpp>
-#include <libgm/factor/experimental/logarithmic_table.hpp>
+#include <libgm/factor/probability_table.hpp>
+#include <libgm/factor/logarithmic_table.hpp>
 #include <libgm/functional/assign.hpp>
 #include <libgm/functional/member.hpp>
 #include <libgm/functional/tuple.hpp>

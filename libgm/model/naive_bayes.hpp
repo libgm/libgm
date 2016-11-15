@@ -14,91 +14,81 @@ namespace libgm {
   /**
    * A class that represents the Maive Bayes model.
    *
-   * \tparam LabelF a type representing the prior distribution
-   * \tparam FeatureF a type representing the conditional distribution of
-   *                  a feature given the label.
+   * \tparam Arg
+   *         A type that represents an individual argument (node).
+   * \tparam LabelF
+   *         A type representing the prior distribution.
+   * \tparam FeatureF
+   *         A type representing the conditional distribution p(feature | label)
    */
-  template <typename LabelF, typename FeatureF = LabelF>
+  template <typename Arg, typename LabelF, typename FeatureF = LabelF>
   class naive_bayes {
   public:
     static_assert(are_pairwise_compatible<LabelF, FeatureF>::value,
                   "The prior and feature factors are not pairwise compatible.");
 
-    typedef std::unordered_map<argument_type, F> feature_map;
+    using feature_map =
+      std::unordered_map<Arg, F, typename argument_traits<Arg>::hasher>;
 
     // Public type declarations
-    //==========================================================================
+    //--------------------------------------------------------------------------
   public:
-    // FactorizedModel types
-    typedef typename LabelF::real_type       real_type;
-    typedef typename LabelF::result_type     result_type;
-    typedef typename LabelF::argument_type   argument_type;
-    typedef typename LabelF::domain_type     domain_type;
-    typedef typename LabelF::assignment_type assignment_type;
+    // Argument types
+    using argument_type     = Arg;
+    using argument_hasher   = typename argument_traits<Arg>::hasher;
+    using feature_iterator  = map_key_iterator<feature_map>;
+    using argument_iterator = join_iterator<const Arg*, feature_iterator>;
 
-    // Iterators
-    typedef map_key_iterator<feature_map>        feature_iterator;
-    typedef typename domain_type::const_iterator domain_iterator;
-    typedef join_iterator<domain_iterator, feature_iterator> argument_iterator;
+    // Factor types
+    using real_type   = typename LabelF::real_type;
+    using result_type = typename LabelF::result_type;
+
+    typedef typename LabelF::assignment_type assignment_type; // ???
 
     // Constructors and initialization
-    //==========================================================================
+    //--------------------------------------------------------------------------
   public:
     //! Default constructor. Creates an empty naive Bayes model.
-    naive_bayes() { }
+    naive_bayes()
+      : label_(vertex_traits<Arg>::null()) { }
 
     //! Creates a naive Bayes model with the given label and uniform prior.
-    explicit naive_bayes(argument_type label)
-      : prior_({label}, result_type(1)) {
-      check_prior(prior_);
-    }
+    explicit naive_bayes(Arg label)
+      : label_(label), prior_(NodeF::param_shape({label}), result_type(1)) { }
 
     //! Creates a naive Bayes model with given prior distribution and CPDs.
-    explicit naive_bayes(const LabelF& prior)
-      : prior_(prior) {
-      check_prior(prior_);
+    explicit naive_bayes(Arg label, const LabelF& prior)
+      : label_(label), prior_(prior) {
+      check_prior();
     }
 
     /**
-     * Sets the prior. Must not change the label argument if one is set already.
+     * Sets the prior factor. Must not change shape of the factor.
      */
     void prior(const F& prior) {
-      check_prior(prior);
-      if (prior_.empty() || prior_.arguments() == prior.arguments()) {
-        prior_ = prior;
-      } else {
-        throw std::invalid_argument("attempt to change the label argument");
-      }
+      prior_ = prior;
+      check_prior();
     }
 
     /**
      * Adds a new feature or overwrites the existing one.
      * The prior must have already been set.
      */
-    void add_feature(const FeatureF& cpd) {
-      if (cpd.arguments().size() != 2) {
-        throw std::invalid_argument(
-          "naive_bayes::add_feature(): CPD must contain exactly two arguments"
-        );
+    void add_feature(Arg feature, const FeatureF& cpd) {
+      assert(feature != label_);
+      domain<Arg> dom = { feature, label_ };
+      if (cpd.shape() != FeatureF::param_shape(dom)) {
+        throw std::invalid_argument("Invalid shape of the CPD");
       }
-      argument_type f = *cpd.arguments().begin();
-      argument_type l = *++cpd.arguments().begin();
-      if (f == label() || l != label()) {
-        throw std::invalid_argument(
-          "naive_bayes::add_feature(): the arguments must be (feature, label)"
-        );
-      }
-      feature_[f] = cpd;
+      cpds_[feature] = cpd;
     }
 
     // Queries
-    //==========================================================================
+    //--------------------------------------------------------------------------
+
     //! Returns the label argument.
-    argument_type label() const {
-      if (prior_.arguments().empty()) {
-        throw std::runtime_error("The naive_bayes object is empty");
-      }
-      return *prior_.arguments().begin();
+    Arg label() const {
+      return label_;
     }
 
     //! Returns the features in the model.
@@ -109,7 +99,7 @@ namespace libgm {
 
     //! Returns all the arguments in the model.
     iterator_range<argument_iterator> arguments() const {
-      return make_joined(prior_.arguments(), features());
+      return make_joined(make_iterator_range(&label_, &label_ + 1), features());
     }
 
     //! Returns the prior distribution.
@@ -118,13 +108,13 @@ namespace libgm {
     }
 
     //! Returns the feature CPD.
-    const FeatureF& cpd(argument_type v) const {
-      return feature_.at(v);
+    const FeatureF& cpd(Arg v) const {
+      return cpds_.at(v);
     }
 
     //! Returns true if the model contains the given argument.
-    bool contains(argument_type v) const {
-      return v == label() || feature_.count(v);
+    bool contains(Arg v) const {
+      return v == label_ || cpds_.count(v);
     }
 
     //! Returns the prior multiplied by the likelihood of the assignment.

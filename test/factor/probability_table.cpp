@@ -3,215 +3,179 @@
 
 #include <libgm/factor/probability_table.hpp>
 
-#include <libgm/argument/uint_assignment_iterator.hpp>
-#include <libgm/argument/universe.hpp>
-#include <libgm/argument/var.hpp>
-#include <libgm/argument/vec.hpp>
-#include <libgm/factor/canonical_table.hpp>
+#include <libgm/iterator/uint_vector_iterator.hpp>
+#include <libgm/factor/logarithmic_table.hpp>
+#include <libgm/factor/probability_vector.hpp>
+#include <libgm/factor/probability_matrix.hpp>
 
 #include "predicates.hpp"
 
 namespace libgm {
-  template class probability_table<var>;
-  template class probability_table<vec>;
+  template class probability_table<double>;
+  template class probability_table<float>;
 }
 
 using namespace libgm;
 
 BOOST_TEST_DONT_PRINT_LOG_VALUE(uint_vector)
 
-typedef canonical_table<var> ctable;
-typedef probability_table<var> ptable;
+using ltable = logarithmic_table<>;
+using ptable = probability_table<>;
 
 BOOST_AUTO_TEST_CASE(test_constructors) {
-  universe u;
-  var x = var::discrete(u, "x", 2);
-  var y = var::discrete(u, "y", 3);
-
   ptable a;
   BOOST_CHECK(a.empty());
-  BOOST_CHECK(a.arguments().empty());
+  BOOST_CHECK(a.arity() == 0);
 
-  ptable b({x, y});
-  BOOST_CHECK(table_properties(b, {x, y}));
+  ptable b({2, 3});
+  BOOST_CHECK(table_properties(b, {2, 3}));
 
   ptable c(2.0);
   BOOST_CHECK(table_properties(c, {}));
   BOOST_CHECK_CLOSE(c[0], 2.0, 1e-8);
 
-  ptable d({x}, 3.0);
-  BOOST_CHECK(table_properties(d, {x}));
+  ptable d({2}, 3.0);
+  BOOST_CHECK(table_properties(d, {2}));
   BOOST_CHECK_CLOSE(d[0], 3.0, 1e-8);
   BOOST_CHECK_CLOSE(d[1], 3.0, 1e-8);
 
   table<double> params({2, 3}, 5.0);
-  ptable f({x, y}, params);
-  BOOST_CHECK(table_properties(f, {x, y}));
+  ptable f(params);
+  BOOST_CHECK(table_properties(f, {2, 3}));
   BOOST_CHECK_EQUAL(std::count(f.begin(), f.end(), 5.0), 6);
 
-  ptable g({x}, {6.0, 6.5});
-  BOOST_CHECK(table_properties(g, {x}));
+  ptable g({2}, {6.0, 6.5});
+  BOOST_CHECK(table_properties(g, {2}));
   BOOST_CHECK_EQUAL(g[0], 6.0);
   BOOST_CHECK_EQUAL(g[1], 6.5);
 }
 
 BOOST_AUTO_TEST_CASE(test_assignment_swap) {
-  universe u;
-  var x = var::discrete(u, "x", 2);
-  var y = var::discrete(u, "y", 3);
-
   ptable f;
   f = 2.0;
   BOOST_CHECK(table_properties(f, {}));
   BOOST_CHECK_CLOSE(f[0], 2.0, 1e-8);
 
-  f.reset({x, y});
-  BOOST_CHECK(table_properties(f, {x, y}));
+  f.reset({2, 3});
+  BOOST_CHECK(table_properties(f, {2, 3}));
 
   f = 3.0;
   BOOST_CHECK(table_properties(f, {}));
   BOOST_CHECK_CLOSE(f[0], 3.0, 1e-8);
 
-  ctable ct({x}, logd(0.5));
-  f = ct;
-  BOOST_CHECK(table_properties(f, {x}));
+  ltable ct({2}, logd(0.5));
+  f = ct.probability();
+  BOOST_CHECK(table_properties(f, {2}));
   BOOST_CHECK_CLOSE(f[0], 0.5, 1e-8);
   BOOST_CHECK_CLOSE(f[1], 0.5, 1e-8);
 
-  ptable g({x, y});
+  ptable g({2, 3});
   swap(f, g);
-  BOOST_CHECK(table_properties(f, {x, y}));
-  BOOST_CHECK(table_properties(g, {x}));
+  BOOST_CHECK(table_properties(f, {2, 3}));
+  BOOST_CHECK(table_properties(g, {2}));
 }
 
 
 BOOST_AUTO_TEST_CASE(test_indexing) {
-  universe u;
-  var x = var::discrete(u, "x", 2);
-  var y = var::discrete(u, "y", 3);
-
-  ptable f({x, y});
+  ptable f({2, 3});
   std::iota(f.begin(), f.end(), 1);
-  BOOST_CHECK_CLOSE(f(uint_vector{0,0}), 1.0, 1e-8);
-  BOOST_CHECK_CLOSE(f(uint_vector{1,0}), 2.0, 1e-8);
-  BOOST_CHECK_CLOSE(f(uint_vector{0,1}), 3.0, 1e-8);
-  BOOST_CHECK_CLOSE(f(uint_vector{1,1}), 4.0, 1e-8);
-  BOOST_CHECK_CLOSE(f(uint_vector{0,2}), 5.0, 1e-8);
-  BOOST_CHECK_CLOSE(f(uint_vector{1,2}), 6.0, 1e-8);
+  BOOST_CHECK_CLOSE(f({0,0}), 1.0, 1e-8);
+  BOOST_CHECK_CLOSE(f({1,0}), 2.0, 1e-8);
+  BOOST_CHECK_CLOSE(f({0,1}), 3.0, 1e-8);
+  BOOST_CHECK_CLOSE(f({1,1}), 4.0, 1e-8);
+  BOOST_CHECK_CLOSE(f({0,2}), 5.0, 1e-8);
+  BOOST_CHECK_CLOSE(f({1,2}), 6.0, 1e-8);
 
-  BOOST_CHECK_CLOSE(f(uint_assignment<var>{{x,0}, {y,0}}), 1.0, 1e-8);
-  BOOST_CHECK_CLOSE(f(uint_assignment<var>{{x,1}, {y,0}}), 2.0, 1e-8);
-  BOOST_CHECK_CLOSE(f(uint_assignment<var>{{x,0}, {y,1}}), 3.0, 1e-8);
-  BOOST_CHECK_CLOSE(f(uint_assignment<var>{{x,1}, {y,1}}), 4.0, 1e-8);
-  BOOST_CHECK_CLOSE(f(uint_assignment<var>{{x,0}, {y,2}}), 5.0, 1e-8);
-  BOOST_CHECK_CLOSE(f(uint_assignment<var>{{x,1}, {y,2}}), 6.0, 1e-8);
-
-  BOOST_CHECK_CLOSE(f.log(uint_vector{0,2}), std::log(5.0), 1e-8);
-  BOOST_CHECK_CLOSE(f.log(uint_assignment<var>{{x,0},{y,2}}), std::log(5.0), 1e-8);
-
-  uint_assignment<var> a;
-  a.insert_or_assign(f.arguments(), {1, 2});
-  BOOST_CHECK_EQUAL(a[x], 1);
-  BOOST_CHECK_EQUAL(a[y], 2);
-  BOOST_CHECK_EQUAL(f.index(a), 5);
-
-  var v = var::discrete(u, "v", 2);
-  var w = var::discrete(u, "w", 3);
-  f.subst_args({{x, v}, {y, w}});
-  BOOST_CHECK(table_properties(f, {v, w}));
+  BOOST_CHECK_CLOSE(f.log({0,2}), std::log(5.0), 1e-8);
 }
 
 
 BOOST_AUTO_TEST_CASE(test_operators) {
-  universe u;
-  var x = var::discrete(u, "x", 2);
-  var y = var::discrete(u, "y", 2);
-  var z = var::discrete(u, "z", 3);
-
-  ptable f({x, y}, {0, 1, 2, 3});
-  ptable g({y, z}, {1, 2, 3, 4, 5, 6});
+  ptable f({2, 2}, {0, 1, 2, 3});       // x, y
+  ptable g({2, 3}, {1, 2, 3, 4, 5, 6}); // y, z
   ptable h;
-  h = f * g;
-  BOOST_CHECK(table_properties(h, {x, y, z}));
-  for (const uint_assignment<var>& a : uint_assignments(domain<var>{x, y, z})) {
-    BOOST_CHECK_CLOSE(h(a), f(a) * g(a), 1e-8);
+  h = f.tail(1) * g.head(1);
+  BOOST_CHECK(table_properties(h, {2, 2, 3}));
+  for (const uint_vector& v : uint_vectors({2, 2, 3})) {
+    BOOST_CHECK_CLOSE(h(v), f({v[0],v[1]}) * g({v[1],v[2]}), 1e-8);
   }
 
-  h *= g;
-  BOOST_CHECK(table_properties(h, {x, y, z}));
-  for (const uint_assignment<var>& a : uint_assignments(domain<var>{x, y, z})) {
-    BOOST_CHECK_CLOSE(h(a), f(a) * g(a) * g(a), 1e-8);
+  h.dims({1, 2}) *= g;
+  BOOST_CHECK(table_properties(h, {2, 2, 3}));
+  for (const uint_vector& v : uint_vectors({2, 2, 3})) {
+    BOOST_CHECK_CLOSE(h(v), f({v[0],v[1]}) * std::pow(g({v[1],v[2]}), 2), 1e-8);
   }
 
-  h = f / g;
-  BOOST_CHECK(table_properties(h, {x, y, z}));
-  for (const uint_assignment<var>& a : uint_assignments(domain<var>{x, y, z})) {
-    BOOST_CHECK_CLOSE(h(a), f(a) / g(a), 1e-8);
+  h = f.tail(1) / g.dim(0);
+  BOOST_CHECK(table_properties(h, {2, 2, 3}));
+  for (const uint_vector& v : uint_vectors({2, 2, 3})) {
+    BOOST_CHECK_CLOSE(h(v), f({v[0],v[1]}) / g({v[1],v[2]}), 1e-8);
   }
 
-  h /= f;
-  BOOST_CHECK(table_properties(h, {x, y, z}));
-  for (const uint_assignment<var>& a : uint_assignments(domain<var>{x, y, z})) {
-    BOOST_CHECK_CLOSE(h(a), f(a) ? (1.0 / g(a)) : 0.0, 1e-8);
+  h.dims({0, 1}) /= f;
+  BOOST_CHECK(table_properties(h, {2, 2, 3}));
+  for (const uint_vector& v : uint_vectors({2, 2, 3})) {
+    BOOST_CHECK_CLOSE(h(v), f({v[0],v[1]}) ? (1 / g({v[1],v[2]})) : 0.0, 1e-8);
   }
 
   h = f * 2.0;
-  BOOST_CHECK(table_properties(h, {x, y}));
-  for (const uint_assignment<var>& a : uint_assignments(domain<var>{x, y})) {
-    BOOST_CHECK_CLOSE(h(a), f(a) * 2.0, 1e-8);
+  BOOST_CHECK(table_properties(h, {2, 2}));
+  for (const uint_vector& v : uint_vectors({2, 2})) {
+    BOOST_CHECK_CLOSE(h(v), f(v) * 2.0, 1e-8);
   }
 
   h *= 3.0;
-  BOOST_CHECK(table_properties(h, {x, y}));
-  for (const uint_assignment<var>& a : uint_assignments(domain<var>{x, y})) {
-    BOOST_CHECK_CLOSE(h(a), f(a) * 6.0, 1e-8);
+  BOOST_CHECK(table_properties(h, {2, 2}));
+  for (const uint_vector& v : uint_vectors({2, 2})) {
+    BOOST_CHECK_CLOSE(h(v), f(v) * 6.0, 1e-8);
   }
 
   h = 2.0 * f;
-  BOOST_CHECK(table_properties(h, {x, y}));
-  for (const uint_assignment<var>& a : uint_assignments(domain<var>{x, y})) {
-    BOOST_CHECK_CLOSE(h(a), f(a) * 2.0, 1e-8);
+  BOOST_CHECK(table_properties(h, {2, 2}));
+  for (const uint_vector& v : uint_vectors({2, 2})) {
+    BOOST_CHECK_CLOSE(h(v), f(v) * 2.0, 1e-8);
   }
 
+
   h /= 4.0;
-  BOOST_CHECK(table_properties(h, {x, y}));
-  for (const uint_assignment<var>& a : uint_assignments(domain<var>{x, y})) {
-    BOOST_CHECK_CLOSE(h(a), f(a) * 0.5, 1e-8);
+  BOOST_CHECK(table_properties(h, {2, 2}));
+  for (const uint_vector& v : uint_vectors({2, 2})) {
+    BOOST_CHECK_CLOSE(h(v), f(v) * 0.5, 1e-8);
   }
 
   h = f / 3.0;
-  BOOST_CHECK(table_properties(h, {x, y}));
-  for (const uint_assignment<var>& a : uint_assignments(domain<var>{x, y})) {
-    BOOST_CHECK_CLOSE(h(a), f(a) / 3.0, 1e-8);
+  BOOST_CHECK(table_properties(h, {2, 2}));
+  for (const uint_vector& v : uint_vectors({2, 2})) {
+    BOOST_CHECK_CLOSE(h(v), f(v) / 3.0, 1e-8);
   }
 
   h = 3.0 / f;
-  BOOST_CHECK(table_properties(h, {x, y}));
-  for (const uint_assignment<var>& a : uint_assignments(domain<var>{x, y})) {
-    if (f(a)) {
-      BOOST_CHECK_CLOSE(h(a), 3.0 / f(a), 1e-8);
+  BOOST_CHECK(table_properties(h, {2, 2}));
+  for (const uint_vector& v : uint_vectors({2, 2})) {
+    if (f(v)) {
+      BOOST_CHECK_CLOSE(h(v), 3.0 / f(v), 1e-8);
     } else {
-      BOOST_CHECK(std::isinf(h(a)));
+      BOOST_CHECK(std::isinf(h(v)));
     }
   }
 
   h = pow(f, 3.0);
-  BOOST_CHECK(table_properties(h, {x, y}));
-  for (const uint_assignment<var>& a : uint_assignments(domain<var>{x, y})) {
-    BOOST_CHECK_CLOSE(h(a), std::pow(f(a), 3.0), 1e-8);
+  BOOST_CHECK(table_properties(h, {2, 2}));
+  for (const uint_vector& v : uint_vectors({2, 2})) {
+    BOOST_CHECK_CLOSE(h(v), std::pow(f(v), 3.0), 1e-8);
   }
 
-  ptable f1({x, y}, {0, 1, 2, 3});
-  ptable f2({x, y}, {-2, 3, 0, 0});
+  ptable f1({2, 2}, {0, 1, 2, 3});
+  ptable f2({2, 2}, {-2, 3, 0, 0});
   std::vector<double> fmax = {0, 3, 2, 3};
   std::vector<double> fmin = {-2, 1, 0, 0};
 
   h = max(f1, f2);
-  BOOST_CHECK(table_properties(h, {x, y}));
+  BOOST_CHECK(table_properties(h, {2, 2}));
   BOOST_CHECK(range_equal(h, fmax));
 
   h = min(f1, f2);
-  BOOST_CHECK(table_properties(h, {x, y}));
+  BOOST_CHECK(table_properties(h, {2, 2}));
   BOOST_CHECK(range_equal(h, fmin));
 
   h = weighted_update(f1, f2, 0.3);
@@ -220,106 +184,113 @@ BOOST_AUTO_TEST_CASE(test_operators) {
   }
 }
 
-
 BOOST_AUTO_TEST_CASE(test_collapse) {
-  universe u;
-  var x = var::discrete(u, "x", 2);
-  var y = var::discrete(u, "y", 3);
-
-  ptable f({x, y}, {0, 1, 2, 3, 5, 6});
+  ptable f({2, 3}, {0, 1, 2, 3, 5, 6});
   ptable h;
-  uint_assignment<var> a;
+  uint_vector vec;
 
   std::vector<double> hmax = {1, 3, 6};
   std::vector<double> hmin = {0, 2, 5};
+  std::vector<double> reordered = {0, 2, 5, 1, 3, 6};
 
-  h = f.maximum({y});
-  BOOST_CHECK(table_properties(h, {y}));
+  h = f.maximum(1);
+  BOOST_CHECK(table_properties(h, {3}));
   BOOST_CHECK(range_equal(h, hmax));
-  BOOST_CHECK_EQUAL(f.maximum(), 6.0);
-  BOOST_CHECK_EQUAL(f.maximum(a), 6.0);
-  BOOST_CHECK_EQUAL(a[x], 1);
-  BOOST_CHECK_EQUAL(a[y], 2);
+  BOOST_CHECK_EQUAL(f.max(), 6.0);
+  BOOST_CHECK_EQUAL(f.max(vec), 6.0);
+  BOOST_CHECK_EQUAL(vec[0], 1);
+  BOOST_CHECK_EQUAL(vec[1], 2);
 
-  h = f.minimum({y});
-  BOOST_CHECK(table_properties(h, {y}));
+  h = f.minimum(1);
+  BOOST_CHECK(table_properties(h, {3}));
   BOOST_CHECK(range_equal(h, hmin));
-  BOOST_CHECK_EQUAL(f.minimum(), 0.0);
-  BOOST_CHECK_EQUAL(f.minimum(a), 0.0);
-  BOOST_CHECK_EQUAL(a[x], 0);
-  BOOST_CHECK_EQUAL(a[y], 0);
+  BOOST_CHECK_EQUAL(f.min(), 0.0);
+  BOOST_CHECK_EQUAL(f.min(vec), 0.0);
+  BOOST_CHECK_EQUAL(vec[0], 0);
+  BOOST_CHECK_EQUAL(vec[1], 0);
 
-  ptable pxy({x, y}, {1.1, 0.5, 0.1, 0.2, 0.4, 0.0});
-  ptable py({y}, {1.6, 0.3, 0.4});
-  h = pxy.marginal({y});
-  BOOST_CHECK(table_properties(h, {y}));
+  h = f.maximum({1, 0});
+  BOOST_CHECK(table_properties(h, {3, 2}));
+  BOOST_CHECK(range_equal(h, reordered));
+
+  h = ptable();
+  h = f.minimum({1, 0});
+  BOOST_CHECK(table_properties(h, {3, 2}));
+  BOOST_CHECK(range_equal(h, reordered));
+
+  ptable fx({2}, {0.5, 0.2});
+  ptable fxy({2, 3}, {2.2, 2.5, 0.2, 1.0, 0.8, 0.0});
+  ptable pxy({2, 3}, {1.1, 0.5, 0.1, 0.2, 0.4, 0.0});
+  ptable py({3}, {1.6, 0.3, 0.4});
+  ptable g = (fx * fxy.dim(0)).marginal(1);
+  h = pxy.marginal(1);
+  BOOST_CHECK(table_properties(g, {3}));
+  BOOST_CHECK(table_properties(h, {3}));
   for (std::size_t i = 0; i < 3; ++i) {
+    BOOST_CHECK_CLOSE(g[i], py[i], 1e-7);
     BOOST_CHECK_CLOSE(h[i], py[i], 1e-7);
   }
-  BOOST_CHECK_CLOSE(pxy.marginal(), 1.1+0.5+0.1+0.2+0.4, 1e-8);
-  BOOST_CHECK_CLOSE(h.normalize().marginal(), 1.0, 1e-8);
+  BOOST_CHECK_EQUAL(h, pxy.marginal(uint_vector({1})));
+  BOOST_CHECK_CLOSE(pxy.sum(), 1.1+0.5+0.1+0.2+0.4, 1e-8);
+  h.normalize();
+  BOOST_CHECK_CLOSE(h.sum(), 1.0, 1e-8);
 }
 
-
 BOOST_AUTO_TEST_CASE(test_restrict) {
-  universe u;
-  var x = var::discrete(u, "x", 2);
-  var y = var::discrete(u, "y", 3);
+  ptable f({2, 3}, {0, 1, 2, 3, 5, 6});
+  ptable h;
 
-  ptable f({x, y}, {0, 1, 2, 3, 5, 6});
-  ptable h = f.restrict({{x, 1}});
-  std::vector<double> fr = {1, 3, 6};
-  BOOST_CHECK(table_properties(h, {y}));
-  BOOST_CHECK(range_equal(h, fr));
+  std::vector<double> fall2 = {5, 6};
+  h = f.restrict_tail({2});
+  BOOST_CHECK(table_properties(h, {2}));
+  BOOST_CHECK(range_equal(h, fall2));
+
+  std::vector<double> f1all = {1, 3, 6};
+  h = f.restrict_head({1});
+  BOOST_CHECK(table_properties(h, {3}));
+  BOOST_CHECK(range_equal(h, f1all));
+
+  std::vector<double> fall0 = {0, 1};
+  h = f.restrict({1}, {0});
+  BOOST_CHECK(table_properties(h, {2}));
+  BOOST_CHECK(range_equal(h, fall0));
+
+  std::vector<double> f12 = {6};
+  h = f.restrict({1, 0}, {2, 1}); // intentionally reordered
+  BOOST_CHECK(table_properties(h, {}));
+  BOOST_CHECK(range_equal(h, f12));
 }
 
 
 BOOST_AUTO_TEST_CASE(test_sample) {
-  universe u;
-  var x = var::discrete(u, "x", 2);
-  var y = var::discrete(u, "y", 3);
-  ptable f({x, y}, {0, 1, 2, 3, 5, 6});
+  ptable f({2, 3}, {0, 1, 2, 3, 5, 6});
   f.normalize();
   std::mt19937 rng1;
   std::mt19937 rng2;
-  std::mt19937 rng3;
-  uint_assignment<var> a;
 
   // test marginal sample
   auto fd = f.distribution();
   for (std::size_t i = 0; i < 20; ++i) {
     uint_vector sample = fd(rng1);
     BOOST_CHECK_EQUAL(f.sample(rng2), sample);
-    f.sample(rng3, a);
-    BOOST_CHECK_EQUAL(a[x], sample[0]);
-    BOOST_CHECK_EQUAL(a[y], sample[1]);
   }
 
   // test conditional sample
-  ptable g = f.conditional({y});
+  ptable g = f.conditional(1);
   auto gd = g.distribution();
-  for (std::size_t yv = 0; yv < 3; ++yv) {
-    uint_vector tail(1, yv);
-    a[y] = yv;
+  for (std::size_t xv = 0; xv < 2; ++xv) {
+    uint_vector tail = {xv};
     for (std::size_t i = 0; i < 20; ++i) {
       uint_vector sample = gd(rng1, tail);
-      BOOST_CHECK_EQUAL(g.sample(rng2, tail), sample);
-      g.sample(rng3, {x}, a);
-      BOOST_CHECK_EQUAL(a[x], sample[0]);
-      BOOST_CHECK_EQUAL(a[y], yv);
+      BOOST_CHECK_EQUAL(g.restrict_tail(tail).sample(rng2), sample);
     }
   }
 }
 
-
 BOOST_AUTO_TEST_CASE(test_entropy) {
   using std::log;
-  universe u;
-  var x = var::discrete(u, "x", 2);
-  var y = var::discrete(u, "y", 2);
-
-  ptable p({x, y}, {0.1, 0.2, 0.3, 0.4});
-  ptable q({x, y}, {0.4*0.3, 0.6*0.3, 0.4*0.7, 0.6*0.7});
+  ptable p({2, 2}, {0.1, 0.2, 0.3, 0.4});
+  ptable q({2, 2}, {0.4*0.3, 0.6*0.3, 0.4*0.7, 0.6*0.7});
   ptable m = (p+q) / 2.0;
   double hpxy = -(0.1*log(0.1) + 0.2*log(0.2) + 0.3*log(0.3) + 0.4*log(0.4));
   double hpx = -(0.4*log(0.4) + 0.6*log(0.6));
@@ -334,9 +305,9 @@ BOOST_AUTO_TEST_CASE(test_entropy) {
   }
   double jspq = (kl_divergence(p, m) + kl_divergence(q, m)) / 2;
   BOOST_CHECK_CLOSE(p.entropy(), hpxy, 1e-6);
-  BOOST_CHECK_CLOSE(p.entropy({x}), hpx, 1e-6);
-  BOOST_CHECK_CLOSE(p.entropy({y}), hpy, 1e-6);
-  BOOST_CHECK_CLOSE(p.mutual_information({x}, {y}), klpq, 1e-6);
+  BOOST_CHECK_CLOSE(p.entropy(0), hpx, 1e-6);
+  BOOST_CHECK_CLOSE(p.entropy(uint_vector{1}), hpy, 1e-6);
+  BOOST_CHECK_CLOSE(p.mutual_information(0, 1), klpq, 1e-6);
   BOOST_CHECK_CLOSE(cross_entropy(p, q), hpq, 1e-6);
   BOOST_CHECK_CLOSE(kl_divergence(p, q), klpq, 1e-6);
   BOOST_CHECK_CLOSE(js_divergence(p, q), jspq, 1e-6);

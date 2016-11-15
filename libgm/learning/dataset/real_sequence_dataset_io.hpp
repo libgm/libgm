@@ -64,7 +64,7 @@ namespace libgm {
       }
 
       // the values are already in the right format (column-major)
-      ds.insert(Eigen::Map<real_matrix<T> >(values.data(), num_dims, t), T(1));
+      ds.insert(Eigen::Map<dense_matrix<T> >(values.data(), num_dims, t), T(1));
     }
   }
 
@@ -108,7 +108,7 @@ namespace libgm {
 
       // Output the data
       std::string separator = format.separator.empty() ? " " : format.separator;
-      const real_matrix<T>& data = sample.first;
+      const dense_matrix<T>& data = sample.first;
       for (std::ptrdiff_t t = 0; t < data.cols(); ++t) {
         for (std::size_t i = 0; i < format.skip_cols; ++i) {
           out << "0" << separator;

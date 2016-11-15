@@ -18,13 +18,13 @@ namespace libgm {
   class iterator_range {
   public:
     //! The underlying iterator type.
-    typedef Iterator iterator;
+    using iterator = Iterator;
 
     //! The underlying iterator type (necessary for Boost.Range).
-    typedef Iterator const_iterator;
+    using const_iterator = Iterator;
 
-    //! The value being iterated over
-    typedef typename std::iterator_traits<Iterator>::value_type value_type;
+    //! The reference to values being iterated over.
+    using reference = typename std::iterator_traits<Iterator>::reference;
 
     //! Constructs a null range.
     iterator_range() { }
@@ -60,6 +60,18 @@ namespace libgm {
     //! Returns true if the range is empty.
     bool empty() const {
       return begin_ == end_;
+    }
+
+    //! Returns the first value in a non-empty range.
+    reference front() const {
+      assert(!empty());
+      return *begin_;
+    }
+
+    //! Returns the last value in a non-empty range.
+    reference back() const {
+      assert(!empty());
+      return *std::next(end_, -1);
     }
 
     //! Returns true if two ranges have the same begin and end.

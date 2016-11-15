@@ -32,14 +32,8 @@ namespace libgm {
    * \ingroup factor_types
    * \see Factor
    */
-  template <typename Arg, typename T = double>
-  class softmax : public factor {
-    static_assert(is_mixed<Arg>::value,
-                  "Arg must be mixed argument type, supporting both "
-                  "doiscrete and continuous arguments");
-
-    typedef argument_traits<Arg> arg_traits;
-
+  template <typename RealType = double>
+  class softmax  {
     // Public types
     //==========================================================================
   public:
@@ -186,12 +180,12 @@ namespace libgm {
     }
 
     //! Returns the weight matrix.
-    const real_matrix<T>& weight() const {
+    const dense_matrix<T>& weight() const {
       return param_.weight();
     }
 
     //! Returns the bias vector.
-    const real_vector<T>& bias() const {
+    const dense_vector<T>& bias() const {
       return param_.bias();
     }
 
@@ -296,7 +290,7 @@ namespace libgm {
      * ordering of tail variables.
      */
     LIBGM_ENABLE_IF(is_univariate<Arg>::value)
-    probability_array<Arg, 1, T> condition(const real_vector<T>& index) const {
+    probability_array<Arg, 1, T> condition(const dense_vector<T>& index) const {
       return probability_array<Arg, 1, T>({head()}, param_(index));
     }
 
@@ -308,7 +302,7 @@ namespace libgm {
     probability_array<Arg, 1, T>
     condition(const real_assignment<Arg, T>& a, bool strict = true) const {
       if (strict) {
-        real_vector<T> features = a.real().values(tail());
+        dense_vector<T> features = a.real().values(tail());
         return probability_array<Arg, 1, T>({head()}, param_(features));
       } else {
         sparse_index<T> features = a.real().sparse_values(tail());
@@ -342,7 +336,7 @@ namespace libgm {
 
     //! Draws a random sample from a conditional distribution.
     template <typename Generator>
-    std::size_t sample(Generator& rng, const real_vector<T>& tail) const {
+    std::size_t sample(Generator& rng, const dense_vector<T>& tail) const {
       return param_.sample(rng, tail);
     }
 

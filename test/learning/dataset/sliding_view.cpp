@@ -265,7 +265,7 @@ struct vec_fixture {
 
     ds.initialize({a, b});
 
-    real_matrix<> values;
+    dense_matrix<> values;
     values.resize(3, 3);
     values << 0, 1, 2, 3, 4, 1, 6, 7, 8;
     ds.insert(values, 1.0);

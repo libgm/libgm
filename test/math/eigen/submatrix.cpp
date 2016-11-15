@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE submatrix
 #include <boost/test/unit_test.hpp>
 
-#include <libgm/math/eigen/real.hpp>
+#include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/eigen/submatrix.hpp>
 
 #include "helpers.hpp"
@@ -9,15 +9,15 @@
 using sptr = const std::size_t*;
 
 namespace libgm {
-  template class submatrix<real_matrix<double>, counting_iterator, sptr>;
-  template class submatrix<real_matrix<float>, sptr, sptr>;
-  template class submatrix<const real_matrix<double>, sptr, sptr>;
-  template class submatrix<const real_matrix<float>, sptr, counting_iterator>;
+  template class submatrix<dense_matrix<double>, counting_iterator, sptr>;
+  template class submatrix<dense_matrix<float>, sptr, sptr>;
+  template class submatrix<const dense_matrix<double>, sptr, sptr>;
+  template class submatrix<const dense_matrix<float>, sptr, counting_iterator>;
 }
 
 using namespace libgm;
 
-typedef real_matrix<double> mat_type;
+typedef dense_matrix<double> mat_type;
 
 BOOST_AUTO_TEST_CASE(test_operations) {
   mat_type m = mat23(4, 3, 2, 1, 0, -1);

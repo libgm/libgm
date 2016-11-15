@@ -4,7 +4,7 @@
 #include <libgm/enable_if.hpp>
 #include <libgm/datastructure/uint_vector.hpp>
 #include <libgm/functional/assign.hpp>
-#include <libgm/math/eigen/real.hpp>
+#include <libgm/math/eigen/dense.hpp>
 #include <libgm/range/index_range.hpp>
 
 #include <type_traits>
@@ -170,7 +170,7 @@ namespace libgm {
    * \relates subvector
    */
   template <typename Matrix>
-  inline subvector<const real_vector<typename Matrix::Scalar>, const std::size_t*>
+  inline subvector<const dense_vector<typename Matrix::Scalar>, const std::size_t*>
   elements(Matrix& m, const uint_vector& elems, std::size_t col0) {
     return { m.data() + m.rows() * col0, m.size() - m.rows() * col0, iref(elems) };
   }

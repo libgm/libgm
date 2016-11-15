@@ -13,68 +13,64 @@ namespace libgm {
   // Expression category
   //----------------------------------------------------------------------------
 
-  namespace experimental {
+  /**
+   * A trait that represents whether the expression is primitive.
+   * A primitive expression provides a constant-time access to its parameters,
+   * and the parameters are returned by (const-)reference.
+   *
+   * This trait defaults to std::false_type and needs to be specialized
+   * for all expression types that are known to be primitive. However,
+   * we provide partial specializations for references and const-references
+   * that delegate to class type, thus implicitly removing references.
+   */
+  template <typename F>
+  struct is_primitive
+    : libgm::negation<
+    std::is_same<
+      decltype(std::declval<F>().param()),
+      typename F::param_type
+      >
+    > { };
 
-    /**
-     * A trait that represents whether the expression is primitive.
-     * A primitive expression provides a constant-time access to its parameters,
-     * and the parameters are returned by (const-)reference.
-     *
-     * This trait defaults to std::false_type and needs to be specialized
-     * for all expression types that are known to be primitive. However,
-     * we provide partial specializations for references and const-references
-     * that delegate to class type, thus implicitly removing references.
-     */
-    template <typename F>
-    struct is_primitive
-      : libgm::negation<
-          std::is_same<
-            decltype(std::declval<F>().param()),
-            typename F::param_type
-          >
-        > { };
+  /**
+   * A trait that represents F& if F is a factor type (not merely
+   * a factor expression) and F otherwise.
+   */
+  template <typename F>
+  struct add_reference_if_factor
+    : std::conditional<
+    std::is_same<F, typename F::factor_type>::value,
+    std::add_lvalue_reference_t<F>,
+    F
+    > { };
 
-    /**
-     * A trait that represents F& if F is a factor type (not merely
-     * a factor expression) and F otherwise.
-     */
-    template <typename F>
-    struct add_reference_if_factor
-      : std::conditional<
-          std::is_same<F, typename F::factor_type>::value,
-          std::add_lvalue_reference_t<F>,
-          F
-        > { };
+/**
+ * A trait that represents the const F& if F is a factor type (not merely
+ * a factor expression) and F otherwise.
+ */
+template <typename F>
+struct add_const_reference_if_factor
+  : std::conditional<
+  std::is_same<F, typename F::factor_type>::value,
+  std::add_lvalue_reference_t<std::add_const_t<F> >,
+  F
+  > { };
 
-    /**
-     * A trait that represents the const F& if F is a factor type (not merely
-     * a factor expression) and F otherwise.
-     */
-    template <typename F>
-    struct add_const_reference_if_factor
-      : std::conditional<
-          std::is_same<F, typename F::factor_type>::value,
-          std::add_lvalue_reference_t<std::add_const_t<F> >,
-          F
-        > { };
+  /**
+   * A shortcut for the member type of add_reference_if_factor.
+   * \relates add_reference_if_factor
+   */
+  template <typename F>
+  using add_reference_if_factor_t =
+    typename add_reference_if_factor<F>::type;
 
-    /**
-     * A shortcut for the member type of add_reference_if_factor.
-     * \relates add_reference_if_factor
-     */
-    template <typename F>
-    using add_reference_if_factor_t =
-      typename add_reference_if_factor<F>::type;
-
-    /**
-     * A shortcut for the member type of add_const_reference_if_factor.
-     * \relates add_const_reference_if_factor
-     */
-    template <typename F>
-    using add_const_reference_if_factor_t =
-      typename add_const_reference_if_factor<F>::type;
-
-  }
+  /**
+   * A shortcut for the member type of add_const_reference_if_factor.
+   * \relates add_const_reference_if_factor
+   */
+  template <typename F>
+  using add_const_reference_if_factor_t =
+    typename add_const_reference_if_factor<F>::type;
 
   /**
    * Represents the true_type if the two factor types have the same
@@ -84,9 +80,7 @@ namespace libgm {
   struct are_pairwise_compatible
     : libgm::conjunction<
         std::is_same<typename F::real_type, typename G::real_type>,
-        std::is_same<typename F::result_type, typename G::result_type>,
-        std::is_same<typename F::argument_type, typename G::argument_type>,
-        std::is_same<typename F::assignment_type, typename G::assignment_type>
+        std::is_same<typename F::result_type, typename G::result_type>
       > { };
 
   // Supported factor operations

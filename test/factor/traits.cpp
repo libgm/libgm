@@ -4,13 +4,13 @@
 #include <libgm/factor/traits.hpp>
 
 #include <libgm/argument/var.hpp>
-#include <libgm/factor/experimental/canonical_gaussian.hpp>
-#include <libgm/factor/experimental/moment_gaussian.hpp>
+#include <libgm/factor/canonical_gaussian.hpp>
+#include <libgm/factor/moment_gaussian.hpp>
 
 using namespace libgm;
 
-typedef experimental::canonical_gaussian<var> cgaussian;
-typedef experimental::moment_gaussian<var> mgaussian;
+using cgaussian = canonical_gaussian<>;
+using mgaussian = moment_gaussian<>;
 
 BOOST_AUTO_TEST_CASE(test_operators) {
   BOOST_CHECK(!has_plus<cgaussian>::value);

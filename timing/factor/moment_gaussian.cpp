@@ -105,7 +105,7 @@ void time_restrict_head(bool contiguous) {
     real_assignment<var> a;
     a[head[0]] = 2.0;
     a[contiguous ? head[1] : head.back()] = 3.0;
-    mgaussian f(head, real_vector<>::Zero(n), real_matrix<>::Identity(n, n));
+    mgaussian f(head, dense_vector<>::Zero(n), dense_matrix<>::Identity(n, n));
     mgaussian g;
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
@@ -126,8 +126,8 @@ void time_restrict_tail(bool contiguous) {
     a[tail[0]] = 2.0;
     a[contiguous ? tail[1] : tail.back()] = 3.0;
     mgaussian f(head, tail,
-                real_vector<>::Zero(n), real_matrix<>::Identity(n, n),
-                real_matrix<>::Identity(n, n));
+                dense_vector<>::Zero(n), dense_matrix<>::Identity(n, n),
+                dense_matrix<>::Identity(n, n));
     mgaussian g;
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {

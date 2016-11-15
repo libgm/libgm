@@ -1,21 +1,21 @@
 #define BOOST_TEST_MODULE subvector
 #include <boost/test/unit_test.hpp>
 
-#include <libgm/math/eigen/real.hpp>
+#include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/eigen/subvector.hpp>
 
 #include "helpers.hpp"
 
 namespace libgm {
-  template class subvector<real_vector<double>, const std::size_t*>;
-  template class subvector<real_vector<float>, const std::size_t*>;
-  template class subvector<const real_vector<double>, const std::size_t*>;
-  template class subvector<const real_vector<float>, const std::size_t*>;
+  template class subvector<dense_vector<double>, const std::size_t*>;
+  template class subvector<dense_vector<float>, const std::size_t*>;
+  template class subvector<const dense_vector<double>, const std::size_t*>;
+  template class subvector<const dense_vector<float>, const std::size_t*>;
 }
 
 using namespace libgm;
 
-typedef real_vector<double> vec_type;
+typedef dense_vector<double> vec_type;
 
 BOOST_AUTO_TEST_CASE(test_operations) {
   vec_type v = vec4(4, 3, 2, 1);

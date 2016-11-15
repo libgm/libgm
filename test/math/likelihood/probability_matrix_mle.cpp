@@ -15,7 +15,7 @@ namespace libgm {
 using namespace libgm;
 
 BOOST_AUTO_TEST_CASE(test_reconstruction) {
-  real_matrix<double> param(2, 3);
+  dense_matrix<double> param(2, 3);
   param << 0.1, 0.2, 0.05, 0.4, 0.05, 0.2;
   double diff = reconstruction_error<
     bivariate_categorical_distribution<>,

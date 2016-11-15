@@ -14,8 +14,8 @@ namespace libgm {
 using namespace libgm;
 
 typedef moment_gaussian<vec> mgaussian;
-typedef real_vector<double> vec_type;
-typedef real_matrix<double> mat_type;
+typedef dense_vector<double> vec_type;
+typedef dense_matrix<double> mat_type;
 
 std::size_t nsamples = 100;
 

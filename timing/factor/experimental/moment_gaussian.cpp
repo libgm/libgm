@@ -1,4 +1,4 @@
-#include <libgm/factor/experimental/moment_gaussian.hpp>
+#include <libgm/factor/moment_gaussian.hpp>
 
 #include <iostream>
 #include <iomanip>
@@ -88,10 +88,10 @@ void time_sum(bool contiguous) {
 void time_restrict_head(bool contiguous) {
   boost::timer t;
   for (std::size_t n : num_dims) {
-    mgaussian f(real_vector<>::Zero(n), real_matrix<>::Identity(n, n));
+    mgaussian f(dense_vector<>::Zero(n), dense_matrix<>::Identity(n, n));
     mgaussian g;
     uint_vector dims = {0, n-1};
-    real_vector<> vals = real_vector<>::Ones(2);
+    dense_vector<> vals = dense_vector<>::Ones(2);
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
       if (contiguous) {
@@ -108,11 +108,11 @@ void time_restrict_head(bool contiguous) {
 void time_restrict_tail(bool contiguous) {
   boost::timer t;
   for (std::size_t n : num_dims) {
-    mgaussian f(real_vector<>::Zero(n), real_matrix<>::Identity(n, n),
-                real_matrix<>::Identity(n, n));
+    mgaussian f(dense_vector<>::Zero(n), dense_matrix<>::Identity(n, n),
+                dense_matrix<>::Identity(n, n));
     mgaussian g;
     uint_vector dims = {0, n-1};
-    real_vector<> vals = real_vector<>::Ones(2);
+    dense_vector<> vals = dense_vector<>::Ones(2);
     t.restart();
     for (std::size_t i = 0; i < num_reps; ++i) {
       if (contiguous) {

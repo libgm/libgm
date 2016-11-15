@@ -2,7 +2,7 @@
 #define LIBGM_PROBABILITY_VECTOR_MLE_HPP
 
 #include <libgm/datastructure/uint_vector.hpp>
-#include <libgm/math/eigen/real.hpp>
+#include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/likelihood/mle_eval.hpp>
 
 namespace libgm {
@@ -19,7 +19,7 @@ namespace libgm {
     typedef T regul_type;
 
     //! The parameters of the distribution computed by this estimator.
-    typedef real_vector<T> param_type;
+    typedef dense_vector<T> param_type;
 
     //! The type that represents an unweighted observation.
     typedef uint_vector data_type;
@@ -42,7 +42,7 @@ namespace libgm {
      *         or std::pair<std::size_t, T>
      */
     template <typename Range>
-    real_vector<T> operator()(const Range& samples, std::size_t n) {
+    dense_vector<T> operator()(const Range& samples, std::size_t n) {
       return incremental_mle_eval(*this, samples, n);
     }
 
@@ -63,7 +63,7 @@ namespace libgm {
     }
 
     //! Returns the parameters based on all the data points processed so far.
-    real_vector<T> param() const {
+    dense_vector<T> param() const {
       return counts_ / counts_.sum();
     }
 
@@ -72,7 +72,7 @@ namespace libgm {
     T regul_;
 
     //! An array that counts the occurrences of each assignment.
-    real_vector<T> counts_;
+    dense_vector<T> counts_;
 
   }; // class probability_vector_mle
 

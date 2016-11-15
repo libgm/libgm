@@ -3,7 +3,7 @@
 
 #include <libgm/datastructure/uint_vector.hpp>
 #include <libgm/math/constants.hpp>
-#include <libgm/math/eigen/real.hpp>
+#include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/eigen/logdet.hpp>
 #include <libgm/math/eigen/submatrix.hpp>
 #include <libgm/math/eigen/subvector.hpp>
@@ -47,33 +47,33 @@ namespace libgm {
     typedef RealType value_type;
 
     //! The type of the LLT Cholesky decomposition object.
-    typedef Eigen::LLT<real_matrix<RealType> > cholesky_type;
+    typedef Eigen::LLT<dense_matrix<RealType> > cholesky_type;
 
     //! The struct storing the temporaries for conditioning computation.
     struct conditional_workspace {
       cholesky_type chol_yy;
-      real_matrix<RealType> sol_yx;
+      dense_matrix<RealType> sol_yx;
     };
 
     //! The struct storing the temporaries for restrict computation.
     struct restrict_workspace {
       cholesky_type chol_yy;
-      real_matrix<RealType> cov_yy;
-      real_matrix<RealType> sol_yx;
-      real_vector<RealType> res_y;
+      dense_matrix<RealType> cov_yy;
+      dense_matrix<RealType> sol_yx;
+      dense_vector<RealType> res_y;
     };
 
     // The parameters
     //--------------------------------------------------------------------------
 
     //! The conditional mean.
-    real_vector<RealType> mean;
+    dense_vector<RealType> mean;
 
     //! The covariance matrix.
-    real_matrix<RealType> cov;
+    dense_matrix<RealType> cov;
 
     //! The coefficient matrix.
-    real_matrix<RealType> coef;
+    dense_matrix<RealType> coef;
 
     //! The log-multiplier.
     RealType lm;
@@ -92,17 +92,17 @@ namespace libgm {
     }
 
     //! Constructs a marginal Gaussian with given parameters.
-    moment_gaussian_param(const real_vector<RealType>& mean,
-                          const real_matrix<RealType>& cov,
+    moment_gaussian_param(const dense_vector<RealType>& mean,
+                          const dense_matrix<RealType>& cov,
                           RealType lm)
       : mean(mean), cov(cov), coef(mean.size(), 0), lm(lm) {
       check();
     }
 
     //! Constructs a conditional Gaussian with given parameters.
-    moment_gaussian_param(const real_vector<RealType>& mean,
-                          const real_matrix<RealType>& cov,
-                          const real_matrix<RealType>& coef,
+    moment_gaussian_param(const dense_vector<RealType>& mean,
+                          const dense_matrix<RealType>& cov,
+                          const dense_matrix<RealType>& coef,
                           RealType lm)
       : mean(mean), cov(cov), coef(coef), lm(lm) {
       check();
@@ -127,7 +127,7 @@ namespace libgm {
       std::size_t n = cg.size();
       resize(n);
       mean = chol.solve(cg.eta);
-      cov = chol.solve(real_matrix<RealType>::Identity(n, n));
+      cov = chol.solve(dense_matrix<RealType>::Identity(n, n));
       lm = cg.lm + (n * std::log(two_pi<RealType>()) - logdet(chol)
                     + mean.dot(cg.eta)) / RealType(2);
       return *this;
@@ -248,11 +248,11 @@ namespace libgm {
     /**
      * Computes the log-value for the given head and tail vectors.
      */
-    RealType operator()(const real_vector<RealType>& x,
-                        const real_vector<RealType>& y =
-                          real_vector<RealType>()) const {
+    RealType operator()(const dense_vector<RealType>& x,
+                        const dense_vector<RealType>& y =
+                          dense_vector<RealType>()) const {
       cholesky_type chol(cov);
-      real_vector<RealType> z = x - mean - coef * y;
+      dense_vector<RealType> z = x - mean - coef * y;
       RealType log_norm = -std::log(two_pi<RealType>()) * head_size() - logdet(chol);
       RealType exponent = -z.transpose() * chol.solve(z);
       return RealType(0.5) * (log_norm + exponent) + lm;
@@ -281,7 +281,7 @@ namespace libgm {
      * represented by these parameters and stores the corresponding value to
      * a vector. The function must be normalizable.
      */
-    RealType maximum(real_vector<RealType>& vec) const {
+    RealType maximum(dense_vector<RealType>& vec) const {
       assert(is_marginal());
       vec = mean;
       return maximum();
@@ -308,7 +308,7 @@ namespace libgm {
       std::size_t m = p.head_size();
       cholesky_type cholp(p.cov);
       cholesky_type cholq(q.cov);
-      auto identity = real_matrix<RealType>::Identity(m, m);
+      auto identity = dense_matrix<RealType>::Identity(m, m);
       RealType trace = (p.cov.array() * cholq.solve(identity).array()).sum();
       RealType means = (p.mean - q.mean).transpose() * cholq.solve(p.mean - q.mean);
       RealType logdets = -logdet(cholp) + logdet(cholq);
@@ -336,8 +336,8 @@ namespace libgm {
      * samples, use multivariate_normal_distribution.
      */
     template <typename Generator>
-    real_vector<RealType> sample(Generator& rng) const {
-      return sample(rng, real_vector<RealType>());
+    dense_vector<RealType> sample(Generator& rng) const {
+      return sample(rng, dense_vector<RealType>());
     }
 
     /**
@@ -346,15 +346,15 @@ namespace libgm {
      * samples, use multivariate_normal_distribution.
      */
     template <typename Generator>
-    real_vector<RealType>
-    sample(Generator& rng, const real_vector<RealType>& tail) const {
+    dense_vector<RealType>
+    sample(Generator& rng, const dense_vector<RealType>& tail) const {
       cholesky_type chol(cov);
       if (chol.info() != Eigen::Success) {
         throw numerical_error(
           "moment_gaussian::sample: Cannot compute the Cholesky decomposition"
         );
       }
-      real_vector<RealType> z(mean.size());
+      dense_vector<RealType> z(mean.size());
       std::normal_distribution<RealType> normal;
       for (std::ptrdiff_t i = 0; i < z.size(); ++i) {
         z[i] = normal(rng);
@@ -401,7 +401,7 @@ namespace libgm {
       // compute the result
       r.resize(f.head_size() + g.head_size(),
                f.tail_size() + g.tail_size() - n);
-      real_matrix<RealType> coef = subcols(g.coef, g_tail); // used frequently
+      dense_matrix<RealType> coef = subcols(g.coef, g_tail); // used frequently
       subvec(r.mean, x) = f.mean;
       subvec(r.mean, y).noalias() = g.mean + coef * subvec(f.mean, f_head);
       submat(r.cov, x, x) = f.cov;
@@ -410,7 +410,7 @@ namespace libgm {
       submat(r.cov, y, y).noalias() =
         g.cov + coef * submat(f.cov, f_head, f_head) * coef.transpose();
       submat(r.coef, x, v) = f.coef;
-      submat(r.coef, x, w) = real_matrix<RealType>::Zero(x.size(), w.size());
+      submat(r.coef, x, w) = dense_matrix<RealType>::Zero(x.size(), w.size());
       submat(r.coef, y, v).noalias() = coef * subrows(f.coef, f_head);
       submat(r.coef, y, w) = subcols(g.coef, complement(g_tail, g.tail_size()));
       r.lm = f.lm + g.lm;
@@ -532,7 +532,7 @@ namespace libgm {
      */
     template <typename It>
     void restrict_head_multiply(index_range<It> join_dims,
-                                const real_vector<RealType>& values,
+                                const dense_vector<RealType>& values,
                                 moment_gaussian_param& result) const {
       assert(false);
     }
@@ -551,8 +551,8 @@ namespace libgm {
     template <typename RetainedIt, typename RestrictIt>
     void restrict_both(index_range<RetainedIt> x,
                        index_range<RestrictIt> y,
-                       const real_vector<RealType>& vals_y,
-                       const real_vector<RealType>& vals_t,
+                       const dense_vector<RealType>& vals_y,
+                       const dense_vector<RealType>& vals_t,
                        restrict_workspace& ws,
                        moment_gaussian_param& r) const {
       assert(x.size() + y.size() == head_size());
@@ -602,11 +602,11 @@ namespace libgm {
     template <typename RetainedIt, typename RestrictIt>
     void restrict_head(index_range<RetainedIt> x,
                        index_range<RestrictIt> y,
-                       const real_vector<RealType>& values,
+                       const dense_vector<RealType>& values,
                        restrict_workspace& ws,
                        moment_gaussian_param& r) const {
       assert(is_marginal());
-      restrict_both(x, y, values, real_vector<RealType>(), ws, r);
+      restrict_both(x, y, values, dense_vector<RealType>(), ws, r);
     }
 
     /**
@@ -621,7 +621,7 @@ namespace libgm {
     template <typename RetainedIt, typename RestrictIt>
     void restrict_tail(index_range<RetainedIt> x,
                        index_range<RestrictIt> y,
-                       const real_vector<RealType>& values,
+                       const dense_vector<RealType>& values,
                        moment_gaussian_param& r) const {
       assert(x.size() + y.size() == tail_size());
       r.mean.noalias() = mean + subcols(coef, y) * values;

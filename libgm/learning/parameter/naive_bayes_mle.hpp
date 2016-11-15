@@ -4,8 +4,6 @@
 #include <libgm/model/naive_bayes.hpp>
 #include <libgm/learning/parameter/factor_mle.hpp>
 
-#include <vector>
-
 namespace libgm {
 
   /**
@@ -13,24 +11,18 @@ namespace libgm {
    *
    * Models the Learner concept.
    */
-  template <typename LabelF, typename FeatureF = LabelF>
+  template <typename Arg, typename LabelF, typename FeatureF = LabelF>
   class naive_bayes_mle {
   public:
     // Learner concept types
-    typedef naive_bayes<LabelF, FeatureF> model_type;
-    typedef typename LabelF::real_type    real_type;
+    using model_type = naive_bayes<Arg, LabelF, FeatureF>;
+    using real_type  = typename LabelF::real_type;
 
     // The algorithm parameters
     struct param_type {
-      typedef typename factor_mle<LabelF>::regul_type   label_regul_type;
-      typedef typename factor_mle<FeatureF>::regul_type feature_regul_type;
-      label_regul_type prior_regul;
-      feature_regul_type cpd_regul;
+      typename LabelF::mle_type::regul_type prior;
+      typename FeatureF::mle_type::regul_type cpd;
     };
-
-    // Additional types
-    typedef typename LabelF::argument_type argument_type;
-    typedef std::vector<argument_type>     arg_vector_type;
 
     /**
      * Constructs a learner with the given parameters.
@@ -43,14 +35,12 @@ namespace libgm {
      * and feature vector.
      */
     template <typename Dataset>
-    naive_bayes_mle& fit(const Dataset& ds,
-                         argument_type label,
-                         const arg_vector_type& features) {
-      factor_mle<LabelF> prior_mle(param_.prior_regul);
-      factor_mle<FeatureF> cpd_mle(param_.cpd_regul);
-      model_ = model_type(prior_mle(ds, {label}));
-      for (argument_type v : features) {
-        model_.add_feature(cpd_mle(ds, {v}, {label}));
+    naive_bayes_mle& fit(const Dataset& ds, Arg y, const domain<Arg>& x) {
+      typename LabelF::mle_type prior_mle(param_.prior);
+      typename FeatureF::mle_type cpd_mle(param_.cpd);
+      model_ = model_type(label, prior_mle(ds.project(y), LabelF::shape(y)));
+      for (Arg v : x) {
+        model_.add_feature(v, cpd_mle(ds.project(v), FeatureF::shape(v)));
       }
       return *this;
     }

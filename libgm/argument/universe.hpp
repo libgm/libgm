@@ -1,6 +1,8 @@
 #ifndef LIBGM_UNIVERSE_HPP
 #define LIBGM_UNIVERSE_HPP
 
+#include <libgm/enable_if.hpp>
+
 #include <memory>
 #include <type_traits>
 #include <vector>
@@ -29,9 +31,8 @@ namespace libgm {
      * Acquires an object. For convenience, this class accepts a pointer to
      * any object that is a subclas of managed, and returns the pointer back.
      */
-    template <typename Obj>
-    typename std::enable_if<std::is_base_of<managed, Obj>::value, Obj*>::type
-    acquire(Obj* obj) {
+    LIBGM_ENABLE_IF_D((std::is_base_of<managed, Obj>::value), typename Obj)
+    Obj* acquire(Obj* obj) {
       objs_.emplace_back(obj);
       return obj;
     }

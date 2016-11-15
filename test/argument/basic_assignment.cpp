@@ -12,8 +12,8 @@
 namespace libgm {
   template class basic_assignment<var, uint_vector>;
   template class basic_assignment<vec, uint_vector>;
-  template class basic_assignment<var, real_vector<>>;
-  template class basic_assignment<vec, real_vector<>>;
+  template class basic_assignment<var, dense_vector<>>;
+  template class basic_assignment<vec, dense_vector<>>;
 }
 
 using namespace libgm;

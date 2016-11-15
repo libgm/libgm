@@ -12,24 +12,24 @@ namespace libgm {
    * Class for learning the Chow-Liu tree over a set of variables.
    * Models the Learner concept.
    *
-   * \tparam F type of factor in the model
+   * \tparam Arg
+   *         A type that represents an individual argument (node).
+   * \tparam F
+   *         A type of factors in the model.
    *
    * \ingroup learning_structure
    */
-  template <typename F>
+  template <typename Arg, typename F>
   class chow_liu {
+    using edge_type = undirected_edge<Arg>;
+
   public:
     // Learner concept types
-    typedef decomposable<F>       model_type;
-    typedef typename F::real_type real_type;
+    using model_type = decomposable<Arg, F>;
+    using real_type  = typename F::real_type;
 
     // The algorithm parameters
-    typedef typename factor_mle<F>::regul_type param_type;
-
-    // Additional types
-    typedef typename F::argument_type argument_type;
-    typedef typename F::domain_type   domain_type;
-    typedef undirected_edge<argument_type> edge_type;
+    using param_type = typename F::mle_type::regul_type;
 
     /**
      * Constructs the Chow-Liu learner using the given parameters.
@@ -41,27 +41,30 @@ namespace libgm {
      * Fits a model using the supplied dataset for the given variables.
      */
     template <typename Dataset>
-    chow_liu& fit(const Dataset& ds, const domain_type& vars) {
-      factor_mle<F> mle(param_);
+    chow_liu& fit(const Dataset& ds, const domain<Arg>& args) {
+      typename F::mle_type mle(param_);
       model_.clear();
       score_.clear();
 
       // handle the edge cases first
-      if (vars.size() <= 1) {
-        if (vars.size() == 1) {
-          model_.reset_marginal(mle(ds, {*vars.begin()}));
-        }
+      if (args.empty()) {
+        return *this;
+      } else if (args.size() == 1) {
+        Arg v = args.front();
+        model_.reset_marginal({v}, mle(ds.project(v), F::shape(v)));
         return *this;
       }
 
       // g will hold factor F and weight (mutual information) for each edge
       // this part could be optimized to eliminate copies
-      undirected_graph<argument_type, void_, std::pair<F, real_type> > g;
-      for (argument_type u : vars) {
-        for (argument_type v : vars) {
+      undirected_graph<Arg, void_, std::pair<F, real_type> > g;
+      for (Arg u : args) {
+        for (Arg v : args) {
           if (u < v) {
-            F f = mle(ds, {u, v});
-            real_type mi = f.mutual_information({u}, {v});
+            domain<Arg> dom = { u, v };
+            F f = mle(ds.samples(dom), F::shape(dom));
+            std::size_t nu = argument_arity(u), nv = argument_arity(v);
+            real_type mi = f.mutual_information(0, nu, nu, nv);
             edge_type e = g.add_edge(u, v, {f, mi}).first;
             score_[e] = mi;
           }
@@ -72,14 +75,14 @@ namespace libgm {
       std::vector<edge_type> edges;
       kruskal_minimum_spanning_tree(
         g,
-        [&g](const edge_type& e) { return -g[e].second; },
+        [&g](edge_type e) { return -g[e].second; },
         std::back_inserter(edges));
 
       // Construct the model
-      std::vector<F> marginals;
+      std::vector<std::pair<domain<Arg>, F> > marginals;
       objective_ = real_type(0);
-      for (const edge_type& e : edges) {
-        marginals.push_back(std::move(g[e].first));
+      for (edge_type e : edges) {
+        marginals.emplace_back(domain<Arg>(e.pair()), std::move(g[e].first));
         objective_ += g[e].second;
       }
       model_.reset_marginals(marginals);

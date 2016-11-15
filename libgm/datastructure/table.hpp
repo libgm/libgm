@@ -169,6 +169,29 @@ namespace libgm {
       }
     }
 
+    /**
+     * Returns true if two offsets are conformant.
+     */
+    friend bool conformant(const table_offset& a, const table_offset& b) {
+      std::size_t i = 0;
+      std::size_t j = 0;
+      while (i <= a.size() && j <= b.size()) {
+        std::size_t m = a.multiplier(i);
+        std::size_t n = b.multiplier(j);
+        if (m < n) {
+          for (++i; i <= a.size() && a.multiplier(i) < n; ++i);
+          if (i > a.size() || a.multiplier(i) != n) { return false; }
+        } else if (m > n) {
+          for (++j; j <= b.size() && b.multiplier(j) < m; ++j);
+          if (j > b.size() || b.multiplier(j) != m) { return false; }
+        } else {
+          ++i;
+          ++j;
+        }
+      }
+      return i == a.size() && j == b.size();
+    }
+
   private:
     //! The multiplier associated with the index in each dimension.
     std::vector<std::size_t> multiplier_;
@@ -1352,6 +1375,18 @@ namespace libgm {
                  [x] (T* r) mutable {
                    *r = *x++;
                  });
+    }
+
+    /**
+     * Reshapes the table and stores the result to an output table.
+     * TODO: describe the conformance
+     * \param new_shape The shape of the destination table.
+     */
+    void reshape(const uint_vector& new_shape, table& result) const {
+      // check if the shapes are conformant
+      result.reset(new_shape);
+      assert(conformant(offset_, result.offset_));
+      std::copy(begin(), end(), result.begin());
     }
 
   private:

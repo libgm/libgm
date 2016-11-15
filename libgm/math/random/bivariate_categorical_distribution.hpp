@@ -2,7 +2,7 @@
 #define LIBGM_BIVARIATE_CATEGORICAL_DISTRIBUTION_HPP
 
 #include <libgm/datastructure/uint_vector.hpp>
-#include <libgm/math/eigen/real.hpp>
+#include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/tags.hpp>
 
 #include <numeric>
@@ -19,7 +19,7 @@ namespace libgm {
   class bivariate_categorical_distribution {
   public:
     //! The underlying parameter type.
-    typedef real_matrix<T> param_type;
+    typedef dense_matrix<T> param_type;
 
     //! The type representing the sample.
     typedef std::pair<std::size_t, std::size_t> result_type;
@@ -28,13 +28,13 @@ namespace libgm {
     typedef std::size_t tail_type;
 
     //! Constructor for a distribution in the probability space.
-    bivariate_categorical_distribution(const real_matrix<T>& p, prob_tag)
+    bivariate_categorical_distribution(const dense_matrix<T>& p, prob_tag)
       : psum_(p) {
       std::partial_sum(psum_.data(), psum_.data() + psum_.size(), psum_.data());
     }
 
     //! Constructor for a distribution in the log space.
-    bivariate_categorical_distribution(const real_matrix<T>& p, log_tag)
+    bivariate_categorical_distribution(const dense_matrix<T>& p, log_tag)
       : psum_(exp(p.array())) {
       std::partial_sum(psum_.data(), psum_.data() + psum_.size(), psum_.data());
     }
@@ -70,7 +70,7 @@ namespace libgm {
 
   private:
     //! Partial sums.
-    real_matrix<T> psum_;
+    dense_matrix<T> psum_;
 
   }; // class bivariate_categorical_distribution.
 

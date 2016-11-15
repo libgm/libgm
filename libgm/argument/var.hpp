@@ -47,19 +47,19 @@ namespace libgm {
     struct description;
 
     //! The argument arity (univariate).
-    typedef univariate_tag argument_arity;
+    using argument_arity = univariate_tag;
 
     //! The argument category (mixed).
-    typedef mixed_tag argument_category;
+    using argument_category = mixed_tag;
 
     //! The descriptor of the variable and the fields based on it.
-    typedef const description* descriptor;
+    using descriptor = const description*;
 
     //! The index associated with a variable.
-    typedef std::size_t index_type;
+    using index_type = std::size_t;
 
     //! The instance of a variable (void because variables are not indexable).
-    typedef void instance_type;
+    using instance_type = void;
 
     //! An enum representing the category of the variable.
     enum category_enum { NONE = 0, DISCRETE = 1, CONTINUOUS = 2 };
@@ -171,7 +171,7 @@ namespace libgm {
     }
 
     // Comparisons and hashing
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     //! Compares two variables.
     friend bool operator==(var x, var y) {
@@ -211,23 +211,16 @@ namespace libgm {
       return seed;
     }
 
-    // Implementation of argument traits
-    //==========================================================================
+    // Argument properties
+    //--------------------------------------------------------------------------
 
-    //! Returns true if two variables are compatible.
-    static bool compatible(var x, var y) {
-      assert(x.desc_ && y.desc_);
-      return x.desc_->category == y.desc_->category
-        && x.desc_->cardinality == y.desc_->cardinality;
-    }
-
-    //! Returns the number of dimensions of a variable (always 1).
-    std::size_t num_dimensions() const {
+    //! Returns the arity of a variable (always 1).
+    std::size_t arity() const {
       return 1;
     }
 
     //! Returns the number of values for a discrete variable.
-    std::size_t num_values() const {
+    std::size_t size() const {
       assert(desc_);
       if (desc_->category == DISCRETE) {
         return desc_->cardinality;
@@ -266,7 +259,7 @@ namespace libgm {
     }
 
     // Variable description
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     //! A struct describing a variable.
     struct description : universe::managed {
@@ -386,27 +379,6 @@ namespace libgm {
     std::size_t index_;
 
   }; // class var
-
-  // Traits
-  //============================================================================
-
-  /**
-   * A specialization of vertex_traits for variable.
-   */
-  template <>
-  struct vertex_traits<var> {
-    //! Returns the default-constructed variable.
-    static var null() { return var(); }
-
-    //! Returns a special "deleted" variable.
-    static var deleted() { static var::description desc; return var(&desc); }
-
-    //! Prints the variable to an output stream.
-    static void print(std::ostream& out, var v) { out << v; }
-
-    //! Variables use the default hasher.
-    typedef std::hash<var> hasher;
-  };
 
 } // namespace libgm
 

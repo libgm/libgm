@@ -1,7 +1,7 @@
-#include <libgm/factor/experimental/probability_matrix.hpp>
-#include <libgm/factor/experimental/logarithmic_matrix.hpp>
-#include <libgm/factor/experimental/probability_vector.hpp>
-#include <libgm/factor/experimental/logarithmic_vector.hpp>
+#include <libgm/factor/probability_matrix.hpp>
+#include <libgm/factor/logarithmic_matrix.hpp>
+#include <libgm/factor/probability_vector.hpp>
+#include <libgm/factor/logarithmic_vector.hpp>
 #include <libgm/factor/traits.hpp>
 #include <libgm/functional/assign.hpp>
 #include <libgm/functional/member.hpp>

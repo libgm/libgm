@@ -35,7 +35,7 @@ namespace libgm {
     /**
      * Returns the log-likelihood of the specified data point.
      */
-    T value(const real_vector<T>& index) const {
+    T value(const dense_vector<T>& index) const {
       return f(index);
     }
 

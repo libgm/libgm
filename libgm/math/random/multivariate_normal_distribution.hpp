@@ -16,18 +16,18 @@ namespace libgm {
    */
   template <typename T = double>
   class multivariate_normal_distribution {
-    typedef real_matrix<T> mat_type;
-    typedef real_vector<T> vec_type;
+    typedef dense_matrix<T> mat_type;
+    typedef dense_vector<T> vec_type;
 
   public:
     //! The type of parameters of this distribution.
     typedef moment_gaussian_param<T> param_type;
 
     //! The type representing the sample.
-    typedef real_vector<T> result_type;
+    typedef dense_vector<T> result_type;
 
     //! The type representing an assignment to the tail.
-    typedef real_vector<T> tail_type;
+    typedef dense_vector<T> tail_type;
 
     /**
      * Constructs a marginal or conditional distribution

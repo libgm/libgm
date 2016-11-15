@@ -2,258 +2,752 @@
 #define LIBGM_MOMENT_GAUSSIAN_HPP
 
 #include <libgm/enable_if.hpp>
-#include <libgm/argument/real_assignment.hpp>
-#include <libgm/factor/base/gaussian_factor.hpp>
 #include <libgm/factor/traits.hpp>
+#include <libgm/factor/expression/canonical_gaussian_function.hpp>
+#include <libgm/factor/expression/moment_gaussian_base.hpp>
+#include <libgm/factor/expression/moment_gaussian_function.hpp>
+#include <libgm/factor/expression/moment_gaussian_head.hpp>
+#include <libgm/factor/expression/moment_gaussian_tail.hpp>
+#include <libgm/factor/expression/moment_gaussian_restrict_head.hpp>
+#include <libgm/factor/expression/moment_gaussian_transform.hpp>
+#include <libgm/functional/algorithm.hpp>
+#include <libgm/functional/arithmetic.hpp>
+#include <libgm/functional/member.hpp>
+#include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/logarithmic.hpp>
-#include <libgm/math/eigen/real.hpp>
+#include <libgm/math/likelihood/moment_gaussian_ll.hpp>
 #include <libgm/math/likelihood/moment_gaussian_mle.hpp>
 #include <libgm/math/param/moment_gaussian_param.hpp>
 #include <libgm/math/random/multivariate_normal_distribution.hpp>
+#include <libgm/range/index_range.hpp>
 
 namespace libgm {
 
-  // forward declaration
-  template <typename Arg, typename T> class canonical_gaussian;
+  // Forward declaration of the factor
+  template <typename RealType> class moment_gaussian;
+
+  // Base class
+  //============================================================================
 
   /**
-   * A factor of a Gaussian distribution in the moment parameterization.
+   * The base class for moment_gaussian factors and expressions.
    *
-   * \tparam T the real type for representing the parameters.
-   * \ingroup factor_types
+   * \tparam RealType
+   *         The real type representing the parameters.
+   * \tparam Derived
+   *         The expression type that derives from this base class.
+   *         The type must implement the following functions:
+   *         head_arity(), tail_arity(), alias(), eval_to().
    */
-  template <typename Arg, typename T = double >
-  class moment_gaussian : public gaussian_factor<Arg> {
-    typedef argument_traits<Arg> arg_traits;
-
+  template <typename RealType, typename Derived>
+  class moment_gaussian_base {
   public:
     // Public types
-    //==========================================================================
-    // Base type
-    typedef gaussian_factor<Arg> base;
+    //--------------------------------------------------------------------------
 
-    // Factor member types
-    typedef T                       real_type;
-    typedef logarithmic<T>          result_type;
-    typedef Arg                     argument_type;
-    typedef domain<Arg>             domain_type;
-    typedef real_assignment<Arg, T> assignment_type;
+    // FactorExpression member types
+    using real_type   = RealType;
+    using result_type = logarithmic<RealType>;
+    using factor_type = moment_gaussian<RealType>;
 
-    // ParametricFactor member types
-    typedef moment_gaussian_param<T> param_type;
-    typedef real_vector<T>           vector_type;
-    typedef uint_vector index_type;
-    typedef multivariate_normal_distribution<T> distribution_type;
+    // ParametricFactorExpression member types
+    using param_type = moment_gaussian_param<RealType>;
+    using shape_type = std::size_t;
+    using distribution_type = multivariate_normal_distribution<RealType>;
 
+    // Constructors and casts
+    //--------------------------------------------------------------------------
+
+    //! Default constructor.
+    moment_gaussian_base() { }
+
+    //! Downcasts this object to the derived type.
+    Derived& derived() {
+      return static_cast<Derived&>(*this);
+    }
+
+    //! Downcasts this object to the derived type.
+    const Derived& derived() const {
+      return static_cast<const Derived&>(*this);
+    }
+
+    //! Returns the number of dimensions of this expression.
+    std::size_t arity() const {
+      return derived().head_arity() + derived().tail_arity();
+    }
+
+    //! Returns true if the expression represents a marginal distribution.
+    bool is_marginal() const {
+      return derived().tail_arity() == 0;
+    }
+
+    // Comparison and output operators
+    //--------------------------------------------------------------------------
+
+    /**
+     * Returns true of the two expressions have the same parameters.
+     */
+    template <typename Other>
+    friend bool
+    operator==(const moment_gaussian_base& f,
+               const moment_gaussian_base<RealType, Other>& g) {
+      return f.derived().param() == g.derived().param();
+    }
+
+    /**
+     * Returns true if the two expressions do not have the same parameters.
+     */
+    template <typename Other>
+    friend bool
+    operator!=(const moment_gaussian_base& f,
+               const moment_gaussian_base<RealType, Other>& g) {
+      return f.derived().param() != g.derived().param();
+    }
+
+    /**
+     * Outputs a human-readable representation of the expression to the stream.
+     */
+    friend std::ostream&
+    operator<<(std::ostream& out, const moment_gaussian_base& f) {
+      out << f.derived().param() << std::endl;
+      return out;
+    }
+
+    // Transforms
+    //--------------------------------------------------------------------------
+
+    /**
+     * Returns a moment_gaussian expression representing an element-wise
+     * transform of a moment_gaussian expression with two unary operations
+     * applied to the log-multiplier.
+     */
+    template <typename VectorOp, typename ScalarOp>
+    auto transform(VectorOp vector_op, ScalarOp scalar_op) const {
+      return make_moment_gaussian_transform(vector_op, scalar_op, derived());
+    }
+
+    /**
+     * Returns a moment_gaussian expression representing the product of
+     * a moment_gaussian expression and a scalar.
+     */
+    friend auto
+    operator*(const moment_gaussian_base& f, logarithmic<RealType> x) {
+      return f.derived().transform(identity(), incremented_by<RealType>(x.lv));
+    }
+
+    /**
+     * Returns a moment_gaussian expression representing the product of
+     * a scalar and a moment_gaussian expression.
+     */
+    friend auto
+    operator*(logarithmic<RealType> x, const moment_gaussian_base& f) {
+      return f.derived().transform(identity(), incremented_by<RealType>(x.lv));
+    }
+
+    /**
+     * Returns a moment_gaussian expression representing the division of
+     * a moment_gaussian expression and a scalar.
+     */
+    friend auto
+    operator/(const moment_gaussian_base& f, logarithmic<RealType> x) {
+      return f.derived().transform(identity(), decremented_by<RealType>(x.lv));
+    }
+
+    // Conversions
+    //--------------------------------------------------------------------------
+
+    /**
+     * Returns a moment_gaussian expression with parameters of this
+     * expression cast to a different RealType.
+     */
+    template <typename NewRealType>
+    auto cast() const {
+      return derived().transform(member_cast<NewRealType>(),
+                                 scalar_cast<NewRealType>());
+    }
+
+    /**
+     * Returns a canonical_gaussian expression equivalent to this expression.
+     */
+    auto canonical() const {
+      return make_canonical_gaussian_function_noalias<void>(
+        [](const Derived& f, canonical_gaussian_param<RealType>& result) {
+          result = f.param();
+        }, derived().arity(), derived());
+    }
+
+    // Aggregates
+    //--------------------------------------------------------------------------
+
+    /**
+     * Returns a moment_gaussian expression representing the aggregate (marginal
+     * or maximum) of this expression over a range of dimensions.
+     */
+    template <typename It>
+    auto aggregate(bool marginal, index_range<It> retain) const {
+      return make_moment_gaussian_function<void>(
+        [marginal, retain](const Derived& f, param_type& result) {
+          f.param().collapse(marginal, retain, result);
+        }, retain.size(), derived().tail_arity(), derived());
+    }
+
+    /**
+     * Returns a moment_gaussian expression representing the marginal
+     * of this expression over a span of head dimensions.
+     */
+    auto marginal(std::size_t start, std::size_t n = 1) const {
+      return derived().aggregate(true /* marginal */, span(start, n));
+    }
+
+    /**
+     * Returns a moment_gaussian expression representing the maximum
+     * of this expression over a span of head dimensions.
+     */
+    auto maximum(std::size_t start, std::size_t n = 1) const {
+      return derived().aggregate(false /* maximum */, span(start, n));
+    }
+
+    /**
+     * Returns a moment_gaussian expression representing the marginal
+     * of this expression over a subset of head dimensions.
+     */
+    auto marginal(const uint_vector& retain) const {
+      return derived().aggregate(true /* marginal */, iref(retain));
+    }
+
+    /**
+     * Returns a moment_gaussian expression representing the maximum
+     * of this expression over a subset of head dimensions.
+     */
+    auto maximum(const uint_vector& retain) const {
+      return derived().aggregate(false /* maxium */, iref(retain));
+    }
+
+    /**
+     * Computes the normalization constant of this expression.
+     */
+    logarithmic<RealType> sum() const {
+      return { derived().param().marginal(), log_tag() };
+    }
+
+    /**
+     * Computes the maximum value of this expression.
+     */
+    logarithmic<RealType> max() const {
+      return { derived().param().maximum(), log_tag() };
+    }
+
+    /**
+     * Computes the maximum value of this expression and stores the
+     * corresponding assignment to a vector.
+     */
+    logarithmic<RealType> max(dense_vector<RealType>& vec) const {
+      return { derived().param().maximum(vec), log_tag() };
+    }
+
+    /**
+     * Returns true if the factor is normalizable (i.e., is_marginal).
+     */
+    bool normalizable() const {
+      return is_marginal();
+    }
+
+    // Conditioning
+    //--------------------------------------------------------------------------
+
+    /**
+     * If this expression represents a marginal distribution, this function
+     * returns a moment_gaussian expression representing the conditional
+     * distribution with n tail (front) dimensions.
+     *
+     * \throw numerical_error
+     *        if the covariance matrix over the tail arguments is singular.
+     */
+    auto conditional(std::size_t nhead) const {
+      assert(is_marginal() && nhead < derived().head_arity());
+      using workspace_type = typename param_type::conditional_workspace;
+      return make_moment_gaussian_function<workspace_type>(
+        [nhead](const Derived& f, auto& ws, param_type& result) {
+          f.param().conditinal(nhead, ws, result);
+        }, nhead, derived().head_arity() - nhead, derived());
+    }
+
+    /**
+     * A generic implementation of restrict_head.
+     */
+    template <typename IndexRange>
+    auto restrict_head_dims(IndexRange dims,
+                            const dense_vector<RealType>& values) const {
+      return moment_gaussian_restrict_head<IndexRange, Derived>(
+        dims, values, derived());
+    }
+
+    /**
+     * A generic implementation of restrict_tail.
+     */
+    template <typename IndexRange>
+    auto restrict_tail_dims(IndexRange dims,
+                            const dense_vector<RealType>& values) const {
+      assert(dims.size() == values.size());
+      return make_moment_gaussian_function<void>(
+        [dims, &values](const Derived& f, param_type& result) {
+          f.param().restrict_tail(complement(dims, f.tail_arity()),
+                                  dims, values, result);
+        },
+        derived().head_arity(), derived().tail_arity() - dims.size(),
+        derived());
+    }
+
+    /**
+     * Returns a moment_gaussian expression representing the likelihood when
+     * all head dimensions in this expression are fixed to a vector.
+     *
+     * \throw numerical_error
+     *        if the covariance matrix over the restricted arguments
+     *        is singular.
+     */
+    auto restrict_head(const dense_vector<RealType>& values) const {
+      assert(derived().head_arity() == values.size());
+      return restrict_head_dims(all(values.size()), values);
+    }
+
+    /**
+     * Returns a moment_gaussian expression representing the marginal when
+     * all tail dimensions in this expression are fixed to a vector.
+     */
+    auto restrict_tail(const dense_vector<RealType>& values) const {
+      assert(derived().tail_arity() == values.size());
+      return restrict_tail_dims(all(values.size()), values);
+    }
+
+    /**
+     * Returns a moment_gaussian expression representing the likelihood when
+     * a span of head dimensions in this expression are fixed to a vector.
+     *
+     * \throw numerical_error
+     *        if the covariance matrix over the restricted arguments
+     *        is singular.
+     */
+    auto restrict_head(std::size_t start, std::size_t n,
+                       const dense_vector<RealType>& values) const {
+      assert(start + n <= derived().head_arity());
+      return restrict_head_dims(span(start, n), values);
+    }
+
+    /**
+     * Returns a moment_gaussian expression representing the marginal when
+     * a span of tail dimensions in this expression are fixed to a vector.
+     */
+    auto restrict_tail(std::size_t start, std::size_t n,
+                       const dense_vector<RealType>& values) const {
+      assert(start + n <= derived().tail_arity());
+      return restrict_tail_dims(span(start, n), values);
+    }
+
+    /**
+     * Returns a moment_gaussian expression representing the likelihood when
+     * a subset of head dimensions in this expression are fixed to a vector.
+     *
+     * \throw numerical_error
+     *        if the covariance matrix over the restricted arguments
+     *        is singular.
+     */
+    auto restrict_head(const uint_vector& dims,
+                       const dense_vector<RealType>& values) const {
+      return restrict_head_dims(iref(dims), values);
+    }
+
+    /**
+     * Returns a moment_gaussian expression representing the marginal when
+     * a span of tail dimensions in this expression are fixed to a vector.
+     */
+    auto restrict_tail(const uint_vector& dims,
+                       const dense_vector<RealType>& values) const {
+      return restrict_tail_dims(iref(dims), values);
+    }
+
+    // Ordering
+    //--------------------------------------------------------------------------
+
+    /**
+     * Returns a moment_gaussian expression with the head dimensions reordered
+     * according to the given index.
+     */
+    auto reorder(const uint_vector& head) const {
+      assert(head.size() == derived().head_arity());
+      return make_moment_gaussian_function<void>(
+        [&head](const Derived& f, param_type& result) {
+          f.param().reorder(iref(head), all(f.tail_arity()), result);
+        }, head.size(), derived().tail_arity(), derived());
+    }
+
+    /**
+     * Returns a moment_gaussian expression with the head and tail dimensions
+     * reordered according to the given indices.
+     */
+    auto reorder(const uint_vector& head, const uint_vector& tail) const {
+      assert(head.size() == derived().head_arity() &&
+             tail.size() == derived().tail_arity());
+      return make_moment_gaussian_function<void>(
+        [&head, &tail](const Derived& f, param_type& result) {
+          f.param().reorder(iref(head), iref(tail), result);
+        }, head.size(), tail.size(), derived());
+    }
+
+    // Selectors
+    //--------------------------------------------------------------------------
+
+    /**
+     * Returns a moment_gaussian selector referencing the head dimensions
+     * of this expression.
+     */
+    moment_gaussian_head<span, const Derived>
+    head() const {
+      return { all(derived().head_arity()), derived() };
+    }
+
+    /**
+     * Returns a moment_gaussian selector referencing the tail dimensions
+     * of this expression.
+     */
+    moment_gaussian_tail<span, const Derived>
+    tail() const {
+      return { all(derived().tail_arity()), derived() };
+    }
+
+    /**
+     * Returns a moment_gaussian selector referencing a span of head
+     * dimensions of this expression.
+     */
+    moment_gaussian_head<span, const Derived>
+    head(std::size_t start, std::size_t n) const {
+      return { span(start, n), derived() };
+    }
+
+    /**
+     * Returns a moment_gaussian selector referencing a span of tail
+     * dimensions of this expression.
+     */
+    moment_gaussian_tail<span, const Derived>
+    tail(std::size_t start, std::size_t n) const {
+      return { span(start, n), derived() };
+    }
+
+    /**
+     * Returns a moment_gaussian selector referencing a subset of head
+     * dimensions of this expression.
+     */
+    moment_gaussian_head<iref, const Derived>
+    head(const uint_vector& indices) const {
+      return { iref(indices), derived() };
+    }
+
+    /**
+     * Returns a moment_gaussian selector referencing a subset of tail
+     * dimensions of this expression.
+     */
+    moment_gaussian_tail<iref, const Derived>
+    tail(const uint_vector& indices) const {
+      return { iref(indices), derived() };
+    }
+
+    // Sampling
+    //--------------------------------------------------------------------------
+
+    /**
+     * Returns a multivariate_normal_distribution represented by this
+     * expression.
+     */
+    multivariate_normal_distribution<RealType> distribution() const {
+      return multivariate_normal_distribution<RealType>(derived().param());
+    }
+
+    /**
+     * Draws a random sample from a marginal distribution represented by this
+     * expression.
+     */
+    template <typename Generator>
+    dense_vector<RealType> sample(Generator& rng) const {
+      return derived().param().sample(rng);
+    }
+
+    /**
+     * Draws a random sample from a marginal distribution represented by this
+     * expression, storing the result in an output vector.
+     */
+    template <typename Generator>
+    void sample(Generator& rng, dense_vector<RealType>& result) const {
+      result = derived().param().sample(rng);
+    }
+
+    // Entropy and divergences
+    //--------------------------------------------------------------------------
+
+    /**
+     * Computes the entropy for the marginal distribution represented by this
+     * expression.
+     */
+    RealType entropy() const {
+      return derived().param().entropy();
+    }
+
+    /**
+     * Compute the entropy for a contiguous range of dimensions of the marginal
+     * distribution represented by this expression.
+     */
+    RealType entropy(std::size_t start, std::size_t n = 1) const {
+      return derived().marginal(start, n).entropy();
+    }
+
+    /**
+     * Computes the entropy for a span of dimensions of the distribution
+     * represented by this expression.
+     */
+    RealType entropy(span s) const {
+      return derived().marginal(s.start(), s.size()).entropy();
+    }
+
+    /**
+     * Computes the entropy for a subset of dimensions of the marginal
+     * distribution represented by this expression.
+     */
+    RealType entropy(const uint_vector& dims) const {
+      return derived().marginal(dims).entropy();
+    }
+
+    /**
+     * Computes the mutual information bewteen two contiguous ranges
+     * of dimensions of the distribution represented by this expression.
+     */
+    RealType mutual_information(std::size_t starta, std::size_t startb,
+                                std::size_t na = 1, std::size_t nb = 1) const {
+      span a(starta, na), b(startb, nb);
+      if (contiguous_union(a, b)) {
+        return entropy(a) + entropy(b) - entropy(a | b);
+      } else {
+        return entropy(a) + entropy(b) - entropy(a + b);
+      }
+    }
+
+    /**
+     * Computes the mutual information between two contiguous ranges
+     * of dimensions of the distribution represented by this expression.
+     */
+    RealType mutual_information(const uint_vector& a,
+                                const uint_vector& b) const {
+      return entropy(a) + entropy(b) - entropy(set_union(a, b));
+    }
+
+    /**
+     * Computes the Kullback-Liebler divergence from p to q.
+     * The two distributions must be both marginal and have the same arity.
+     */
+    template <typename Other>
+    friend RealType
+    kl_divergence(const moment_gaussian_base<RealType, Derived>& p,
+                  const moment_gaussian_base<RealType, Other>& q) {
+      return kl_divergence(p.derived().param(), q.derived().param());
+    }
+
+
+    /**
+     * Computes the maximum of absolute differences between parameters of
+     * two moment_gaussians.
+     */
+    template <typename Other>
+    friend RealType
+    max_diff(const moment_gaussian_base<RealType, Derived>& f,
+             const moment_gaussian_base<RealType, Other>& g) {
+      return max_diff(f.derived().param(), g.derived().param());
+    }
+
+    // Expression evaluation
+    //--------------------------------------------------------------------------
+
+    //! Evaluates the parameters to a temporary (may be overriden).
+    param_type param() const {
+      param_type tmp; derived().eval_to(tmp); return tmp;
+    }
+
+    /**
+     * Returns the moment_gaussian factor resulting from evaluating this
+     * expression.
+     */
+    moment_gaussian<RealType> eval() const {
+      return *this;
+    }
+
+    /**
+     * Multiplies this expression into the given factor (base implementation).
+     */
+    template <typename It>
+    void multiply_inplace(index_range<It> join_dims, param_type& result) const {
+      if (derived().arity() == 0) {
+        result.lm += derived().param().lm;
+      } else {
+        throw std::invalid_argument(
+          "operator*= must not change the arguments of the target"
+        );
+      }
+    }
+
+  }; // class moment_gaussian_base
+
+
+  // Factor
+  //============================================================================
+
+  /**
+   * The parameters of a conditional multivariate normal (Gaussian) distribution
+   * in the moment parameterization. The parameters represent a quadratic
+   * function log p(x | y), where
+   *
+   * p(x | y) =
+   *    1 / ((2*pi)^(m/2) det(cov)) *
+   *    exp(-0.5 * (x - coef*y - mean)^T cov^{-1} (x - coef*y -mean) + c),
+   *
+   * where x an m-dimensional real vector, y is an n-dimensional real vector,
+   * mean is the conditional mean, coef is an m x n matrix of coefficients,
+   * and cov is a covariance matrix.
+   *
+   * \tparam RealType
+   *         The real type reprsenting the parameters.
+   * \ingroup factor_types
+   * \see Factor
+   */
+  template <typename RealType = double>
+  class moment_gaussian
+    : public moment_gaussian_base<RealType, moment_gaussian<RealType> > {
+
+    using base = moment_gaussian_base<RealType, moment_gaussian>;
+
+  public:
     // LearnableDistributionFactor member types
-    typedef moment_gaussian_mle<T> mle_type;
+    using mle_type = moment_gaussian_mle<RealType>;
+    using ll_type  = moment_gaussian_ll<RealType>;
+
+    //! Parameter struct (same as moment_gaussian_base::param_type).
+    using param_type = moment_gaussian_param<RealType>;
 
     // Constructors and conversion operators
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
-    //! Default constructor. Creates an empty factor.
+    //! Default constructor. Creats an empty factor.
     moment_gaussian() { }
 
-    //! Constructs a factor with given arguments and uninitialized parameters.
-    explicit moment_gaussian(const domain_type& head,
-                             const domain_type& tail = domain_type()) {
-      reset(head, tail);
-    }
+    /**
+     * Constructs a factor with given number head and tail dimensions,
+     * uninitialized mean and covariance matrix, and zero log-multiplier.
+     */
+    explicit moment_gaussian(std::size_t nhead, std::size_t ntail = 0)
+      : param_(nhead, ntail) { }
 
     //! Constructs a factor equivalent to a constant.
-    explicit moment_gaussian(logarithmic<T> value)
+    explicit moment_gaussian(logarithmic<RealType> value)
       : param_(value.lv) { }
 
-    //! Constructs a factor with the given head and parameters and empty tail.
-    moment_gaussian(const domain_type& head,
-                    const param_type& param)
-      : base(head),
-        head_(head),
-        param_(param) {
-      check_param();
-    }
+    /**
+     * Constructs a factor with the specified parameters.
+     */
+    moment_gaussian(const param_type& param)
+      : param_(param) { }
 
-    //! Constructs a factor with the given head and parameters and empty tail.
-    moment_gaussian(const domain_type& head,
-                    param_type&& param)
-      : base(head),
-        head_(head),
-        param_(std::move(param)) {
-      check_param();
-    }
+    /**
+     * Constructs a factor with the specified parameters.
+     */
+    moment_gaussian(param_type&& param)
+      : param_(std::move(param)) { }
 
-    //! Constructs a factor with the given arguments and parameters.
-    moment_gaussian(const domain_type& head,
-                    const domain_type& tail,
-                    const param_type& param)
-      : base(head, tail),
-        head_(head),
-        tail_(tail),
-        args_(head + tail),
-        param_(param) {
-      check_param();
-    }
+    /**
+     * Constructs a factor representing a marginal moment_gaussian
+     * with the specified mean vector and covariance matrix.
+     */
+    moment_gaussian(const dense_vector<RealType>& mean,
+                    const dense_matrix<RealType>& cov,
+                    RealType lm = RealType(0))
+      : param_(mean, cov, lm) { }
 
-    //! Constructs a factor with the given arguments and parameters.
-    moment_gaussian(const domain_type& head,
-                    const domain_type& tail,
-                    param_type&& param)
-      : base(head, tail),
-        head_(head),
-        tail_(tail),
-        args_(head + tail),
-        param_(std::move(param)) {
-      check_param();
-    }
+    /**
+     * Constructs a factor representing a conditional moment_gaussian
+     * with the specified mean vector, covariance matrix, and coefficients.
+     */
+    moment_gaussian(const dense_vector<RealType>& mean,
+                    const dense_matrix<RealType>& cov,
+                    const dense_matrix<RealType>& coef,
+                    RealType lm = RealType(0))
+      : param_(mean, cov, coef, lm) { }
 
-    //! Constructs a marginal moment Gaussian factor.
-    moment_gaussian(const domain_type& head,
-                    const real_vector<T>& mean,
-                    const real_matrix<T>& cov,
-                    T lm = T(0))
-      : base(head),
-        head_(head),
-        param_(mean, cov, lm) {
-      check_param();
-    }
-
-    //! Constructs a conditional moment Gaussian factor.
-    moment_gaussian(const domain_type& head,
-                    const domain_type& tail,
-                    const real_vector<T>& mean,
-                    const real_matrix<T>& cov,
-                    const real_matrix<T>& coeff,
-                    T lm = T(0))
-      : base(head, tail),
-        head_(head),
-        tail_(tail),
-        args_(head + tail),
-        param_(mean, cov, coeff, lm) {
-      check_param();
-    }
-
-    //! Conversion from a canonical_gaussian.
-    explicit moment_gaussian(const canonical_gaussian<Arg, T>& cg) {
-      *this = cg;
+    //! Constructs a factor from an expression.
+    template <typename Derived>
+    moment_gaussian(const moment_gaussian_base<RealType, Derived>& f) {
+      f.derived().eval_to(param_);
     }
 
     //! Assigns a constant to this factor.
-    moment_gaussian& operator=(logarithmic<T> value) {
-      reset();
-      param_.lm = value.lv;
+    moment_gaussian& operator=(logarithmic<RealType> x) {
+      reset(0);
+      param_.lm = x.lv;
       return *this;
     }
 
-    //! Assigns a canonical_gaussian to this factor.
-    moment_gaussian& operator=(const canonical_gaussian<Arg, T>& cg) {
-      reset(cg.arguments());
-      param_ = cg.param();
+    //! Assigns the result of an expression to this factor.
+    template <typename Derived>
+    moment_gaussian&
+    operator=(const moment_gaussian_base<RealType, Derived>& f) {
+      assert(!f.derived().alias(param_));
+      f.derived().eval_to(param_);
       return *this;
-    }
-
-    //! Casts this moment_gaussian to a canonical_gaussian.
-    canonical_gaussian<Arg, T> canonical() const {
-      return canonical_gaussian<Arg, T>(*this);
     }
 
     //! Exchanges the content of two factors.
     friend void swap(moment_gaussian& f, moment_gaussian& g) {
-      using std::swap;
-      f.base_swap(g);
-      swap(f.args_, g.args_);
-      swap(f.head_, g.head_);
-      swap(f.tail_, g.tail_);
       swap(f.param_, g.param_);
     }
 
-    // Serialization and initialization
-    //==========================================================================
-
     //! Serializes the factor to an archive.
     void save(oarchive& ar) const {
-      ar << head_ << tail_ << param_;
+      ar << param_;
     }
 
     //! Deserializes the factor from an archive.
     void load(iarchive& ar) {
-      ar >> head_ >> tail_ >> param_;
-      args_ = head_ + tail_;
-      this->compute_start(head_, tail_);
-      check_param();
+      ar >> param_;
     }
 
-    //! Sets the arguments to the given head & tail and allocates the memory.
-    void reset(const domain_type& head = domain_type(),
-               const domain_type& tail = domain_type()) {
-      if (head_ != head || tail_ != tail) {
-        head_ = head;
-        tail_ = tail;
-        if (tail.empty()) { args_.clear(); } else { args_ = head + tail; }
-        std::size_t m, n;
-        std::tie(m, n) = this->compute_start(head, tail);
-        param_.resize(m, n);
-      }
+    /**
+     * Resets the content of this factor to the given number of head and tail
+     * dimensions. If the number of dimenion changes, the parameters are
+     * invalidated.
+     */
+    void reset(std::size_t nhead, std::size_t ntail = 0) {
+      param_.resize(nhead, ntail);
     }
 
-    // Accessors and comparison operators
-    //==========================================================================
-
-    //! Returns the arguments of this factor.
-    const domain_type& arguments() const {
-      return tail_.empty() ? head_ : args_;
+    //! Returns the dimensionality of the parameters for the given domain.
+    template <typename Arg>
+    static std::size_t shape(const domain<Arg>& dom) {
+      return dom.num_dimensions();
     }
 
-    //! Returns the head arguments of this factor.
-    const domain_type& head() const {
-      return head_;
-    }
+    // Accessors
+    //--------------------------------------------------------------------------
 
-    //! Returns the tail arguments of this factor.
-    const domain_type& tail() const {
-      return tail_;
-    }
-
-    //! Returns the number of arguments of this factor.
-    std::size_t arity() const {
-      return head_.size() + tail_.size();
-    }
-
-    //! Returns the number of head arguments of this factor.
+    //! Returns the number of head dimensions of this expression.
     std::size_t head_arity() const {
-      return head_.size();
-    }
-
-    //! Returns the number of tail arguments of this factor.
-    std::size_t tail_arity() const {
-      return tail_.size();
-    }
-
-    //! Returns true if the factor represents a marginal distribution.
-    bool is_marginal() const {
-      return tail_.empty();
-    }
-
-    //! Returns true if the factor is empty.
-    bool empty() const {
-      return arguments().empty();
-    }
-
-    //! Returns the number of dimensions (head + tail).
-    std::size_t size() const {
-      return param_.size();
-    }
-
-    //! Returns the number of head dimensions of this Gaussian.
-    std::size_t head_size() const {
       return param_.head_size();
     }
 
-    //! Returns the number of tail dimensions of this Gaussian.
-    std::size_t tail_size() const {
+    //! Returns the number of tail dimensions of this expression.
+    std::size_t tail_arity() const {
       return param_.tail_size();
     }
 
-    //! Returns the parameter struct. The caller must not alter its size.
+    //! Returns true if the expression has no arguments (same as arity() = 0).
+    bool empty() const {
+      return param_.size() == 0;
+    }
+
+    //! Returns the parameter struct.
     param_type& param() {
       return param_;
     }
@@ -264,450 +758,106 @@ namespace libgm {
     }
 
     //! Returns the log multiplier.
-    T log_multiplier() const {
+    RealType log_multiplier() const {
       return param_.lm;
     }
 
     //! Returns the mean vector.
-    const real_vector<T>& mean() const {
+    const dense_vector<RealType>& mean() const {
       return param_.mean;
     }
 
     //! Returns the covariance matrix.
-    const real_matrix<T>& covariance() const {
+    const dense_matrix<RealType>& covariance() const {
       return param_.cov;
     }
 
     //! Returns the coefficient matrix.
-    const real_matrix<T>& coefficients() const {
+    const dense_matrix<RealType>& coefficients() const {
       return param_.coef;
     }
 
-    //! Returns the mean for a single argument. Supported for univariate Arg.
-    LIBGM_ENABLE_IF(is_univariate<Arg>::value)
-    T mean(Arg v) const {
-      return param_.mean[this->start_.at(v)];
+    //! Returns the mean subvector for consecutive dimensions.
+    Eigen::VectorBlock<const dense_vector<RealType> >
+    mean(std::size_t start, std::size_t n = 1) const {
+      return param_.mean.segment(start, n);
     }
 
-    //! Returns variance for a single argument. Supported for univariate Arg.
-    LIBGM_ENABLE_IF(is_univariate<Arg>::value)
-    T variance(Arg v) const {
-      std::size_t i = this->start_.at(v);
-      return param_.cov(i, i);
+    //! Returns the covariance block for consecutive dimensions.
+    Eigen::Block<const dense_matrix<RealType> >
+    covariance(std::size_t start, std::size_t n = 1) const {
+      return param_.cov.block(start, start, n, n);
     }
 
-    /**
-     * Returns the mean vector for a single argument.
-     * Supported for multivariate Arg.
-     */
-    LIBGM_ENABLE_IF(is_multivariate<Arg>::value)
-    Eigen::VectorBlock<const real_vector<T> > mean(Arg v) const {
-      return param_.mean.segment(this->start_.at(v),
-                                 arg_traits::num_dimensions(v));
+    //! Returns the information vector for a subset of the dimensions.
+    dense_vector<RealType> mean(const uint_vector& dims) const {
+      return subvec(param_.mean, iref(dims));
     }
 
-    /**
-     * Returns the covariance matrix for a single argument.
-     * Supported for multivariate Arg.
-     */
-    LIBGM_ENABLE_IF(is_multivariate<Arg>::value)
-    Eigen::Block<const real_matrix<T> > covariance(Arg v) const {
-      std::size_t i = this->start_.at(v);
-      std::size_t n = arg_traits::num_dimensions(v);
-      return param_.cov.block(i, i, n, n);
-    }
-
-    //! Returns the mean for a subset of the arguments
-    real_vector<T> mean(const domain_type& args) const {
-      index_type index = args.index(this->start_);
-      return subvec(param_.mean, iref(index));
-    }
-
-    //! Returns the covariance matrix for a subset of the arguments
-    real_matrix<T> covariance(const domain_type& args) const {
-      index_type index = args.index(this->start_);
-      return submat(param_.cov, iref(index), iref(index));
-    }
-
-    //! Returns true of the two factors have the same domains and parameters.
-    bool operator==(const moment_gaussian& other) const {
-      return
-        head_ == other.head_ &&
-        tail_ == other.tail_ &&
-        param_ == other.param_;
-    }
-
-    //! Returns true if the two factors do not have the same domains or params.
-    bool operator!=(const moment_gaussian& other) const {
-      return !(*this == other);
-    }
-
-    // Indexing
-    //==========================================================================
-
-    /**
-     * Converts the given vector to an assignment over head arguments.
-     */
-    void assignment(const real_vector<T>& vec, assignment_type& a) const {
-      a.insert_or_assign(head(), vec);
-    }
-
-    /**
-     * Substitutes the arguments in-place according to the given map.
-     */
-    void subst_args(const std::unordered_map<Arg, Arg>& map) {
-      base::subst_args(map);
-      head_.substitute(map);
-      tail_.substitute(map);
-      args_.substitute(map);
-    }
-
-    /**
-     * Reorders the arguments according to the given head and tail.
-     */
-    moment_gaussian reorder(const domain_type& head,
-                            const domain_type& tail = domain_type()) const {
-      if (!equivalent(head, head_)) {
-        throw std::runtime_error("moment_gaussian::reorder: invalid head");
-      }
-      if (!equivalent(tail, tail_)) {
-        throw std::runtime_error("moment_gaussian::reorder: invalid tail");
-      }
-      moment_gaussian result(head, tail);
-      param_.reorder(iref(head.index(this->start_)),
-                     iref(tail.index(this->start_)),
-                     result.param_);
-      return result;
-    }
-
-    /**
-     * Checks if the size of the parameter struct matches this factor's
-     * arguments.
-     * \throw std::invalid_argument if the sizes do not match
-     */
-    void check_param() const {
-      param_.check();
-      if (param_.head_size() != head_.num_dimensions()) {
-        throw std::runtime_error("moment_gaussian: Invalid head size");
-      }
-      if (param_.tail_size() != tail_.num_dimensions()) {
-        throw std::runtime_error("moment_gaussian: Invalid tail size");
-      }
-    }
-
-    /**
-     * Checks if two factors have the same (sequence of) arguments.
-     * \throw std::invalid_argument if the arguments do not match
-     */
-    friend void check_same_arguments(const moment_gaussian& f,
-                                     const moment_gaussian& g) {
-      if (f.head() != g.head() || f.tail() != g.tail()) {
-        throw std::invalid_argument("moment_gaussian: incompatible arguments");
-      }
-    }
-
-    // Factor evaluation
-    //==========================================================================
-
-    //! Evaluates the factor for an assignment.
-    logarithmic<T> operator()(const assignment_type& a) const {
-      return logarithmic<T>(log(a), log_tag());
+    //! Returns the information matrix for a subset of the dimensions.
+    dense_matrix<RealType> covariance(const uint_vector& dims) const {
+      return submat(param_.cov, iref(dims), iref(dims));
     }
 
     //! Evaluates the factor for a vector.
-    logarithmic<T> operator()(const vector_type& x) const {
-      return logarithmic<T>(log(x), log_tag());
-    }
-
-    //! Returns the log-value of the factor for an assignment.
-    T log(const assignment_type& a) const {
-      return param_(a.values(arguments()));
+    logarithmic<RealType> operator()(const dense_vector<RealType>& v) const {
+      return { log(v), log_tag() };
     }
 
     //! Returns the log-value of the factor for a vector.
-    T log(const vector_type& x) const {
-      return param_(x);
+    RealType log(const dense_vector<RealType>& v) const {
+      return param_(v);
     }
 
-    // Factor operations (the parameter operation objects are computed below)
-    //==========================================================================
+    // Mutations
+    //--------------------------------------------------------------------------
 
     //! Multiplies this factor by a constant in-place.
-    moment_gaussian& operator*=(logarithmic<T> x) {
+    moment_gaussian& operator*=(logarithmic<RealType> x) {
       param_.lm += x.lv;
       return *this;
     }
 
     //! Divides this factor by a constant in-place.
-    moment_gaussian& operator/=(logarithmic<T> x) {
+    moment_gaussian& operator/=(logarithmic<RealType> x) {
       param_.lm -= x.lv;
       return *this;
     }
 
-    //! Multiplies a moment_gaussian by a constant.
-    friend moment_gaussian operator*(moment_gaussian f, logarithmic<T> x) {
-      f.param_.lm += x.lv;
-      return f;
-    }
-
-    //! Multiplies a moment_gaussian by a constant.
-    friend moment_gaussian operator*(logarithmic<T> x, moment_gaussian f) {
-      f.param_.lm += x.lv;
-      return f;
-    }
-
-    //! Divides a moment_gaussian by a constant.
-    friend moment_gaussian operator/(moment_gaussian f, logarithmic<T> x) {
-      f.param_.lm -= x.lv;
-      return f;
-    }
-
-    //! Multiplies two moment_gaussian factors.
-    friend moment_gaussian
-    operator*(const moment_gaussian& f, const moment_gaussian& g) {
-      const moment_gaussian& p = f.is_marginal() ? f : g;
-      const moment_gaussian& q = f.is_marginal() ? g : f;
-      if (p.is_marginal() && disjoint(f.head(), g.head())) {
-        domain<Arg> x = q.tail() & p.head();
-        domain<Arg> z = q.tail() - p.head();
-        moment_gaussian result(concat(f.head(), g.head()), z);
-        multiply_head_tail(p.param_, q.param_,
-                           iref(x.index(p.start())), iref(x.index(q.start())),
-                           f.is_marginal(),
-                           result.param_);
-        return result;
-      } else {
-        throw std::invalid_argument(
-          "moment_gaussian::operator*: unsupported argument domains."
-       );
-      }
-    }
-
-    /**
-     * Computes an aggregate (marginal or maximum) of the factor
-     * over a sequence of arguments.
-     * \throws invalid_argument if retained is not a subset of arguments
-     */
-    moment_gaussian aggregate(bool marginal, const domain_type& retain) const {
-      moment_gaussian result(retain & head(), retain & tail());
-      if (result.arity() != retain.size()) {
-        throw std::invalid_argument(
-          "moment_gaussian::marginal: some of the retained arguments "
-          "are not present in the factor"
-        );
-      }
-      if (result.tail_arity() != tail_arity()) {
-        throw std::invalid_argument(
-          "moment_gaussian::marginal cannot eliminate tail arguments"
-        );
-      }
-      param_.collapse(marginal,
-                      iref(result.head().index(this->start_)),
-                      iref(result.tail().index(this->start_)),
-                      result.param_);
-      return result;
-    }
-
-    /**
-     * Computes the marginal of the factor over a sequence of arguments.
-     * \throws invalid_argument if retained is not a subset of arguments
-     */
-    moment_gaussian marginal(const domain_type& retain) const {
-      return aggregate(true, retain);
-    }
-
-    /**
-     * Computes the maximum of the factor over a sequence of arguments.
-     * \throws invalid_argument if retained is not a subset of arguments
-     */
-    moment_gaussian maximum(const domain_type& retain) const {
-      return aggregate(false, retain);
-    }
-
-    //! Returns the normalization constant of the factor.
-    logarithmic<T> marginal() const {
-      return logarithmic<T>(param_.marginal(), log_tag());
-    }
-
-    //! Returns the maximum value in the factor.
-    logarithmic<T> maximum() const {
-      return logarithmic<T>(param_.maximum(), log_tag());
-    }
-
-    //! Computes the maximum value and stores the corresponding assignment.
-    logarithmic<T> maximum(assignment_type& a) const {
-      real_vector<T> vec;
-      T max = param_.maximum(vec);
-      a.insert_or_assign(head_, vec);
-      return logarithmic<T>(max, log_tag());
-    }
-
-    //! Normalizes the factor in-place.
-    moment_gaussian& normalize() {
-      param_.lm = 0;
+    //! Multiplies this factor by another one in-place.
+    template <typename Other>
+    moment_gaussian&
+    operator*=(const moment_gaussian_base<RealType, Other>& f) {
+      assert(!f.derived().alias(param_));
+      f.derived().multiply_inplace(all(head_arity()), param_);
       return *this;
     }
 
-    //! Returns true if the factor is normalizable.
-    bool normalizable() const {
-      return std::isfinite(param_.lm);
+    //! Normalizes this factor in-place.
+    void normalize() {
+      param_.lm = RealType(0);
     }
 
-    //! If this factor represents p(x, y), returns p(x | y).
-    moment_gaussian conditional(const domain_type& tail) const {
-      assert(is_marginal());
-      domain<Arg> head = head_ - tail;
-      if (head_.size() != head.size() + tail.size()) {
-        throw std::invalid_argument(
-          "moment_gaussian::conditional: some of the tail arguments "
-          "are note present in the factor"
-        );
-      }
-      typename param_type::conditional_workspace ws;
-      moment_gaussian reordered = reorder(concat(head, tail));
-      moment_gaussian result(head, tail);
-      reordered.param_.conditional(result.head_size(), ws, result.param_);
-      return result;
+    // Evaluation
+    //--------------------------------------------------------------------------
+
+    const moment_gaussian& eval() const {
+      return *this;
     }
 
-    //! Restricts the factor to the given assignment.
-    moment_gaussian restrict(const assignment_type& a) const {
-      if (subset(tail_, a)) {
-        // case 1: partially restricted head, fully restricted tail
-        domain<Arg> y, x; // restricted, retained
-        head_.partition(a, y, x);
-        moment_gaussian result(x);
-        typename param_type::restrict_workspace ws;
-        param_.restrict_both(iref(x.index(this->start_)),
-                             iref(y.index(this->start_)),
-                             a.values(y),
-                             a.values(tail_),
-                             ws,
-                             result.param_);
-        return result;
-      } else if (disjoint(head_, a)) {
-        // case 2: unrestricted head, partially restricted tail
-        domain<Arg> y, x; // restricted, retained
-        tail_.partition(a, y, x);
-        moment_gaussian result(head_, x);
-        param_.restrict_tail(iref(x.index(this->start_)),
-                             iref(y.index(this->start_)),
-                             a.values(y),
-                             result.param_);
-        return result;
-      } else {
-        throw std::invalid_argument(
-          "moment_gaussian::restrict: unsuported operation"
-        );
-      }
+    bool alias(const param_type& param) const {
+      return &param == &param_;
     }
 
-    // Sampling
-    //==========================================================================
-
-    //! Returns the distribution with the parameters of this factor.
-    multivariate_normal_distribution<T> distribution() const {
-      return multivariate_normal_distribution<T>(param_);
+    void eval_to(moment_gaussian& result) const {
+      result = *this;
     }
 
-    //! Draws a random sample from a marginal distribution.
-    template <typename Generator>
-    real_vector<T> sample(Generator& rng) const {
-      return param_.sample(rng);
-    }
-
-    //! Draws a random sample from a conditional distribution.
-    template <typename Generator>
-    real_vector<T> sample(Generator& rng, const real_vector<T>& tail) const {
-      assert(tail.size() == tail_size());
-      return param_.sample(rng, tail);
-    }
-
-    /**
-     * Draws a random sample from a marginal distribution,
-     * storing the result in an assignment.
-     */
-    template <typename Generator>
-    void sample(Generator& rng, assignment_type& a) const {
-      a.insert_or_assign(head_, sample(rng, a.values(tail_)));
-    }
-
-    /**
-     * Draws a random sample from a conditional distribution,
-     * extracting the tail from and storing the result to an assignment.
-     * \param ntail the tail arguments (must be equivalent to factor tail).
-     */
-    template <typename Generator>
-    void sample(Generator& rng, const domain_type& tail,
-                assignment_type& a) const {
-      assert(equivalent(tail, tail_));
-      a.insert_or_assign(head_, sample(rng, a.values(tail_)));
-    }
-
-    // Entropy and divergences
-    //==========================================================================
-
-    //! Computes the entropy for the distribution represented by this factor.
-    T entropy() const {
-      return param_.entropy();
-    }
-
-    //! Computes the entropy for a subset of arguments.
-    T entropy(const domain_type& dom) const {
-      if (equivalent(args_, dom)) {
-        return entropy();
-      } else {
-        return marginal(dom).entropy();
-      }
-    }
-
-    //! Computes the mutual information bewteen two subsets of arguments.
-    T mutual_information(const domain_type& a, const domain_type& b) const {
-      return entropy(a) + entropy(b) - entropy(a + b);
-    }
-
-    //! Computes the Kullback-Liebler divergence from p to q.
-    friend T kl_divergence(const moment_gaussian& p,
-                           const moment_gaussian& q) {
-      check_same_arguments(p, q);
-      return kl_divergence(p.param_, q.param_);
-    }
-
-    friend T max_diff(const moment_gaussian& f,
-                      const moment_gaussian& g) {
-      check_same_arguments(f, g);
-      return max_diff(f.param_, g.param_);
-    }
-
-    // Private data members
-    //==========================================================================
   private:
-    //! The head arguments of the factor.
-    domain_type head_;
-
-    //! The tail arguments of the factor.
-    domain_type tail_;
-
-    //! The concatenation of head_ and tail_ when tail_ is not empty.
-    domain_type args_;
-
-    //! The parameters of the factor.
+    //! The parameters of the factor, encapsulated as a struct.
     param_type param_;
 
   }; // class moment_gaussian
-
-
-  /**
-   * Prints the moment_gaussian to a stream.
-   * \relates moment_gaussian
-   */
-  template <typename Arg, typename T>
-  std::ostream& operator<<(std::ostream& out,
-                           const moment_gaussian<Arg, T>& f) {
-    out << "moment_gaussian(" << f.head() << ", " << f.tail() << ")\n"
-        << f.param() << std::endl;
-    return out;
-  }
 
 } // namespace libgm
 

@@ -1,6 +1,7 @@
 #ifndef LIBGM_TYPESAFE_UNION_HPP
 #define LIBGM_TYPESAFE_UNION_HPP
 
+#include <libgm/enable_if.hpp>
 #include <libgm/functional/comparison.hpp>
 #include <libgm/functional/hash.hpp>
 #include <libgm/functional/stream.hpp>
@@ -40,17 +41,15 @@ namespace libgm {
                   "A typesafe_union can consist of at most 127 types");
 
     // Constructors and initialization
-    //==========================================================================
+    //--------------------------------------------------------------------------
   public:
     //! Default constructor. Creates an empty union.
     typesafe_union()
       : which_(-1) { }
 
     //! Constructs union from a member that is convertible to one of Types.
-    template <typename T>
-    typesafe_union(T&& field,
-                   typename std::enable_if<
-                     count_convertible<T, Types...>::value == 1>::type* = 0) {
+    LIBGM_ENABLE_IF_D((count_convertible<T, Types...>::value) == 1, typename T)
+    typesafe_union(T&& field) {
       *this = std::forward<T>(field);
     }
 
@@ -62,10 +61,8 @@ namespace libgm {
     }
 
     //! Assigns union to a member that is convertible to one of Types.
-    template <typename T>
-    typename std::enable_if<
-      count_convertible<T, Types...>::value == 1, typesafe_union&>::type
-    operator=(T&& field) {
+    LIBGM_ENABLE_IF_D((count_convertible<T, Types...>::value) == 1, typename T)
+    typesafe_union& operator=(T&& field) {
       constexpr std::size_t index = find_convertible<T, Types...>::value;
       which_ = index;
       get<index>() = std::forward<T>(field);
@@ -78,7 +75,7 @@ namespace libgm {
     }
 
     // Serialization
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     //! Serializes a union to an archive.
     void save(oarchive& ar) const {
@@ -93,7 +90,7 @@ namespace libgm {
     }
 
     // Queries
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     //! Returns the index of the assigned field (-1 if empty, -2 if deleted).
     int which() const {
@@ -130,17 +127,15 @@ namespace libgm {
     }
 
     //! Returns the value in the union with the given type.
-    template <typename T>
-    typename std::enable_if<count_same<T, Types...>::value == 1, T&>::type
-    get() {
+    LIBGM_ENABLE_IF_D((count_same<T, Types...>::value) == 1, typename T)
+    T& get() {
       assert(which() == (find_same<T, Types...>::value));
       return *static_cast<T*>(data());
     }
 
     //! Returns the value in the union with the given type.
-    template <typename T>
-    typename std::enable_if<count_same<T, Types...>::value == 1, const T&>::type
-    get() const {
+    LIBGM_ENABLE_IF_D((count_same<T, Types...>::value) == 1, typename T)
+    const T& get() const {
       assert(which() == (find_same<T, Types...>::value));
       return *static_cast<const T*>(data());
     }
@@ -153,7 +148,7 @@ namespace libgm {
     }
 
     // Comparisons
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     //! Returns true if two unions have the same type and values.
     friend bool operator==(const typesafe_union& x,
@@ -208,7 +203,7 @@ namespace libgm {
     }
 
     // Data members
-    //==========================================================================
+    //--------------------------------------------------------------------------
   private:
     static constexpr std::size_t length = static_max<sizeof(Types)...>::value;
 
@@ -222,15 +217,14 @@ namespace libgm {
 
 
   // Access functions
-  //============================================================================
+  //----------------------------------------------------------------------------
 
   /**
    * Helper function that invokes a function on a set of arguments
    * passed as void pointers.
    */
   template<typename Result, typename Function, typename T, typename... VoidPtrs>
-  typename std::enable_if<!std::is_same<Result, std::nullptr_t>::value,
-                          Result>::type
+  std::enable_if_t<!std::is_same<Result, std::nullptr_t>::value, Result>
   casting_caller(Function f, VoidPtrs... ptrs) {
     return static_cast<Result>(f(*static_cast<T*>(ptrs)...));
   }
@@ -240,8 +234,7 @@ namespace libgm {
    * passed as void pointers.
    */
   template<typename Result, typename Function, typename T, typename... VoidPtrs>
-  typename std::enable_if<std::is_same<Result, std::nullptr_t>::value,
-                          Result>::type
+  std::enable_if_t<std::is_same<Result, std::nullptr_t>::value, Result>
   casting_caller(Function f, VoidPtrs... ptrs) {
     f(*static_cast<T*>(ptrs)...);
     return nullptr;

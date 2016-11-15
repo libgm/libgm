@@ -2,6 +2,7 @@
 #define LIBGM_REGION_GRAPH_HPP
 
 #include <libgm/argument/argument_traits.hpp>
+#include <libgm/argument/domain.hpp>
 #include <libgm/datastructure/set_index.hpp>
 #include <libgm/functional/output_iterator_assign.hpp>
 #include <libgm/graph/algorithm/ancestors.hpp>
@@ -22,15 +23,18 @@ namespace libgm {
    * Each vertex in the graph (a std::size_t) is associated with a region
    * and a counting number.
    *
-   * \tparam Domain  the domain type that represents regions
-   * \tparam VertexProperty the property associated with a vertex.
-   *         Models the DefaultConstructible and CopyConstructible concepts.
-   * \tparam EdgeProperty the property associated with an edge.
-   *         Models the DefaultConstructible and CopyConstructible concepts.
+   * \tparam Arg
+   *         A type that represents an individual argument (node).
+   * \tparam VertexProperty
+   *         A type of values stored at each vertex.
+   *         Must be DefaultConstructible and CopyConstructible.
+   * \tparam EdgeProperty
+   *         A type of values stored at each edge.
+   *         Must be DefaultConstructible and CopyConstructible.
    *
    * \ingroup graph_types
    */
-  template <typename Domain,
+  template <typename Arg,
             typename VertexProperty = void_,
             typename EdgeProperty = void_>
   class region_graph {
@@ -40,32 +44,32 @@ namespace libgm {
     struct edge_info;
 
     //! The underlying graph type.
-    typedef directed_graph<id_t, vertex_info, edge_info> graph_type;
+    using graph_type = directed_graph<id_t, vertex_info, edge_info>;
 
     // Public type declarations
-    // =========================================================================
+    //--------------------------------------------------------------------------
   public:
-    // vertex, edge, and properties
-    typedef id_t                vertex_type;
-    typedef directed_edge<id_t> edge_type;
-    typedef VertexProperty      vertex_property;
-    typedef EdgeProperty        edge_property;
+    // Vertex, edge, and properties
+    using vertex_type     = id_t;
+    using edge_type       = directed_edge<id_t>;
+    using vertex_property = VertexProperty;
+    using edge_property   = EdgeProperty;
 
-    // iterators
-    typedef typename graph_type::vertex_iterator   vertex_iterator;
-    typedef typename graph_type::neighbor_iterator neighbor_iterator;
-    typedef typename graph_type::edge_iterator     edge_iterator;
-    typedef typename graph_type::in_edge_iterator  in_edge_iterator;
-    typedef typename graph_type::out_edge_iterator out_edge_iterator;
+    // Iterators
+    using vertex_iterator   = typename graph_type::vertex_iterator;
+    using neighbor_iterator = typename graph_type::neighbor_iterator;
+    using edge_iterator     = typename graph_type::edge_iterator;
+    using in_edge_iterator  = typename graph_type::in_edge_iterator;
+    using out_edge_iterator = typename graph_type::out_edge_iterator;
 
-    // arguments
-    typedef typename Domain::value_type argument_type;
-    typedef typename argument_traits<argument_type>::hasher argument_hasher;
-    typedef typename set_index<id_t, Domain, argument_hasher>::value_iterator
-      argument_iterator;
+    // Argument types
+    using argument_type   = Arg;
+    using argument_hasher = typename argument_traits<Arg>::hasher;
+    using argument_iterator =
+      typename set_index<id_t, domain<Arg>, argument_hasher>::value_iterator;
 
     // Constructors and basic member functions
-    // =========================================================================
+    //--------------------------------------------------------------------------
   public:
     //! Constructs an empty region graph with no clusters.
     region_graph()
@@ -86,7 +90,7 @@ namespace libgm {
     }
 
     // Graph accessors
-    // =========================================================================
+    //--------------------------------------------------------------------------
 
     //! Returns the null vertex, guaranteed to be id_t().
     static id_t null_vertex() {
@@ -196,17 +200,17 @@ namespace libgm {
     }
 
     //! Returns the cluster associated with a vertex.
-    const Domain& cluster(id_t v) const {
+    const domain<Arg>& cluster(id_t v) const {
       return graph_[v].cluster;
     }
 
     //! Returns the separator associated with an edge.
-    const Domain& separator(const edge_type& e) const {
+    const domain<Arg>& separator(const edge_type& e) const {
       return graph_[e].separator;
     }
 
     //! Returns the separator associated with an edge.
-    const Domain& separator(id_t u, id_t v) const {
+    const domain<Arg>& separator(id_t u, id_t v) const {
       return graph_(u, v).separator;
     }
 
@@ -269,14 +273,14 @@ namespace libgm {
     }
 
     //! Returns the vertex that covers the given domain or 0 if none.
-    id_t find_cover(const Domain& domain) const {
-      return cluster_index_.find_min_cover(domain);
+    id_t find_cover(const domain<Arg>& dom) const {
+      return cluster_index_.find_min_cover(dom);
     }
 
     //! Returns a root vertex that covers the given domain or 0 if none.
     //! The region graph must be valid.
-    id_t find_root_cover(const Domain& domain) const {
-      id_t v = cluster_index_.find_min_cover(domain);
+    id_t find_root_cover(const domain<Arg>& dom) const {
+      id_t v = cluster_index_.find_min_cover(dom);
       if (v) {
         while (in_degree(v) > 0) {
           v = *parents(v).begin(); // choose arbitrary parent
@@ -294,7 +298,7 @@ namespace libgm {
      * \return bool indicating whether insertion took place
      */
     bool add_region(id_t v,
-                    const Domain& cluster,
+                    const domain<Arg>& cluster,
                     const VertexProperty& vp = VertexProperty()) {
       max_id_ = std::max(max_id_, v);
       if (graph_.add_vertex(v, vertex_info(cluster, vp))) {
@@ -310,7 +314,7 @@ namespace libgm {
      * This function always introduces a new cluster to the graph.
      * \return the newly added vertex
      */
-    id_t add_region(const Domain& cluster,
+    id_t add_region(const domain<Arg>& cluster,
                     const VertexProperty& vp = VertexProperty()) {
       ++max_id_;
       bool inserted = graph_.add_vertex(max_id_, vertex_info(cluster, vp));
@@ -393,7 +397,7 @@ namespace libgm {
      * Copies the structure of a region graph to this one.
      */
     template <typename VP, typename EP>
-    void structure_from(const region_graph<Domain, VP, EP>& other) {
+    void structure_from(const region_graph<Arg, VP, EP>& other) {
       clear();
       for (id_t v : other.vertices()) {
         bool added = add_region(v, other.cluster(v));
@@ -414,12 +418,12 @@ namespace libgm {
      */
     template <typename Range>
     void bethe(const Range& root_clusters) {
-      std::unordered_map<argument_type, id_t, argument_hasher> var_region;
+      std::unordered_map<Arg, id_t, argument_hasher> var_region;
       clear();
 
-      for (const Domain& cluster : root_clusters) {
+      for (const domain<Arg>& cluster : root_clusters) {
         id_t r = add_region(cluster);
-        for (argument_type var : cluster) {
+        for (Arg var : cluster) {
           id_t& s = var_region[var];
           if (!s) { s = var_region[var] = add_region({var}); }
           add_edge(r, s);
@@ -440,12 +444,12 @@ namespace libgm {
      */
     template <typename Range>
     void saturated(const Range& root_clusters) {
-      std::unordered_set<Domain> clusters;
-      set_index<id_t, Domain, argument_hasher> index;
+      std::unordered_set<domain<Arg> > clusters;
+      set_index<id_t, domain<Arg>, argument_hasher> index;
       clear();
 
       // add the root clusters
-      for (const Domain& cluster : root_clusters) {
+      for (const domain<Arg>& cluster : root_clusters) {
         if (!cluster.empty() && !clusters.count(cluster)) {
           id_t r = add_region(cluster);
           index.insert(r, cluster);
@@ -458,7 +462,7 @@ namespace libgm {
         id_t r = index.front();
         index.intersecting_sets(cluster(r), [&](id_t s) {
             if (r != s) {
-              Domain cluster = index.intersection(r, s);
+              domain<Arg> cluster = index.intersection(r, s);
               if (!clusters.count(cluster)) {
                 clusters.insert(cluster);
                 index.insert(add_region(cluster), cluster);
@@ -501,7 +505,7 @@ namespace libgm {
      */
     struct vertex_info {
       //! The cluster associated with this vertex.
-      Domain cluster;
+      domain<Arg> cluster;
 
       //! The counting number.
       int counting;
@@ -514,7 +518,7 @@ namespace libgm {
         : counting(), property() { }
 
       //! Construct sthe vertex info with teh given cluster and property.
-      vertex_info(const Domain& cluster,
+      vertex_info(const domain<Arg>& cluster,
                   const VertexProperty& property = VertexProperty())
         : cluster(cluster), counting(), property(property) { }
 
@@ -534,7 +538,7 @@ namespace libgm {
      */
     struct edge_info {
       //! The intersection of the two adjacent clusters.
-      Domain separator;
+      domain<Arg> separator;
 
       //! The property associated with the edge.
       EdgeProperty property;
@@ -543,7 +547,7 @@ namespace libgm {
       edge_info() : property() { }
 
       //! Constructor
-      edge_info(const Domain& separator, const EdgeProperty& property)
+      edge_info(const domain<Arg>& separator, const EdgeProperty& property)
         : separator(separator), property(property) { }
 
       //! Outputs the edge informaitno to an output stream.
@@ -560,7 +564,7 @@ namespace libgm {
     //==========================================================================
 
     //! An index that maps variables (nodes) to vertices this region graph.
-    set_index<id_t, Domain, argument_hasher> cluster_index_;
+    set_index<id_t, domain<Arg>, argument_hasher> cluster_index_;
 
     //! The underlying graph
     directed_graph<id_t, vertex_info, edge_info> graph_;

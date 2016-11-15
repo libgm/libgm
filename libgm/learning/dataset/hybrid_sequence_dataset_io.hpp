@@ -75,7 +75,7 @@ namespace libgm {
       // concatenate the values and store them in the dataset
       ds.insert( {
           Eigen::Map<uint_matrix>(uvalues.data(), ds.uint_cols(), t),
-          Eigen::Map<real_matrix<T> >(rvalues.data(), ds.real_cols(), t),
+          Eigen::Map<dense_matrix<T> >(rvalues.data(), ds.real_cols(), t),
         }, T(1));
     }
   }

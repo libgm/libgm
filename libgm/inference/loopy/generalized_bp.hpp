@@ -21,40 +21,38 @@ namespace libgm {
    * A class that implements generalized synchronous generalized belief
    * propagation.
    *
-   * @tparam F A type that implements the Factor concept.
+   * \tparam Arg
+   *         A type that represents an individual argument (node).
+   * \tparam F
+   *         A type representing the factors. The type must support
+   *         multiplication and marginalization operations.
    *
    * \ingroup inference
    */
-  template <typename F>
+  template <typename Arg, typename F>
   class generalized_bp {
 
     // Public types
-    //==========================================================================
+    //--------------------------------------------------------------------------
   public:
-    // FactorizedInference types
-    typedef typename F::real_type        real_type;
-    typedef typename F::result_type      result_type;
-    typedef typename F::argument_type    argument_type;
-    typedef typename F::domain_type      domain_type;
-    typedef typename F::assignment_type  assignment_type;
-    typedef F                            factor_type;
-    typedef region_graph<domain_type, F> graph_type;
+    // Factor types
+    using real_type   = typename F::real_type;
+    using result_type = typename F::result_type;
 
-    // Vertex and edge types
-    typedef typename graph_type::vertex_type vertex_type;
-    typedef typename graph_type::edge_type edge_type;
-    typedef typename std::pair<vertex_type, vertex_type> vertex_pair;
+
+    typedef typename std::pair<Arg, Arg> vertex_pair;
+
     // Constructors and initialization
     //==========================================================================
   public:
     //! Constructs the algorithm to the given graph and difference fn.
-    generalized_bp(const region_graph<domain_type, F>& graph, diff_fn<F> diff)
+    generalized_bp(const region_graph<Arg, F>& graph, real_binary_fn<F> diff)
       : graph_(graph), diff_(std::move(diff)) {
       initialize_messages();
     }
 
     // Constructs the algorithm to the given graph structure and difference fn.
-    generalized_bp(const region_graph<domain_type>& graph, diff_fn<F> diff)
+    generalized_bp(const region_graph<Arg>& graph, diff_fn<F> diff)
       : diff_(std::move(diff)) {
       graph_.structure_from(graph);
       initialize_messages();
@@ -66,21 +64,21 @@ namespace libgm {
 
     //! Initializes the messages to unity.
     void initialize_messages() {
-      for (edge_type e : graph_.edges()) {
+      for (directed_edge<Arg> e : graph_.edges()) {
         id_t u = e.source();
         id_t v = e.target();
-        const domain_type& args = graph_.separator(e);
-        pseudo_message(u, v) = F(args, result_type(1));
-        pseudo_message(v, u) = F(args, result_type(1));
-        message(u, v) = F(args, result_type(1));
-        message(v, u) = F(args, result_type(1));
+        auto shape = F::shape(graph_.separator(e));
+        pseudo_message(u, v) = F(shape, result_type(1));
+        pseudo_message(v, u) = F(shape, result_type(1));
+        message(u, v) = F(shape, result_type(1));
+        message(v, u) = F(shape, result_type(1));
       }
     }
 
     //! Initializes the factors to unity.
     void initialize_factors() {
       for (id_t v : graph_.vertices()) {
-        graph_[v] = F(graph_.cluster(v), result_type(1));
+        graph_[v] = F(F::shape(graph_.cluster(v)), result_type(1));
       }
     }
 
@@ -89,20 +87,20 @@ namespace libgm {
     void initialize_factors(const Range& factors) {
       initialize_factors();
       for (const F& factor : factors) {
-        id_t v = graph_.find_root_cover(factor.arguments());
+        id_t v = graph_.find_root_cover(factor.first);
         assert(v);
-        graph_[v] *= factor;
+        graph_[v].dims(graph_.index(v, factor.first)) *= factor.second;
       }
     }
 
     // Running the algorithm
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     //! Performs one iteration
     virtual real_type iterate(real_type eta) = 0;
 
     //! Returns the underlying region graph.
-    const graph_type& graph() const {
+    const cluster_graph<Arg, F>& graph() const {
       return graph_;
     }
 
@@ -110,23 +108,23 @@ namespace libgm {
     F belief(id_t v) const {
       F result = pow(graph_[v], graph_.counting(v));
       for (id_t u : graph_.parents(v)) {
-        result *= message(u, v);
+        result *= message(u, v); // indexing??
       }
       for (id_t u : graph_.children(v)) {
-        result *= message(u, v);
+        result *= message(u, v); // indexing??
       }
       return result.normalize();
     }
 
     //! Returns the marginal over a set of variables
-    F belief(const domain_type& vars) const {
-      id_t v = graph_.find_cover(vars);
+    F belief(const domain<Arg>& args) const {
+      id_t v = graph_.find_cover(args);
       assert(v);
-      return belief(v).marginal(vars);
+      return belief(v).marginal(graph_.index(v, args));
     }
 
     // Implementation
-    //==========================================================================
+    //--------------------------------------------------------------------------
   protected:
     //! Returns a pseudo-message from region u to region v
     F& pseudo_message(id_t u, id_t v) {
@@ -150,16 +148,16 @@ namespace libgm {
     real_type pass_message(id_t u, id_t v, real_type eta) {
       bool down = graph_.contains(u, v); /* true means the edge is u->v */
       real_type br = down ? beta(v) : beta(u);
-      const domain_type& sep =
+      const domain_type& sep = //?
         down ? graph_.separator(u, v) : graph_.separator(v, u);
 
       // compute the pseudo message (this is m0 in the Yedidia paper)
       F m0 = pow(graph_[u], graph_.counting(u));
       for (id_t w : graph_.parents(u)) {
-        if (w != v) m0 *= message(w, u);
+        if (w != v) m0 *= message(w, u); //?
       }
       for (id_t w : graph_.children(u)) {
-        if (w != v) m0 *= message(w, u);
+        if (w != v) m0 *= message(w, u); //?
       }
       try {
         pseudo_message(u, v) = m0.marginal(sep).normalize();

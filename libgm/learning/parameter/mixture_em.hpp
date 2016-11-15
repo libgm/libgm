@@ -16,6 +16,7 @@
 namespace libgm {
 
   /**
+   * // TODO: this needs to be fixed
    * A class that learns a mixture model using Expectation Maximization.
    * The objective value of this algorithm is a lower-bound on the
    * log-likelihood of the model.

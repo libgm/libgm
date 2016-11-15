@@ -25,7 +25,7 @@ namespace libgm {
    * the union of uint_dataset and real_dataset, and it can be used in
    * learning algorithms that normally accept uint_dataset or real_dataset,
    * because each for each sample s, s.first is convertible to both
-   * uint_vector and real_vector<T> (and s.second is the weight).
+   * uint_vector and dense_vector<T> (and s.second is the weight).
    *
    * The dataset can dynamicallly grow in the style of std::vector,
    * adding rows for newly inserted data points.

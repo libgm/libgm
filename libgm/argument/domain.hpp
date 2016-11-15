@@ -25,30 +25,30 @@ namespace libgm {
 
   // Forward declarations
   template <typename Arg> class domain;
-  template <typename Arg> class unary_domain;
-  template <typename Arg> class binary_domain;
 
   namespace detail {
 
-    //! Implements domain::num_values for univariate argument types.
+    //! Implements domain::sizes for univariate argument types.
     template <typename Arg>
-    inline uint_vector num_values(const domain<Arg>& dom, univariate_tag) {
+    inline uint_vector
+    argument_sizes(const domain<Arg>& dom, univariate_tag) {
       uint_vector result(dom.size());
       for (std::size_t i = 0; i < result.size(); ++i) {
-        result[i] = argument_traits<Arg>::num_values(dom[i]);
+        result[i] = argument_size(dom[i]);
       }
       return result;
     }
 
-    //! Implements domain::num_values for multivariate argument types.
+    //! Implements domain::sizes for multivariate argument types.
     template <typename Arg>
-    inline uint_vector num_values(const domain<Arg>& dom, multivariate_tag) {
-      uint_vector result(dom.num_dimensions());
+    inline uint_vector
+    argument_sizes(const domain<Arg>& dom, multivariate_tag) {
+      uint_vector result(dom.arity());
       auto dest = result.begin();
       for (Arg arg : dom) {
-        std::size_t n = argument_traits<Arg>::num_dimensions(arg);
+        std::size_t n = argument_arity(arg);
         for (std::size_t pos = 0; pos < n; ++pos) {
-          *dest++ = argument_traits<Arg>::num_values(arg, pos);
+          *dest++ = argument_traits<Arg>::size(arg, pos);
         }
       }
       return result;
@@ -56,18 +56,16 @@ namespace libgm {
 
     //! Implements domain::index for univariate argument types.
     template <typename Arg>
-    uint_vector index(const domain<Arg>& dom, const domain<Arg>& args,
-                      bool strict,
-                      univariate_tag) {
-      uint_vector index(dom.size(), missing<std::size_t>::value);
+    inline uint_vector
+    index(const domain<Arg>& dom, const domain<Arg>& args, univariate_tag) {
+      uint_vector index(args.size());
       for(std::size_t i = 0; i < index.size(); i++) {
-        auto it = std::find(args.begin(), args.end(), dom[i]);
-        if (it != args.end()) {
-          index[i] = it - args.begin();
-        } else if (strict) {
+        auto it = std::find(dom.begin(), dom.end(), args[i]);
+        if (it != dom.end()) {
+          index[i] = it - dom.begin();
+        } else {
           std::ostringstream out;
-          out << "domain::index: cannot find argument ";
-          argument_traits<Arg>::print(out, dom[i]);
+          print_argument(out << "domain::index cannot find argument ", args[i]);
           throw std::invalid_argument(out.str());
         }
       }
@@ -76,30 +74,27 @@ namespace libgm {
 
     //! Implements domain::index for multivariate argument types.
     template <typename Arg>
-    uint_vector index(const domain<Arg>& dom, const domain<Arg>& args,
-                      bool strict,
-                      multivariate_tag) {
-      // compute the first dimension of each argument in args
-      uint_vector dim(args.size());
-      for (std::size_t i = 1; i < args.size(); ++i) {
-        dim[i] = dim[i-1] + argument_traits<Arg>::num_dimensions(args[i-1]);
+    inline uint_vector
+    index(const domain<Arg>& dom, const domain<Arg>& args, multivariate_tag) {
+      // compute the first dimension of each argument in dom
+      uint_vector dim(dom.size());
+      for (std::size_t i = 1; i < dom.size(); ++i) {
+        dim[i] = dim[i-1] + argument_arity(dom[i-1]);
       }
 
-      // extract the dimensions for the arguments in this factor
-      uint_vector index(dom.num_dimensions(), missing<std::size_t>::value);
+      // extract the dimensions for the arguments
+      uint_vector index(args.arity());
       auto dest = index.begin();
-      for (Arg arg : dom) {
-        auto it = std::find(args.begin(), args.end(), arg);
-        std::size_t n = argument_traits<Arg>::num_dimensions(arg);
-        if (it != args.end()) {
-          std::iota(dest, dest + n, dim[it - args.begin()]);
-        } else if (strict) {
+      for (Arg arg : arg) {
+        auto it = std::find(dom.begin(), dom.end(), arg);
+        if (it != dom.end()) {
+          std::iota(dest, dest + argument_arity(arg), dim[it - dom.begin()]);
+        } else {
           std::ostringstream out;
-          out << "domain::index: cannot find argument ";
-          argument_traits<Arg>::print(out, arg);
+          print_argument(cout << "domain::index cannot find argument ", arg);
           throw std::invalid_argument(out.str());
         }
-        dest += n;
+        dest += argument_arity(arg);
       }
       return index;
     }
@@ -117,11 +112,12 @@ namespace libgm {
 
     // Domain concept
     typedef Arg key_type;
-    typedef uint_vector index_type;
 
     // Helper types
     typedef typename argument_traits<Arg>::instance_type instance_type;
-    typedef typename argument_traits<Arg>::argument_arity argument_arity;
+
+    using std::vector<Arg>::begin;
+    using std::vector<Arg>::end;
 
     //! Default constructor. Creates an empty domain.
     domain() { }
@@ -134,15 +130,6 @@ namespace libgm {
     domain(std::initializer_list<Arg> init)
       : std::vector<Arg>(init) { }
 
-    //! Creates a domain from the given argument vector.
-    domain(const std::vector<Arg>& elems)
-      : std::vector<Arg>(elems) { }
-
-    //! Creates a domain from the given argument array.
-    template <std::size_t N>
-    domain(const std::array<Arg, N>& elems)
-      : std::vector<Arg>(elems.begin(), elems.end()) { }
-
     //! Creates a domain from the given iterator range.
     template <typename Iterator>
     domain(Iterator begin, Iterator end)
@@ -150,36 +137,12 @@ namespace libgm {
 
     //! Creates a domain from the given iterator range.
     template <typename Iterator>
-    explicit domain(const iterator_range<Iterator>& range)
+    domain(const iterator_range<Iterator>& range)
       : std::vector<Arg>(range.begin(), range.end()) { }
-
-    //! Conversion from a unary domain.
-    domain(const unary_domain<Arg>& dom)
-      : std::vector<Arg>({dom.x()}) { }
-
-    //! Conversion from a binary domain.
-    domain(const binary_domain<Arg>& dom)
-      : std::vector<Arg>({dom.x(), dom.y()}) { }
-
-    //! Conversion to a unary domain. Throws std::invalid_argument if not unary.
-    unary_domain<Arg> unary() const {
-      if (this->size() != 1) {
-        throw std::invalid_argument("The domain is not unary");
-      }
-      return { this->front() };
-    }
-
-    //! Conversion to a binary domain. Throws std::invalid_argument if not binary.
-    binary_domain<Arg> binary() const {
-      if (this->size() != 2) {
-        throw std::invalid_argument("The domain is not binary");
-      }
-      return { this->front(), this->back() };
-    }
 
     //! Saves the domain to an archive.
     void save(oarchive& ar) const {
-      ar.serialize_range(this->begin(), this->end());
+      ar.serialize_range(begin(), end());
     }
 
     //! Loads the domain from an archive.
@@ -198,37 +161,37 @@ namespace libgm {
       out << '[';
       for (std::size_t i = 0; i < dom.size(); ++i) {
         if (i > 0) { out << ','; }
-        argument_traits<Arg>::print(out, dom[i]);
+        print_argument(out, dom[i]);
       }
       out << ']';
       return out;
     }
 
     // Sequence operations
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     //! Returns a prefix of this domain.
     domain prefix(std::size_t n) const {
       assert(n <= this->size());
-      return domain(this->begin(), this->begin() + n);
+      return domain(begin(), begin() + n);
     }
 
     //! Returns a suffix of this domain.
     domain suffix(std::size_t n) const {
       assert(n <= this->size());
-      return domain(this->end() - n, this->end());
+      return domain(end() - n, end());
     }
 
     //! Returns true if the given domain is a prefix of this domain.
     bool prefix(const domain& dom) const {
       return dom.size() <= this->size()
-        && std::equal(dom.begin(), dom.end(), this->begin());
+        && std::equal(dom.begin(), dom.end(), begin());
     }
 
     //! Returns true if the given domain is a suffix of this domain.
     bool suffix(const domain& dom) const {
       return dom.size() <= this->size()
-        && std::equal(dom.begin(), dom.end(), this->end() - dom.size());
+        && std::equal(dom.begin(), dom.end(), end() - dom.size());
     }
 
     /**
@@ -236,9 +199,9 @@ namespace libgm {
      * Does not preserve the relative order of arguments in the domain.
      */
     domain& unique() {
-      std::sort(this->begin(), this->end());
-      auto new_end = std::unique(this->begin(), this->end());
-      this->erase(new_end, this->end());
+      std::sort(begin(), end());
+      auto new_end = std::unique(begin(), end());
+      this->erase(new_end, end());
       return *this;
     }
 
@@ -255,14 +218,14 @@ namespace libgm {
     }
 
     // Set operations
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     /**
      * Returns the number of times an argument is present in the domain.
      * This operation has a linear time complexity.
      */
     std::size_t count(Arg x) const {
-      return std::count(this->begin(), this->end(), x);
+      return std::count(begin(), end(), x);
     }
 
     /**
@@ -350,148 +313,84 @@ namespace libgm {
     }
 
     // Argument operations
-    //==========================================================================
-
-    /**
-     * Returns true if two domains are compatible. Two domains are compatible
-     * if they have the same cardinality and the corresponding arguments are
-     * compatible as specified by argument_traits<Arg>.
-     */
-    friend bool compatible(const domain& a, const domain& b) {
-      if (a.size() != b.size()) {
-        return false;
-      }
-      for (std::size_t i = 0; i < a.size(); ++i) {
-        if (!argument_traits<Arg>::compatible(a[i], b[i])) {
-          return false;
-        }
-      }
-      return true;
-    }
-
-    /**
-     * Returns true if two discrete domains are conformant.
-     * Discrete domains A and B are conformant if they can be partitioned into
-     * corresponding subsequences (A_1, A_2, ..., A_n) and (B_1, B_2, ..., B_n)
-     * such that at least one of each {A_i, B_i} is a singleton argument.
-     * This means that the domains can participate in reshape operations.
-     */
-    friend bool conformant(const domain& a, const domain& b) {
-      std::size_t i = 0;
-      std::size_t j = 0;
-      while (i < a.size() && j < b.size()) {
-        std::size_t sa = argument_traits<Arg>::num_values(a[i]);
-        std::size_t sb = argument_traits<Arg>::num_values(b[i]);
-        if (sa == sb) {
-          ++i;
-          ++j;
-        } else if (sa < sb) {
-          ++j;
-          for (++i; i < a.size() && sa < sb; ++i) {
-            sa *= argument_traits<Arg>::num_values(a[i]);
-          }
-          if (sa != sb) { return false; }
-        } else {
-          ++i;
-          for (++j; j < b.size() && sb < sa; ++j) {
-            sb *= argument_traits<Arg>::num_values(b[j]);
-          }
-          if (sa != sb) { return false; }
-        }
-      }
-      return i == a.size() && j == b.size();
-    }
+    //--------------------------------------------------------------------------
 
     /**
      * Returns the overall dimensionality for a collection of arguments.
      * This is simply the cardinality of the domain for univariate arguments
      * and the the sum of argument dimensionalities for multivariate arguments.
      */
-    std::size_t num_dimensions(std::size_t start = 0) const {
+    std::size_t arity(std::size_t start = 0) const {
       assert(start <= this->size());
       if (is_univariate<Arg>::value) {
         return this->size() - start;
       } else {
         std::size_t size = 0;
         for (std::size_t i = start; i < this->size(); ++i) {
-          size += argument_traits<Arg>::num_dimensions((*this)[i]);
+          size += argument_arity((*this)[i]);
         }
         return size;
       }
     }
 
     /**
+     * Returns the total arity of the discrete and continuous arguments
+     * in this domain.
+     */
+    std::pair<std::size_t, std::size_t> mixed_arity() const {
+      std::size_t m = 0, n = 0;
+      for (Arg arg : *this) {
+        if (argument_discrete(arg)) {
+          m += argument_arity(arg);
+        } else if (argument_continous(arg)) {
+          n += argument_arity(arg);
+        } else {
+          // throw
+        }
+      }
+      return std::make_pair(m, n);
+    }
+
+    /**
      * Returns the vector specifying the number of values for a collection of
      * discrete arguments. The result first contains the number of values for
-     * the first argument in this domain, then the numebr of values for the
+     * the first argument in this domain, then the number of values for the
      * second argument, etc. The resulting vector is guaranteed to have exactly
-     * num_dimensions() elements.
+     * arity() elements.
      *
      * This function is supported only when Arg is discrete.
      */
     LIBGM_ENABLE_IF(is_discrete<Arg>::value)
-    index_type num_values() const {
-      return detail::num_values(*this, argument_arity());
+    uint_vector sizes() const {
+      return detail::argument_sizes(*this, argument_arity_t<Arg>());
     }
 
     /**
-     * Returns the instances of an indexable argument for one index.
+     * Returns true if all the arguments in the domain are discrete.
      */
-    LIBGM_ENABLE_IF_D(is_indexable<A>::value, typename A = Arg)
-    domain<instance_type>
-    operator()(typename argument_traits<A>::index_type index) const {
-      domain<instance_type> result;
-      result.reserve(this->size());
-      for (Arg arg : *this) {
-        result.push_back(arg(index));
-      }
-      return result;
+    bool discrete() const {
+      return is_discrete<Arg>::value ||
+        std::all_of(begin(), end(), [](Arg arg) {
+            return argument_discrete(arg); });
     }
 
     /**
-     * Returns the instance of an indexable argument for a vector of indices.
-     * The instances are returned in the order given by all the instance for
-     * the first index first, then all the instances for the second index, etc.
+     * Returns true if all the arguments in the domain are continuous.
      */
-    LIBGM_ENABLE_IF_D(is_indexable<A>::value, typename A = Arg)
-    domain<instance_type>
-    operator()(const std::vector<typename argument_traits<A>::index_type>&
-                 indices) const {
-      domain<instance_type> result;
-      result.reserve(this->size() * indices.size());
-      for (auto index : indices) {
-        for (Arg arg : *this) {
-          result.push_back(arg(index));
-        }
-      }
-      return result;
+    bool continuous() const {
+      return is_continuous<Arg>::value ||
+        std::all_of(begin(), end(), [](Arg arg) {
+            return argument_continuous(arg); });
     }
 
     /**
-     * Substitutes arguments in-place according to a map. The keys of the map
-     * must include all the arguments in this domain.
-     *
-     * \throw std::out_of_range if an argument is not present in the map
-     * \throw std::invalid_argument if the arguments are not compatible
+     * Computes the indices of the specified arguments in this domain.
+     * For univariate arguments, this function returns an index vector
+     * v s.t. v[i] is the index of args[i] in this domain.
      */
-    template <typename Map>
-    void substitute(const Map& map) {
-      for (Arg& arg : *this) {
-        Arg new_arg = map.at(arg);
-        if (!argument_traits<Arg>::compatible(arg, new_arg)) {
-          std::ostringstream out;
-          out << "Incompatible arguments ";
-          argument_traits<Arg>::print(out, arg);
-          out << " and ";
-          argument_traits<Arg>::print(out, new_arg);
-          throw std::invalid_argument(out.str());
-        }
-        arg = new_arg;
-      }
+    uint_vector index(const domain& args) const {
+      return detail::index(*this, args, argument_arity_t<Arg>());
     }
-
-    // Indexing operations
-    //==========================================================================
 
     /**
      * Computes the start indexes of this domain in a linear ordering
@@ -505,76 +404,27 @@ namespace libgm {
       std::size_t pos = 0;
       for (Arg arg : *this) {
         start.emplace(arg, pos);
-        pos += argument_traits<Arg>::num_dimensions(arg);
+        pos += argument_arity(arg);
       }
       return pos;
     }
 
+    //????
     /**
-     * Computes the the indices of the arguments in this domain
-     * given the starting position in the given map.
-     *
-     * \tparam Map A map object with keys Arg and values std::size_t
+     * Returns the instances of a field for one index.???
      */
-    template <typename Map>
-    index_type index(const Map& start) const {
-      index_type result(num_dimensions());
-      auto dest = result.begin();
+    LIBGM_ENABLE_IF_D(is_same<Arg, field<indexable<Arg>::value, typename A = Arg)
+    domain<instance_type>
+    operator()(typename argument_traits<A>::index_type index) const {
+      domain<instance_type> result;
+      result.reserve(this->size());
       for (Arg arg : *this) {
-        std::size_t n = argument_traits<Arg>::num_dimensions(arg);
-        try {
-          std::iota(dest, dest + n, start.at(arg));
-        } catch(std::out_of_range&) {
-          std::ostringstream out;
-          out << "domain::index: cannnot find argument ";
-          argument_traits<Arg>::print(out, arg);
-          throw std::invalid_argument(out.str());
-        }
-        dest += n;
+        result.push_back(arg(index));
       }
       return result;
     }
 
-    /**
-     * Computes the indices of the arguments in this domain in the specified
-     * domain. More precisely, it returns an index vector v s.t. v[i] is the
-     * index of (*this)[i] in args. If strict is true, all arguments of this
-     * domain must be present in the specified domain. If strict is false,
-     * the missing arguments will be assigned a missing<std::size_t> value.
-     *
-     * When using this function in table factor operations, always call the
-     * index() on the domain of the factor whose elements will be iterated
-     * over in a non-linear fashion. The specified args are the arguments
-     * of the table that is iterated over in a linear fashion.
-     */
-    index_type index(const domain& args, bool strict = true) const {
-      return detail::index(*this, args, strict, argument_arity());
-    }
-
   }; // class domain
-
-  /**
-   * Converts one domain to a domain with another argument type.
-   *
-   * \tparam Target
-   *         The target argument type. Must be convertible from Source using
-   *         argument_cast.
-   * \tparam Source
-   *         The original argument type.
-   * \relates domain
-   */
-  template <typename Target, typename Source>
-  domain<Target> argument_cast(const domain<Source>& dom) {
-    static_assert(is_convertible_argument<Source, Target>::value,
-                  "Source must be argument-convertible to Target");
-
-    domain<Target> result;
-    result.reserve(dom.size());
-    for (Source arg : dom) {
-      result.push_back(argument_cast<Target>(arg));
-    }
-    return result;
-  }
 
 } // namespace libgm
 

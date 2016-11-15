@@ -14,27 +14,33 @@ namespace libgm {
    * An algorithm for computing the marginals of a factorized probability model
    * using the multiplicative sum-product algorithm on a junction tree.
    *
-   * \tparam F the factor type
+   * \tparam Arg
+   *         A type that represents an individual argument (node).
+   * \tparam F
+   *         A type representing the factors. The type must support
+   *         multiplication and marginalization operations.
    * \ingroup inference
    */
-  template <typename F>
+  template <typename Arg, typename F>
   class sum_product_calibrate {
 
-    // Public type declarations
-    //==========================================================================
+    // Public types
+    //--------------------------------------------------------------------------
   public:
-    // FactorizedInference types
-    typedef typename F::real_type       real_type;
-    typedef typename F::result_type     result_type;
-    typedef typename F::argument_type   argument_type;
-    typedef typename F::domain_type     domain_type;
-    typedef typename F::assignment_type assignment_type;
-    typedef F                           factor_type;
-    typedef cluster_graph<domain_type, F, bidirectional<F> > graph_type;
+    // Graph types
+    using graph_type  = cluster_graph<Arg, F, bidirectional<F> >;
+    using vertex_type = typename graph_type::vertex_type;
+    using edge_type   = typename graph_type::edge_type;
 
-    // The descriptors for the junction tree
-    typedef typename graph_type::vertex_type vertex_type;
-    typedef typename graph_type::edge_type edge_type;
+    // Argument types
+    using argument_type     = Arg;
+    using argument_hasher   = typename argument_traits<Arg>::hasher;
+    using argument_iterator = typename graph_type::argument_iterator;
+
+    // Factor types
+    using real_type   = typename F::real_type;
+    using result_type = typename F::result_type;
+    using factor_type = F;
 
     // Constructors
     //==========================================================================
@@ -50,9 +56,7 @@ namespace libgm {
      * \tparam Range A forward range with elements convertible to F
      */
     template <typename Range>
-    explicit sum_product_calibrate(
-        const Range& factors,
-        typename std::enable_if<is_range<Range, F>::value>::type* = 0) {
+    explicit sum_product_calibrate(const Range& factors) {
       reset(factors);
     }
 
@@ -74,20 +78,20 @@ namespace libgm {
       calibrated_ = false;
 
       // initialize the junction tree
-      undirected_graph<argument_type> mg;
-      for (const F& factor : factors) {
-        make_clique(mg, factor.arguments());
+      undirected_graph<Arg> mg;
+      for (const auto& factor : factors) {
+        make_clique(mg, factor.first);
       }
       jt_.triangulated(mg, min_degree_strategy());
 
       // Initialize the clique potentials
-      for (vertex_type v : jt_.vertices()) {
-        jt_[v] = F(jt_.cluster(v), result_type(1));
+      for (id_t v : jt_.vertices()) {
+        jt_[v] = F(F::shape(jt_.cluster(v)), result_type(1));
       }
-      for (const F& factor : factors) {
-        vertex_type v = jt_.find_cluster_cover(factor.arguments());
+      for (const auto& factor : factors) {
+        vertex_type v = jt_.find_cluster_cover(factor.first);
         assert(v);
-        jt_[v] *= factor;
+        jt_[v].dims(jt_.index(v, factor.first)) *= factor.second;
       }
     }
 
@@ -95,17 +99,17 @@ namespace libgm {
      * Initializes the algorithm to the iven junction tree that defines a
      * distribution via the product of the vertex properties.
      */
-    void reset_graph(const cluster_graph<domain_type, F>& jt) {
+    void reset_graph(const cluster_graph<Arg, F>& jt) {
       calibrated_ = false;
-      assert(jt_.tree());
+      assert(jt.tree());
       jt_.clear();
 
       // initialize the cliques and edges
-      for (vertex_type v : jt_.vertices()) {
-        assert(jt_.cluster(v) == jt[v].arguments());
-        jt_.add_cluster(v, jt_.cluster(v), jt[v]);
+      for (id_t v : jt.vertices()) {
+        assert(F::shape(jt.cluster(v)) == jt[v].shape());
+        jt_.add_cluster(v, jt.cluster(v), jt[v]);
       }
-      for (edge_type e : jt_.edges()) {
+      for (edge_type e : jt.edges()) {
         jt_.add_edge(e.source(), e.target());
       }
     }
@@ -121,10 +125,10 @@ namespace libgm {
           F product = jt_[e.source()];
           for (edge_type in : jt_.in_edges(e.source())) {
             if (in.source() != e.target()) {
-              product *= jt_[in](in);
+              product.dims(jt_.target_index(in)) *= jt_[in](in);
             }
           }
-          jt_[e](e) = product.marginal(jt_.separator(e));
+          jt_[e](e) = product.marginal(jt_.source_index(e));
         });
       calibrated_ = true;
     }
@@ -137,8 +141,8 @@ namespace libgm {
       assert(calibrated_ && !jt_.empty());
       // Compute the normalization constant z, and normalize the root
       // and every message in the direction from the root
-      vertex_type root = *jt_.vertices().begin();
-      result_type z = belief(root).marginal();
+      vertex_type root = jt_.vertices().front();
+      result_type z = belief(root).sum();
       jt_[root] /= z;
       pre_order_traversal(jt_, root, [&](const edge_type& e) {
           jt_[e](e) /= z;
@@ -150,20 +154,25 @@ namespace libgm {
      * This is a mutable operation. Note that calibrate() needs to be called
      * afterwards.
      */
-    void condition(const assignment_type& a) {
+    void condition(const assignment<Arg, real_type>& a) {
       // Extract the restricted arguments
-      domain_type vars;
-      for (const auto& p : a) { vars.push_back(p.first); }
+      domain<Arg> args = a.keys();
 
       // Update the factors and messages
-      jt_.intersecting_clusters(vars, [&](vertex_type v) {
-          jt_[v] = jt_[v].restrict(a);
-          jt_.update_cluster(v, jt_[v].arguments());
+      jt_.intersecting_clusters(args, [&](vertex_type v) {
+          domain<Arg> y, x; // restricted, retained
+          jt_.cluster(v).partition(a, y, x);
+          jt_[v] = jt_[v].restrict(jt_.index(v, y), a.values(y)).eval();
+          jt_.update_cluster(v, x);
         });
-      jt_.intersecting_separators(vars, [&](const edge_type& e) {
-          jt_[e].forward = jt_[e].forward.restrict(a);
-          jt_[e].reverse = jt_[e].reverse.restrict(a);
-          jt_.update_separator(e, jt_[e].forward.arguments());
+      jt_.intersecting_separators(args, [&](const edge_type& e) {
+          domain<Arg> y, x; // restricted, retained
+          jt_.separator(e).partition(a, y, x);
+          uint_vector index = jt_.index(v, y);
+          auto values = a.values(y);
+          jt_[e].forward = jt_[e].forward.restrict(index, values).eval();
+          jt_[e].reverse = jt_[e].reverse.restrict(index, values).eval();
+          jt_.update_separator(e, x);
         });
 
       // The junction tree needs to be calibrated afterwards
@@ -183,7 +192,7 @@ namespace libgm {
       assert(calibrated_);
       F result = jt_[v];
       for (edge_type in : jt_.in_edges(v)) {
-        result *= jt_[in](in);
+        result.dims(jt_.target_index(in)) *= jt_[in](in);
       }
       return result;
     }
@@ -200,16 +209,20 @@ namespace libgm {
      *        if the specified set is not covered by a clique of
      *        the junction tree constructed by the engine.
      */
-    F belief(const domain_type& vars) const {
+    F belief(const domain<Arg>& args) const {
       assert(calibrated_);
 
       // Try to find a separator that covers the variables
-      edge_type e = jt_.find_separator_cover(vars);
-      if (e) { return belief(e).marginal(vars); }
+      edge_type e = jt_.find_separator_cover(args);
+      if (e) {
+        return belief(e).marginal(jt_.index(e, args));
+      }
 
       // Next, look for a clique that covers the variables
-      vertex_type v = jt_.find_cluster_cover(vars);
-      if (v) { return belief(v).marginal(vars); }
+      vertex_type v = jt_.find_cluster_cover(args);
+      if (v) {
+        return belief(v).marginal(jt_.index(v, args));
+      }
 
       // Did not find a suitable clique / separator
       throw std::invalid_argument(
@@ -224,7 +237,7 @@ namespace libgm {
 
     //! Message along a directed edge.
     const F& message(vertex_type u, vertex_type v) const {
-      return jt_(u,v)(u,v);
+      return jt_(u, v)(u, v);
     }
 
     // Private data members
