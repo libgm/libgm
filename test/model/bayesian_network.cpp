@@ -8,7 +8,7 @@
 #include <libgm/factor/canonical_gaussian.hpp>
 #include <libgm/factor/moment_gaussian.hpp>
 #include <libgm/factor/probability_table.hpp>
-#include <libgm/factor/util/operations.hpp>
+#include <libgm/factor/utility/operations.hpp>
 #include <libgm/learning/dataset/uint_dataset.hpp>
 #include <libgm/learning/parameter/factor_mle.hpp>
 

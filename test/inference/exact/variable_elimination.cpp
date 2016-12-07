@@ -7,7 +7,7 @@
 #include <libgm/factor/random/bind.hpp>
 #include <libgm/factor/random/diagonal_table_generator.hpp>
 #include <libgm/factor/random/uniform_table_generator.hpp>
-#include <libgm/factor/util/operations.hpp>
+#include <libgm/factor/utility/operations.hpp>
 #include <libgm/graph/special/grid_graph.hpp>
 #include <libgm/model/pairwise_markov_network.hpp>
 

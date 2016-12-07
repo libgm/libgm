@@ -2,7 +2,7 @@
 #define LIBGM_ARRAY_DOMAIN_HPP
 
 #include <libgm/argument/argument_cast.hpp>
-#include <libgm/argument/argument_traits.hpp>
+#include <libgm/argument/traits.hpp>
 #include <libgm/serialization/array.hpp>
 
 #include <algorithm>

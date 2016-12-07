@@ -1,7 +1,6 @@
 #ifndef LIBGM_BELIEF_UPDATE_CALIBRATE_HPP
 #define LIBGM_BELIEF_UPDATE_CALIBRATE_HPP
 
-#include <libgm/graph/algorithm/make_clique.hpp>
 #include <libgm/graph/algorithm/tree_traversal.hpp>
 #include <libgm/graph/cluster_graph.hpp>
 #include <libgm/traits/is_range.hpp>
@@ -75,7 +74,7 @@ namespace libgm {
       // compute the junction tree for the given factors
       undirected_graph<Arg> mg;
       for (const auto& factor : factors) {
-        make_clique(mg, factor.first);
+        mg.make_clique(factor.first);
       }
       jt_.triangulated(mg, min_degree_strategy());
 

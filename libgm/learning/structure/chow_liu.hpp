@@ -40,8 +40,7 @@ namespace libgm {
     /**
      * Fits a model using the supplied dataset for the given variables.
      */
-    template <typename Dataset>
-    chow_liu& fit(const Dataset& ds, const domain<Arg>& args) {
+    chow_liu& fit(const dataset<Arg, real_type>& ds, const domain<Arg>& args) {
       typename F::mle_type mle(param_);
       model_.clear();
       score_.clear();
@@ -57,15 +56,17 @@ namespace libgm {
 
       // g will hold factor F and weight (mutual information) for each edge
       // this part could be optimized to eliminate copies
-      undirected_graph<Arg, void_, std::pair<F, real_type> > g;
+      using vertex_property = std::pair<std::annotated<Arg, F>, real_type>;
+      undirected_graph<Arg, void_, vertex_property> g;
       for (Arg u : args) {
         for (Arg v : args) {
           if (u < v) {
-            domain<Arg> dom = { u, v };
-            F f = mle(ds.samples(dom), F::shape(dom));
+            annotated<Arg, F> f;
+            f.domain = { u, v };
+            f.factor = mle(ds.samples(f.domain), F::shape(f.domain));
             std::size_t nu = argument_arity(u), nv = argument_arity(v);
-            real_type mi = f.mutual_information(0, nu, nu, nv);
-            edge_type e = g.add_edge(u, v, {f, mi}).first;
+            real_type mi = f.factor.mutual_information(0, nu, nu, nv);
+            edge_type e = g.add_edge(u, v, {std::move(f), mi}).first;
             score_[e] = mi;
           }
         }
@@ -79,10 +80,10 @@ namespace libgm {
         std::back_inserter(edges));
 
       // Construct the model
-      std::vector<std::pair<domain<Arg>, F> > marginals;
+      std::vector<annotated<Arg, F> > marginals;
       objective_ = real_type(0);
       for (edge_type e : edges) {
-        marginals.emplace_back(domain<Arg>(e.pair()), std::move(g[e].first));
+        marginals.push_back(std::move(g[e].first));
         objective_ += g[e].second;
       }
       model_.reset_marginals(marginals);
@@ -105,7 +106,7 @@ namespace libgm {
     }
 
     // Private data
-    // =========================================================================
+    //--------------------------------------------------------------------------
   private:
     //! The regularization parameters used in estimating the factors.
     param_type param_;

@@ -3,7 +3,7 @@
 
 #include <libgm/graph/algorithm/functor_property_map.hpp>
 #include <libgm/graph/algorithm/vertex_index_map.hpp>
-#include <libgm/graph/boost_graph_helpers.hpp>
+#include <libgm/graph/util/bgl_helpers.hpp>
 
 #include <boost/graph/kruskal_min_spanning_tree.hpp>
 

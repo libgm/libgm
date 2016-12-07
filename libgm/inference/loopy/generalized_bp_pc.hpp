@@ -2,7 +2,7 @@
 #define LIBGM_GBP_PC_HPP
 
 #include <libgm/factor/invalid_operation.hpp>
-#include <libgm/factor/util/diff_fn.hpp>
+#include <libgm/factor/utility/diff_fn.hpp>
 #include <libgm/graph/region_graph.hpp>
 
 #include <algorithm>

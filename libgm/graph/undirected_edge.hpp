@@ -10,20 +10,11 @@
 
 namespace libgm {
 
-  // Forward declaration
-  template<typename V, typename VP, typename EP>
-  class undirected_graph;
-
   /**
-   * A class that represents an undirected edge.
-   * An undirected edge is represented by a source and target vertex
-   * (as well as the cached edge property pointer invisible to the caller).
-   * This allows us to differentiate incoming vs. outgoing edges in
-   * undirected graphs: the outoing edges of a vertex will always have that
-   * vertex as a source, whereas the incoing edges of a vertex will always
-   * have that vertex as a target. Nevertheless, for the purpose of
-   * comparisons and hashing, two undirected edges (u, v) and (v, u)
-   * are considered equivalent.
+   * An edge of an undirected gaph, represented as the source and target
+   * vertex, as well as the property pointer invisible to the caller.
+   * Two undirected edges are equal only if they have the same source
+   * and target vertex, even if they represent the same physical edge.
    *
    * To convert an undirected edge to an ordered pair (source, vertex),
    * use the pair() function. To convert an undirected edge to an
@@ -37,33 +28,32 @@ namespace libgm {
   public:
     //! Constructs an empty edge with null source and target.
     undirected_edge()
-      : source_(vertex_traits<Vertex>::null()),
-        target_(vertex_traits<Vertex>::null()),
-        property_() { }
+      : source_(), target_(), property_() { }
 
     //! Construct for a special "root" edge with empty source and given target.
     explicit undirected_edge(Vertex target)
-      : source_(vertex_traits<Vertex>::null()),
-        target_(target),
-        property_() { }
+      : source_(), target_(target), property_() { }
+
+    //! Constructor setting the source and the edge property
+    undirected_edge(Vertex source, Vertex target, void* property = nullptr)
+      : source_(source), target_(target), property_(property) { }
 
     //! Conversion to bool indicating if this edge is empty.
     explicit operator bool() const {
-      return source_ != vertex_traits<Vertex>::null() ||
-             target_ != vertex_traits<Vertex>::null();
+      return source_ != Vertex() || target_ != Vertex();
     }
 
     //! Returns the source vertex.
-    const Vertex& source() const {
+    Vertex source() const {
       return source_;
     }
 
     //! Returns the target vertex.
-    const Vertex& target() const {
+    Vertex target() const {
       return target_;
     }
 
-    //! Returns the edge with the endpoints reversed.
+    //! Returns a copy of this edge with the endpoints reversed.
     undirected_edge reverse() const {
       return undirected_edge(target_, source_, property_);
     }
@@ -79,45 +69,44 @@ namespace libgm {
       return std::minmax(source_, target_);
     }
 
+    //! Returns true if two edges have the same source and target.
+    friend bool operator==(const undirected_edge& a, const undirected_edge& b) {
+      return a.pair() == b.pair();
+    }
+
+    //! Returns true if two edges do not have the same source or target.
+    friend bool operator!=(const undirected_edge& a, const undirected_edge& b) {
+      return a.pair() != b.pair();
+    }
+
+    //! Compares two undirected edges.
+    friend bool operator<=(const undirected_edge& a, const undirected_edge& b) {
+      return a.pair() <= b.pair();
+    }
+
+    //! Compares two undirected edges.
+    friend bool operator>=(const undirected_edge& a, const undirected_edge& b) {
+      return a.pair() >= b.pair();
+    }
+
     //! Compares two undirected edges.
     friend bool operator<(const undirected_edge& a, const undirected_edge& b) {
-      return a.unordered_pair() < b.unordered_pair();
+      return a.pair() < b.pair();
     }
 
-    //! Returns true if two undirected edges have the same endpoints.
-    friend bool operator==(const undirected_edge& a, const undirected_edge& b) {
-      return a.unordered_pair() == b.unordered_pair();
-    }
-
-    //! Returns true if two undirected edges do not have the same endpoints.
-    friend bool operator!=(const undirected_edge& a, const undirected_edge& b) {
-      return a.unordered_pair() != b.unordered_pair();
-    }
-
-    //! Returns the hash value of an undirected edge.
-    friend std::size_t hash_value(const undirected_edge& e) {
-      std::size_t seed = 0;
-      std::pair<Vertex, Vertex> p = std::minmax(e.source(), e.target());
-      libgm::hash_combine(seed, p.first);
-      libgm::hash_combine(seed, p.second);
-      return seed;
+    //! Compares two undirected edges.
+    friend bool operator>(const undirected_edge& a, const undirected_edge& b) {
+      return a.pair() > b.pair();
     }
 
     //! Prints the edge to an output stream.
     friend std::ostream&
     operator<<(std::ostream& out, const undirected_edge& e) {
-      vertex_traits<Vertex>::print(out, e.source());
-      out << " -- ";
-      vertex_traits<Vertex>::print(out, e.target());
+      out << e.source() << " -- " << e.target();
       return out;
     }
 
   private:
-    //! Constructor setting the source and the edge property
-    undirected_edge(const Vertex& source,
-                    const Vertex& target,
-                    void* property)
-      : source_(source), target_(target), property_(property) { }
 
     //! Vertex from which the edge originates
     Vertex source_;
@@ -126,18 +115,13 @@ namespace libgm {
     Vertex target_;
 
     /**
-     * The property associated with this edge.  Edges maintain a private
-     * pointer to the associated property.  However, this pointer can only
-     * be accessed through the associated graph. This permits graphs to
-     * return iterators over edges and permits constant time lookup for
-     * the corresponding edge properties. The property is stored as a void*,
-     * to simplify the type of the edges.
+     * The property associated with this edge. Edges maintain a private
+     * pointer to the associated property, which permits a constant-time
+     * lookup of edge properties. Because edge properties are only accessed
+     * through the graph, we can type-erase the property type here and
+     * store the property as void*.
      */
     void* property_;
-
-    //! Gives access to constructor and the property pointer.
-    template <typename V, typename VP, typename EP>
-    friend class undirected_graph;
 
   }; // class undirected_edge
 
@@ -149,7 +133,7 @@ namespace std {
   //! \relates undirected_edge
   template <typename Vertex>
   struct hash<libgm::undirected_edge<Vertex>>
-    : libgm::default_hash<libgm::undirected_edge<Vertex>> { };
+    : libgm::hash_pair<libgm::undirected_edge<Vertex>> { };
 
 } // namespace std
 

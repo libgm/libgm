@@ -2,7 +2,7 @@
 #define LIBGM_MIXTURE_HPP
 
 #include <libgm/factor/base/factor.hpp>
-#include <libgm/factor/traits.hpp>
+#include <libgm/factor/utility/traits.hpp>
 #include <libgm/math/random/mixture_distribution.hpp>
 #include <libgm/serialization/vector.hpp>
 

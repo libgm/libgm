@@ -2,7 +2,6 @@
 #define LIBGM_ELIMINATE_HPP
 
 #include <libgm/datastructure/mutable_queue.hpp>
-#include <libgm/graph/algorithm/make_clique.hpp>
 #include <libgm/graph/algorithm/min_degree_strategy.hpp>
 
 #include <iterator>
@@ -60,7 +59,7 @@ namespace libgm {
       elim_strategy.updated(u, graph, std::back_inserter(recompute_priority));
       // eliminate the vertex
       vertex_visitor(u);
-      make_clique(graph, graph.neighbors(u));
+      graph.make_clique(graph.neighbors(u));
       graph.remove_edges(u);
       // update the priorities
       for (vertex_type v : recompute_priority) {

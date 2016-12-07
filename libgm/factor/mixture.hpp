@@ -2,7 +2,7 @@
 #define LIBGM_MIXTURE_HPP
 
 #include <libgm/enable_if.hpp>
-#include <libgm/factor/traits.hpp>
+#include <libgm/factor/utility/traits.hpp>
 #include <libgm/factor/substituted_param.hpp>
 #include <libgm/functional/arithmetic.hpp>
 #include <libgm/math/random/mixture_distribution.hpp>

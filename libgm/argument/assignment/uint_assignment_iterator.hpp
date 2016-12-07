@@ -1,7 +1,7 @@
 #ifndef LIBGM_UINT_ASSIGNMENT_ITERATOR_HPP
 #define LIBGM_UINT_ASSIGNMENT_ITERATOR_HPP
 
-#include <libgm/argument/argument_traits.hpp>
+#include <libgm/argument/traits.hpp>
 #include <libgm/argument/assignment/uint_assignment.hpp>
 #include <libgm/argument/domain.hpp>
 #include <libgm/range/iterator_range.hpp>

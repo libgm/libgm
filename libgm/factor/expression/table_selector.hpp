@@ -7,7 +7,7 @@
 #include <libgm/factor/expression/table_base.hpp>
 #include <libgm/factor/expression/table_function.hpp>
 #include <libgm/factor/expression/table_join.hpp>
-#include <libgm/factor/traits.hpp>
+#include <libgm/factor/utility/traits.hpp>
 #include <libgm/math/constants.hpp>
 #include <libgm/math/tags.hpp>
 

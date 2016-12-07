@@ -1,7 +1,7 @@
 #include <libgm/argument/var.hpp>
 #include <libgm/factor/probability_array.hpp>
 #include <libgm/factor/canonical_array.hpp>
-#include <libgm/factor/traits.hpp>
+#include <libgm/factor/utility/traits.hpp>
 #include <libgm/functional/assign.hpp>
 #include <libgm/functional/member.hpp>
 #include <libgm/functional/tuple.hpp>

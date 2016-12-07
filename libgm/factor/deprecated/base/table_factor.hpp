@@ -2,7 +2,7 @@
 #define LIBGM_TABLE_FACTOR_HPP
 
 #include <libgm/macros.hpp>
-#include <libgm/argument/argument_traits.hpp>
+#include <libgm/argument/traits.hpp>
 #include <libgm/argument/domain.hpp>
 #include <libgm/argument/uint_assignment.hpp>
 #include <libgm/datastructure/table.hpp>

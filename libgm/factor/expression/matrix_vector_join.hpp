@@ -4,7 +4,7 @@
 #include <libgm/enable_if.hpp>
 #include <libgm/factor/expression/matrix_base.hpp>
 #include <libgm/factor/expression/vector_function.hpp>
-#include <libgm/factor/traits.hpp>
+#include <libgm/factor/utility/traits.hpp>
 #include <libgm/functional/compose.hpp>
 #include <libgm/functional/updater.hpp>
 #include <libgm/math/eigen/join.hpp>

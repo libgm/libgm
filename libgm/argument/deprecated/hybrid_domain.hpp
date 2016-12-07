@@ -3,7 +3,7 @@
 
 #include <libgm/enable_if.hpp>
 #include <libgm/argument/argument_cast.hpp>
-#include <libgm/argument/argument_traits.hpp>
+#include <libgm/argument/traits.hpp>
 #include <libgm/argument/domain.hpp>
 #include <libgm/datastructure/hybrid_index.hpp>
 #include <libgm/iterator/join_iterator.hpp>

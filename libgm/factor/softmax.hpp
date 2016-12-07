@@ -2,12 +2,12 @@
 #define LIBGM_SOFTMAX_HPP
 
 #include <libgm/enable_if.hpp>
-#include <libgm/argument/argument_traits.hpp>
+#include <libgm/argument/traits.hpp>
 #include <libgm/argument/hybrid_assignment.hpp>
 #include <libgm/argument/hybrid_domain.hpp>
 #include <libgm/factor/base/factor.hpp>
 #include <libgm/factor/probability_array.hpp>
-#include <libgm/factor/traits.hpp>
+#include <libgm/factor/utility/traits.hpp>
 #include <libgm/learning/parameter/factor_mle.hpp>
 #include <libgm/math/constants.hpp>
 #include <libgm/math/eigen/hybrid.hpp>

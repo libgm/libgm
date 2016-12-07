@@ -1,7 +1,7 @@
 #ifndef LIBGM_MEAN_FIELD_BIPARTITE_HPP
 #define LIBGM_MEAN_FIELD_BIPARTITE_HPP
 
-#include <libgm/factor/traits.hpp>
+#include <libgm/factor/utility/traits.hpp>
 #include <libgm/graph/bipartite_graph.hpp>
 #include <libgm/parallel/vector_processor.hpp>
 

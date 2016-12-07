@@ -29,7 +29,7 @@ namespace libgm {
   public:
     map_key_iterator() : it() { }
 
-    explicit map_key_iterator(typename Map::const_iterator it) : it(it) { }
+    map_key_iterator(typename Map::const_iterator it) : it(it) { }
 
     reference operator*() const {
       return it->first;

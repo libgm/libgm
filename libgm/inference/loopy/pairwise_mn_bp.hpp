@@ -1,9 +1,9 @@
 #ifndef LIBGM_PAIRWISE_MN_BP_HPP
 #define LIBGM_PAIRWISE_MN_BP_HPP
 
-#include <libgm/factor/traits.hpp>
+#include <libgm/factor/utility/traits.hpp>
 #include <libgm/datastructure/mutable_queue.hpp>
-#include <libgm/factor/util/diff_fn.hpp>
+#include <libgm/factor/utility/diff_fn.hpp>
 #include <libgm/model/pairwise_markov_network.hpp>
 
 #include <algorithm>

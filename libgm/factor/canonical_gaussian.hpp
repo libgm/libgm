@@ -1,7 +1,7 @@
 #ifndef LIBGM_CANONICAL_GAUSSIAN_HPP
 #define LIBGM_CANONICAL_GAUSSIAN_HPP
 
-#include <libgm/factor/traits.hpp>
+#include <libgm/factor/utility/traits.hpp>
 #include <libgm/factor/expression/canonical_gaussian_base.hpp>
 #include <libgm/factor/expression/canonical_gaussian_function.hpp>
 #include <libgm/factor/expression/canonical_gaussian_selector.hpp>

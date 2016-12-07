@@ -1,7 +1,7 @@
 #ifndef LIBGM_ARGUMENT_CAST_HPP
 #define LIBGM_ARGUMENT_CAST_HPP
 
-#include <libgm/argument/argument_traits.hpp>
+#include <libgm/argument/traits.hpp>
 
 namespace libgm {
 

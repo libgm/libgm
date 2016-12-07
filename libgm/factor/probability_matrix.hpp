@@ -3,7 +3,7 @@
 
 #include <libgm/enable_if.hpp>
 #include <libgm/argument/domain.hpp>
-#include <libgm/factor/traits.hpp>
+#include <libgm/factor/utility/traits.hpp>
 #include <libgm/factor/expression/matrix_base.hpp>
 #include <libgm/factor/expression/matrix_function.hpp>
 #include <libgm/factor/expression/matrix_selector.hpp>

@@ -14,17 +14,10 @@ namespace libgm {
    * \tparam F a factor type that models the ParametricFactor and
    *         LearnableDistributionFactor concept
    */
-  template <typename F>
+  template <typename Arg, typename F>
   class factor_mle {
   public:
-    //! The domain type of the factor.
-    typedef typename F::domain_type domain_type;
-
-    //! The maximum likelihood estimator of factor parameters.
-    typedef typename F::mle_type mle_type;
-
-    //! The regularization parameters for the MLE.
-    typedef typename mle_type::regul_type regul_type;
+    using regul_type = typename F::mle_type::regul_type;
 
     /**
      * Constructs a factor estimator with the specified regularization
@@ -38,8 +31,8 @@ namespace libgm {
      * over the given domain.
      */
     template <typename Dataset>
-    F operator()(const Dataset& ds, const domain_type& args) {
-      return F(args, mle_(ds.samples(args), F::param_shape(args)));
+    F operator()(const Dataset& ds, const domain<Arg>& args) {
+      return F(mle_(ds.samples(args), F::param_shape(args)));
     }
 
     /**
@@ -48,14 +41,14 @@ namespace libgm {
      */
     template <typename Dataset>
     F operator()(const Dataset& ds,
-                 const domain_type& head, const domain_type& tail) {
+                 const domain<Arg>& head, const domain<Arg>& tail) {
       assert(disjoint(head, tail));
-      return operator()(ds, head + tail).conditional(tail);
+      return operator()(ds, head + tail).conditional(head.arity());
     }
 
   private:
     //! The maximum likelihood estimator of the factor parameters.
-    mle_type mle_;
+    typename F::mle_type mle_;
 
   }; // class factor_mle
 

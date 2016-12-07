@@ -10,22 +10,22 @@ namespace libgm {
    * A maximum likelihood estimator of moment Gaussian distribution
    * parameters.
    *
-   * \tparam T the real type representing the parameters
+   * \tparam RealType the real type representing the parameters
    */
-  template <typename T = double>
+  template <typename RealType = double>
   class moment_gaussian_mle {
   public:
     //! The regularization parameter.
-    typedef T regul_type;
+    typedef RealType regul_type;
 
     //! The parameters of the distribution computed by this estimator.
-    typedef moment_gaussian_param<T> param_type;
+    typedef moment_gaussian_param<RealType> param_type;
 
     //! The type that represents an unweighted observations.
-    typedef dense_vector<T> data_type;
+    typedef dense_vector<RealType> data_type;
 
     //! The type that represents the weight of an observation.
-    typedef T weight_type;
+    typedef RealType weight_type;
 
     /**
      * Creates a maximum likelihood estimator with the specified
@@ -44,19 +44,31 @@ namespace libgm {
      * \tparam Range a range with values convertible to std::pair<data_type, T>
      */
     template <typename Range>
-    param_type operator()(const Range& samples, std::size_t n) {
-      return incremental_mle_eval(*this, samples, n);
+    param_type operator()(matrix_ref<RealType> samples, std::size_t n) {
+      mat_type xxt = samples * samples.transpose() / samples.cols();
+      vec_type mean = samples.rowwise.mean();
+      return { mean, xxt - mean * mean.transpose() };
+    }
+
+
+
+
+      for (std::ptrdiff_t i = 0; i < samples.cols(); ++i) {
+        process(samples.col(i), weights[i]);
+      }
+      return param();
+      //return incremental_mle_eval(*this, samples, n);
     }
 
     //! Initializes the estimator to the given dimensionality of data.
     void initialize(std::size_t n) {
       sumx_.setZero(n);
-      sumxxt_ = dense_matrix<T>::Identity(n, n) * regul_;
+      sumxxt_ = dense_matrix<RealType>::Identity(n, n) * regul_;
       weight_ = T(0);
     }
 
     //! Processes a single weighted data point.
-    void process(const dense_vector<T>& x, T weight) {
+    void process(vector_ref<RealType> x, RealType weight) {
       sumx_   += weight * x;
       sumxxt_ += weight * x * x.transpose();
       weight_ += weight;
@@ -72,15 +84,15 @@ namespace libgm {
     }
 
     //! Returns the weight of all the data points processed so far.
-    T weight() const {
+    RealType weight() const {
       return weight_;
     }
 
   private:
-    T regul_;                  //!< The regularization parameter.
-    dense_vector<T> sumx_;   //!< The accumulated first moment.
-    dense_matrix<T> sumxxt_; //!< The accumulated second moment.
-    T weight_;                 //!< The accumulated weight.
+    RealType regul_;                //!< The regularization parameter.
+    dense_vector<RealType> sumx_;   //!< The accumulated first moment.
+    dense_matrix<RealType> sumxxt_; //!< The accumulated second moment.
+    RealType weight_;               //!< The accumulated weight.
 
   }; // class moment_gaussian_mle
 

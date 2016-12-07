@@ -1,11 +1,10 @@
 #ifndef LIBGM_SUM_PRODUCT_CALIBRATE_HPP
 #define LIBGM_SUM_PRODUCT_CALIBRATE_HPP
 
-#include <libgm/graph/algorithm/make_clique.hpp>
 #include <libgm/graph/algorithm/tree_traversal.hpp>
-#include <libgm/graph/bidirectional.hpp>
 #include <libgm/graph/cluster_graph.hpp>
 #include <libgm/graph/undirected_graph.hpp>
+#include <libgm/graph/util/bidirectional.hpp>
 #include <libgm/traits/is_range.hpp>
 
 namespace libgm {
@@ -80,7 +79,7 @@ namespace libgm {
       // initialize the junction tree
       undirected_graph<Arg> mg;
       for (const auto& factor : factors) {
-        make_clique(mg, factor.first);
+        mg.make_clique(factor.first);
       }
       jt_.triangulated(mg, min_degree_strategy());
 

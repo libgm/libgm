@@ -1,11 +1,11 @@
 #ifndef LIBGM_HYBRID_ASSIGNMENT_HPP
 #define LIBGM_HYBRID_ASSIGNMENT_HPP
 
-#include <libgm/argument/argument_traits.hpp>
 #include <libgm/argument/assignment/assignment_value_copy.hpp>
 #include <libgm/argument/assignment/real_assignment.hpp>
 #include <libgm/argument/assignment/uint_assignment.hpp>
 #include <libgm/argument/domain.hpp>
+#include <libgm/argument/traits.hpp>
 #include <libgm/math/eigen/hybrid.hpp>
 
 namespace libgm {

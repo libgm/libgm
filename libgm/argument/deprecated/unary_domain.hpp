@@ -1,7 +1,7 @@
 #ifndef LIBGM_UNARY_DOMAIN_HPP
 #define LIBGM_UNARY_DOMAIN_HPP
 
-#include <libgm/argument/argument_traits.hpp>
+#include <libgm/argument/traits.hpp>
 #include <libgm/serialization/iarchive.hpp>
 #include <libgm/serialization/oarchive.hpp>
 

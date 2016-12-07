@@ -1,8 +1,8 @@
 #ifndef LIBGM_BASIC_ASSIGNMENT_HPP
 #define LIBGM_BASIC_ASSIGNMENT_HPP
 
-#include <libgm/argument/argument_traits.hpp>
 #include <libgm/argument/domain.hpp>
+#include <libgm/argument/traits.hpp>
 #include <libgm/functional/utility.hpp>
 #include <libgm/parser/range_io.hpp>
 #include <libgm/traits/vector_value.hpp>

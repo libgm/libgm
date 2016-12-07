@@ -11,19 +11,19 @@ namespace libgm {
    * Internally, the function represents the Gaussian as a canonical
    * Gaussia,n which can evaluate the log-likelihoods efficiently.
    *
-   * \tparam T the real type representing the value and the parameters.
+   * \tparam RealType the real type representing the value and the parameters.
    */
-  template <typename T = double>
+  template <typename RealType = double>
   class moment_gaussian_ll {
   public:
     //! The real type representing the value.
-    typedef T real_type;
+    typedef RealType real_type;
 
     //! The regularization parameter type.
-    typedef T regul_type;
+    typedef RealType regul_type;
 
     //! The underlying parameter type.
-    typedef moment_gaussian_param<T> param_type;
+    typedef moment_gaussian_param<RealType> param_type;
 
     /**
      * Creates a log-likleihood function for a moment Gaussian distribution.
@@ -35,13 +35,13 @@ namespace libgm {
     /**
      * Returns the log-likelihood of the specified data point.
      */
-    T value(const dense_vector<T>& index) const {
+    RealType value(const dense_vector<RealType>& index) const {
       return f(index);
     }
 
   private:
     //! Underlying representation.
-    canonical_gaussian_param<T> f;
+    canonical_gaussian_param<RealType> f;
 
   }; // class moment_gaussian_ll
 

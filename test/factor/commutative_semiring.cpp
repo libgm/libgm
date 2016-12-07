@@ -1,14 +1,14 @@
 #define BOOST_TEST_MODULE commutative_semiring
 #include <boost/test/unit_test.hpp>
 
-#include <libgm/factor/util/commutative_semiring.hpp>
+#include <libgm/factor/utility/commutative_semiring.hpp>
 
 #include <libgm/argument/universe.hpp>
 #include <libgm/argument/var.hpp>
 #include <libgm/factor/canonical_gaussian.hpp>
 #include <libgm/factor/probability_table.hpp>
 #include <libgm/factor/random/uniform_table_generator.hpp>
-#include <libgm/factor/util/operations.hpp>
+#include <libgm/factor/utility/operations.hpp>
 
 #include <random>
 #include <vector>

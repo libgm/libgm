@@ -1,7 +1,7 @@
 #ifndef LIBGM_REGION_GRAPH_HPP
 #define LIBGM_REGION_GRAPH_HPP
 
-#include <libgm/argument/argument_traits.hpp>
+#include <libgm/argument/annotated.hpp>
 #include <libgm/argument/domain.hpp>
 #include <libgm/datastructure/set_index.hpp>
 #include <libgm/functional/output_iterator_assign.hpp>
@@ -9,10 +9,9 @@
 #include <libgm/graph/algorithm/descendants.hpp>
 #include <libgm/graph/algorithm/graph_traversal.hpp>
 #include <libgm/graph/directed_graph.hpp>
-#include <libgm/graph/id.hpp>
-#include <libgm/graph/property_fn.hpp>
+#include <libgm/graph/util/id.hpp>
 #include <libgm/graph/vertex_traits.hpp>
-#include <libgm/graph/void.hpp>
+#include <libgm/graph/util/void.hpp>
 
 #include <algorithm>
 
@@ -50,23 +49,20 @@ namespace libgm {
     //--------------------------------------------------------------------------
   public:
     // Vertex, edge, and properties
+    using argument_type   = Arg;
     using vertex_type     = id_t;
     using edge_type       = directed_edge<id_t>;
     using vertex_property = VertexProperty;
     using edge_property   = EdgeProperty;
 
     // Iterators
+    using argument_iterator =
+      typename set_index<id_t, domain<Arg> >::value_iterator;
     using vertex_iterator   = typename graph_type::vertex_iterator;
     using neighbor_iterator = typename graph_type::neighbor_iterator;
     using edge_iterator     = typename graph_type::edge_iterator;
     using in_edge_iterator  = typename graph_type::in_edge_iterator;
     using out_edge_iterator = typename graph_type::out_edge_iterator;
-
-    // Argument types
-    using argument_type   = Arg;
-    using argument_hasher = typename argument_traits<Arg>::hasher;
-    using argument_iterator =
-      typename set_index<id_t, domain<Arg>, argument_hasher>::value_iterator;
 
     // Constructors and basic member functions
     //--------------------------------------------------------------------------
@@ -92,9 +88,15 @@ namespace libgm {
     // Graph accessors
     //--------------------------------------------------------------------------
 
-    //! Returns the null vertex, guaranteed to be id_t().
-    static id_t null_vertex() {
-      return id_t();
+    //! Returns the union of all the clusters in this graph.
+    iterator_range<argument_iterator> arguments() const {
+      return cluster_index_.values();
+    }
+
+    //! Returns all edges in the graph
+    iterator_range<edge_iterator>
+    edges() const {
+      return graph_.edges();
     }
 
     //! Returns the range of all vertices.
@@ -113,12 +115,6 @@ namespace libgm {
     iterator_range<neighbor_iterator>
     children(id_t u) const {
       return graph_.children(u);
-    }
-
-    //! Returns all edges in the graph
-    iterator_range<edge_iterator>
-    edges() const {
-      return graph_.edges();
     }
 
     //! Returns the edges incoming to a vertex.
@@ -189,11 +185,6 @@ namespace libgm {
       return graph_.reverse(e);
     }
 
-    //! Returns the union of all the clusters in this graph.
-    iterator_range<argument_iterator> arguments() const {
-      return cluster_index_.values();
-    }
-
     //! Returns the cardinality of the union of all the clusters.
     std::size_t num_arguments() const {
       return cluster_index_.num_values();
@@ -201,17 +192,27 @@ namespace libgm {
 
     //! Returns the cluster associated with a vertex.
     const domain<Arg>& cluster(id_t v) const {
-      return graph_[v].cluster;
+      return graph_[v].property.domain;
     }
 
     //! Returns the separator associated with an edge.
     const domain<Arg>& separator(const edge_type& e) const {
-      return graph_[e].separator;
+      return graph_[e].property.domain;
     }
 
     //! Returns the separator associated with an edge.
     const domain<Arg>& separator(id_t u, id_t v) const {
-      return graph_(u, v).separator;
+      return graph_(u, v).property.domain;
+    }
+
+    //! Returns the annotated property associated with a vertex.
+    const annotated<Arg, VertexProperty>& property(id_t u) const {
+      return graph_[v].property;
+    }
+
+    //! Returns the annotated property associated with an edge.
+    const annotated<Arg, EdgeProperty>& property(const edge_type& e) const {
+      return grah_[e].property;
     }
 
     //! Returns the counting number of a region.
@@ -221,26 +222,26 @@ namespace libgm {
 
     //! Returns the property associated with a vertex
     VertexProperty& operator[](id_t u) {
-      return graph_[u].property;
+      return graph_[u].property.object;
     }
 
     //! Returns the property associated with a vertex
     const VertexProperty& operator[](id_t u) const {
-      return graph_[u].property;
+      return graph_[u].property.object;
     }
 
     //! Returns the property associated with an edge
     EdgeProperty& operator[](const edge_type& e) {
-      return graph_[e].property;
+      return graph_[e].property.object;
     }
 
     //! Returns the property associated with an edge
     const EdgeProperty& operator[](const edge_type& e) const {
-      return graph_[e].property;
+      return graph_[e].property.object;
     }
 
     // Queries
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     //! Returns the ancestors of one or more vertices.
     std::unordered_set<id_t>
@@ -290,7 +291,7 @@ namespace libgm {
     }
 
     // Mutating operations
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     /**
      * Adds a region with the given cluster and vertex property.
@@ -391,7 +392,7 @@ namespace libgm {
     }
 
     // Region graph constructions
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     /**
      * Copies the structure of a region graph to this one.
@@ -418,7 +419,7 @@ namespace libgm {
      */
     template <typename Range>
     void bethe(const Range& root_clusters) {
-      std::unordered_map<Arg, id_t, argument_hasher> var_region;
+      std::unordered_map<Arg, id_t> var_region;
       clear();
 
       for (const domain<Arg>& cluster : root_clusters) {
@@ -445,7 +446,7 @@ namespace libgm {
     template <typename Range>
     void saturated(const Range& root_clusters) {
       std::unordered_set<domain<Arg> > clusters;
-      set_index<id_t, domain<Arg>, argument_hasher> index;
+      set_index<id_t, domain<Arg> > index;
       clear();
 
       // add the root clusters
@@ -498,37 +499,31 @@ namespace libgm {
     }
 
     // Private classes
-    //==========================================================================
+    //--------------------------------------------------------------------------
   private:
     /**
      * The information stored with each vertex of the region graph.
      */
     struct vertex_info {
-      //! The cluster associated with this vertex.
-      domain<Arg> cluster;
+      //! The vertex property annotated with the cluster.
+      annotated<Arg, VertexProperty> property;
 
       //! The counting number.
       int counting;
 
-      //! The property associated with this vertex.
-      VertexProperty property;
-
       //! Default constructor. Default-initializes the property.
       vertex_info()
-        : counting(), property() { }
+        : counting() { }
 
       //! Construct sthe vertex info with teh given cluster and property.
       vertex_info(const domain<Arg>& cluster,
                   const VertexProperty& property = VertexProperty())
-        : cluster(cluster), counting(), property(property) { }
+        : data(cluster, property), counting() { }
 
       //! Outputs the vertex_info to an output stream.
       friend std::ostream&
       operator<<(std::ostream& out, const vertex_info& info) {
-        out << '(' << info.cluster
-            << ' ' << info.counting
-            << ' ' << info.property
-            << ')';
+        out << '(' << info.property << " " << info.counting << ')';
         return out;
       }
     }; // struct vertex_info
@@ -537,34 +532,29 @@ namespace libgm {
      * The information stored with each edge of the region graph.
      */
     struct edge_info {
-      //! The intersection of the two adjacent clusters.
-      domain<Arg> separator;
-
-      //! The property associated with the edge.
-      EdgeProperty property;
+      //! The edge property annotated with the separator.
+      annotated<Arg, EdgeProperty> property;
 
       //! Default constructor. Default-initializes the property.
       edge_info() : property() { }
 
       //! Constructor
       edge_info(const domain<Arg>& separator, const EdgeProperty& property)
-        : separator(separator), property(property) { }
+        : data(separator, property) { }
 
       //! Outputs the edge informaitno to an output stream.
       friend std::ostream&
       operator<<(std::ostream& out, const edge_info& info) {
-        out << '(' << info.separator
-            << ' ' << info.property
-            << ')';
+        out << '(' << info.property << ')';
         return out;
       }
-    }; // struct region_graph
+    }; // struct edge_info
 
     // Private data members
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     //! An index that maps variables (nodes) to vertices this region graph.
-    set_index<id_t, domain<Arg>, argument_hasher> cluster_index_;
+    set_index<id_t, domain<Arg> > cluster_index_;
 
     //! The underlying graph
     directed_graph<id_t, vertex_info, edge_info> graph_;

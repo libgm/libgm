@@ -1,7 +1,7 @@
 #ifndef LIBGM_HYBRID_DATASET_HPP
 #define LIBGM_HYBRID_DATASET_HPP
 
-#include <libgm/argument/argument_traits.hpp>
+#include <libgm/argument/traits.hpp>
 #include <libgm/argument/hybrid_domain.hpp>
 #include <libgm/math/eigen/hybrid.hpp>
 #include <libgm/math/random/permutations.hpp>

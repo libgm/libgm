@@ -4,7 +4,7 @@
 #include <libgm/argument/domain.hpp>
 #include <libgm/argument/real_assignment.hpp>
 #include <libgm/factor/base/gaussian_factor.hpp>
-#include <libgm/factor/traits.hpp>
+#include <libgm/factor/utility/traits.hpp>
 #include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/logarithmic.hpp>
 #include <libgm/math/param/canonical_gaussian_param.hpp>

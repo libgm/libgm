@@ -27,7 +27,8 @@ namespace libgm {
     using reference = typename std::iterator_traits<Iterator>::reference;
 
     //! Constructs a null range.
-    iterator_range() { }
+    iterator_range()
+      : begin_(), end_() { }
 
     //! Constructs a range with the given start and end.
     iterator_range(const Iterator& begin, const Iterator& end)

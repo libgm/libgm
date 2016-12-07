@@ -3,7 +3,7 @@
 
 #include <libgm/enable_if.hpp>
 #include <libgm/argument/argument_cast.hpp>
-#include <libgm/argument/argument_traits.hpp>
+#include <libgm/argument/traits.hpp>
 #include <libgm/datastructure/uint_vector.hpp>
 #include <libgm/functional/hash.hpp>
 #include <libgm/functional/utility.hpp>
@@ -409,17 +409,14 @@ namespace libgm {
       return pos;
     }
 
-    //????
     /**
-     * Returns the instances of a field for one index.???
+     * Returns the instances of a field for one index.
      */
-    LIBGM_ENABLE_IF_D(is_same<Arg, field<indexable<Arg>::value, typename A = Arg)
-    domain<instance_type>
-    operator()(typename argument_traits<A>::index_type index) const {
-      domain<instance_type> result;
-      result.reserve(this->size());
-      for (Arg arg : *this) {
-        result.push_back(arg(index));
+    LIBGM_ENABLE_IF_N(argument_traits<Arg>::is_indexable, typename Index)
+    domain<indexed<Arg, Index> > operator()(Index index) const {
+      domain<indexed<Arg, Index> > result(this->size());
+      for (std::size_t i = 0; i < result.size(); ++i) {
+        result[i] = (*this)[i](index);
       }
       return result;
     }

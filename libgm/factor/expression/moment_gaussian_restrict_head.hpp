@@ -2,7 +2,7 @@
 #define LIBGM_MOMENT_GAUSSIAN_RESTRICT_HEAD_HPP
 
 #include <libgm/factor/expression/moment_gaussian_base.hpp>
-#include <libgm/factor/traits.hpp>
+#include <libgm/factor/utility/traits.hpp>
 #include <libgm/math/param/moment_gaussian_param.hpp>
 
 namespace libgm { namespace experimental {

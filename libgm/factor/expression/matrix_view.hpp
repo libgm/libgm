@@ -2,7 +2,7 @@
 #define LIBGM_MATRIX_VIEW_HPP
 
 #include <libgm/factor/expression/matrix_base.hpp>
-#include <libgm/factor/traits.hpp>
+#include <libgm/factor/utility/traits.hpp>
 #include <libgm/functional/tuple.hpp>
 
 namespace libgm { namespace experimental {

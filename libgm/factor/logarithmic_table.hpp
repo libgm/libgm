@@ -3,7 +3,7 @@
 
 #include <libgm/enable_if.hpp>
 #include <libgm/datastructure/table.hpp>
-#include <libgm/factor/traits.hpp>
+#include <libgm/factor/utility/traits.hpp>
 #include <libgm/factor/expression/matrix_function.hpp>
 #include <libgm/factor/expression/matrix_view.hpp>
 #include <libgm/factor/expression/table_base.hpp>

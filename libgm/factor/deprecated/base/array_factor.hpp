@@ -1,7 +1,7 @@
 #ifndef LIBGM_ARRAY_FACTOR_HPP
 #define LIBGM_ARRAY_FACTOR_HPP
 
-#include <libgm/argument/argument_traits.hpp>
+#include <libgm/argument/traits.hpp>
 #include <libgm/argument/array_domain.hpp>
 #include <libgm/argument/uint_assignment.hpp>
 #include <libgm/datastructure/uint_vector.hpp>

@@ -1,9 +1,9 @@
 #ifndef LIBGM_VEC_HPP
 #define LIBGM_VEC_HPP
 
-#include <libgm/argument/argument_traits.hpp>
+#include <libgm/argument/indexed.hpp>
+#include <libgm/argument/traits.hpp>
 #include <libgm/argument/universe.hpp>
-#include <libgm/functional/hash.hpp>
 #include <libgm/graph/vertex_traits.hpp>
 #include <libgm/serialization/string.hpp>
 #include <libgm/serialization/vector.hpp>
@@ -20,9 +20,8 @@ namespace libgm {
    * A class that represents a basic vector (a multivariate argument).
    * A vec object models the MixedArgument concept, i.e., it can represent
    * either a discrete or a continuous argument. Internally, a vector
-   * is represented by a descriptor (a pointer to an object describing the
-   * vector type and values) and an optional  time index. Presently,
-   * the time index is discrete, but this restriction will be relaxed later.
+   * is represented by a pointer to an object describing the vector type and
+   * values.
    *
    * The typical way of creating vectors is via the static functions discrete()
    * and continuous(), whose first argument is a universe that will maintain the
@@ -39,7 +38,7 @@ namespace libgm {
    * were created using it.
    *
    * This class models the MixedArgument, MultivariateArgumnet, and
-   * IndexedArgument concepts.
+   * IndexableArgument concepts.
    */
   class vec {
   public:
@@ -52,23 +51,16 @@ namespace libgm {
     //! The argument category (mixed).
     using argument_category = mixed_tag;
 
-    //! The descriptor of the variable and the field based on it.
-    using descriptor = const description*;
-
-    //! The argument index (integral).
-    using index_type = std::size_t;
-
-    //! The instance of a vector (void because vectors are not indexable).
-    using instance_type = void;
+    //! The objects of class vec can act as processes, i.e., are indexable.
+    static const bool is_indexable = true;
 
     //! An enum representing the category of the vector.
     enum category_enum { NONE = 0, DISCRETE = 1, CONTINUOUS = 2 };
 
     /**
-     * Constructs a vector with the given descriptor and index.
+     * Default constructor; constructs a null vector.
      */
-    explicit vec(const description* desc = nullptr, std::size_t index = -1)
-      : desc_(desc), index_(index) { }
+    vec() : desc_(nullptr) { }
 
     /**
      * Constructs a discrete vector with the given name and a single dimension
@@ -78,7 +70,7 @@ namespace libgm {
                         const std::string& name,
                         std::size_t num_values) {
       std::vector<std::size_t> num_values_vec = { num_values };
-      return vec(u.acquire(new description(name, num_values_vec )));
+      return vec(u.acquire(new description(name, num_values_vec)));
     }
 
     /**
@@ -117,28 +109,25 @@ namespace libgm {
       return vec(u.acquire(new description(name, num_dimensions)));
     }
 
-    //! Converts the vector to a pair of the descriptor and index.
-    std::pair<descriptor, std::size_t> pair() const {
-      return { desc_, index_ };
+    //! Returns the descriptor of the vector.
+    const description* desc() const {
+      return desc_;
     }
 
     //! Saves the vector to an archive.
     void save(oarchive& ar) const {
       ar.serialize_dynamic(desc_);
-      if (desc_) { ar << index_; }
     }
 
     //! Loads the vector from an archive.
     void load(iarchive& ar) {
       desc_ = ar.deserialize_dynamic<description>();
-      if (desc_) { ar >> index_; } else { index_ = 0; }
     }
 
     //! Prints a vector to an output stream.
     friend std::ostream& operator<<(std::ostream& out, vec x) {
       if (x.desc_) {
         out << x.desc_;
-        if (x.indexed()) { out << '(' << x.index_ << ')'; }
       } else {
         out << "null";
       }
@@ -150,40 +139,32 @@ namespace libgm {
 
     //! Compares two vectors.
     friend bool operator==(vec x, vec y) {
-      return x.desc_ == y.desc_ && x.index_ == y.index_;
+      return x.desc_ == y.desc_;
     }
 
     //! Compares two vectors.
     friend bool operator!=(vec x, vec y) {
-      return x.desc_ != y.desc_ || x.index_ != y.index_;
+      return x.desc_ != y.desc_;
     }
 
     //! Compares two vectors.
     friend bool operator<(vec x, vec y) {
-      return x.pair() < y.pair();
+      return x.desc_ < y.desc_;
     }
 
     //! Compares two vectors.
     friend bool operator>(vec x, vec y) {
-      return x.pair() > y.pair();
+      return x.desc_ > y.desc_;
     }
 
     //! Compares two vectors.
     friend bool operator<=(vec x, vec y) {
-      return x.pair() <= y.pair();
+      return x.desc_ <= y.desc_;
     }
 
     //! Compares two vectors.
     friend bool operator>=(vec x, vec y) {
-      return x.pair() >= y.pair();
-    }
-
-    //! Computes the hash of the vector.
-    friend std::size_t hash_value(vec x) {
-      std::size_t seed = 0;
-      libgm::hash_combine(seed, x.desc_);
-      libgm::hash_combine(seed, x.index_);
-      return seed;
+      return x.desc_ >= y.desc_;
     }
 
     // Argument properties
@@ -235,19 +216,10 @@ namespace libgm {
       return desc_->category == CONTINUOUS;
     }
 
-    //! Returns true if the vector is associated with a process.
-    bool indexed() const {
-      return index_ != std::size_t(-1);
-    }
-
-    //! Returns the descriptor of the vector.
-    const description* desc() const {
-      return desc_;
-    }
-
-    //! Returns the index of the vector.
-    std::size_t index() const {
-      return index_;
+    //! Returns an instance of a vector process for a single index.
+    template <typename Index>
+    indexed<vec, Index> operator()(Index index) const {
+      return { *this, index };
     }
 
     // Vector description
@@ -395,23 +367,15 @@ namespace libgm {
     }; // struct description
 
   private:
+    //! Constructs a vector with the given descriptor and index.
+    explicit vec(const description* desc)
+      : desc_(desc) { }
+
     //! The underlying description.
     const description* desc_;
-
-    //! The index associated with the vector.
-    std::size_t index_;
 
   }; // class vec
 
 } // namespace libgm
-
-
-namespace std {
-
-  template <>
-  struct hash<libgm::vec>
-    : libgm::default_hash<libgm::vec> { };
-
-} // namespace std
 
 #endif

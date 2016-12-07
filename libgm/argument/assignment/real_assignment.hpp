@@ -1,7 +1,7 @@
 #ifndef LIBGM_REAL_ASSIGNMENT_HPP
 #define LIBGM_REAL_ASSIGNMENT_HPP
 
-#include <libgm/argument/basic_assignment.hpp>
+#include <libgm/argument/assignment/basic_assignment.hpp>
 #include <libgm/math/eigen/dense.hpp>
 
 namespace libgm {

@@ -1,16 +1,19 @@
 #ifndef LIBGM_BIPARTITE_GRAPH_HPP
 #define LIBGM_BIPARTITE_GRAPH_HPP
 
-#include <libgm/functional/hash.hpp>
-#include <libgm/graph/vertex_traits.hpp>
-#include <libgm/graph/void.hpp>
+#include <libgm/graph/bipartite_edge.hpp>
+#include <libgm/graph/util/sampling.hpp>
+#include <libgm/graph/util/void.hpp>
+#include <libgm/iterator/map_bind1_iterator.hpp>
+#include <libgm/iterator/map_bind2_iterator.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
+#include <libgm/iterator/map_map_iterator.hpp>
 #include <libgm/range/iterator_range.hpp>
-#include <libgm/serialization/serialize.hpp>
+#include <libgm/serialization/iarchive.hpp>
+#include <libgm/serialization/oarchive.hpp>
 
 #include <iterator>
 #include <map>
-#include <random>
 #include <unordered_map>
 
 namespace libgm {
@@ -22,13 +25,19 @@ namespace libgm {
    * arguments Vertex1 and Vertex2, respectively. These two types _must_ be
    * distinct and not convertible to each other. This requirement is necessary
    * to allow for overload resolution to work in functions, such as neighbors().
-   * The class defines the member type vertex, which is effectively a union
-   * of the two vertex types.
    *
-   * \tparam Vertex1 the type that represents a type-1 vertex
-   * \tparam Vertex2 the type that represents a type-2 vertex
-   * \tparam VertexProperty the type of data associated with the vertices
-   * \tparam EdgeProperty the type of data associated with the edge
+   * \tparam Vertex1
+   *         The type that represents a type-1 vertex.
+   * \tparam Vertex2
+   *         The type that represents a type-2 vertex.
+   * \tparam Vertex1Property
+   *         The type of data associated with type-1 vertices.
+   * \tparam Vertex2Property
+   *         The type of data associated with type-2 vertices.
+   * \tparam EdgeProperty
+   *         The type of data associated with edges.
+   *
+   * \ingroup graph_types
    */
   template <typename Vertex1,
             typename Vertex2,
@@ -38,73 +47,65 @@ namespace libgm {
   class bipartite_graph {
 
     // Private types
-    //==========================================================================
+    //--------------------------------------------------------------------------
   private:
-    typedef typename vertex_traits<Vertex1>::hasher vertex1_hasher;
-    typedef typename vertex_traits<Vertex2>::hasher vertex2_hasher;
-
-    typedef std::unordered_map<Vertex1, EdgeProperty*, vertex1_hasher>
-      neighbor1_map;
-    typedef std::unordered_map<Vertex2, EdgeProperty*, vertex2_hasher>
-      neighbor2_map;
+    using neighbor1_map = std::unordered_map<Vertex2, EdgeProperty*>;
+    using neighbor2_map = std::unordered_map<Vertex1, EdgeProperty*>;
 
     struct vertex1_data {
       Vertex1Property property;
-      neighbor2_map neighbors;
+      neighbor1_map neighbors;
       vertex1_data() : property() { }
     };
 
     struct vertex2_data {
       Vertex2Property property;
-      neighbor1_map neighbors;
+      neighbor2_map neighbors;
       vertex2_data() : property() { }
     };
 
-    typedef std::unordered_map<Vertex1, vertex1_data, vertex1_hasher>
-      vertex1_data_map;
-    typedef std::unordered_map<Vertex2, vertex2_data, vertex2_hasher>
-      vertex2_data_map;
+    using vertex1_data_map = std::unordered_map<Vertex1, vertex1_data>;
+    using vertex2_data_map = std::unordered_map<Vertex2, vertex2_data>;
 
     // Public types
-    //==========================================================================
+    //--------------------------------------------------------------------------
   public:
-    // vertex and edge types
-    typedef Vertex1 vertex1_type;
-    typedef Vertex2 vertex2_type;
-    class edge_type;
+    // Vertex types, edge type, and properties
+    using vertex1_type     = Vertex1;
+    using vertex2_type     = Vertex2;
+    using edge_type        = bipartite_edge<Vertex1, Vertex2>;
+    using vertex1_property = Vertex1Property;
+    using vertex2_property = Vertex2Property;
+    using edge_property    = EdgeProperty;
 
-    // properties
-    typedef Vertex1Property vertex1_property;
-    typedef Vertex2Property vertex2_property;
-    typedef EdgeProperty edge_property;
-
-    // vertex iterators
-    typedef map_key_iterator<vertex1_data_map> vertex1_iterator;
-    typedef map_key_iterator<vertex2_data_map> vertex2_iterator;
-    typedef map_key_iterator<neighbor1_map> neighbor1_iterator;
-    typedef map_key_iterator<neighbor2_map> neighbor2_iterator;
-
-    // edge iterators (forward declarations and typedefs)
-    class edge_iterator;
-    template <typename Target, typename Neighbors> class in_edge_iterator;
-    template <typename Source, typename Neighbors> class out_edge_iterator;
-    typedef in_edge_iterator<Vertex1, neighbor2_map> in1_edge_iterator;
-    typedef in_edge_iterator<Vertex2, neighbor1_map> in2_edge_iterator;
-    typedef out_edge_iterator<Vertex1, neighbor2_map> out1_edge_iterator;
-    typedef out_edge_iterator<Vertex2, neighbor1_map> out2_edge_iterator;
+    // Iterators
+    using vertex1_iterator   = map_key_iterator<vertex1_data_map>;
+    using vertex2_iterator   = map_key_iterator<vertex2_data_map>;
+    using neighbor1_iterator = map_key_iterator<neighbor1_map>;
+    using neighbor2_iterator = map_key_iterator<neighbor2_map>;
+    using in1_edge_iterator  =
+      map_bind2_iterator<neighbor1_map, edge_type, Vertex1>;
+    using in2_edge_iterator  =
+      map_bind2_iterator<neighbor2_map, edge_type, Vertex2>;
+    using out1_edge_iterator =
+      map_bind1_iterator<neighbor1_map, edge_type, Vertex1>;
+    using out2_edge_iterator =
+      map_bind1_iterator<neighbor2_map, edge_type, Vertex2>;
+    using edge_iterator =
+      map_map_iterator<vertex1_data_map, neighbor1_map, edge_type>;
 
     // Constructors, destructors, and related functions
-    //==========================================================================
+    //--------------------------------------------------------------------------
   public:
     //! Creates an empty graph.
     bipartite_graph()
-      : edge_count_(0) { }
+      : num_edges_(0) { }
 
     //! Creates a graph from a range of vertex pairs
     template <typename Range>
     explicit bipartite_graph(const Range& edges, typename Range::iterator* = 0)
-      : edge_count_(0) {
-      for (const std::pair<Vertex1, Vertex2>& p : edges) {
+      : num_edges_(0) {
+      for (std::pair<Vertex1, Vertex2> p : edges) {
         add_edge(p.first, p.second);
       }
     }
@@ -125,9 +126,10 @@ namespace libgm {
       free_edge_data();
       data1_ = g.data1_;
       data2_ = g.data2_;
-      edge_count_ = g.edge_count_;
+      num_edges_ = g.num_edges_;
       for (edge_type e : edges()) {
-        edge_property* ptr = new edge_property(*e.property_);
+        EdgeProperty* ptr =
+          new EdgeProperty(*static_cast<EdgeProperty*>(e.property_));
         data1_[e.v1()].neighbors[e.v2()] = ptr;
         data2_[e.v2()].neighbors[e.v1()] = ptr;
       }
@@ -138,197 +140,172 @@ namespace libgm {
     friend void swap(bipartite_graph& a, bipartite_graph& b) {
       swap(a.data1_, b.data1_);
       swap(a.data2_, b.data2_);
-      std::swap(a.edge_count_, b.edge_count_);
+      std::swap(a.num_edges_, b.num_edges_);
     }
 
     // Accessors
-    //==========================================================================
+    //--------------------------------------------------------------------------
   public:
-    //! Returns the null type-1 vertex.
-    static Vertex1 null_vertex1() {
-      return vertex_traits<Vertex1>::null();
-    }
-
-    //! Returns the null type-2 vertex.
-    static Vertex2 null_vertex2() {
-      return vertex_traits<Vertex2>::null();
-    }
-
-    //! Returns the range of all type-1 vertices
+    //! Returns the range of all type-1 vertices.
     iterator_range<vertex1_iterator>
     vertices1() const {
-      return { vertex1_iterator(data1_.begin()),
-               vertex1_iterator(data1_.end()) };
+      return { data1_.begin(), data1_.end() };
     }
 
-    //! Returns the range of all type-2 vertices
+    //! Returns the range of all type-2 vertices.
     iterator_range<vertex2_iterator>
     vertices2() const {
-      return { vertex2_iterator(data2_.begin()),
-               vertex2_iterator(data2_.end()) };
+      return { data2_.begin(), data2_.end() };
     }
 
-    //! Returns the type-2 vertices adjacent to a type-1 vertex
-    iterator_range<neighbor2_iterator>
-    neighbors(Vertex1 u) const {
-      const vertex1_data& data = find_vertex_data(u);
-      return { neighbor2_iterator(data.neighbors.begin()),
-               neighbor2_iterator(data.neighbors.end()) };
-    }
-
-    //! Returns the type-1 vertices adjacent to a type-2 vertex
-    iterator_range<neighbor1_iterator>
-    neighbors(Vertex2 u) const {
-      const vertex2_data& data = find_vertex_data(u);
-      return { neighbor1_iterator(data.neighbors.begin()),
-               neighbor1_iterator(data.neighbors.end()) };
-    }
-
-    //! Returns all edges in the graph
+    //! Returns all edges in the graph.
     iterator_range<edge_iterator>
     edges() const {
-      return { edge_iterator(data1_.begin(), data1_.end()),
-               edge_iterator(data1_.end(), data1_.end()) };
+      return { { data1_.begin(), data1_.end(), &vertex_data1_map::neighbors },
+               { data1_.end(), data1_.end(), &vertex_data1_map::neighbors } };
     }
 
-    //! Returns the edges incoming to a type-1 vertex
+    //! Returns the type-2 vertices adjacent to a type-1 vertex.
+    iterator_range<neighbor1_iterator>
+    neighbors(Vertex1 u) const {
+      const vertex1_data& data = data1_.at(u);
+      return { data.neighbors.begin(), data.neighbors.end() };
+    }
+
+    //! Returns the type-1 vertices adjacent to a type-2 vertex.
+    iterator_range<neighbor2_iterator>
+    neighbors(Vertex2 u) const {
+      const vertex2_data& data = data2_.at(u);
+      return { data.neighbors.begin(), data.neighbors.end() };
+    }
+
+    //! Returns the edges incoming to a type-1 vertex.
     iterator_range<in1_edge_iterator>
     in_edges(Vertex1 u) const {
-      const vertex1_data& data = find_vertex_data(u);
-      return { in1_edge_iterator(u, data.neighbors.begin()),
-               in1_edge_iterator(u, data.neighbors.end()) };
+      const vertex1_data& data = data1_.at(u);
+      return { { data.neighbors.begin(), u }, { data.neighbors.end(), u } };
     }
 
-    //! Returns the edges incoming to a type-2 vertex
+    //! Returns the edges incoming to a type-2 vertex.
     iterator_range<in2_edge_iterator>
     in_edges(Vertex2 u) const {
-      const vertex2_data& data = find_vertex_data(u);
-      return { in2_edge_iterator(u, data.neighbors.begin()),
-               in2_edge_iterator(u, data.neighbors.end()) };
+      const vertex2_data& data = data2_.at(u);
+      return { { data.neighbors.begin(), u }, { data.neighbors.end(), u } };
     }
 
-    //! Returns the edges outgoing from a type-1 vertex
+    //! Returns the edges outgoing from a type-1 vertex.
     iterator_range<out1_edge_iterator>
     out_edges(Vertex1 u) const {
-      const vertex1_data& data = find_vertex_data(u);
-      return { out1_edge_iterator(u, data.neighbors.begin()),
-               out1_edge_iterator(u, data.neighbors.end()) };
+      const vertex1_data& data = data1_.at(u);
+      return { { data.neighbors.begin(), u }, { data.neighbors.end(), u } };
     }
 
-    //! Returns the edges outgoing from a type-2 vertex
+    //! Returns the edges outgoing from a type-2 vertex.
     iterator_range<out2_edge_iterator>
     out_edges(Vertex2 u) const {
-      const vertex2_data& data = find_vertex_data(u);
-      return { out2_edge_iterator(u, data.neighbors.begin()),
-               out2_edge_iterator(u, data.neighbors.end()) };
+      const vertex2_data& data = data2_.at(u);
+      return { { data.neighbors.begin(), u }, { data.neighbors.end(), u } };
     }
 
-    //! Returns true if the graph contains the given type-1 vertex
+    //! Returns true if the graph contains the given type-1 vertex.
     bool contains(Vertex1 u) const {
       return data1_.find(u) != data1_.end();
     }
 
-    //! Returns true if the graph contains the given type-2 vertex
+    //! Returns true if the graph contains the given type-2 vertex.
     bool contains(Vertex2 u) const {
       return data2_.find(u) != data2_.end();
     }
 
-    //! Returns true if the graph contains an undirected edge {u, v}
+    //! Returns true if the graph contains an undirected edge {u, v}.
     bool contains(Vertex1 u, Vertex2 v) const {
       auto it = data1_.find(u);
-      return it != data1_.end() &&
-        it->second.neighbors.find(v) != it->second.neighbors.end();
+      return it != data1_.end() && it->second.neighbors.count(v);
     }
 
-    //! Returns true if the graph contains an undirected edge
+    //! Returns true if the graph contains an undirected edge.
     bool contains(const edge_type& e) const {
       return contains(e.v1(), e.v2());
     }
 
     //! Returns an undirected edge between u and v. The edge must exist.
-    edge_type edge(Vertex1 u, Vertex2 v) const {
-      const vertex1_data& data = find_vertex_data(u);
-      typename neighbor2_map::const_iterator it = data.neighbors.find(v);
-      assert(it != data.neighbors.end());
-      return edge_type(u, v, it->second);
+    bipartite_edge<Vertex1, Vertex2> edge(Vertex1 u, Vertex2 v) const {
+      return { u, v, data1_.at(u).neighbors.at(v) };
     }
 
     //! Returns an undirected edge between u and v. The edge must exist.
-    edge_type edge(Vertex2 u, Vertex1 v) const {
-      const vertex2_data& data = find_vertex_data(u);
-      typename neighbor1_map::const_iterator it = data.neighbors.find(v);
-      assert(it != data.neighbors.end());
-      return edge_type(u, v, it->second);
+    bipartite_edge<Vertex1, Vertex2> edge(Vertex2 u, Vertex1 v) const {
+      return { u, v, data2_.at(u).neighbors.at(v) };
     }
 
-    //! Returns the number of edges connected to a type-1 vertex
+    //! Returns the number of edges connected to a type-1 vertex.
     std::size_t degree(Vertex1 u) const {
-      return find_vertex_data(u).neighbors.size();
+      return data1_.at(u).neighbors.size();
     }
 
-    //! Returns the number of edges connected to a type-2 vertex
+    //! Returns the number of edges connected to a type-2 vertex.
     std::size_t degree(Vertex2 u) const {
-      return find_vertex_data(u).neighbors.size();
+      return data2_.at(u).neighbors.size();
     }
 
-    //! Returns true if the graph has no vertices
+    //! Returns true if the graph has no vertices.
     bool empty() const {
       return data1_.empty() && data2_.empty();
     }
 
-    //! Returns the number of type-1 vertices
+    //! Returns the number of type-1 vertices.
     std::size_t num_vertices1() const {
       return data1_.size();
     }
 
-    //! Returns the number of type-2 vertices
+    //! Returns the number of type-2 vertices.
     std::size_t num_vertices2() const {
       return data2_.size();
     }
 
-    //! Returns the number of vertices
+    //! Returns the number of vertices.
     std::size_t num_vertices() const {
       return data1_.size() + data2_.size();
     }
 
-    //! Returns the number of edges
+    //! Returns the number of edges.
     std::size_t num_edges() const {
-      return edge_count_;
+      return num_edges_;
     }
 
-    //! Given an undirected edge (u, v), returns the equivalent edge (v, u)
+    //! Given an undirected edge (u, v), returns the equivalent edge (v, u).
     edge_type reverse(const edge_type& e) const {
       return e.reverse();
     }
 
-    //! Returns the property associated with a type-1 vertex
+    //! Returns the property associated with a type-1 vertex.
     const Vertex1Property& operator[](Vertex1 u) const {
-      return find_vertex_data(u).property;
+      return data1_.at(u).property;
     }
 
-    //! Returns the property associated with a type-2 vertex
+    //! Returns the property associated with a type-2 vertex.
     const Vertex2Property& operator[](Vertex2 u) const {
-      return find_vertex_data(u).property;
+      return data2_.at(u).property;
     }
 
-    //! Returns the property associated with a type-1 vertex
+    //! Returns the property associated with a type-1 vertex.
     Vertex1Property& operator[](Vertex1 u) {
-      return find_vertex_data(u).property;
+      return data1_.at(u).property;
     }
 
-    //! Returns the property associated with a type-2 vertex
+    //! Returns the property associated with a type-2 vertex.
     Vertex2Property& operator[](Vertex2 u) {
-      return find_vertex_data(u).property;
+      return data2_.at(u).property;
     }
 
-    //! Returns the property associated with an edge
-    const EdgeProperty& operator[](const edge_type& e) const {
-      return *e.property_;
+    //! Returns the property associated with an edge.
+    const EdgeProperty& operator[](bipartite_edge<Vertex1, Vertex2> e) const {
+      return *static_cast<EdgeProperty*>(e.property_);
     }
 
-    //! Returns the property associated with an edge
-    EdgeProperty& operator[](const edge_type& e) {
-      return *e.property_;
+    //! Returns the property associated with an edge.
+    EdgeProperty& operator[](bipartite_edge<Vertex1, Vertex2> e) {
+      return *static_cast<EdgeProperty*>(e.property_);
     }
 
     /**
@@ -336,7 +313,7 @@ namespace libgm {
      * The edge must exist.
      */
     const EdgeProperty& operator()(Vertex1 u, Vertex2 v) const {
-      return *edge(u, v).property_;
+      return data1_.at(u).neighbors.at(v);
     }
 
     /**
@@ -344,7 +321,7 @@ namespace libgm {
      * The edge is added if necessary.
      */
     EdgeProperty& operator()(Vertex1 u, Vertex2 v) {
-      return *add_edge(u, v).first.property_;
+      return operator[](add_edge(u, v).first);
     }
 
     /**
@@ -353,16 +330,16 @@ namespace libgm {
      */
     template <typename Generator>
     Vertex1 sample_vertex1(Generator& rng) const {
-      return sample_vertex(data1_, rng);
+      return sample_key(data1_, rng); // in sampling.hpp
     }
 
     /**
-     * Draws a random type-2 vertex in the graph, assumign on exists.
+     * Draws a random type-2 vertex in the graph, assuming one exists.
      * \todo ensure sampling is uniform
      */
     template <typename Generator>
     Vertex2 sample_vertex2(Generator& rng) const {
-      return sample_vertex(data2_, rng);
+      return sample_key(data2_, rng); // in sampling.hpp
     }
 
     /**
@@ -381,7 +358,7 @@ namespace libgm {
             vp.second.property != vit->second.property) {
           return false;
         }
-        const neighbor2_map& neighbors = vit->second.neighbors;
+        const neighbor1_map& neighbors = vit->second.neighbors;
         for (const auto& ep : vp.second.neighbors) {
           auto eit = neighbors.find(ep.first);
           if (eit == neighbors.end() || *ep.second != *eit->second) {
@@ -399,7 +376,7 @@ namespace libgm {
       return true;
     }
 
-    //! Compares the graph structure and the vertex & edge properties
+    //! Compares the graph structure and the vertex & edge properties.
     bool operator!=(const bipartite_graph& g) const {
       return !operator==(g);
     }
@@ -409,13 +386,11 @@ namespace libgm {
     operator<<(std::ostream& out, const bipartite_graph& g) {
       out << "Type-1 vertices" << std::endl;
       for (Vertex1 u : g.vertices1()) {
-        vertex_traits<Vertex1>::print(out, u);
-        out << ": " << g[u] << std::endl;
+        out << u << ": " << g[u] << std::endl;
       }
       out << "Type-2 vertices" << std::endl;
       for (Vertex2 u : g.vertices2()) {
-        vertex_traits<Vertex2>::print(out, u);
-        out << ": " << g[u] << std::endl;
+        out << u << ": " << g[u] << std::endl;
       }
       out << "Edges" << std::endl;
       for (edge_type e : g.edges()) {
@@ -424,21 +399,8 @@ namespace libgm {
       return out;
     }
 
-    //! Prints the degree distribution for the given vertex range
-    template <typename Range>
-    void print_degree_distribution(std::ostream& out,
-                                   const Range& range) const {
-      std::map<std::size_t, std::size_t> count;
-      for (auto v : range) {
-        ++count[degree(v)];
-      }
-      for (const auto& p : count) {
-        std::cout << p.first << ' ' << p.second << std::endl;
-      }
-    }
-
     // Modifications
-    //==========================================================================
+    //--------------------------------------------------------------------------
     /**
      * Adds a type-1 vertex to a graph and associates a property with
      * that vertex. If the vertex is already present, its property is
@@ -446,7 +408,7 @@ namespace libgm {
      * \return true if the insertion took place (i.e., vertex was not present).
      */
     bool add_vertex(Vertex1 u, const Vertex1Property& p = Vertex1Property()) {
-      assert(u != null_vertex1());
+      assert(u != Vertex1());
       if (contains(u)) {
         return false;
       } else {
@@ -462,7 +424,7 @@ namespace libgm {
      * \return true if the insertion took place (i.e., vertex was not present).
      */
     bool add_vertex(Vertex2 u, const Vertex2Property& p = Vertex2Property()) {
-      assert(u != null_vertex2());
+      assert(u != Vertex2());
       if (contains(u)) {
         return false;
       } else {
@@ -476,10 +438,9 @@ namespace libgm {
      * property is not overwritten. If u or v are not present, they are added.
      * \return the edge and bool indicating whether the edge was newly added.
      */
-    std::pair<edge_type, bool>
+    std::pair<bipartite_edge<Vertex1, Vertex2>, bool>
     add_edge(Vertex1 u, Vertex2 v, const EdgeProperty& p = EdgeProperty()) {
-      assert(u != null_vertex1());
-      assert(v != null_vertex2());
+      assert(u != Vertex1() && v != Vertex2());
       auto uit = data1_.find(u);
       if (uit != data1_.end()) {
         auto vit = uit->second.neighbors.find(v);
@@ -490,7 +451,7 @@ namespace libgm {
       EdgeProperty* ptr = new EdgeProperty(p);
       data1_[u].neighbors[v] = ptr;
       data2_[v].neighbors[u] = ptr;
-      ++edge_count_;
+      ++num_edges_;
       return std::make_pair(edge_type(u, v, ptr), true);
     }
 
@@ -509,7 +470,7 @@ namespace libgm {
     //! Removes an undirected edge {u, v}. The edge must be present.
     void remove_edge(Vertex1 u, Vertex2 v) {
       // find the edge (u, v)
-      vertex1_data& data = find_vertex_data(u);
+      vertex1_data& data = data1_.at(u);
       auto it = data.neighbors.find(v);
       assert(it != data.neighbors.end());
 
@@ -517,13 +478,13 @@ namespace libgm {
       delete it->second;
       data.neighbors.erase(it);
       data2_[v].neighbors.erase(u);
-      --edge_count_;
+      --num_edges_;
     }
 
     //! Removes all edges incident to a type-1 vertex.
     void remove_edges(Vertex1 u) {
-      neighbor2_map& neighbors = find_vertex_data(u).neighbors;
-      edge_count_ -= neighbors.size();
+      neighbor1_map& neighbors = data1_.at(u).neighbors;
+      num_edges_ -= neighbors.size();
       for (const auto& p : neighbors) {
         data2_[p.first].neighbors.erase(u);
         delete p.second;
@@ -533,8 +494,8 @@ namespace libgm {
 
     //! Removes all edges incident to a type-2 vertex.
     void remove_edges(Vertex2 u) {
-      neighbor1_map& neighbors = find_vertex_data(u).neighbors;
-      edge_count_ -= neighbors.size();
+      neighbor2_map& neighbors = data2_.at(u).neighbors;
+      num_edges_ -= neighbors.size();
       for (const auto& p : neighbors) {
         data1_[p.first].neighbors.erase(u);
         delete p.second;
@@ -551,7 +512,7 @@ namespace libgm {
       for (typename vertex2_data_map::reference p : data2_) {
         p.second.neighbors.clear();
       }
-      edge_count_ = 0;
+      num_edges_ = 0;
     }
 
     //! Removes all vertices and edges from the graph.
@@ -559,7 +520,7 @@ namespace libgm {
       free_edge_data();
       data1_.clear();
       data2_.clear();
-      edge_count_ = 0;
+      num_edges_ = 0;
     }
 
     //! Saves the graph to an archive.
@@ -597,264 +558,17 @@ namespace libgm {
       }
     }
 
-    // Private helper functions
-    //==========================================================================
+    // Private members
+    //--------------------------------------------------------------------------
   private:
-    const vertex1_data& find_vertex_data(Vertex1 u) const {
-      typename vertex1_data_map::const_iterator it = data1_.find(u);
-      assert(it != data1_.end());
-      return it->second;
-    }
-
-    const vertex2_data& find_vertex_data(Vertex2 u) const {
-      typename vertex2_data_map::const_iterator it = data2_.find(u);
-      assert(it != data2_.end());
-      return it->second;
-    }
-
-    vertex1_data& find_vertex_data(Vertex1 u) {
-      typename vertex1_data_map::iterator it = data1_.find(u);
-      assert(it != data1_.end());
-      return it->second;
-    }
-
-    vertex2_data& find_vertex_data(Vertex2 u) {
-      typename vertex2_data_map::iterator it = data2_.find(u);
-      assert(it != data2_.end());
-      return it->second;
-    }
-
-    template <typename DataMap, typename Generator>
-    static typename DataMap::key_type
-    sample_vertex(DataMap& data, Generator& rng) {
-      assert(!data.empty());
-      std::uniform_int_distribution<std::size_t> ub(0, data.bucket_count() - 1);
-      while (true) {
-        std::size_t bucket = ub(rng);
-        std::size_t bsize = data.bucket_size(bucket);
-        if (bsize > 0) {
-          std::uniform_int_distribution<std::size_t> ui(0, bsize - 1);
-          return std::next(data.begin(bucket), ui(rng))->first;
-        }
-      }
-    }
-
     void free_edge_data() {
       for (edge_type e : edges()) {
         if(e.property_) {
-          delete e.property_;
+          delete static_cast<EdgeProperty*>(e.property_);
         }
       }
     }
 
-    // Implementation of edge type and edge iterators
-    //==========================================================================
-  public:
-    class edge_type {
-      Vertex1 v1_;
-      Vertex2 v2_;
-      bool forward_; // true if the edge is from type1 to type2
-      EdgeProperty* property_;
-      friend class bipartite_graph;
-    public:
-      edge_type()
-        : v1_(), v2_(), forward_(true), property_() { }
-      edge_type(Vertex1 v1, Vertex2 v2, EdgeProperty* property)
-        : v1_(v1), v2_(v2), forward_(true), property_(property) { }
-      edge_type(Vertex2 v2, Vertex1 v1, EdgeProperty* property)
-        : v1_(v1), v2_(v2), forward_(false), property_(property) { }
-      explicit operator bool() const {
-        return v1_ != null_vertex1() || v2_ != null_vertex2();
-      }
-      Vertex1 v1() const {
-        return v1_;
-      }
-      Vertex2 v2() const {
-        return v2_;
-      }
-      std::pair<Vertex1, Vertex2> endpoints() const {
-        return std::make_pair(v1_, v2_);
-      }
-      bool forward() const {
-        return forward_;
-      }
-      bool operator==(const edge_type& o) const {
-        return v1_ == o.v1_ && v2_ == o.v2_;
-      }
-      bool operator!=(const edge_type& o) const {
-        return v1_ != o.v1_ || v2_ != o.v2_;
-      }
-      edge_type reverse() const {
-        edge_type e = *this;
-        e.forward_ = !e.forward_;
-        return e;
-      }
-      friend std::ostream& operator<<(std::ostream& out, const edge_type& e) {
-        if (e.forward()) {
-          vertex_traits<Vertex1>::print(out, e.v1());
-          out << " -- ";
-          vertex_traits<Vertex2>::print(out, e.v2());
-        } else {
-          vertex_traits<Vertex2>::print(out, e.v2());
-          out << " -- ";
-          vertex_traits<Vertex1>::print(out, e.v1());
-        }
-        return out;
-      }
-      friend std::size_t hash_value(const edge_type& e) {
-        return boost::hash_value(std::make_pair(e.v1_, e.v2_));
-      }
-    }; // class edge_type
-
-    class edge_iterator
-      : public std::iterator<std::forward_iterator_tag, edge_type> {
-    public:
-      typedef edge_type reference;
-      typedef typename vertex1_data_map::const_iterator primary_iterator;
-      typedef typename neighbor2_map::const_iterator secondary_iterator;
-
-      edge_iterator() { }
-
-      edge_iterator(primary_iterator it1, primary_iterator end1)
-        : it1_(it1), end1_(end1) {
-        // skip all the empty neighbor maps
-        while (it1_ != end1_ && it1_->second.neighbors.empty()) {
-          ++it1_;
-        }
-        // if not reached the end, initialize the secondary iterator
-        if (it1_ != end1_) {
-          it2_ = it1_->second.neighbors.begin();
-        }
-      }
-
-      edge_type operator*() const {
-        return edge_type(it1_->first, it2_->first, it2_->second);
-      }
-
-      edge_iterator& operator++() {
-        ++it2_;
-        if (it2_ == it1_->second.neighbors.end()) {
-          // at the end of the neighbor map; advance the primary iterator
-          do {
-            ++it1_;
-          } while (it1_ != end1_ && it1_->second.neighbors.empty());
-          if (it1_ != end1_) {
-            it2_ = it1_->second.neighbors.begin();
-          }
-        }
-        return *this;
-      }
-
-      edge_iterator operator++(int) {
-        edge_iterator copy = *this;
-        operator++();
-        return copy;
-      }
-
-      bool operator==(const edge_iterator& o) const {
-        return
-          (it1_ == end1_ && o.it1_ == o.end1_) ||
-          (it1_ == o.it1_ && it2_ == o.it2_);
-      }
-
-      bool operator!=(const edge_iterator& other) const {
-        return !(*this == other);
-      }
-
-    private:
-      primary_iterator it1_;   //!< the iterator to the current vertex data
-      primary_iterator end1_;  //!< the iterator past the last vertex data
-      secondary_iterator it2_; //!< the iterator to the current neighbor
-
-    }; // class edge_iterator
-
-    template <typename Target, typename Neighbors>
-    class in_edge_iterator
-      : public std::iterator<std::forward_iterator_tag, edge_type> {
-    public:
-      typedef edge_type reference; // override the base class reference type
-      typedef typename Neighbors::const_iterator iterator; // base iterator type
-
-      in_edge_iterator() { }
-
-      in_edge_iterator(Target target, iterator it)
-        : target_(target), it_(it) { }
-
-      edge_type operator*() const {
-        return edge_type(it_->first, target_, it_->second);
-      }
-
-      in_edge_iterator& operator++() {
-        ++it_;
-        return *this;
-      }
-
-      in_edge_iterator operator++(int) {
-        in_edge_iterator copy(*this);
-        ++it_;
-        return copy;
-      }
-
-      bool operator==(const in_edge_iterator& o) const {
-        return it_ == o.it_;
-      }
-
-      bool operator!=(const in_edge_iterator& o) const {
-        return it_ != o.it_;
-      }
-
-    private:
-      Target target_; //!< the target vertex
-      iterator it_;   //!< the iterator to the current neighbor
-
-    }; // class in_edge_iterator
-
-    template <typename Source, typename Neighbors>
-    class out_edge_iterator
-      : public std::iterator<std::forward_iterator_tag, edge_type> {
-
-    public:
-      typedef edge_type reference; // override the base class reference type
-      typedef typename Neighbors::const_iterator iterator; // base iterator type
-
-    public:
-      out_edge_iterator() { }
-
-      out_edge_iterator(Source source, iterator it)
-        : source_(source), it_(it) { }
-
-      edge_type operator*() const {
-        return edge_type(source_, it_->first, it_->second);
-      }
-
-      out_edge_iterator& operator++() {
-        ++it_;
-        return *this;
-      }
-
-      out_edge_iterator operator++(int) {
-        out_edge_iterator copy(*this);
-        ++it_;
-        return copy;
-      }
-
-      bool operator==(const out_edge_iterator& o) const {
-        return it_ == o.it_;
-      }
-
-      bool operator!=(const out_edge_iterator& o) const {
-        return it_ != o.it_;
-      }
-
-    private:
-      Source source_; //!< the source vertex
-      iterator it_;   //!< the iterator to the current neighbor
-
-    }; // class out_edge_iterator
-
-    // Private data
-    //==========================================================================
-  private:
     //! The properties and neighbors of type-1 vertices.
     vertex1_data_map data1_;
 
@@ -862,7 +576,7 @@ namespace libgm {
     vertex2_data_map data2_;
 
     //! The number of edges.
-    std::size_t edge_count_;
+    std::size_t num_edges_;
 
   }; // class bipartite_graph
 

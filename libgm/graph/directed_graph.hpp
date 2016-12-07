@@ -2,11 +2,14 @@
 #define LIBGM_DIRECTED_GRAPH_HPP
 
 #include <libgm/graph/directed_edge.hpp>
-#include <libgm/graph/vertex_traits.hpp>
-#include <libgm/graph/void.hpp>
+#include <libgm/graph/util/void.hpp>
+#include <libgm/iterator/map_bind1_iterator.hpp>
+#include <libgm/iterator/map_bind2_iterator.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
+#include <libgm/iterator/map_map_iterator.hpp>
 #include <libgm/range/iterator_range.hpp>
-#include <libgm/serialization/serialize.hpp>
+#include <libgm/serialization/iarchive.hpp>
+#include <libgm/serialization/oarchive.hpp>
 
 #include <boost/graph/graph_traits.hpp>
 
@@ -21,9 +24,12 @@ namespace libgm {
    * The template is parameterized by the vertex type as well as the type
    * of properties associated with vertices and edges.
    *
-   * \tparam Vertex the type that represents a vertex
-   * \tparam VertexProperty the type of data associated with the vertices
-   * \tparam EdgeProperty the type of data associated with the edge
+   * \tparam Vertex
+   *         The type that represents a vertex.
+   * \tparam VertexProperty
+   *         The type of data associated with vertices.
+   * \tparam EdgeProperty
+   *         The type of data associated with edges.
    *
    * \ingroup graph_types
    * \see Graph
@@ -34,14 +40,10 @@ namespace libgm {
   class directed_graph {
 
     // Private types
-    //==========================================================================
+    //--------------------------------------------------------------------------
   private:
-    //! The hash function for vertices.
-    typedef typename vertex_traits<Vertex>::hasher vertex_hasher;
-
     //! The map type used to associate neighbors and edge data with each vertex.
-    typedef std::unordered_map<Vertex, EdgeProperty*, vertex_hasher>
-      neighbor_map;
+    using neighbor_map = std::unordered_map<Vertex, EdgeProperty*>;
 
     /**
      * A struct with the data associated with each vertex. This structure
@@ -56,39 +58,36 @@ namespace libgm {
     };
 
     //! The map types that associates all the vertices with their vertex_data.
-    typedef std::unordered_map<Vertex, vertex_data, vertex_hasher>
-      vertex_data_map;
+    using vertex_data_map = std::unordered_map<Vertex, vertex_data>
 
     // Public type declerations
-    //==========================================================================
+    //--------------------------------------------------------------------------
   public:
-    typedef Vertex vertex_type;              //!< The vertex type.
-    typedef directed_edge<Vertex> edge_type; //!< The edge type.
-    typedef VertexProperty vertex_property;  //!< Data associated with vertices.
-    typedef EdgeProperty edge_property;      //!< Data associated with edges.
+    // Vertex types, edge type, and properties
+    using vertex_type     = Vertex;
+    using edge_type       = directed_edge<Vertex>;
+    using vertex_property = VertexProperty;
+    using edge_property   = EdgeProperty;
 
-    // Forward declerations. See the bottom of the class for implemenations
-    class edge_iterator;     //!< Iterator over all edges of the graph.
-    class in_edge_iterator;  //!< Iterator over incoming edges to a node.
-    class out_edge_iterator; //!< Iterator over outgoing edges from a node.
-
-    //! Iterator over all vertices.
-    typedef map_key_iterator<vertex_data_map> vertex_iterator;
-
-    //! Iterator over the neighbors of a single vertex.
-    typedef map_key_iterator<neighbor_map> neighbor_iterator;
+    // Iterators
+    using vertex_iterator   = map_key_iterator<vertex_data_map>;
+    using neighbor_iterator = map_key_iterator<neighbor_map>;
+    using in_edge_iterator  = map_bind2_iterator<neighbor_map, edge_type>;
+    using out_edge_iterator = map_bind1_iterator<neighbor_map, edge_type>;
+    using edge_iterator =
+      map_map_iterator<vertex_data_map, neighbor_map, edge_type>;
 
     // Constructors and destructors
-    //==========================================================================
+    //--------------------------------------------------------------------------
   public:
     //! Create an empty graph.
     directed_graph()
-      : edge_count_(0) { }
+      : num_edges_(0) { }
 
     //! Create a graph from a list of pairs of vertices.
     template <typename Range>
     explicit directed_graph(const Range& edges, typename Range::iterator* = 0)
-      : edge_count_(0) {
+      : num_edges_(0) {
       for (std::pair<Vertex, Vertex> vp : edges) {
         add_edge(vp.first, vp.second);
       }
@@ -106,10 +105,10 @@ namespace libgm {
 
     //! Assignment operator.
     directed_graph& operator=(const directed_graph& other) {
-      if (this == &other) {return *this; }
+      if (this == &other) { return *this; }
       free_edge_data();
       data_ = other.data_;
-      edge_count_ = other.edge_count_;
+      num_edges_ = other.num_edges_;
       for (edge_type e : edges()) {
         if(e.property_ != nullptr) {
           EdgeProperty* ptr =
@@ -123,62 +122,53 @@ namespace libgm {
 
     //! Swaps two graphs in constant time.
     friend void swap(directed_graph& a, directed_graph& b) {
+      using std::swap;
       swap(a.data_, b.data_);
-      std::swap(a.edge_count_, b.edge_count_);
+      swap(a.num_edges_, b.num_edges_);
     }
 
     // Accessors
     //==========================================================================
 
-    //! Returns the null vertex.
-    static Vertex null_vertex() {
-      return vertex_traits<Vertex>::null();
-    }
-
     //! Returns the range of all vertices.
     iterator_range<vertex_iterator>
     vertices() const {
-      return { vertex_iterator(data_.begin()),
-               vertex_iterator(data_.end()) };
-    }
-
-    //! Returns the parents of u.
-    iterator_range<neighbor_iterator>
-    parents(Vertex u) const {
-      const vertex_data& data = find_vertex_data(u);
-      return { neighbor_iterator(data.parents.begin()),
-               neighbor_iterator(data.parents.end()) };
-    }
-
-    //! Returns the children of u.
-    iterator_range<neighbor_iterator>
-    children(Vertex u) const {
-      const vertex_data& data = find_vertex_data(u);
-      return { neighbor_iterator(data.children.begin()),
-               neighbor_iterator(data.children.end()) };
+      return { data_.begin(), data_.end() };
     }
 
     //! Returns all edges in the graph.
     iterator_range<edge_iterator>
     edges() const {
-      return { edge_iterator(data_.begin(), data_.end()),
-               edge_iterator(data_.end(), data_.end()) };
+      return { { data_.begin(), data_.end(), &vertex_data_map::children },
+               { data_.end(), data_.end(), &vertex_data_map::children } };
+    }
+
+    //! Returns the parents of u.
+    iterator_range<neighbor_iterator>
+    parents(Vertex u) const {
+      const vertex_data& data = data_.at(u);
+      return { data.parents.begin(), data.parents.end() };
+    }
+
+    //! Returns the children of u.
+    iterator_range<neighbor_iterator>
+    children(Vertex u) const {
+      const vertex_data& data = data_.at(u);
+      return { data.children.begin(), data.children.end() };
     }
 
     //! Returns the edges incoming to a vertex.
     iterator_range<in_edge_iterator>
     in_edges(Vertex u) const {
-      const vertex_data& data = find_vertex_data(u);
-      return { in_edge_iterator(u, data.parents.begin()),
-               in_edge_iterator(u, data.parents.end()) };
+      const vertex_data& data = data_.at(u);
+      return { { data.parents.begin(), u }, { data.parents.end(), u } };
     }
 
     //! Returns the outgoing edges from a vertex.
     iterator_range<out_edge_iterator>
     out_edges(Vertex u) const {
-      const vertex_data& data = find_vertex_data(u);
-      return { out_edge_iterator(u, data.children.begin()),
-               out_edge_iterator(u, data.children.end()) };
+      const vertex_data& data = data_.at(u);
+      return { { data.children.begin(), u }, { data.children.end(), u } };
     }
 
     //! Returns true if the graph contains the given vertex.
@@ -189,21 +179,17 @@ namespace libgm {
     //! Returns true if the graph contains a directed edge (u, v).
     bool contains(Vertex u, Vertex v) const {
       auto it = data_.find(u);
-      return it != data_.end() &&
-        it->second.children.find(v) != it->second.children.end();
+      return it != data_.end() && it->second.children.count(v);
     }
 
     //! Returns true if the graph contains a directed edge.
-    bool contains(const edge_type& e) const {
+    bool contains(directed_edge<Vertex> e) const {
       return contains(e.source(), e.target());
     }
 
     //! Returns a directed edge (u,v) between two vertices. The edge must exist.
-    edge_type edge(Vertex u, Vertex v) const {
-      const vertex_data& data = find_vertex_data(u);
-      auto it = data.children.find(v);
-      assert(it != data.children.end());
-      return edge_type(u, v, it->second);
+    directed_edge<Vertex> edge(Vertex u, Vertex v) const {
+      return { u, v, data_.at(u).children.at(v) };
     }
 
     /**
@@ -211,7 +197,7 @@ namespace libgm {
      * already be present in the graph.
      */
     std::size_t in_degree(Vertex u) const {
-      return find_vertex_data(u).parents.size();
+      return data_.at(u).parents.size();
     }
 
     /**
@@ -219,7 +205,7 @@ namespace libgm {
      * already be present in the graph.
      */
     std::size_t out_degree(Vertex u) const {
-      return find_vertex_data(u).children.size();
+      return data_.at(u).children.size();
     }
 
     /**
@@ -227,7 +213,7 @@ namespace libgm {
      * already be present in the graph.
      */
     std::size_t degree(Vertex u) const {
-      const vertex_data& data = find_vertex_data(u);
+      const vertex_data& data = data_.at(u);
       return data.parents.size() + data.children.size();
     }
 
@@ -243,32 +229,32 @@ namespace libgm {
 
     //! Returns the number of edges.
     std::size_t num_edges() const {
-      return edge_count_;
+      return num_edges_;
     }
 
     //! Given a directed edge (u, v), returns a directed edge (v, u).
     //! The edge (v, u) must exist.
-    edge_type reverse(const edge_type& e) const {
-      return edge_type(e.target(), e.source());
+    directed_edge<Vertex> reverse(directed_edge<Vertex> e) const {
+      return edge(e.target(), e.source());
     }
 
     //! Returns the property associated with a vertex.
     const VertexProperty& operator[](Vertex u) const {
-      return find_vertex_data(u).property;
+      return data_.at(u).property;
     }
 
     //! Returns the property associated with a vertex.
     VertexProperty& operator[](Vertex u) {
-      return find_vertex_data(u).property;
+      return data_.at(u).property;
     }
 
     //! Returns the property associated with an edge.
-    const EdgeProperty& operator[](const edge_type& e) const {
+    const EdgeProperty& operator[](directed_edge<Vertex> e) const {
       return *static_cast<EdgeProperty*>(e.property_);
     }
 
     //! Returns the property associated with an edge.
-    EdgeProperty& operator[](const edge_type& e) {
+    EdgeProperty& operator[](directed_edge<Vertex> e) {
       return *static_cast<EdgeProperty*>(e.property_);
     }
 
@@ -319,8 +305,22 @@ namespace libgm {
       return !(*this == other);
     }
 
+    //! Prints a directed to an output stream.
+    friend std::ostream&
+    operator<<(std::ostream& out, const directed_graph& g) {
+      out << "Vertices" << std::endl;
+      for (Vertex v : g.vertices()) {
+        out << v << ": " << g[v] << std::endl;
+      }
+      out << "Edges" << std::endl;
+      for (directed_edge<Vertex> e : g.edges()) {
+        out << e << std::endl;
+      }
+      return out;
+    }
+
     // Modifications
-    //==========================================================================
+    //--------------------------------------------------------------------------
     /**
      * Adds a vertex to the graph and associates a property with that vertex.
      * If the vertex is already present, its property is not overwritten.
@@ -341,7 +341,7 @@ namespace libgm {
      * property is not overwritten. If u and v are not present, they are added.
      * \return the edge and bool indicating whether the edge was newly added.
      */
-    std::pair<edge_type, bool>
+    std::pair<directed_edge<Vertex>, bool>
     add_edge(Vertex u, Vertex v, const EdgeProperty& p = EdgeProperty()) {
       assert(u != null_vertex());
       assert(v != null_vertex());
@@ -355,7 +355,7 @@ namespace libgm {
       EdgeProperty* ptr = new EdgeProperty(p);
       data_[u].children[v] = ptr;
       data_[v].parents[u]  = ptr;
-      ++edge_count_;
+      ++num_edges_;
       return std::make_pair(edge_type(u, v, ptr), true);
     }
 
@@ -367,7 +367,7 @@ namespace libgm {
 
     //! Removes a directed edge (u, v).
     void remove_edge(Vertex u, Vertex v) {
-      vertex_data& data = find_vertex_data(u);
+      vertex_data& data = data_.at(u);
       auto it = data.children.find(v);
       assert(it != data.children.end());
 
@@ -375,7 +375,7 @@ namespace libgm {
       delete it->second;
       data.children.erase(it);
       data_[v].parents.erase(u);
-      --edge_count_;
+      --num_edges_;
     }
 
     //! Removes all edges incident to a vertex.
@@ -386,8 +386,8 @@ namespace libgm {
 
     //! Removes all edges incoming to a vertex.
     void remove_in_edges(Vertex u) {
-      neighbor_map& parents = find_vertex_data(u).parents;
-      edge_count_ -= parents.size();
+      neighbor_map& parents = data_.at(u).parents;
+      num_edges_ -= parents.size();
       for (const auto& p : parents) {
         data_[p.first].children.erase(u);
         if (p.second != nullptr) { delete p.second; }
@@ -397,8 +397,8 @@ namespace libgm {
 
     //! Removes all edges outgoing from a vertex.
     void remove_out_edges(Vertex u) {
-      neighbor_map& children = find_vertex_data(u).children;
-      edge_count_ -= children.size();
+      neighbor_map& children = data_.at(u).children;
+      num_edges_ -= children.size();
       for (const auto& c : children) {
         data_[c.first].parents.erase(u);
         if (c.second != nullptr) { delete c.second; }
@@ -413,14 +413,14 @@ namespace libgm {
         p.second.parents.clear();
         p.second.children.clear();
       }
-      edge_count_ = 0;
+      num_edges_ = 0;
     }
 
     //! Removes all vertices and edges from the graph.
     void clear() {
       free_edge_data();
       data_.clear();
-      edge_count_ = 0;
+      num_edges_ = 0;
     }
 
     //! Saves the graph to an archive.
@@ -452,21 +452,9 @@ namespace libgm {
       }
     }
 
-    // Private functions
-    //==========================================================================
+    // Private members
+    //--------------------------------------------------------------------------
   private:
-    const vertex_data& find_vertex_data(Vertex v) const {
-      auto it = data_.find(v);
-      assert(it != data_.end());
-      return it->second;
-    }
-
-    vertex_data& find_vertex_data(Vertex v) {
-      auto it = data_.find(v);
-      assert(it != data_.end());
-      return it->second;
-    }
-
     void free_edge_data() {
       for (edge_type e : edges()) {
         if(e.property_) {
@@ -475,180 +463,13 @@ namespace libgm {
       }
     }
 
-    // Implementation of edge iterators
-    //==========================================================================
-  public:
-    class edge_iterator
-      : public std::iterator<std::forward_iterator_tag, edge_type> {
-    public:
-      typedef edge_type reference;
-      typedef typename vertex_data_map::const_iterator primary_iterator;
-      typedef typename neighbor_map::const_iterator secondary_iterator;
-
-      edge_iterator() { }
-
-      edge_iterator(primary_iterator it1, primary_iterator end1)
-        : it1_(it1), end1_(end1) {
-        // skip all the empty children maps
-        while (it1_ != end1_ && it1_->second.children.empty()) {
-          ++it1_;
-        }
-        // if not reached the end, initialize the secondary iterator
-        if (it1_ != end1_) {
-          it2_ = it1_->second.children.begin();
-        }
-      }
-
-      edge_type operator*() const {
-        return edge_type(it1_->first, it2_->first, it2_->second);
-      }
-
-      edge_iterator& operator++() {
-        ++it2_;
-        if (it2_ == it1_->second.children.end()) {
-          // at the end of the children map; advance the primary iterator
-          do {
-            ++it1_;
-          } while (it1_ != end1_ && it1_->second.children.empty());
-          if (it1_ != end1_) {
-            it2_ = it1_->second.children.begin();
-          }
-        }
-        return *this;
-      }
-
-      edge_iterator operator++(int) {
-        edge_iterator copy = *this;
-        operator++();
-        return copy;
-      }
-
-      bool operator==(const edge_iterator& o) const {
-        return
-          (it1_ == end1_ && o.it1_ == o.end1_) ||
-          (it1_ == o.it1_ && it2_ == o.it2_);
-      }
-
-      bool operator!=(const edge_iterator& other) const {
-        return !(operator==(other));
-      }
-
-    private:
-      primary_iterator it1_;   //!< the iterator to the source vertex data
-      primary_iterator end1_;  //!< the iterator past the last source data
-      secondary_iterator it2_; //!< the iterator to the current neighbor
-
-    }; // class edge_iterator
-
-    class in_edge_iterator
-      : public std::iterator<std::forward_iterator_tag, edge_type> {
-    public:
-      typedef edge_type reference;
-      typedef typename neighbor_map::const_iterator iterator;
-
-      in_edge_iterator() { }
-
-      in_edge_iterator(Vertex target, iterator it)
-        : target_(target), it_(it) { }
-
-      edge_type operator*() {
-        return edge_type(it_->first, target_, it_->second);
-      }
-
-      in_edge_iterator& operator++() {
-        ++it_;
-        return *this;
-      }
-
-      in_edge_iterator operator++(int) {
-        in_edge_iterator copy(*this);
-        ++it_;
-        return copy;
-      }
-
-      bool operator==(const in_edge_iterator& o) const {
-        return it_ == o.it_;
-      }
-
-      bool operator!=(const in_edge_iterator& o) const {
-        return it_ != o.it_;
-      }
-
-    private:
-      Vertex target_; //!< the target vertex
-      iterator it_;   //!< the iterator to the current neighbor
-
-    }; // class in_edge_iterator
-
-    class out_edge_iterator
-      : public std::iterator<std::forward_iterator_tag, edge_type> {
-    public:
-      typedef edge_type reference;
-      typedef typename neighbor_map::const_iterator iterator;
-
-      out_edge_iterator() { }
-
-      out_edge_iterator(Vertex source, iterator it)
-        : source_(source), it_(it) { }
-
-      edge_type operator*() const {
-        return edge_type(source_, it_->first, it_->second);
-      }
-
-      out_edge_iterator& operator++() {
-        ++it_;
-        return *this;
-      }
-
-      out_edge_iterator operator++(int) {
-        out_edge_iterator copy(*this);
-        ++it_;
-        return copy;
-      }
-
-      bool operator==(const out_edge_iterator& o) const {
-        return it_ == o.it_;
-      }
-
-      bool operator!=(const out_edge_iterator& o) const {
-        return it_ != o.it_;
-      }
-
-    private:
-      Vertex source_; //!< the source vertex
-      iterator it_;   //!< the iterator to the current neighbor
-
-    }; // class out_edge_iterator
-
-    // Private data
-    //==========================================================================
-  private:
     //! A map from each vertex to its vertex data.
     vertex_data_map data_;
 
     //! The total number of directed edges in the graph.
-    std::size_t edge_count_;
+    std::size_t num_edges_;
 
   }; // class directed_graph
-
-  /**
-   * Prints a directed to an output stream.
-   *\relates directed_graph
-   */
-  template <typename Vertex, typename VP, typename EP>
-  std::ostream& operator<<(std::ostream& out,
-                           const directed_graph<Vertex, VP, EP>& g) {
-    out << "Vertices" << std::endl;
-    for (Vertex v : g.vertices()) {
-      vertex_traits<Vertex>::print(out, v);
-      out << ": " << g[v] << std::endl;
-    }
-    out << "Edges" << std::endl;
-    for (directed_edge<Vertex> e : g.edges()) {
-      out << e << std::endl;
-    }
-    return out;
-  }
 
 } // namespace libgm
 
@@ -683,7 +504,7 @@ namespace boost {
     typedef std::size_t degree_size_type;
 
     static vertex_descriptor null_vertex() {
-      return libgm::vertex_traits<Vertex>::null();
+      return Vertex();
     }
   };
 

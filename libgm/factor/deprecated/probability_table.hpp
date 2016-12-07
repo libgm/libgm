@@ -2,7 +2,7 @@
 #define LIBGM_PROBABILITY_TABLE_HPP
 
 #include <libgm/factor/base/table_factor.hpp>
-#include <libgm/factor/traits.hpp>
+#include <libgm/factor/utility/traits.hpp>
 #include <libgm/functional/algorithm.hpp>
 #include <libgm/functional/arithmetic.hpp>
 #include <libgm/functional/entropy.hpp>

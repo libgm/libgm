@@ -2,7 +2,7 @@
 #define LIBGM_MOMENT_GAUSSIAN_HPP
 
 #include <libgm/enable_if.hpp>
-#include <libgm/factor/traits.hpp>
+#include <libgm/factor/utility/traits.hpp>
 #include <libgm/factor/expression/canonical_gaussian_function.hpp>
 #include <libgm/factor/expression/moment_gaussian_base.hpp>
 #include <libgm/factor/expression/moment_gaussian_function.hpp>

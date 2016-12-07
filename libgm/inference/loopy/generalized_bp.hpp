@@ -2,7 +2,7 @@
 #define LIBGM_GENERALIZED_BP_HPP
 
 #include <libgm/factor/invalid_operation.hpp>
-#include <libgm/factor/util/diff_fn.hpp>
+#include <libgm/factor/utility/diff_fn.hpp>
 #include <libgm/functional/hash.hpp>
 #include <libgm/functional/output_iterator_assign.hpp>
 #include <libgm/graph/algorithm/graph_traversal.hpp>

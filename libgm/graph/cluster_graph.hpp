@@ -1,7 +1,7 @@
 #ifndef LIBGM_CLUSTER_GRAPH_HPP
 #define LIBGM_CLUSTER_GRAPH_HPP
 
-#include <libgm/argument/argument_traits.hpp>
+#include <libgm/argument/annotated.hpp>
 #include <libgm/argument/domain.hpp>
 #include <libgm/datastructure/set_index.hpp>
 #include <libgm/graph/algorithm/mst.hpp>
@@ -9,12 +9,11 @@
 #include <libgm/graph/algorithm/test_tree.hpp>
 #include <libgm/graph/algorithm/tree_traversal.hpp>
 #include <libgm/graph/algorithm/triangulate.hpp>
-#include <libgm/graph/bidirectional.hpp>
-#include <libgm/graph/id.hpp>
-#include <libgm/graph/property_fn.hpp>
+#include <libgm/graph/util/bidirectional.hpp>
+#include <libgm/graph/util/id.hpp>
 #include <libgm/graph/undirected_graph.hpp>
 #include <libgm/graph/vertex_traits.hpp>
-#include <libgm/graph/void.hpp>
+#include <libgm/graph/util/void.hpp>
 
 #include <algorithm>
 #include <functional>
@@ -61,9 +60,10 @@ namespace libgm {
     // Public type declarations
     //--------------------------------------------------------------------------
   public:
-    // Vertex, edge, and properties
+    // Vertex type, edge type, argument_type, and properties
     using vertex_type     = id_t;
     using edge_type       = undirected_edge<id_t> ;
+    using argument_type   = Arg;
     using vertex_property = VertexProperty;
     using edge_property   = EdgeProperty;
 
@@ -73,13 +73,8 @@ namespace libgm {
     using edge_iterator     = typename graph_type::edge_iterator;
     using in_edge_iterator  = typename graph_type::in_edge_iterator;
     using out_edge_iterator = typename graph_type::out_edge_iterator;
-
-    // Argument types
-    using argument_type   = Arg;
-    using argument_hasher = typename argument_traits<Arg>::hasher;
-    using argument_set    = std::unordered_set<Arg, argument_hasher>;
     using argument_iterator =
-      typename set_index<id_t, domain<Arg>, argument_hasher>::value_iterator;
+      typename set_index<id_t, domain<Arg> >::value_iterator;
 
     // Constructors and destructors
     //--------------------------------------------------------------------------
@@ -109,7 +104,11 @@ namespace libgm {
       for (vertex_type v : graph_.vertices()) {
         cluster_index_.insert(v, cluster(v));
       }
-      for (edge_type e : graph_.edges()) {
+      for (undirected_edge<id_t> e : graph_.edges()) {
+        id_t u = e.source();
+        id_t v = e.target();
+        graph_[e].index(u, v) = cluster(u).index(separator(e));
+        graph_[e].index(v, u) = cluster(v).index(separator(e));
         separator_index_.insert(e, separator(e));
       }
     }
@@ -123,11 +122,6 @@ namespace libgm {
 
     // Graph accessors
     //--------------------------------------------------------------------------
-
-    //! Returns the null vertex, guaranteed to be id_t().
-    static id_t null_vertex() {
-      return id_t();
-    }
 
     //! Returns the range of all vertices.
     iterator_range<vertex_iterator>
@@ -170,12 +164,12 @@ namespace libgm {
     }
 
     //! Returns true if the graph contains an undirected edge.
-    bool contains(const edge_type& e) const {
+    bool contains(undirected_edge<id_t> e) const {
       return graph_.contains(e);
     }
 
     //! Returns an undirected edge (u, v). The edge must exist.
-    edge_type edge(id_t u, id_t v) const {
+    undirected_edge<id_t> edge(id_t u, id_t v) const {
       return graph_.edge(u, v);
     }
 
@@ -210,7 +204,7 @@ namespace libgm {
     }
 
     //! Given an undirected edge (u, v), returns the equivalent edge (v, u)
-    edge_type reverse(const edge_type& e) const {
+    undirected_edge<id_t> reverse(undirected_edge<id_t> e) const {
       return e.reverse();
     }
 
@@ -231,17 +225,27 @@ namespace libgm {
 
     //! Returns the cluster associated with a vertex.
     const domain<Arg>& cluster(id_t v) const {
-      return graph_[v].cluster;
+      return graph_[v].property.domain;
     }
 
     //! Returns the separator associated with an edge.
-    const domain<Arg>& separator(const edge_type& e) const {
-      return graph_[e].separator;
+    const domain<Arg>& separator(undirected_edge<id_t> e) const {
+      return graph_[e].property.domain;
     }
 
     //! Returns the separator associated with an edge.
     const domain<Arg>& separator(id_t u, id_t v) const {
-      return graph_(u, v).separator;
+      return graph_(u, v).property.domain;
+    }
+
+    //! Returns the annotated property associated with a vertex.
+    const annotated<Arg, VertexProperty>& property(id_t u) const {
+      return graph_[v].property;
+    }
+
+    //! Returns the annotated property associated with an edge.
+    const annotated<Arg, EdgeProperty>& property(undirected_edge<id_t> e) const {
+      return grah_[e].property;
     }
 
     //! Returns the index mapping from a domain to the given clique.
@@ -250,22 +254,22 @@ namespace libgm {
     }
 
     //! Returns the index mapping from a domain to the given separator.
-    uint_vector index(edge_type e, const domain<Arg>& dom) const {
+    uint_vector index(undirected_edge<id_t> e, const domain<Arg>& dom) const {
       return separator(e).index(dom);
     }
 
     //! Returns the index mapping from the separator to the source clique.
-    const uint_vector& source_index(const edge_type& e) const {
+    const uint_vector& source_index(undirected_edge<id_t> e) const {
       return graph_[e].index(e.source(), e.target());
     }
 
     //! Returns the index mapping from the separator to the target clique.
-    const uint_vector& target_index(const edge_type& e) const {
+    const uint_vector& target_index(undirected_edge<id_t> e) const {
       return graph_[e].index(e.target(), e.source());
     }
 
     //! Returns a pre-computed reachable set associated with a directed edge.
-    const domain<Arg>& reachable(const edge_type& e) const {
+    const domain<Arg>& reachable(undirected_edge<id_t> e) const {
       return graph_[e].reachable(e);
     }
 
@@ -275,28 +279,28 @@ namespace libgm {
     }
 
     //! Returns true if the edge has been marked.
-    bool marked(const edge_type& e) const {
+    bool marked(undirected_edge<id_t> e) const {
       return graph_[e].marked;
     }
 
     //! Returns the property associated with a vertex.
     VertexProperty& operator[](id_t u) {
-      return graph_[u].property;
+      return graph_[u].property.object;
     }
 
     //! Returns the property associated with a vertex.
     const VertexProperty& operator[](id_t u) const {
-      return graph_[u].property;
+      return graph_[u].property.object;
     }
 
     //! Returns the property associated with an edge.
-    EdgeProperty& operator[](const edge_type& e) {
-      return graph_[e].property;
+    EdgeProperty& operator[](undirected_edge<id_t> e) {
+      return graph_[e].property.object;
     }
 
     //! Returns the property associated with an edge
-    const EdgeProperty& operator[](const edge_type& e) const {
-      return graph_[e].property;
+    const EdgeProperty& operator[](undirected_edge<id_t> e) const {
+      return graph_[e].property.object;
     }
 
     /**
@@ -304,7 +308,7 @@ namespace libgm {
      * The edge must exist.
      */
     const EdgeProperty& operator()(id_t u, id_t v) const {
-      return graph_(u, v).property;
+      return graph_(u, v).property.object;
     }
 
     /**
@@ -394,7 +398,7 @@ namespace libgm {
      * If there are multiple such edges, one with the smallest separator
      * is returned. If there is no such edge, returns a null edge.
      */
-    edge_type find_separator_cover(const domain<Arg>& dom) const {
+    undirected_edge<id_t> find_separator_cover(const domain<Arg>& dom) const {
       return separator_index_.find_min_cover(dom);
     }
 
@@ -412,7 +416,7 @@ namespace libgm {
      * domain. The returned edge is the one that has the smallest separator
      * that has maximal intersection with the supplied domain.
      */
-    edge_type find_separator_meets(const domain<Arg>& dom) const {
+    undirected_edge<id_t> find_separator_meets(const domain<Arg>& dom) const {
       return separator_index_.find_max_intersection(dom);
     }
 
@@ -455,7 +459,7 @@ namespace libgm {
      *        The reachable node sets are intersected with this set.
      */
     void compute_reachable(bool past_empty, const domain<Arg>& filter) {
-      argument_set set(filter.begin(), filter.end());
+      std::unordered_set<Arg> set(filter.begin(), filter.end());
       mpp_traversal(graph_, id_t(), reachable_visitor(graph_, past_empty, &set));
     }
 
@@ -489,8 +493,8 @@ namespace libgm {
       // The edges that must be in the subtree are those such that the
       // reachable variables in both directions have a non-empty
       // symmetric difference.
-      argument_set cover;
-      for (edge_type e : edges()) {
+      std::unordered_set<Arg> cover;
+      for (undirected_edge<id_t> e : edges()) {
         id_t u = e.source();
         id_t v = e.target();
         const domain<Arg>& r1 = graph_[e].reachable.forward;
@@ -564,7 +568,7 @@ namespace libgm {
      * at these vertices. If the edge already exists, does not perform anything.
      * \return the edge and bool indicating whether the insertion took place
      */
-    std::pair<edge_type, bool>
+    std::pair<undirected_edge<id_t>, bool>
     add_separator(id_t u, id_t v,
                   const domain<Arg>& separator,
                   const EdgeProperty& ep = EdgeProperty()) {
@@ -585,7 +589,7 @@ namespace libgm {
      * If the edge already exists, does not perform anything.
      * \return the edge and bool indicatign whether the insertion took place
      */
-    std::pair<edge_type, bool>
+    std::pair<undirected_edge<id_t>, bool>
     add_edge(id_t u, id_t v) {
       return add_separator(u, v, edge_info(cluster(u) & cluster(v)));
     }
@@ -594,23 +598,25 @@ namespace libgm {
      * Updates the cluster associated with an existing vertex.
      */
     void update_cluster(id_t u, const domain<Arg>& cluster) {
-      if (graph_[u].cluster != cluster) {
+      if (graph_[u].property.domain != cluster) {
+        graph_[u].property.domain = cluster;
         cluster_index_.erase(u);
         cluster_index_.insert(u, cluster);
-        graph_[u].cluster = cluster;
       }
     }
 
     /**
      * Updates the separator associated with an edge.
      */
-    void update_separator(const edge_type& e, const domain<Arg>& separator) {
-      if (graph_[e].separator != separator) {
+    void update_separator(undirected_edge<id_t> e, const domain<Arg>& sep) {
+      if (separator(e) != sep) {
+        id_t u = e.source();
+        id_t v = e.target();
+        graph_[e].property.domain = sep;
+        graph_[e].index(u, v) = cluster(u).index(sep);
+        graph_[e].index(v, u) = cluster(v).index(sep);
         separator_index_.erase(e);
-        separator_index_.insert(e, separator);
-        graph_[e].separator = separator;
-        graph_[e].index(e.source(), e.target()) = cluster(u).index(separator);
-        graph_[e].index(e.target(), e.source()) = cluster(v).index(separator);
+        separator_index_.insert(e, sep);
       }
     }
 
@@ -625,15 +631,15 @@ namespace libgm {
      *
      * \return the retained vertex
      */
-    id_t merge(const edge_type& e) {
+    id_t merge(undirected_edge<id_t> e) {
       id_t u = e.source();
       id_t v = e.target();
       graph_[v].cluster += cluster(u);
-      for (edge_type in : in_edges(u)) {
+      for (undirected_edge<id_t> in : in_edges(u)) {
         if (in.source() != v) {
           auto pair = graph_.add_edge(v, in.source(), graph_[in]);
           assert(pair.second);
-          edge_type e = pair.first;
+          undirected_edge<id_t> e = pair.first;
           graph_[e].index(v, in.source()) = cluster(v).index(separator(e));
         }
       }
@@ -655,7 +661,7 @@ namespace libgm {
 
     //! Removes all edges incindent to a vertex
     void remove_edges(id_t u) {
-      for (edge_type e : graph_.out_edges(u)) {
+      for (undirected_edge<id_t> e : graph_.out_edges(u)) {
         separator_index_.erase(e);
       }
       graph_.remove_edges(u);
@@ -756,10 +762,10 @@ namespace libgm {
       }
 
       // Compute the edges of a maximum spanning tree using Kruskal's algorithm
-      std::vector<edge_type> tree_edges;
+      std::vector<undirected_edge<id_t>> tree_edges;
       kruskal_minimum_spanning_tree(
         graph_,
-        [&](const edge_type& e) {
+        [&](undirected_edge<id_t> e) {
           return -int(cluster_index_.intersection_size(e.source(), e.target()));
         },
         std::back_inserter(tree_edges)
@@ -767,7 +773,7 @@ namespace libgm {
 
       // Remove all edges and add back the computed edges
       graph_.remove_edges();
-      for (const edge_type& e : tree_edges) {
+      for (undirected_edge<id_t> e : tree_edges) {
         add_edge(e.source(), e.target());
       }
     }
@@ -779,51 +785,45 @@ namespace libgm {
      * The information stored with each vertex of the cluster graph.
      */
     struct vertex_info {
-      //! The cluster associated with this vertex.
-      domain<Arg> cluster;
-
-      //! The property associated with the vertex.
-      VertexProperty property;
+      //! The vertex property with the cluster.
+      annotated<Arg, VertexProperty> property;
 
       //! True if the vertex has been marked. This field is not serialized.
       bool marked;
 
       //! Default constructor. Default-initializes the property.
       vertex_info()
-        : property(), marked(false) { }
+        : marked(false) { }
 
       //! Constructs the vertex info with the given cluster and property.
       vertex_info(const domain<Arg>& cluster,
                   const VertexProperty& property = VertexProperty())
-        : cluster(cluster), property(property), marked(false) { }
+        : data(cluster, property), marked(false) { }
 
       //! Compares the cluster and vertex property stored at two vertices.
       friend bool operator==(const vertex_info& a, const vertex_info& b) {
-        return a.cluster == b.cluster && a.property == b.property;
+        return a.property == b.property;
       }
 
       //! Compares the cluster and vertex property stored at two vertices.
       friend bool operator!=(const vertex_info& a, const vertex_info& b) {
-        return a.cluster != b.cluster || a.property != b.property;
+        return a.property != b.property;
       }
 
       //! Serializes cluster and property.
       void save(oarchive& ar) const {
-        ar << cluster << property;
+        ar << data;
       }
 
       //! Deserializes cluster and property.
       void load(iarchive& ar) {
-        ar >> cluster >> property;
+        ar >> data;
       }
 
       //! Outputs the vertex_info to an output stream.
       friend std::ostream&
       operator<<(std::ostream& out, const vertex_info& info) {
-        out << '(' << info.cluster
-            << ' ' << info.property
-            << ' ' << info.marked
-            << ')';
+        out << '(' << info.property << ' ' << info.marked << ')';
         return out;
       }
 
@@ -833,11 +833,8 @@ namespace libgm {
      * The information stored with each edge of the cluster graph.
      */
     struct edge_info {
-      //! The separator associated with the edge.
-      domain<Arg> separator;
-
-      //! The property associated with the edge.
-      EdgeProperty property;
+      //! The edge property annotated with the separator.
+      annotated<Arg, EdgeProperty> property;
 
       //! The dimensions of the separator in each respective clique.
       bidirectional<uint_vector> index;
@@ -859,35 +856,32 @@ namespace libgm {
       //! Constructs the edge info with the given separator and property.
       edge_info(const domain<Arg>& separator,
                 const EdgeProperty& property = EdgeProperty())
-        : separator(separator), property(property) { }
+        : data(separator, property), marked(false) { }
 
       //! Compares the separators and properties stored at two edges.
       friend bool operator==(const edge_info& a, const edge_info& b) {
-        return a.separator == b.separator && a.property == b.property;
+        return a.property == b.property;
       }
 
       //! Compares the separators and properties stored at two edges.
       friend bool operator!=(const edge_info& a, const edge_info& b) {
-        return a.separator != b.separator || a.property != b.property;
+        return a.property != b.property;
       }
 
       //! Serialize members
       void save(oarchive& ar) const {
-        ar << separator << property;
+        ar << data;
       }
 
       //! Deserialize members
       void load(iarchive& ar) {
-        ar >> separator >> property;
+        ar >> data;
       }
 
       //! Outputs the edge information to an output stream.
       friend std::ostream&
       operator<<(std::ostream& out, const edge_info& info) {
-        out << '(' << info.separator
-            << ' ' << info.property
-            << ' ' << info.marked
-            << ')';
+        out << '(' << info.property << ' ' << info.marked << ')';
         return out;
       }
 
@@ -903,20 +897,20 @@ namespace libgm {
     public:
       reachable_visitor(graph_type& graph,
                         bool propagate_past_empty,
-                        const argument_set* filter = nullptr)
+                        const std::unordered_set<Arg>* filter = nullptr)
         : graph_(graph),
           propagate_past_empty_(propagate_past_empty),
           filter_(filter) { }
 
-      void operator()(edge_type e) const {
+      void operator()(undirected_edge<id_t> e) const {
         domain<Arg> r;
-        if (!graph_[e].separator.empty() || propagate_past_empty_) {
+        if (!graph_[e].property.domain.empty() || propagate_past_empty_) {
           // extract the (possibly filtered) variables from the cluster
           for (Arg x : graph_[e.source()].cluster) {
             if (!filter_ || filter_->count(x)) { r.push_back(x); }
           }
           // compute the union of the incoming reachable variables
-          for (edge_type in : graph_.in_edges(e.source())) {
+          for (undirected_edge<id_t> in : graph_.in_edges(e.source())) {
             if (in.source() != e.target()) {
               r.append(graph_[in].reachable(in));
             }
@@ -932,7 +926,7 @@ namespace libgm {
     private:
       graph_type& graph_;
       bool propagate_past_empty_;
-      const argument_set* filter_;
+      const std::unordered_set<Arg>* filter_;
 
     }; // class reachable_visitor
 
@@ -940,10 +934,10 @@ namespace libgm {
     //--------------------------------------------------------------------------
 
     //! An index of clusters that permits fast superset/intersection queries.
-    set_index<id_t, domain<Arg>, argument_hasher> cluster_index_;
+    set_index<id_t, domain<Arg> > cluster_index_;
 
     //! An index of separators that permits fast superset/intersection queries.
-    set_index<edge_type, domain<Arg>, argument_hasher> separator_index_;
+    set_index<edge_type, domain<Arg> > separator_index_;
 
     //! The underlying undirected graph.
     undirected_graph<id_t, vertex_info, edge_info> graph_;

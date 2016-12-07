@@ -1,7 +1,7 @@
 #ifndef LIBGM_ASSIGNMENT_VALUE_COPY_HPP
 #define LIBGM_ASSIGNMENT_VALUE_COPY_HPP
 
-#include <libgm/argument/argument_traits.hpp>
+#include <libgm/argument/traits.hpp>
 
 namespace libgm {
 

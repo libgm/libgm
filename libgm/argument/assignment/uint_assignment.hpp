@@ -1,7 +1,7 @@
 #ifndef LIBGM_UINT_ASSIGNMENT_HPP
 #define LIBGM_UINT_ASSIGNMENT_HPP
 
-#include <libgm/argument/basic_assignment.hpp>
+#include <libgm/argument/assignment/basic_assignment.hpp>
 #include <libgm/datastructure/uint_vector.hpp>
 
 namespace libgm {

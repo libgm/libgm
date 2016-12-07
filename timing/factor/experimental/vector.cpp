@@ -1,6 +1,6 @@
 #include <libgm/factor/probability_vector.hpp>
 #include <libgm/factor/logarithmic_vector.hpp>
-#include <libgm/factor/traits.hpp>
+#include <libgm/factor/utility/traits.hpp>
 #include <libgm/functional/member.hpp>
 #include <libgm/functional/tuple.hpp>
 

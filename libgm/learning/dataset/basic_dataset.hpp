@@ -1,7 +1,7 @@
 #ifndef LIBGM_BASIC_DATASET_HPP
 #define LIBGM_BASIC_DATASET_HPP
 
-#include <libgm/argument/argument_traits.hpp>
+#include <libgm/argument/traits.hpp>
 #include <libgm/argument/domain.hpp>
 #include <libgm/math/random/permutations.hpp>
 #include <libgm/range/iterator_range.hpp>

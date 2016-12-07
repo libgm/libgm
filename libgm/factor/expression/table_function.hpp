@@ -3,7 +3,7 @@
 
 #include <libgm/datastructure/table.hpp>
 #include <libgm/factor/expression/table_base.hpp>
-#include <libgm/factor/traits.hpp>
+#include <libgm/factor/utility/traits.hpp>
 #include <libgm/functional/tuple.hpp>
 #include <libgm/traits/nth_type.hpp>
 

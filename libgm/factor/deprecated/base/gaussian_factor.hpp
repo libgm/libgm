@@ -1,7 +1,7 @@
 #ifndef LIBGM_GAUSSIAN_FACTOR_HPP
 #define LIBGM_GAUSSIAN_FACTOR_HPP
 
-#include <libgm/argument/argument_traits.hpp>
+#include <libgm/argument/traits.hpp>
 #include <libgm/argument/domain.hpp>
 #include <libgm/datastructure/vector_map.hpp>
 #include <libgm/factor/base/factor.hpp>

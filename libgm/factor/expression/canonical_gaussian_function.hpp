@@ -4,7 +4,7 @@
 #include <libgm/datastructure/compressed.hpp>
 #include <libgm/math/param/canonical_gaussian_param.hpp>
 #include <libgm/factor/expression/canonical_gaussian_base.hpp>
-#include <libgm/factor/traits.hpp>
+#include <libgm/factor/utility/traits.hpp>
 #include <libgm/functional/member.hpp>
 #include <libgm/functional/tuple.hpp>
 #include <libgm/traits/nth_type.hpp>

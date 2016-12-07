@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE factor_traits
 #include <boost/test/unit_test.hpp>
 
-#include <libgm/factor/traits.hpp>
+#include <libgm/factor/utility/traits.hpp>
 
 #include <libgm/argument/var.hpp>
 #include <libgm/factor/canonical_gaussian.hpp>

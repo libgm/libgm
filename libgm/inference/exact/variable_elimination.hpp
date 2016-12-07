@@ -1,7 +1,9 @@
 #ifndef LIBGM_VARIABLE_ELIMINATION_HPP
 #define LIBGM_VARIABLE_ELIMINATION_HPP
 
-#include <libgm/factor/util/commutative_semiring.hpp>
+#include <libgm/argument/domain.hpp>
+#include <libgm/argument/annotated.hpp>
+#include <libgm/factor/utility/commutative_semiring.hpp>
 #include <libgm/graph/algorithm/eliminate.hpp>
 #include <libgm/graph/undirected_graph.hpp>
 
@@ -23,7 +25,7 @@ namespace libgm {
    *         A type that model EliminationStrategy concept
    *
    * \param factors
-   *        The collection of factors, modified in place.
+   *        The collection of annotated factors, modified in place.
    * \param retain
    *        The retained arguments.
    * \param csr
@@ -36,7 +38,7 @@ namespace libgm {
    * \ingroup inference
    */
   template <typename Arg, typename F, typename Strategy = min_degree_strategy>
-  void variable_elimination(std::list<std::pair<domain<Arg>, F> >& factors,
+  void variable_elimination(std::list<annotated<Arg, F> >& factors,
                             const domain<Arg>& retain,
                             const commutative_semiring<Arg, F>& csr,
                             Strategy strategy = Strategy()) {
@@ -44,24 +46,23 @@ namespace libgm {
     // construct the Markov graph for the input factors
     undirected_graph<Arg> graph;
     for (const F& factor : factors) {
-      make_clique(graph, factor.first);
+      graph.make_clique(factor.first);
     }
 
     // eliminate variables
-    eliminate(graph, [&](Arg v) {
-        if (!retain.count(v)) {
+    eliminate(graph, [&](Arg arg) {
+        if (!retain.count(arg)) {
           // Combine all factors that have this variable as an argument
-          domain<Arg> args;
-          F combination = csr.combine_init();
+          annotated<Arg, F> combination = csr.combine_init();
           for (auto it = factors.begin(); it != factors.end();) {
-            if (it->first.count(v)) {
-              csr.combine_in(args, combination, it->first, it->second);
+            if (it->domain.count(arg)) {
+              csr.combine_in(combination, *it);
               factors.erase(it++);
             } else {
               ++it;
             }
           }
-          factors.push_back(csr.eliminate(args, combination, v));
+          factors.push_back(csr.eliminate(combination, arg));
         }
       }, strategy);
   }

@@ -5,7 +5,7 @@
 #include <libgm/factor/expression/canonical_gaussian_base.hpp>
 #include <libgm/factor/expression/canonical_gaussian_function.hpp>
 #include <libgm/factor/expression/canonical_gaussian_join.hpp>
-#include <libgm/factor/traits.hpp>
+#include <libgm/factor/utility/traits.hpp>
 #include <libgm/functional/assign.hpp>
 #include <libgm/math/param/canonical_gaussian_param.hpp>
 

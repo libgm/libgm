@@ -1,9 +1,9 @@
 #ifndef LIBGM_VAR_HPP
 #define LIBGM_VAR_HPP
 
-#include <libgm/argument/argument_traits.hpp>
+#include <libgm/argument/indexed.hpp>
+#include <libgm/argument/traits.hpp>
 #include <libgm/argument/universe.hpp>
-#include <libgm/functional/hash.hpp>
 #include <libgm/graph/vertex_traits.hpp>
 #include <libgm/serialization/string.hpp>
 #include <libgm/serialization/vector.hpp>
@@ -21,9 +21,8 @@ namespace libgm {
    * A class that represents a basic variable (an univariate argument).
    * A var object models the MixedArgument concept, i.e., it can represent
    * either a discrete or a continuous argument. Internally, a variable
-   * is represented by a descriptor (a pointer to an object describing the
-   * variable type and values) and an optional time index. Presently,
-   * the time index is discrete, but this restriction will be relaxed later.
+   * is represented by a pointer to an object describing the variable type
+   * and values.
    *
    * The typical way of creating variable is via the static functions discrete()
    * and continuous(), whose first argument is a universe that will maintain the
@@ -39,7 +38,7 @@ namespace libgm {
    * were created using it.
    *
    * This class models the MixedArgument, UnivariateArgument, and
-   * IndexedArgument concepts.
+   * IndexableArgument concepts.
    */
   class var {
   public:
@@ -52,23 +51,16 @@ namespace libgm {
     //! The argument category (mixed).
     using argument_category = mixed_tag;
 
-    //! The descriptor of the variable and the fields based on it.
-    using descriptor = const description*;
-
-    //! The index associated with a variable.
-    using index_type = std::size_t;
-
-    //! The instance of a variable (void because variables are not indexable).
-    using instance_type = void;
+    //! The objects of class var can act as processes, i.e., are indexable.
+    static const bool is_indexable = true;
 
     //! An enum representing the category of the variable.
     enum category_enum { NONE = 0, DISCRETE = 1, CONTINUOUS = 2 };
 
     /**
-     * Constructs a variable with the given descriptor and index.
+     * Default constructor; constructs a null variable.
      */
-    explicit var(const description* desc = nullptr, std::size_t index = -1)
-      : desc_(desc), index_(index) { }
+    var() : desc_(nullptr) { }
 
     /**
      * Constructs a discrete variable with the given name and number of values.
@@ -142,28 +134,25 @@ namespace libgm {
       };
     }
 
-    //! Converts the variable to a pair of the descriptor and index.
-    std::pair<descriptor, std::size_t> pair() const {
-      return { desc_, index_ };
+    //! Returns the variable descriptor.
+    const description* desc() const {
+      return desc_;
     }
 
     //! Saves the variable to an archive.
     void save(oarchive& ar) const {
       ar.serialize_dynamic(desc_);
-      if (desc_) { ar << index_; }
     }
 
     //! Loads the variable from an archive.
     void load(iarchive& ar) {
       desc_ = ar.deserialize_dynamic<description>();
-      if (desc_) { ar >> index_; } else { index_ = -1; }
     }
 
     //! Prints a variable to an output stream.
     friend std::ostream& operator<<(std::ostream& out, var x) {
       if (x.desc_) {
         out << x.desc_;
-        if (x.indexed()) { out << '(' << x.index_ << ')'; }
       } else {
         out << "null";
       }
@@ -175,40 +164,32 @@ namespace libgm {
 
     //! Compares two variables.
     friend bool operator==(var x, var y) {
-      return x.desc_ == y.desc_ && x.index_ == y.index_;
+      return x.desc_ == y.desc_;
     }
 
     //! Compares two variables.
     friend bool operator!=(var x, var y) {
-      return x.desc_ != y.desc_ || x.index_ != y.index_;
+      return x.desc_ != y.desc_;
     }
 
     //! Compares two variables.
     friend bool operator<(var x, var y) {
-      return x.pair() < y.pair();
+      return x.desc_ < y.desc_;
     }
 
     //! Compares two variables.
     friend bool operator>(var x, var y) {
-      return x.pair() > y.pair();
+      return x.desc_ > y.desc_;
     }
 
     //! Compares two variables.
     friend bool operator<=(var x, var y) {
-      return x.pair() <= y.pair();
+      return x.desc_ <= y.desc_
     }
 
     //! Compares two variables.
     friend bool operator>=(var x, var y) {
-      return x.pair() >= y.pair();
-    }
-
-    //! Computes the hash of the variable.
-    friend std::size_t hash_value(var x) {
-      std::size_t seed = 0;
-      libgm::hash_combine(seed, x.desc_);
-      libgm::hash_combine(seed, x.index_);
-      return seed;
+      return x.desc_ >= y.desc_;
     }
 
     // Argument properties
@@ -243,19 +224,10 @@ namespace libgm {
       return desc_->category == CONTINUOUS;
     }
 
-    //! Returns true if the variable is associated with a process.
-    bool indexed() const {
-      return index_ != std::size_t(-1);
-    }
-
-    //! Returns the variable descriptor.
-    const description* desc() const {
-      return desc_;
-    }
-
-    //! Returns the index of the variable.
-    std::size_t index() const {
-      return index_;
+    //! Returns an instance of the variable process for a single index.
+    template <typename Index>
+    indexed<var, Index> operator()(Index index) const {
+      return { *this, index };
     }
 
     // Variable description
@@ -372,23 +344,15 @@ namespace libgm {
     }; // struct description
 
   private:
+    //! Constructs a variable with the given descriptor and index.
+    explicit var(const description* desc)
+      : desc_(desc) { }
+
     //! The descriptor of the variable.
     const description* desc_;
-
-    //! The index associated with the variable.
-    std::size_t index_;
 
   }; // class var
 
 } // namespace libgm
-
-
-namespace std {
-
-  template <>
-  struct hash<libgm::var>
-    : libgm::default_hash<libgm::var> { };
-
-} // namespace std
 
 #endif
