@@ -31,18 +31,13 @@ namespace libgm {
     using vertex_type = typename graph_type::vertex_type;
     using edge_type   = typename graph_type::edge_type;
 
-    // Argument types
-    using argument_type     = Arg;
-    using argument_hasher   = typename argument_traits<Arg>::hasher;
-    using argument_iterator = typename graph_type::argument_iterator;
-
     // Factor types
     using real_type   = typename F::real_type;
     using result_type = typename F::result_type;
     using factor_type = F;
 
     // Constructors
-    //==========================================================================
+    //--------------------------------------------------------------------------
   public:
     /**
      * Default constructor. Constructs a sum-product algorithm with no model.
@@ -64,7 +59,7 @@ namespace libgm {
      * are associated with factors s.t. the product of the factors represents
      * a probability distribution.
      */
-    explicit sum_product_calibrate(const cluster_graph<domain_type, F>& jt) {
+    explicit sum_product_calibrate(const cluster_graph<Arg, F>& jt) {
       reset_graph(jt);
     }
 
@@ -78,8 +73,8 @@ namespace libgm {
 
       // initialize the junction tree
       undirected_graph<Arg> mg;
-      for (const auto& factor : factors) {
-        mg.make_clique(factor.first);
+      for (const annotated<Arg, F>& factor : factors) {
+        mg.make_clique(factor.domain);
       }
       jt_.triangulated(mg, min_degree_strategy());
 
@@ -87,10 +82,10 @@ namespace libgm {
       for (id_t v : jt_.vertices()) {
         jt_[v] = F(F::shape(jt_.cluster(v)), result_type(1));
       }
-      for (const auto& factor : factors) {
-        vertex_type v = jt_.find_cluster_cover(factor.first);
+      for (const annotated<Arg, F>& factor : factors) {
+        vertex_type v = jt_.find_cluster_cover(factor.domain);
         assert(v);
-        jt_[v].dims(jt_.index(v, factor.first)) *= factor.second;
+        jt_[v].dims(jt_.index(v, factor.domain)) *= factor.object;
       }
     }
 
@@ -114,7 +109,7 @@ namespace libgm {
     }
 
     // Function running the algorithm
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     /**
      * Performs inference by calibrating the junction tree.
@@ -179,7 +174,7 @@ namespace libgm {
     }
 
     // Queries
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     //! Returns the underlying junction tree.
     const graph_type& jt() const {
@@ -240,7 +235,7 @@ namespace libgm {
     }
 
     // Private data members
-    //==========================================================================
+    //--------------------------------------------------------------------------
   private:
     //! The junction tree used to store the cluster potentials and messages
     graph_type jt_;

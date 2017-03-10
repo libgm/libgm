@@ -30,13 +30,13 @@ namespace libgm {
      * The parameters can be either marginal or a conditional distribution.
      */
     explicit moment_gaussian_ll(const param_type& param)
-      : f(param) { }
+      : f_(param) { }
 
     /**
      * Returns the log-likelihood of the specified data point.
      */
-    RealType value(const dense_vector<RealType>& index) const {
-      return f(index);
+    RealType value(const dense_vector_ref<RealType>& index) const {
+      return f_(index);
     }
 
   private:

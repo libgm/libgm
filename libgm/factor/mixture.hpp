@@ -250,8 +250,8 @@ namespace libgm {
      */
     mixture restrict(std::size_t start, std::size_t n,
                      const index_type& values) const {
-      return componentwise([start, n, &index](const F& f) {
-          return f.restrict(start, n, index);
+      return componentwise([start, n, &values](const F& f) {
+          return f.restrict(start, n, values);
         });
     }
 

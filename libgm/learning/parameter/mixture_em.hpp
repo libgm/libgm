@@ -16,175 +16,163 @@
 namespace libgm {
 
   /**
-   * // TODO: this needs to be fixed
-   * A class that learns a mixture model using Expectation Maximization.
-   * The objective value of this algorithm is a lower-bound on the
-   * log-likelihood of the model.
+   * A class that learns a mixture distribution using Expectation Maximization.
+   * For this algorith, the objective value of this algorithm is a lower-bound
+   * on the log-likelihood of the model.
    *
    * \tparam F the mixture component type
    */
-  template <typename F>
+  template <typename Arg, typename F>
   class mixture_em {
-    typedef typename F::mle_type::regul_type regul_type;
-
   public:
     // Learner concept types
-    typedef experimental::mixture<F>  model_type;
-    typedef typename F::real_type     real_type;
-    typedef em_parameters<regul_type> param_type;
+    using model_type = mixture<F>;
+    using real_type  = typename F::real_type;
+    using regul_type = typename F::mle_type::regul_type;
 
-    // Other types
-    typedef typename F::argument_type argument_type;
-    typedef typename F::domain_type   domain_type;
-    typedef typename F::result_type   result_type;
-    typedef typename F::mle_type      mle_type;
-    typedef typename F::ll_type       ll_type;
-
-    /**
-     * Constructs a mixture EM learner with given prameters.
-     */
-    explicit mixture_em(const param_type& param = param_type())
-      : param_(param) { }
+//     // Other types
+//     typedef typename F::argument_type argument_type;
+//     typedef typename F::domain_type   domain_type;
+//     typedef typename F::result_type   result_type;
+//     typedef typename F::mle_type      mle_type;
+//     typedef typename F::ll_type       ll_type;
 
     /**
-     * Fits a model using the supplied dataset, k mixture components,
-     * and all the arguments in the dataset.
+     * Constructs a mixture EM learner with the given number of components
+     * and regularization parameter.
      */
-    template <typename Dataset>
-    model_type& fit(const Dataset& ds, std::size_t k) {
-      return fit(ds, ds.arguments(), k);
+    explicit mixture_em(std::size_t k,
+                        const regul_type& regul = regul_type())
+      : k_(k), regul_(regul) { }
+
+    /**
+     * Fits a model using the suppplied dataset for the given arguments.
+     */
+    mixture_em& fit(const dataset<real_type>& ds, const domain<Arg>& args,
+                    const convergence_control<real_type>& convergence) {
+
     }
 
     /**
-     * Fits a model using the supplied dataset, k mixture components,
-     * and given arguments that must be present in the dataset.
+     * Fits a model using the supplied dataset and all argument in the dataset.
      */
-    template <typename Dataset>
-    model_type& fit(const Dataset& ds, const domain_type& args, std::size_t k) {
-      reset(&ds, args, k);
-      return fit();
+    mixture_em& fit(const dataset<real_type>& ds,
+                    const convergence_control<real_type>& convergence) {
     }
 
     /**
-     * Fits a model that was previusly initialized using reset().
+     * Initializes the solution.
      */
-    model_type& fit() {
-      do {
-        iterate();
-        if (param_.verbose) {
-          std::cerr << "Iteration " << iteration_ << ": ll >= " << objective_
-                    << std::endl;
-        }
-      } while (!converged_ && iteration_ < param_.max_iter);
+    mixture_em& initialize(model_type&& model) {
+      model_ = std::move(model);
+      return *this;
+    }
+
+    /**
+     * Performs an update using the given dataset.
+     */
+    real_type iterate(std::size_t n = 1) {
+      // compute the log-likelihoods for each component
+      dense_matrix<real_type> ll(ds.size(), components_);
+      for (std::size_t k = 0; i < components_; ++k) {
+        ll.col(k) = typename F::ll_type(model_.param(k)).values(data);
+      }
+
+      // compute the normalized probabilities and the bound
+      dense_matrix<real_type> p(ds.size(), components_);
+      real_type bound(0);
+      for (std::size_t i = 0; i < ds.size(); ++i) {
+        bound += weights[i] * log_sum_exp(ll.row(i), p.row(i));
+        p.row(i) *= wights[i];
+      }
+
+      // recompute the components
+      typename F::mle_type mle(regul_);
+      for (std::size_t k = 0; k < compoennts_; ++i) {
+        model_.param(k) = mle(data, p.col(k));
+      }
+      model_.normalize();
+
+      return bound;
+    }
+
+
+
+//     /**
+//      * Fits a model that was previusly initialized using reset().
+//      */
+//     model_type& fit() {
+//       do {
+//         iterate();
+//         if (param_.verbose) {
+//           std::cerr << "Iteration " << iteration_ << ": ll >= " << objective_
+//                     << std::endl;
+//         }
+//       } while (!converged_ && iteration_ < param_.max_iter);
+//       return model_;
+//     }
+
+//     /**
+//      * Initializes a mixture Gaussian model.
+//      * Sets the mean of each component to a random data point and the covariance
+//      * to the covariance of the whole population.
+//      */
+//     template <typename Dataset>
+//     void reset(const Dataset* ds, const domain_type& args, std::size_t k) {
+//       // compute the covariance and set the random means
+//       factor_mle<F> mle(param_.regul);
+//       experimental::mixture<F> model(mle(*ds, args), k);
+//       std::mt19937 rng(param_.seed);
+//       std::size_t i = 0;
+//       for (size_t row : randperm(rng, ds->size(), k)) {
+//         model.param(i++).mean = ds->sample(row, args).first;
+//       }
+//       model.normalize();
+//       reset(ds, std::move(model));
+//     }
+
+//     /**
+//      * Initilizes the estimate to the given model and sets the dataset
+//      * for training.
+//      */
+//     template <typename Dataset>
+//     void reset(const Dataset* ds, model_type&& model) {
+//       model_ = std::move(model);
+//       updater_ = updater<Dataset>(ds, &model_, param_.regul);
+//       weight_ = ds->weight();
+//       iteration_ = 0;
+//       objective_ = -std::numeric_limits<real_type>::infinity();
+//       converged_ = false;
+//     }
+
+//     //! Performs one iteration of EM
+//     real_type iterate() {
+//       real_type prev = objective_;
+//       objective_ = updater_();
+//       converged_ = (objective_ - prev) / weight_ < param_.tol;
+//       ++iteration_;
+//       return objective_;
+//     }
+
+    //! Returns the estimated model.
+    model_type& model() {
       return model_;
     }
 
-    /**
-     * Initializes a mixture Gaussian model.
-     * Sets the mean of each component to a random data point and the covariance
-     * to the covariance of the whole population.
-     */
-    template <typename Dataset>
-    void reset(const Dataset* ds, const domain_type& args, std::size_t k) {
-      // compute the covariance and set the random means
-      factor_mle<F> mle(param_.regul);
-      experimental::mixture<F> model(mle(*ds, args), k);
-      std::mt19937 rng(param_.seed);
-      std::size_t i = 0;
-      for (size_t row : randperm(rng, ds->size(), k)) {
-        model.param(i++).mean = ds->sample(row, args).first;
-      }
-      model.normalize();
-      reset(ds, std::move(model));
+    //! Returns the number of iterations.
+    size_t iteration() const {
+      return iteration_;
     }
 
-    /**
-     * Initilizes the estimate to the given model and sets the dataset
-     * for training.
-     */
-    template <typename Dataset>
-    void reset(const Dataset* ds, model_type&& model) {
-      model_ = std::move(model);
-      updater_ = updater<Dataset>(ds, &model_, param_.regul);
-      weight_ = ds->weight();
-      iteration_ = 0;
-      objective_ = -std::numeric_limits<real_type>::infinity();
-      converged_ = false;
-    }
-
-    //! Performs one iteration of EM
-    real_type iterate() {
-      real_type prev = objective_;
-      objective_ = updater_();
-      converged_ = (objective_ - prev) / weight_ < param_.tol;
-      ++iteration_;
+    //! Returns the objective value.
+    real_type objective() const {
       return objective_;
     }
 
-    //! Returns the estimated model.
-    model_type& model() { return model_; }
-
-    //! Returns the number of iterations.
-    size_t iteration() const { return iteration_; }
-
-    //! Returns the objective value.
-    real_type objective() const { return objective_; }
-
     //! Returns true if the iteration has converged.
-    bool converged() const { return converged_; }
-
-  private:
-    /**
-     * A class that performs EM updates.
-     */
-    template <typename Dataset>
-    class updater {
-    public:
-      updater(const Dataset* ds, model_type* model, const regul_type& regul)
-        : ds_(ds), model_(model), mle_(model->size(), mle_type(regul)) { }
-
-      real_type operator()() {
-        std::size_t k = model_->size();
-
-        // initialize the log-likelihood evaluator and the MLE of each component
-        std::vector<ll_type> ll;
-        for (std::size_t i = 0; i < k; ++i) {
-          ll.emplace_back(model_->param(i));
-          mle_[i].initialize(model_->param_shape());
-        }
-
-        // iterate once over the entire dataset
-        std::vector<real_type> p(k), logp(k);
-        real_type bound(0);
-        for (const auto& s : ds_->samples(model_->arguments())) {
-          // compute the probability of the sample under each component
-          for (std::size_t i = 0; i < k; ++i) {
-            logp[i] = ll[i].value(s.first);
-          }
-          bound += s.second * log_sum_exp(logp.begin(), logp.end(), p.begin());
-
-          // add the sample weighted by the probability under each component
-          for (std::size_t i = 0; i < k; ++i) {
-            mle_[i].process(s.first, p[i] * s.second);
-          }
-        }
-
-        // recompute the components
-        for (size_t i = 0; i < k; ++i) {
-          model_->param(i) = mle_[i].param();
-          model_->factor(i) *= result_type(mle_[i].weight());
-        }
-        model_->normalize();
-
-        return bound;
-      }
-
-    private:
-      const Dataset* ds_;  //!< The pointer to the underlying dataset.
-      model_type* model_;  //!< The pointer to the updated model.
-      std::vector<mle_type> mle_; //!< A vector of component estimators.
-
-    }; // class updater
+    bool converged() const {
+      return converged_;
+    }
 
   private:
     param_type param_;      //!< The parameters of the learner.

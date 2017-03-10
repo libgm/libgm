@@ -1,7 +1,7 @@
 #ifndef LIBGM_DATASET_FORMAT_HPP
 #define LIBGM_DATASET_FORMAT_HPP
 
-#include <libgm/argument/hybrid_domain.hpp>
+#include <libgm/argument/domain.hpp>
 #include <libgm/argument/sequence.hpp>
 #include <libgm/argument/universe.hpp>
 #include <libgm/parser/simple_config.hpp>
@@ -27,8 +27,7 @@ namespace libgm {
    *
    * \tparam Arg an argument type, currently either libgm::var or libgm::vec
    *
-   * \see uint_dataset, real_dataset, hybrid_dataset,
-   *      uint_sequence_dataset, real_sequence_dataset, hybrid_sequence_dataset
+   * \see dataset, sequence_dataset
    */
   template <typename Arg>
   struct text_dataset_format {
@@ -63,7 +62,7 @@ namespace libgm {
       : skip_rows(0), skip_cols(0), weighted(false) { }
 
     // Queries
-    //========================================================================
+    //--------------------------------------------------------------------------
 
     //! Returns true if all the variables in the format are discrete.
     bool all_variables_discrete() const {
@@ -146,7 +145,7 @@ namespace libgm {
     }
 
     // Functions for format I/O
-    //========================================================================
+    //--------------------------------------------------------------------------
 
     /**
      * Loads the text_dataset_format from a configuration file with the following

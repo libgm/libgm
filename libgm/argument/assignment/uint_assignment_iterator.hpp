@@ -57,7 +57,7 @@ namespace libgm {
       for (Arg arg : args_) {
         std::size_t& value = a_[arg];
         ++value;
-        if (value >= argument_traits<Arg>::num_values(arg)) {
+        if (value >= argument_size(arg)) {
           value = 0;
         } else {
           return *this;
@@ -95,7 +95,7 @@ namespace libgm {
     }
 
     // Private data members
-    //==========================================================================
+    //--------------------------------------------------------------------------
   private:
     //! The ordered vector of arguments to make assignments over.
     domain<Arg> args_;
@@ -128,7 +128,7 @@ namespace libgm {
     explicit uint_assignment_iterator(const domain<Arg>& args)
       : args_(args), done_(false) {
       for (Arg arg : args) {
-        std::size_t n = argument_traits<Arg>::num_dimensions(arg);
+        std::size_t n = argument_arity(arg);
         a_.emplace(arg, uint_vector(n, 0));
       }
     }
@@ -139,7 +139,7 @@ namespace libgm {
         uint_vector& values = a_[arg];
         for (std::size_t i = 0; i < values.size(); ++i) {
           ++values[i];
-          if (values[i] >= argument_traits<Arg>::num_values(arg, i)) {
+          if (values[i] >= argument_size(arg, i)) {
             values[i] = 0;
           } else {
             return *this;
@@ -178,7 +178,7 @@ namespace libgm {
     }
 
     // Private data members
-    //==========================================================================
+    //--------------------------------------------------------------------------
   private:
     //! The ordered vector of arguments to make assignments over.
     domain<Arg> args_;

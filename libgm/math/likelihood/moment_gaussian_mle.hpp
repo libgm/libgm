@@ -21,11 +21,11 @@ namespace libgm {
     //! The parameters of the distribution computed by this estimator.
     typedef moment_gaussian_param<RealType> param_type;
 
-    //! The type that represents an unweighted observations.
-    typedef dense_vector<RealType> data_type;
+//     //! The type that represents an unweighted observations.
+//     typedef dense_vector<RealType> data_type;
 
-    //! The type that represents the weight of an observation.
-    typedef RealType weight_type;
+//     //! The type that represents the weight of an observation.
+//     typedef RealType weight_type;
 
     /**
      * Creates a maximum likelihood estimator with the specified
@@ -43,56 +43,67 @@ namespace libgm {
      *
      * \tparam Range a range with values convertible to std::pair<data_type, T>
      */
-    template <typename Range>
-    param_type operator()(matrix_ref<RealType> samples, std::size_t n) {
-      mat_type xxt = samples * samples.transpose() / samples.cols();
+    moment_gaussian_param<RealType>
+    operator()(const dense_matrix_ref<RealType>& samples) const {
+      std::size_t n = samples.rows();
       vec_type mean = samples.rowwise.mean();
-      return { mean, xxt - mean * mean.transpose() };
+      mat_type mxxt = (samples * samples.transpose() +
+                       mat_type::Identity(n, n) * regul_) / samples.cols();
+      return { mean, mxxt - mean * mean.transpose() };
     }
 
-
-
-
+    moment_gaussian_param<RealType>
+    operator()(const dense_matrix_ref<RealType>& samples,
+               const dense_vector_ref<RealType>& weights) const {
+      assert(samples.cols() == weights.rows());
+      std::size_t n = samples.rows();
+      vec_type mean = vec_type::Zero(n);
+      mat_type mxxt = mat_type::Identity(n, n) * regul_;
+      RealType sum(0);
       for (std::ptrdiff_t i = 0; i < samples.cols(); ++i) {
-        process(samples.col(i), weights[i]);
+        mean += samples.col(i) * weights[i];
+        mxxt += samples.col(i) * samples.col(i).transpose() * weights[i];
+        sum += weights[i];
       }
-      return param();
-      //return incremental_mle_eval(*this, samples, n);
+      mean /= sum;
+      mxxt /= sum;
+      return { mean, mxxt - mean * mean.transpose() };
     }
 
-    //! Initializes the estimator to the given dimensionality of data.
-    void initialize(std::size_t n) {
-      sumx_.setZero(n);
-      sumxxt_ = dense_matrix<RealType>::Identity(n, n) * regul_;
-      weight_ = T(0);
-    }
 
-    //! Processes a single weighted data point.
-    void process(vector_ref<RealType> x, RealType weight) {
-      sumx_   += weight * x;
-      sumxxt_ += weight * x * x.transpose();
-      weight_ += weight;
-    }
+//     //! Initializes the estimator to the given dimensionality of data.
+//     void initialize(std::size_t n) {
+//       sumx_.setZero(n);
+//       sumxxt_ = dense_matrix<RealType>::Identity(n, n) * regul_;
+//       weight_ = T(0);
+//     }
 
-    //! Returns the parameters based on all the data points processed so far.
-    param_type param() const {
-      param_type p;
-      p.mean = sumx_ / weight_;
-      p.cov  = sumxxt_ / weight_ - p.mean * p.mean.transpose();
-      p.coef.resize(sumx_.size(), 0);
-      return p;
-    }
+//     //! Processes a single weighted data point.
+//     void process(vector_ref<RealType> x, RealType weight) {
+//       sumx_   += weight * x;
+//       sumxxt_ += weight * x * x.transpose();
+//       weight_ += weight;
+//     }
 
-    //! Returns the weight of all the data points processed so far.
-    RealType weight() const {
-      return weight_;
-    }
+//     //! Returns the parameters based on all the data points processed so far.
+//     param_type param() const {
+//       param_type p;
+//       p.mean = sumx_ / weight_;
+//       p.cov  = sumxxt_ / weight_ - p.mean * p.mean.transpose();
+//       p.coef.resize(sumx_.size(), 0);
+//       return p;
+//     }
+
+//     //! Returns the weight of all the data points processed so far.
+//     RealType weight() const {
+//       return weight_;
+//     }
 
   private:
     RealType regul_;                //!< The regularization parameter.
-    dense_vector<RealType> sumx_;   //!< The accumulated first moment.
-    dense_matrix<RealType> sumxxt_; //!< The accumulated second moment.
-    RealType weight_;               //!< The accumulated weight.
+//     dense_vector<RealType> sumx_;   //!< The accumulated first moment.
+//     dense_matrix<RealType> sumxxt_; //!< The accumulated second moment.
+//     RealType weight_;               //!< The accumulated weight.
 
   }; // class moment_gaussian_mle
 

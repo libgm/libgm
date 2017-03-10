@@ -13,7 +13,7 @@ namespace libgm {
    * Implements a naive Bayes model.
    *
    * \tparam Label
-   *         The factor type representing the initial state and node beliefs.
+   *         The factor type representing the prior.
    * \tparam Feature
    *         The factor type representing the observation model.
    */

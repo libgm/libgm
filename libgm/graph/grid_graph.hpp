@@ -50,9 +50,9 @@ namespace libgm {
     //! Creates an empty graph.
     grid_graph() { }
 
-    //! Creates a graph with the given dimensions.
-    grid_graph(std::size_t m, std::size_t n)
-      : size_(m, n), vp_(m * n), ep_(m * n * 2) { }
+    //! Creates a graph with the given number of rows and columns.
+    grid_graph(std::size_t rows, std::size_t cols)
+      : size_(rows, cols), vp_(rows * cols), ep_(rows * cols * 2) { }
 
     //! Swaps two graphs in constant time.
     friend void swap(grid_graph& a, grid_graph& b) {
@@ -70,6 +70,16 @@ namespace libgm {
     //! Loads the graph from an archive
     void load(iarchive& ar) {
       ar >> size_ >> vp_ >> ep_;
+    }
+
+    //! Returns true if two grid graphs have the same shape and properties.
+    friend bool operator==(const grid_graph& a, const grid_graph& b) {
+      return a.size_ == b.size_ && a.vp_ == b.vp_ && a.ep_ == b.ep_;
+    }
+
+    //! Returne true if two grid graphs do not have same shape and properties.
+    friend bool operator!=(const grid_graph& a, const grid_graph& b) {
+      return !(a == b);
     }
 
     // Accessors
@@ -108,6 +118,7 @@ namespace libgm {
     }
 
     //! Returns the edges outgoing from a vertex.
+    iterator_range<out_edge_iterator>
     out_edges(grid_vetex<Index> u) const {
       return { { u, neighbor_mask(u) }, {} };
     }
@@ -150,12 +161,22 @@ namespace libgm {
 
     //! Returns true if the graph has no vertices.
     bool empty() const {
-      return size_.x == 0 || size_.y == 0;
+      return size_.row == 0 || size_.col == 0;
+    }
+
+    //! Returns the number of rows of the graph.
+    std::size_t rows() const {
+      return size_.row;
+    }
+
+    //! Returns the number of columns of the graph.
+    std::size_t cols() const {
+      return size_.col;
     }
 
     //! Returns the number of vertices.
     std::size_t num_vertices() const {
-      return std::size_t(size_.x) * std::size_t(size_.y);
+      return rows() * cols();
     }
 
     //! Returns the number of edges.
@@ -182,16 +203,28 @@ namespace libgm {
       return vp_[linear(u)];
     }
 
+    //! Returns the property associated with a vertex.
+    const VertexProperty& operator()(Index r, Index c) const {
+      return vp_[linear(grid_vertex<Index>(r, c))];
+    }
+
+    //! Returns the property associated with a vertex.
+    VertexProperty& operator()(Index r, Index c) {
+      return vp_[linear(grid_vertex<Index>(r, c))];
+    }
+
     //! Returns the property associated with an edge.
     const EdgeProperty& operator[](grid_edge<Index> e) const {
+      assert(contains(e));
       vertex_type u = e.forward() ? e.source() : e.target();
-      return ep_[linear(u) * 2 + (e.source().x == e.target().x)];
+      return ep_[linear(u) * 2 + (e.source().row == e.target().row)];
     }
 
     //! Returns the property associated with an edge.
     EdgeProperty& operator[](grid_edge<Index> e) {
+      assert(contains(e));
       vertex_type u = e.forward() ? e.source() : e.target();
-      return ep_[linear(u) * 2 + (e.source().x == e.target().x)];
+      return ep_[linear(u) * 2 + (e.source().row == e.target().row)];
     }
 
     /**
@@ -244,13 +277,13 @@ namespace libgm {
       vertex_iterator() { }
 
       vertex_iterator(vertex_type size)                // end constructor
-        : u_(size.x, 0), size_(size) { }
+        : u_(0, size.col), size_(size) { }
 
       vertex_iterator(vertex_type u, vertex_type size) // begin constructor
         : u_(u), size_(size) { }
 
       explicit operator bool() const {
-        return u_.x != size_.x;
+        return u_.col != size_.col;
       }
 
       vertex_type operator*() const {
@@ -258,10 +291,10 @@ namespace libgm {
       }
 
       vertex_iterator& operator++() {
-        ++u_.y;
-        if (u_.y == size_.y) {
-          u_.y = 0;
-          ++u_.x;
+        ++u_.row;
+        if (u_.row == size_.row) {
+          u_.row = 0;
+          ++u_.col;
         }
         return *this;
       }
@@ -277,7 +310,7 @@ namespace libgm {
       }
 
       bool operator!=(const vertex_iterator& other) const {
-        return u_ != other.U_;
+        return u_ != other.u_;
       }
 
     private:
@@ -292,28 +325,28 @@ namespace libgm {
       using reference = edge_type;
 
       edge_iterator()
-        : horizontal_(false) { }
+        : vertical_(false) { }
 
       edge_iterator(vertex_type size)                // end constructor
-        : u_(size - 1), size_(size), horizontal_(false) { }
+        : u_(size - 1), size_(size), vertical_(false) { }
 
       edge_iterator(vertex_type u, vertex_type size) // begin constructor
-        : u_(u), size_(size), horizontal_(size.x > 1) { }
+        : u_(u), size_(size), vertical_(size.row > 1) { }
 
       edge_type operator*() const {
-        return { u_, horizontal_ ? u_.right() : u_.top() };
+        return { u_, vertical_ ? u_.below() : u_.right() };
       }
 
       edge_iterator& operator++() {
-        if (horizontal_ && u_.y < size_.y - 1) {
-          horizontal_ = false;
+        if (vertical_ && u_.col < size_.col - 1) {
+          vertical_ = false; // not in the rightmost column
         } else {
-          ++u_.y;
-          if (u_.y == size_.y) {
-            u_.y = 0;
-            ++u_.x;
+          ++u_.row;
+          if (u_.row == size_.row) {
+            u_.row = 0;
+            ++u_.col;
           }
-          horizontal = u_.x < size_.x - 1;
+          vertical = u_.row < size_.row - 1; // not in the bottommost row?
         }
         return *this;
       }
@@ -452,16 +485,18 @@ namespace libgm {
     };
 
   private:
+    //! Returns the linear index of a vertex in the column-major order.
     std::size_t linear(grid_vertex<Index> u) const {
-
+      assert(contains(u));
+      return u.row + u.col * rows();
     }
 
     int neighbor_mask(grid_vertex<Index> u) const {
       return
-        int(u.x > 0) |
-        int(u.y > 0) << 1 |
-        int(u.x < size_.x - 1) << 2 |
-        int(u.y < size_.y - 1) << 3;
+        int(u.row > 0) |
+        int(u.col > 0) << 1 |
+        int(u.row < size_.row - 1) << 2 |
+        int(u.col < size_.col - 1) << 3;
     }
 
     static grid_vertex<Index> neighbor_map[4] = {

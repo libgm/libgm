@@ -9,47 +9,64 @@ namespace libgm {
   /**
    * A class that can learn naive Bayes models in a fully supervised manner.
    *
-   * Models the Learner concept.
+   * \tparam Label
+   *         The factor type representing the prior.
+   * \tparam Feature
+   *         The fector type representing the observation model.
    */
-  template <typename Arg, typename LabelF, typename FeatureF = LabelF>
+  template <typename Arg, typename Label, typename Feature = Label>
   class naive_bayes_mle {
   public:
     // Learner concept types
-    using model_type = naive_bayes<Arg, LabelF, FeatureF>;
+    using model_type = naive_bayes<LabelF, FeatureF>;
     using real_type  = typename LabelF::real_type;
 
-    // The algorithm parameters
-    struct param_type {
-      typename LabelF::mle_type::regul_type prior;
-      typename FeatureF::mle_type::regul_type cpd;
+    struct regul_type {
+      typename Label::mle_type::regul_type prior;
+      typename Feature::mle_type::regul_type cpd;
     };
 
     /**
      * Constructs a learner with the given parameters.
      */
-    explicit naive_bayes_mle(const param_type& param = param_type())
-      : param_(param) { }
+    explicit naive_bayes_mle(const regul_type& regul = regul_type())
+      : regul_(regul) { }
 
     /**
      * Fits a model using the supplied dataset for the given label argument
      * and feature vector.
      */
-    template <typename Dataset>
-    naive_bayes_mle& fit(const Dataset& ds, Arg y, const domain<Arg>& x) {
-      typename LabelF::mle_type prior_mle(param_.prior);
-      typename FeatureF::mle_type cpd_mle(param_.cpd);
-      model_ = model_type(label, prior_mle(ds.project(y), LabelF::shape(y)));
-      for (Arg v : x) {
-        model_.add_feature(v, cpd_mle(ds.project(v), FeatureF::shape(v)));
+    naive_bayes_mle&
+    fit(const dataset<real_type>& ds, Arg label, const domain<Arg>& features) {
+      model_.reset(factor_mle<Label>(regul.prior)(ds, label));
+      for (Arg x : features) {
+        model_.add_feature(factor_mle<Feature>(regul.cpd)(ds, x, label));
+      }
+      return *this;
+    }
+
+    /**
+     * Fits a model using the supplied dataset for the given label argument
+     * and all the remaining variables in the dataset.
+     */
+    naive_bayes_mle&
+    fit(const dataset<real_type>& ds, Arg label) {
+      model_.reset(factor_mle<Label>(regul.prior)(ds, label));
+      for (Arg x : ds.arguments()) {
+        if (x != label) {
+          model_.add_feature(factor_mel<Feature>(regul.cpd)(ds, x, label));
+        }
       }
       return *this;
     }
 
     //! Returns the trained model
-    model_type& model() { return model_; }
+    model_type& model() {
+      return model_;
+    }
 
   private:
-    param_type param_; //!< The regularization parameters.
+    regul_type regul_; //!< The regularization parameters.
     model_type model_; //!< The trained model.
 
   }; // class naive_bayes_mle

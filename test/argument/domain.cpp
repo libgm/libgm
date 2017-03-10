@@ -3,19 +3,17 @@
 
 #include <libgm/argument/domain.hpp>
 
-#include <libgm/argument/binary_domain.hpp>
-#include <libgm/argument/sequence.hpp>
+#include <libgm/argument/indexed.hpp>
 #include <libgm/argument/var.hpp>
 #include <libgm/argument/vec.hpp>
-#include <libgm/argument/unary_domain.hpp>
 #include <libgm/argument/universe.hpp>
 #include <libgm/datastructure/uint_vector.hpp>
 
 namespace libgm {
   template class domain<var>;
   template class domain<vec>;
-  template class domain<sequence<var> >;
-  template class domain<sequence<vec> >;
+  template class domain<indexed<var> >;
+  template class domain<indexed<vec> >;
 }
 
 using namespace libgm;
@@ -35,7 +33,7 @@ BOOST_AUTO_TEST_CASE(test_constructors) {
   BOOST_CHECK_EQUAL(b[0], x);
   BOOST_CHECK_EQUAL(b[1], y);
 
-  domain<var> c(std::vector<var>(1, x));
+  domain<var> c(&x, &x + 1);
   BOOST_CHECK_EQUAL(c.size(), 1);
   BOOST_CHECK_EQUAL(c[0], x);
 }

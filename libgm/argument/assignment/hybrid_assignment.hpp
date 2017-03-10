@@ -23,7 +23,7 @@ namespace libgm {
   template <typename Arg, typename RealType>
   class hybrid_assignment {
     using uint_value = typename uint_assignment<Arg>::mapped_type;
-    using real_value = typename reaL_assignment<Arg, RealType>::mapped_type;
+    using real_value = typename real_assignment<Arg, RealType>::mapped_type;
 
   public:
     /**
@@ -66,6 +66,14 @@ namespace libgm {
 
     //! Creates an empty hybrid assignment.
     hybrid_assignment() { }
+
+    //! Creates a hybrid assignment with the given components.
+    hybrid_assignment(const uint_assignment<Arg>& uint,
+                      const real_assignment<Arg, RealType>& real)
+      : uint_(uint), real_(real) {
+      assert(uint.all_keys([](Arg arg) { return argument_discrete(arg); }));
+      assert(real.all_keys([](Arg arg) { return argument_continuous(arg); }));
+    }
 
     //! Swaps the contents of two assignments.
     friend void swap(hybrid_assignment& a, hybrid_assignment& b) {

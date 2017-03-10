@@ -29,11 +29,6 @@ namespace libgm {
     using vertex_type = typename graph_type::vertex_type;
     using edge_type   = typename graph_type::edge_type;
 
-    // Argument types
-    using argument_type     = Arg;
-    using argument_hasher   = typename argument_traits<Arg>::hasher;
-    using argument_iterator = typename graph_type::argument_iterator;
-
     // Factor types
     using real_type   = typename F::real_type;
     using result_type = typename F::result_type;
@@ -74,7 +69,7 @@ namespace libgm {
       // compute the junction tree for the given factors
       undirected_graph<Arg> mg;
       for (const auto& factor : factors) {
-        mg.make_clique(factor.first);
+        mg.make_clique(factor.domain);
       }
       jt_.triangulated(mg, min_degree_strategy());
 
@@ -88,9 +83,9 @@ namespace libgm {
 
       // multiply in the factors to cliques that cover them
       for (const F& factor : factors) {
-        vertex_type v = jt_.find_cluster_cover(factor.first);
+        vertex_type v = jt_.find_cluster_cover(factor.domain);
         assert(v);
-        jt_[v].dims(jt_.index(v, factor.first)) *= factor.second;
+        jt_[v].dims(jt_.index(v, factor.domain)) *= factor.object;
       }
     }
 
@@ -104,7 +99,7 @@ namespace libgm {
     }
 
     // Functions running the algorithm
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     /**
      * Calibrates the junction tree by passing flow according to the message
@@ -155,7 +150,7 @@ namespace libgm {
     }
 
     // Queries
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     //! Returns the junction tree.
     const graph_type& jt() const {
@@ -206,7 +201,7 @@ namespace libgm {
     }
 
     // Private members
-    //==========================================================================
+    //--------------------------------------------------------------------------
   private:
 
     /**

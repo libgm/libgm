@@ -103,6 +103,15 @@ namespace libgm {
     }
 
     /**
+     * Returns true if all keys satisfy the given predicate.
+     */
+    template <typename Predicate>
+    bool all_keys(Predicate pred) const {
+      iterator_range<key_iterator> range = keys();
+      return std::all_of(range.begin(), range.end(), pred);
+    }
+
+    /**
      * Returns the values in this assignment for a subset of arguments
      * in the order specified by the given domain.
      */
@@ -241,6 +250,22 @@ namespace libgm {
     basic_assignment(const domain<Arg>& args, const Vector& vals) {
       this->reserve(args.size());
       insert(args, vals);
+    }
+
+    /**
+     * Returns the range of arguments in this assignment.
+     */
+    iterator_range<key_iterator> keys() const {
+      return { key_iterator(this->begin()), key_iterator(this->end()) };
+    }
+
+    /**
+     * Returns true if all keys satisfy the given predicate.
+     */
+    template <typename Predicate>
+    bool all_keys(Predicate pred) const {
+      iterator_range<key_iterator> range = keys();
+      return std::all_of(range.begin(), range.end(), pred);
     }
 
     /**

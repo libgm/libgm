@@ -114,6 +114,19 @@ namespace libgm {
       return seed;
     }
 
+    // Accessors
+    //--------------------------------------------------------------------------
+
+    //! Returns the base of the indexed argument (i.e., its process).
+    Arg process() const {
+      return arg_;
+    }
+
+    //! Returns the index of the indexed argument.
+    Index index() const {
+      return index_;
+    }
+
     // Argument properties
     //--------------------------------------------------------------------------
 
@@ -144,6 +157,10 @@ namespace libgm {
     bool continuous() const {
       return argument_continuous(arg_);
     }
+
+  private:
+    Arg arg_;
+    Index index_;
 
   }; // class indexed
 

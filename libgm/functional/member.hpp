@@ -8,6 +8,36 @@
 namespace libgm {
 
   /**
+   * Invokes the at function on the given container.
+   */
+  struct member_at {
+    template <typename Container, typename Index>
+    decltype(auto) operator()(Container&& c, Index&& index) const {
+      return std::forward<Container>(c).at(std::forward<Index>(index));
+    }
+  };
+
+  /**
+   * Invokes the subscript function on the given container.
+   */
+  struct member_subscript {
+    template <typename Container, typename Index>
+    decltype(auto) operator()(Container&& c, Index&& index) const {
+      return std::forward<Container>(c)[std::forward<Index>(index)];
+    }
+  };
+
+  /**
+   * Invokes the count function on the given container.
+   */
+  struct member_count {
+    template <typename Container, typename Key>
+    auto operator()(Container&& c, Key&& key) const {
+      return std::forward<Container>(c).count(std::forward<Key>(key));
+    }
+  };
+
+  /**
    * An operator that invokes the marginal() member function on the given
    * object.
    */

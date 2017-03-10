@@ -39,7 +39,7 @@ namespace libgm {
     struct vertex_data {
       annotated<Arg, VertexProperty> property;
       neighbor_set children;
-      bool operator==(const vertex1_data& other) const {
+v      bool operator==(const vertex1_data& other) const {
         return property == other.property; // intentionally omitting neihgbors
       }
     };

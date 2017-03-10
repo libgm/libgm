@@ -45,8 +45,8 @@ namespace libgm {
 
     // construct the Markov graph for the input factors
     undirected_graph<Arg> graph;
-    for (const F& factor : factors) {
-      graph.make_clique(factor.first);
+    for (const annotated<Arg, F>& factor : factors) {
+      graph.make_clique(factor.domain);
     }
 
     // eliminate variables

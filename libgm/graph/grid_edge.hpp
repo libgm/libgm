@@ -8,12 +8,17 @@
 #include <utility>
 
 namespace libgm {
-  template <typename Index>
+  template <typename Index = int>
   class grid_edge {
   public:
-    //! Constructor setting the source and target.
+    //! Constructor accepting a pair of vertices.
     grid_edge(grid_vertex<Index> source, grid_vertex<Index> target)
       : source_(source), target_(target) { }
+
+    //! Constructor accepting a pair of row/column.
+    grid_edge(Index source_row, Index source_col,
+              Index target_row, Index target_col)
+      : source(source_row, source_col), target(target_row, target_col) { }
 
     //! Returns the source vertex.
     grid_vertex<Index> source() const {
@@ -50,11 +55,6 @@ namespace libgm {
       return a.pair() != b.pair();
     }
 
-    //! Compares two undirected edges.
-    friend bool operator<(const grid_edge& a, const grid_edge& b) {
-      return a.pair() < b.pair();
-    }
-
     //! Prints the edge to an output stream.
     friend std::ostream& operator<<(std::ostream& out, const gid_edge& e) {
       out << e.source() << " -- " << e.target();
@@ -62,9 +62,19 @@ namespace libgm {
     }
 
   private:
-    Vertex source_;
-    Vertex target_;
+    grid_vertex<Index> source_;
+    grid_vertex<Index> target_;
   }; // class grid_edge
+
+  /**
+   * Helper to construct an edge from two vertices, inferring the type.
+   * \relates grid_edge
+   */
+  template <typename Index>
+  inline grid_edge<Index>
+  make_grid_edge(grid_vertex<Index> u, grid_vertex<Index> v) {
+    return { u, v };
+  }
 
 } // namespace libgm
 

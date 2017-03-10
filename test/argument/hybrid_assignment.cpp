@@ -24,14 +24,6 @@ BOOST_AUTO_TEST_CASE(test_all) {
   var q = var::continuous(u, "q");
 
   hybrid_assignment<var> a({{z, 1}, {w, 2}}, {{x, 3.0}, {y, 2.0}});
-  BOOST_CHECK_EQUAL(a.real().at(x), 3.0);
-  BOOST_CHECK_EQUAL(a.real().at(y), 2.0);
-  BOOST_CHECK_EQUAL(a.uint().at(z), 1);
-  BOOST_CHECK_EQUAL(a.uint().at(w), 2);
-
-  // Accessors
-  BOOST_CHECK_EQUAL(a.uint(), uint_assignment<var>({{z, 1}, {w, 2}}));
-  BOOST_CHECK_EQUAL(a.real(), real_assignment<var>({{x, 3.0}, {y, 2.0}}));
 
   // Container
   BOOST_CHECK_EQUAL(a.size(), 4);
@@ -40,6 +32,14 @@ BOOST_AUTO_TEST_CASE(test_all) {
   BOOST_CHECK(a != hybrid_assignment<var>(a.uint()));
 
   // UnorderedAssociativeContainer
+  BOOST_CHECK_EQUAL(a.at(x), 3.0);
+  BOOST_CHECK_EQUAL(a.at(y), 2.0);
+  BOOST_CHECK_EQUAL(a.at(z), 1);
+  BOOST_CHECK_EQUAL(a.at(w), 2);
+  BOOST_CHECK_EQUAL(a[x], 3.0);
+  BOOST_CHECK_EQUAL(a[y], 2.0);
+  BOOST_CHECK_EQUAL(a[z], 1);
+  BOOST_CHECK_EQUAL(a[w], 2);
   BOOST_CHECK_EQUAL(a.count(x), 1);
   BOOST_CHECK_EQUAL(a.count(z), 1);
   BOOST_CHECK_EQUAL(a.count(q), 0);
@@ -53,4 +53,8 @@ BOOST_AUTO_TEST_CASE(test_all) {
   BOOST_CHECK_EQUAL(a.insert_or_assign({w, q}, hybrid_vector<>({2}, {0.5})), 1);
   BOOST_CHECK(subset(domain_type({y, x, z}), a));
   BOOST_CHECK(!disjoint(domain_type({x, y, z}), a));
+
+  // Clearing
+  a.clear();
+  BOOST_CHECK(a.empty());
 }
