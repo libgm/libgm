@@ -1,41 +1,43 @@
 #ifndef LIBGM_ASSIGNMENT_HPP
 #define LIBGM_ASSIGNMENT_HPP
 
-#include <libgm/argument/assignment/hybrid_assignment.hpp>
-#include <libgm/argument/assignment/real_assignment.hpp>
-#include <libgm/argument/assignment/uint_assignment.hpp>
+#include <variant>
+
+#include <libgm/config.hpp>
 
 namespace libgm {
 
-  namespace detail {
+class Assignment {
+public:
+  struct Value {
+    uint32_t start;
+    uint16_t size;
+    uint16_t data;
+  };
 
-    template <typename Arg,
-              typename RealType,
-              typename Category = argument_category_t<Arg> >
-    struct assignment_selector;
+  using Pointer = std::variant<uint32_t*, float*, double*>;
 
-    template <typename Arg, typename RealType>
-    struct assignment_selector<Arg, RealType, discrete_tag> {
-      using type = uint_assignment<Arg>;
-    };
+  struct Data {
+    Pointer ptr;
+    size_t size;
+  };
 
-    template <typename Arg, typename RealType>
-    struct assignment_selector<Arg, RealType, continuous_tag> {
-      using type = real_assignment<Arg, RealType>;
-    };
+  Value& operator[](Arg arg) {
+    return values_[arg];
+  }
 
-    template <typename Arg, typename RealType>
-    struct assignment_selector<Arg, RealType, mixed_tag> {
-      using type = hybrid_assignment<Arg, RealType>;
-    };
+  Value at(Arg arg) const {
+    return values_.at(arg);
+  }
 
-  } // namespace detail
+  void advance();
 
-  /**
-   * The main alias for all assignments.
-   */
-  template <typename Arg, typename RealType = double>
-  using assignment = typename detail::assignment_selector<Arg, RealType>::type;
+  void append(Data data);
+
+private:
+  ankerl::nordered_dense::map<Arg, Value> values_;
+};
+
 
 } // namespace libgm
 

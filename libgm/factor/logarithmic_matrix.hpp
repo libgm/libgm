@@ -1,5 +1,5 @@
-#ifndef LIBGM_LOGARITHMIC_MATRIX_HPP
-#define LIBGM_LOGARITHMIC_MATRIX_HPP
+#ifndef LIBGM_FACTOR_LOGARITHMIC_MATRIX_HPP
+#define LIBGM_FACTOR_LOGARITHMIC_MATRIX_HPP
 
 #include <libgm/enable_if.hpp>
 #include <libgm/argument/domain.hpp>
@@ -29,25 +29,20 @@
 
 namespace libgm {
 
-  // Forward declaration of the factor
-  template <typename RealType> class logarithmic_matrix;
 
-  // Base class
-  //============================================================================
-
-  /**
-   * The base class for logarithmic_matrix factors and expressions.
-   *
-   * \tparam RealType
-   *         The real type representing the parameters.
-   * \tparam Derived
-   *         The expression type that derives from this base class.
-   *         The type must implement the following functions:
-   *         alias(), eval_to().
-   */
-  template <typename RealType, typename Derived>
-  class matrix_base<log_tag, RealType, Derived> {
-  public:
+/**
+ * The base class for logarithmic_matrix factors and expressions.
+ *
+ * \tparam RealType
+ *         The real type representing the parameters.
+ * \tparam Derived
+ *         The expression type that derives from this base class.
+ *         The type must implement the following functions:
+ *         alias(), eval_to().
+ */
+template <typename T>
+class LogarithmicArray2D {
+public:
     // Public types
     //--------------------------------------------------------------------------
 

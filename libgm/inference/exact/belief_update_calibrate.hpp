@@ -7,220 +7,225 @@
 
 namespace libgm {
 
+/**
+ * An algorithm for compute the marginal of a factorized probability model
+ * using the division belief update algorithm on a junction tree.
+ */
+class BeliefUpdateCalibrate {
+
+  // Public type declarations
+  //--------------------------------------------------------------------------
+public:
+  struct Potential : Factor<
+    One<Potential>,
+    MultiplyJoinIn<Potential, Potential>,
+    DIvideJoinIn<Potential, Potential>,
+    Normalize<Potential>,
+    Restrict<Potential, Vector>,
+  > {};
+
+  // Graph types
+  using vertex_descriptor = ClusterGraph::vertex_descriptor;
+  using edge_descriptor = ClusterGraph::edge_descriptor;
+
+  Potential::VTable pt;
+  Vector::VTable vt;
+  ShapeMap shape_map;
+
+  /// The underlying junction tree.
+  ClusterGraphT<Potential, Potential> jt_;
+
+  // Constructors
+  //--------------------------------------------------------------------------
+public:
   /**
-   * An algorithm for compute the marginal of a factorized probability model
-   * using the division belief update algorithm on a junction tree.
-   *
-   * \tparam Arg
-   *         A type that represents an individual argument (node).
-   * \tparam F
-   *         A type representing the factors. The type must support
-   *         multiplication, division, and marginalization operations.
-   * \ingroup inference
+   * Default constructor. Constructs a belief update algorithm with no model.
    */
-  template <typename Arg, typename F>
-  class belief_update_calibrate {
+  BeliefUpdateCalibrate() { }
 
-    // Public type declarations
-    //--------------------------------------------------------------------------
-  public:
-    // Graph types
-    using graph_type  = cluster_graph<Arg, F, F>;
-    using vertex_type = typename graph_type::vertex_type;
-    using edge_type   = typename graph_type::edge_type;
+  /**
+   * Constructs a belief update algorithm for the given collection of factors
+   * whose product defines a probability distribution.
+   * \tparam Range A forward range with elements convertible to F.
+   */
+  explicit BeliefUpdateCalibrate(Strategy strategy)
+    : strategy(strategy) {}
 
-    // Factor types
-    using real_type   = typename F::real_type;
-    using result_type = typename F::result_type;
-    using factor_type = F;
+  /**
+   * Constructs a belief update algorithm to a junction tree whose ratio
+   * of clique and separator potentials defines a probability distribution.
+   */
+  explicit BeliefUpdateCalibrate(const graph_type& jt)
+    : jt_(jt) { }
 
-    // Constructors
-    //--------------------------------------------------------------------------
-  public:
-    /**
-     * Default constructor. Constructs a belief update algorithm with no model.
-     */
-    belief_update_calibrate() { }
+  /**
+   * Initializes the algorithm to the given network.
+   */
+  void reset(MarkovNetwork& mn) {
+    // compute the junction tree for the given factors
+    jt_.triangulated(mn, strategy);
 
-    /**
-     * Constructs a belief update algorithm for the given collection of factors
-     * whose product defines a probability distribution.
-     * \tparam Range A forward range with elements convertible to F.
-     */
-    template <typename Range>
-    explicit belief_update_calibrate(const Range& factors) {
-      // TODO: some fancy ENABLE_IF
-      reset(factors);
+    // intialize the clique and separator potentials to unity
+    std::vector<size_t> vec;
+    for (vertex_descriptor v : jt_.vertices()) {
+      jt_[v] = Potential::one(v->shape(shape_map_, vec));
+    }
+    for (edge_descriptor e : jt_.edges()) {
+      jt_[e] = Potential::one(e->shape(shape_map_, vec));
+    }
+  }
+
+  void multiply_in(const Domain& args, const Prototype& factor) {
+    vertex_descriptor v = jt_.find_cluster_cover(domain);
+    assert(v);
+    jt_[v].multiply_in(v->dims(domain, shape_map), factor, pt);
+  }
+
+
+  // Functions running the algorithm
+  //--------------------------------------------------------------------------
+
+  /**
+   * Calibrates the junction tree by passing flow according to the message
+   * passing protocol.
+   */
+  void calibrate() {
+    mpp_traversal(jt_, nullptr, [&](const edge_descriptor& e) {
+        jt_[e.target()].divide_in(jt_[e], target_dims(e), pt);
+        jt_[e] = jt_[e.source()].marginal(jt_.source_dims(e, pt));
+        jt_[e.target()].multiply_in(jt_[e], target_dims(e), pt);
+      });
+  }
+
+  /**
+   * Normalizes the clique and edge potentials.
+   */
+  void normalize() {
+    for (vertex_descriptor v : jt_.vertices()) {
+      jt_[v].normalize();
+    }
+    for (edge_descriptor e : jt_.edges()) {
+      jt_[e].normalize();
+    }
+  }
+
+  /**
+   * Conditions the inference on an assignment to one or more variables
+   * This is a mutable operation. Note that calibrate() needs to be called
+   * afterwards.
+   */
+  void condition(const Assignment& a) {
+    // Extract the restricted arguments
+    Domain args = a.keys();
+
+    // Update the factors and messages
+    jt_.intersecting_clusters(args, [&](vertex_descriptor v) {
+        Domain y, x; // restricted, retained
+        v->cluster().partition(a, y, x);
+        jt_[v] = jt_[v].restrict(v->dims(y, shape_map), Vector::values(a, y, vt), pt);
+        jt_.update_cluster(v, x);
+      });
+    jt_.intersecting_separators(vars, [&](const edge_descriptor& e) {
+        Domain y, x; // restricted, retained
+        jt_.separator(e).partition(a, y, x);
+        jt_[e] = jt_[e].restrict(v->dims(y, shape_map), Vector::values(a, y, vt), pt);
+        jt_.update_separator(e, x);
+      });
+  }
+
+  // Queries
+  //--------------------------------------------------------------------------
+
+  /// Returns the junction tree.
+  const graph_type& jt() const {
+    return jt_;
+  }
+
+  /// Returns the belief associated with a vertex.
+  const Potential& belief(vertex_descriptor v) const {
+    return jt_[v];
+  }
+
+  /// Returns the belief associated with an edge.
+  const Potential& belief(const edge_descriptor& e) const {
+    return jt_[e];
+  }
+
+  /**
+   * Returns the belief for a set of arguments.
+   * \throw std::invalid_argument
+   *        if the specified set is not covered by a clique of
+   *        the junction tree constructed by the engine.
+   */
+  Potential belief(const Domain& args) const {
+    // Try to find a separator that covers the variables
+    edge_descriptor e = jt_.find_separator_cover(args);
+    if (e) {
+      return jt_[e].marginal(e->dims(args, shape_map), pt);
     }
 
-    /**
-     * Constructs a belief update algorithm to a junction tree whose ratio
-     * of clique and separator potentials defines a probability distribution.
-     */
-    explicit belief_update_calibrate(const graph_type& jt)
-      : jt_(jt) { }
-
-    /**
-     * Initializes the algorithm to the given collection of factors.
-     * \tparam Range A forward range with elements convertible to F.
-     */
-    template <typename Range>
-    void reset(const Range& factors) { // TODO: fancy enable_if
-      // compute the junction tree for the given factors
-      undirected_graph<Arg> mg;
-      for (const auto& factor : factors) {
-        mg.make_clique(factor.domain);
-      }
-      jt_.triangulated(mg, min_degree_strategy());
-
-      // intialize the clique and separator potentials to unity
-      for (vertex_type v : jt_.vertices()) {
-        jt_[v] = F(F::shape(jt_.cluster(v)), result_type(1));
-      }
-      for (edge_type e : jt_.edges()) {
-        jt_[e] = F(F::shape(jt_.separator(e)), result_type(1));
-      }
-
-      // multiply in the factors to cliques that cover them
-      for (const F& factor : factors) {
-        vertex_type v = jt_.find_cluster_cover(factor.domain);
-        assert(v);
-        jt_[v].dims(jt_.index(v, factor.domain)) *= factor.object;
-      }
+    // Next, look for a clique that covers the variables
+    vertex_descriptor v = jt_.find_cluster_cover(args);
+    if (v) {
+      return jt_[v].marginal(v->dims(args, shape_map), pt);
     }
 
-    /**
-     * Initializes the algorithm to a junction tree whose ratio of clique
-     * and separator potentials defines a probability distribution.
-     */
-    void reset(const graph_type& jt) {
-      jt_ = jt;
-      assert(valid());
+    // Did not find a suitable clique / separator
+    throw std::invalid_argument(
+      "belief: the domain is not covered by any clique or separator"
+    );
+  }
+
+  // Private members
+  //--------------------------------------------------------------------------
+private:
+
+  /**
+   * Returns true if the potential arguments match the cliques and separators.
+   */
+  bool valid() const {
+    for (vertex_descriptor v : jt.vertices()) {
+      if (jt_[v].shape() != v->shape(shape_map_, vec)) { return false; }
     }
-
-    // Functions running the algorithm
-    //--------------------------------------------------------------------------
-
-    /**
-     * Calibrates the junction tree by passing flow according to the message
-     * passing protocol.
-     */
-    void calibrate() {
-      mpp_traversal(jt_, id_t(), [&](const edge_type& e) {
-          jt_[e.target()].dims(target_index(e)) /= jt_[e];
-          jt_[e] = jt_[e.source()].marginal(jt_.source_index(e));
-          jt_[e.target()].dims(target_index(e)) *= jt_[e];
-        });
+    for (edge_descriptor e : jt_.edges()) {
+      if (jt_[e].shape() != e->shape(shape_map_, vec)) { return false; }
     }
+    return true;
+  }
 
-    /**
-     * Normalizes the clique and edge potentials.
-     */
-    void normalize() {
-      for (vertex_type v : jt_.vertices()) {
-        jt_[v].normalize();
-      }
-      for (edge_type e : jt_.edges()) {
-        jt_[e].normalize();
-      }
-    }
+}; // class BeliefUpdateCalibrate
 
-    /**
-     * Conditions the inference on an assignment to one or more variables
-     * This is a mutable operation. Note that calibrate() needs to be called
-     * afterwards.
-     */
-    void condition(const assignment<Arg, real_type>& a) {
-      // Extract the restricted arguments
-      domain<Arg> args = a.keys();
+)
+/**
+ * \tparam F
+ *         A type representing the factors. The type must support
+ *         multiplication, division, and marginalization operations.
+ * \ingroup inference
+ */
+template <typename F>
+class BeliefUpdateCalibrateT : public BeliefUpdateCalibrate {
+public:
+  BeliefUpdateCalibrateT() {
+    /// Initialize the VTables.
+  }
 
-      // Update the factors and messages
-      jt_.intersecting_clusters(args, [&](vertex_type v) {
-          domain<Arg> y, x; // restricted, retained
-          jt_.cluster(v).partition(a, y, x);
-          jt_[v] = jt_[v].restrict(jt_.index(v, y), a.values(y)).eval();
-          jt_.update_cluster(v, x);
-        });
-      jt_.intersecting_separators(vars, [&](const edge_type& e) {
-          domain<Arg> y, x; // restricted, retained
-          jt_.separator(e).partition(a, y, x);
-          jt_[e] = jt_[e].restrict(jt_.index(v, y), a.values(y)).eval();
-          jt_.update_separator(e, x);
-        });
-    }
+  void multiply_in(const Domain& args, const F& factor) {
+    BeliefUpdateCalibrate::multiply_in(args, factor.cast_prototype<Potential>());
+  }
 
-    // Queries
-    //--------------------------------------------------------------------------
+  const Potential& belief(vertex_descriptor v) const {
+    return BeliefUpdateCalibrate::belief(v).cast<F>();
+  }
 
-    //! Returns the junction tree.
-    const graph_type& jt() const {
-      return jt_;
-    }
+  const Potential& belief(edge_descriptor e) const {
+    return BeliefUpdateCalibrate::belief(e).cast<F>();
+  }
 
-    /**
-     * Returns the belief associated with a vertex.
-     * The caller must not alter the shape.
-     */
-    F& belief(vertex_type v) {
-      return jt_[v];
-    }
+  F belief(const Domain& args) const {
+    return BeliefUpdateCalibrate::belief(args).cast<F>();
+  }
+};
 
-    //! Returns the belief associated with a vertex.
-    const F& beliief(vertex_type v) const {
-      return jt_[v];
-    }
-
-    //! Returns the belief associated with an edge.
-    const F& belief(const edge_type& e) const {
-      return jt_[e];
-    }
-
-    /**
-     * Returns the belief for a set of arguments.
-     * \throw std::invalid_argument
-     *        if the specified set is not covered by a clique of
-     *        the junction tree constructed by the engine.
-     */
-    F belief(const domain<Arg>& args) const {
-      // Try to find a separator that covers the variables
-      edge_type e = jt_.find_separator_cover(args);
-      if (e) {
-        return jt_[e].marginal(jt_.index(e, args));
-      }
-
-      // Next, look for a clique that covers the variables
-      vertex_type v = jt_.find_cluster_cover(args);
-      if (v) {
-        return jt_[v].marginal(jt_.index(v, args));
-      }
-
-      // Did not find a suitable clique / separator
-      throw std::invalid_argument(
-        "belief: the domain is not covered by any clique or separator"
-      );
-    }
-
-    // Private members
-    //--------------------------------------------------------------------------
-  private:
-
-    /**
-     * Returns true if the potential arguments match the cliques and separators.
-     */
-    bool valid() const {
-      for (vertex_type v : jt_.vertices()) {
-        if (jt_[v].shape() != F::shape(jt_.cluster(v))) { return false; }
-      }
-      for (edge_type e : jt_.edges()) {
-        if (jt_.[e].shape() != F::shape(jt_.separator(e))) { return false; }
-      }
-      return true;
-    }
-
-    //! The underlying junction tree.
-    graph_type jt_;
-
-  }; // class belief_update_calibrate
 
 } // namespace libgm
 

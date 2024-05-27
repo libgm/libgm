@@ -1,535 +1,512 @@
-#ifndef LIBGM_FACTOR_GRAPH_HPP
-#define LIBGM_FACTOR_GRAPH_HPP
+#ifndef LIBGM_BIPARTITE_GRAPH_HPP
+#define LIBGM_BIPARTITE_GRAPH_HPP
 
-#include <libgm/enable_if.hpp>
-#include <libgm/argument/annotated.hpp>
-#include <libgm/argument/domain.hpp>
 #include <libgm/graph/bipartite_edge.hpp>
 #include <libgm/graph/util/sampling.hpp>
 #include <libgm/graph/util/void.hpp>
-#include <libgm/iteraotr/join_iterator.hpp>
+#include <libgm/iterator/MapBind1Iterator.hpp>
+#include <libgm/iterator/MapBind2Iterator.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
-#include <libgm/iterator/map_value_property_iterator.hpp>
-#include <libgm/range/iterator_range.hpp>
+#include <libgm/iterator/map_map_iterator.hpp>
+#include <libgm/range/boost::iterator_range.hpp>
 #include <libgm/serialization/iarchive.hpp>
 #include <libgm/serialization/oarchive.hpp>
 
-#include <algorithm>
 #include <iterator>
 #include <map>
 #include <unordered_map>
-#include <vector>
 
 namespace libgm {
 
+/**
+ * A class that represents an undirected bipartite graph. The graph contains
+ * two types of vertices (type 1 and type 2), which correspond to the two
+ * sides of the partition. These vertices are represented by the template
+ * arguments Vertex1 and Vertex2, respectively. These two types _must_ be
+ * distinct and not convertible to each other. This requirement is necessary
+ * to allow for overload resolution to work in functions, such as neighbors().
+ *
+ * \tparam Vertex1Property
+ *         The type of data associated with type-1 vertices.
+ * \tparam Vertex2Property
+ *         The type of data associated with type-2 vertices.
+ *
+ * \ingroup graph_types
+ */
+class FactorGraph {
+
+  // Private types
+  //--------------------------------------------------------------------------
+private:
+  using FactorSet = ankerl::unordered_dense::set<Factor*, FactorCompare>;
+
+  class Argument {
+  private:
+    Object property_;
+    FactorSet factors_;
+  };
+
+  class Factor {
+  public:
+    const Domain& arguments() const {
+      return arguments_;
+    }
+
+  private:
+    Object property_;
+    Domain arguments_;
+    size_t index_;
+  };
+
+  using Vertex1Data = ankerl::unordered_dense::map<Arg, Argument*>;
+  using Vertex2Data = std::vector<Factor*>;
+
+  // Public types
+  //--------------------------------------------------------------------------
+public:
+  // Vertex types, edge type, and properties
+  using vertex1_descriptor = Arg;
+  using vertex2_descriptor = Factor*;
+  using edge_descriptor    = BipartiteEdge<Arg, Factor*>;
+
+  // Iterators
+  using adjacency1_iterator = FactorSet::const_iterator;
+  using adjacency2_iterator = Domain::const_iterator;
+  using out1_edge_iterator  = Bind1Iterator<adjacency1_iterator, edge_descriptor, Arg>;
+  using out2_edge_iterator  = Bind1Iterator<adjacency2_iterator, edge_descriptor, Factor*>;
+  using in1_edge_iterator   = Bind2Iterator<adjacency1_iterator, edge_descriptor, Arg>;
+  using in2_edge_iterator   = Bind2Iterator<adjacency2_iterator, edge_descriptor, Factor*>;
+  using vertex1_iterator    = MapKeyIterator<Vertex1Data>;
+  using vertex2_iterator    = Vertex2Data::const_iterator;
+  using edge_iterator = ?; //map_map_iterator<vertex1_data_map, neighbor1_map, edge_type>;
+
+  // Constructors, destructors, and related functions
+  //--------------------------------------------------------------------------
+public:
+  /// Creates an empty graph.
+  FactorGraph()
+    : num_edges_(0) { }
+
+  /// Copy constructor
+  FactorGraph(const FactorGraph& g) {
+    *this = g;
+  }
+
+  /// Assignment
+  FactorGraph& operator=(const FactorGraph& g) {
+    if (this == &g) { return *this; }
+    free_edge_data();
+    data1_ = g.data1_;
+    data2_ = g.data2_;
+    num_edges_ = g.num_edges_;
+    for (edge_type e : edges()) {
+      EdgeProperty* ptr =
+        new EdgeProperty(*static_cast<EdgeProperty*>(e.property_));
+      data1_[e.v1()].neighbors[e.v2()] = ptr;
+      data2_[e.v2()].neighbors[e.v1()] = ptr;
+    }
+    return *this;
+  }
+
+  /// Swap with another graph in constant time
+  friend void swap(FactorGraph& a, FactorGraph& b) {
+    swap(a.data1_, b.data1_);
+    swap(a.data2_, b.data2_);
+    std::swap(a.num_edges_, b.num_edges_);
+  }
+
+  // Accessors
+  //--------------------------------------------------------------------------
+public:
+
+  /// Returns the range of all type-1 vertices.
+  boost::iterator_range<vertex1_iterator> vertices1() const {
+    return { data1_.begin(), data1_.end() };
+  }
+
+  /// Returns the range of all type-2 vertices.
+  boost::iterator_range<vertex2_iterator> vertices2() const {
+    return { data2_.begin(), data2_.end() };
+  }
+
+  /// Returns the type-2 vertices adjacent to a type-1 vertex.
+  boost::iterator_range<adjacency1_iterator> adjacent_vertices(Arg u) const {
+    Argument* a = data1_.at(u);
+    return { a->factors_.begin(), a->factors_.end() };
+  }
+
+  /// Returns the type-1 vertices adjacent to a type-2 vertex.
+  boost::iterator_range<adjacency2_iterator> adjacent_vertices(Factor* u) const {
+    return { u->arguments_.begin(), u->arguments_.end() };
+  }
+
+  /// Returns the edges outgoing from a type-1 vertex.
+  boost::iterator_range<out1_edge_iterator> out_edges(Arg u) const {
+    Argument* a = data1_.at(u);
+    return { { a->factors_.begin(), u }, { a->factors_.end(), u } };
+  }
+
+  /// Returns the edges outgoing from a type-2 vertex.
+  boost::iterator_range<out2_edge_iterator> out_edges(Factor* u) const {
+    return { { u->arguments_.begin(), u }, { u->arguments_.end(), u } };
+  }
+
+  /// Returns the edges incoming to a type-1 vertex.
+  boost::iterator_range<in1_edge_iterator> in_edges(Arg u) const {
+    Argument* a = data1_.at(u);
+    return { { a->factors_.begin(), u }, { a->factors_.end(), u } };
+  }
+
+  /// Returns the edges incoming to a type-2 vertex.
+  boost::iterator_range<in2_edge_iterator> in_edges(Factor* u) const {
+    return { { u->arguments_.begin(), u }, { u->arguments_.end(), u } };
+  }
+
+  /// Returns all edges in the graph.
+  boost::iterator_range<edge_iterator>
+  edges() const {
+    return { { data1_.begin(), data1_.end(), &vertex_data1_map::neighbors },
+              { data1_.end(), data1_.end(), &vertex_data1_map::neighbors } };
+  }
+
+  /// Returns true if the graph contains the given type-1 vertex.
+  bool contains(Arg u) const {
+    return data1_.find(u) != data1_.end();
+  }
+
+  /// Returns true if the graph contains the given type-2 vertex.
+  bool contains(Factor* u) const {
+
+    return data2_.find(u) != data2_.end();
+  }
+
+  /// Returns true if the graph contains an undirected edge {u, v}.
+  bool contains(Vertex1 u, Vertex2 v) const {
+    auto it = data1_.find(u);
+    return it != data1_.end() && it->second.neighbors.count(v);
+  }
+
+  /// Returns true if the graph contains an undirected edge.
+  bool contains(const edge_type& e) const {
+    return contains(e.v1(), e.v2());
+  }
+
+  /// Returns an undirected edge between u and v. The edge must exist.
+  bipartite_edge<Vertex1, Vertex2> edge(Vertex1 u, Vertex2 v) const {
+    return { u, v, data1_.at(u).neighbors.at(v) };
+  }
+
+  /// Returns an undirected edge between u and v. The edge must exist.
+  bipartite_edge<Vertex1, Vertex2> edge(Vertex2 u, Vertex1 v) const {
+    return { u, v, data2_.at(u).neighbors.at(v) };
+  }
+
+  /// Returns the number of edges connected to a type-1 vertex.
+  std::size_t degree(Vertex1 u) const {
+    return data1_.at(u).neighbors.size();
+  }
+
+  /// Returns the number of edges connected to a type-2 vertex.
+  std::size_t degree(Vertex2 u) const {
+    return data2_.at(u).neighbors.size();
+  }
+
+  /// Returns true if the graph has no vertices.
+  bool empty() const {
+    return data1_.empty() && data2_.empty();
+  }
+
+  /// Returns the number of type-1 vertices.
+  std::size_t num_vertices1() const {
+    return data1_.size();
+  }
+
+  /// Returns the number of type-2 vertices.
+  std::size_t num_vertices2() const {
+    return data2_.size();
+  }
+
+  /// Returns the number of vertices.
+  std::size_t num_vertices() const {
+    return data1_.size() + data2_.size();
+  }
+
+  /// Returns the number of edges.
+  std::size_t num_edges() const {
+    return num_edges_;
+  }
+
+  /// Given an undirected edge (u, v), returns the equivalent edge (v, u).
+  edge_type reverse(const edge_type& e) const {
+    return e.reverse();
+  }
+
+  /// Returns the property associated with a type-1 vertex.
+  const Vertex1Property& operator[](Vertex1 u) const {
+    return data1_.at(u).property;
+  }
+
+  /// Returns the property associated with a type-2 vertex.
+  const Vertex2Property& operator[](Vertex2 u) const {
+    return data2_.at(u).property;
+  }
+
+  /// Returns the property associated with a type-1 vertex.
+  Vertex1Property& operator[](Vertex1 u) {
+    return data1_.at(u).property;
+  }
+
+  /// Returns the property associated with a type-2 vertex.
+  Vertex2Property& operator[](Vertex2 u) {
+    return data2_.at(u).property;
+  }
+
+  /// Returns the property associated with an edge.
+  const EdgeProperty& operator[](bipartite_edge<Vertex1, Vertex2> e) const {
+    return *static_cast<EdgeProperty*>(e.property_);
+  }
+
+  /// Returns the property associated with an edge.
+  EdgeProperty& operator[](bipartite_edge<Vertex1, Vertex2> e) {
+    return *static_cast<EdgeProperty*>(e.property_);
+  }
+
   /**
-   * A class that represents a factor graph. A factor graph is a special kind of
-   * bipartite graph, consisting of two types of vertices: argument (type-1)
-   * vertices and factor (type-2) vertices. Both types of vertices can be
-   * associated with a property, and each factor is associated with a domain,
-   * which implicitly defines its edges to the argument vertices.
-   * There is no data associated with edges.
-   *
-   * \tparam Arg
-   *         The type that represents an argument.
-   * \tparam ArgumentProperty
-   *         The property associated with each argument.
-   *         Must be DefaultConstructible and CopyConstructible.
-   * \tparam FactorProperty
-   *         The property associated with each factor.
-   *         Must be DefaultConstructible and CopyConstructible.
-   * \ingroup graph_types
+   * Returns the property associated with edge {u, v}.
+   * The edge must exist.
    */
-  template <typename Arg,
-            typename ArgumentProperty = void_,
-            typename FactorProperty = void_>
-  class factor_graph {
-    // Private types
-    //--------------------------------------------------------------------------
-  private:
-    struct vertex1_data {
-      annotated<Arg, ArgumentProperty> property;
-      std::vector<id_t> neighbors; // sorted
-      bool operator==(const vertex1_data& other) const {
-        return property == other.property; // intentionally omitting neihgbors
-      }
-      bool contains(id_t v) const {
-        return std::binary_search(neighbors.begin(), neighbors.end(), v);
-      }
-      void erase(id_t v) {
-        auto it = std::lower_bound(neighbors.begin(), neighbors.end(), v);
-        assert(it != neighbors.end() && *it == v);
-        neighbors.erase(it);
-      }
-    };
+  const EdgeProperty& operator()(Vertex1 u, Vertex2 v) const {
+    return data1_.at(u).neighbors.at(v);
+  }
 
-    struct vertex2_data {
-      annotated<Arg, FactorProperty> property;
-      bool operator==(const vertex2_data& other) const {
-        return property == other.property;
-      }
-    };
+  /**
+   * Returns the property associated with edge {u, v}.
+   * The edge is added if necessary.
+   */
+  EdgeProperty& operator()(Vertex1 u, Vertex2 v) {
+    return operator[](add_edge(u, v).first);
+  }
 
-    using vertex1_data_map = std::unordered_map<Arg, vertex1_data>;
-    using vertex2_data_map = std::unordered_map<id_t, vertex2_data>;
+  /**
+   * Draws a random type-1 vertex in the graph, assuming one exists.
+   * \todo ensure sampling is uniform
+   */
+  template <typename Generator>
+  Vertex1 sample_vertex1(Generator& rng) const {
+    return sample_key(data1_, rng); // in sampling.hpp
+  }
 
-    // Public types
-    //--------------------------------------------------------------------------
-  public:
-    // Vertex types, edge type, and properties
-    using argument_type    = Arg;
-    using vertex1_type     = Arg;
-    using vertex2_type     = id_t;
-    using edge_type        = bipartite_edge<Arg, id_t>;
-    using vertex1_property = Property;
-    using vertex2_property = Property;
-    using edge_property    = void;
+  /**
+   * Draws a random type-2 vertex in the graph, assuming one exists.
+   * \todo ensure sampling is uniform
+   */
+  template <typename Generator>
+  Vertex2 sample_vertex2(Generator& rng) const {
+    return sample_key(data2_, rng); // in sampling.hpp
+  }
 
-    // Iterators
-    using argument_iterator  = map_key_iterator<vertex1_data_map>;
-    using vertex1_iterator   = map_key_iterator<vertex1_data_map>;
-    using vertex2_iterator   = map_key_iterator<vertex2_data_map>;
-    using neighbor1_iterator = typename std::vector<id_t>::const_iterator;
-    using neighbor2_iterator = typename domain<Arg>::const_iterator;
-    using in1_edge_iterator  =
-      bind2_iterator<neighbor1_iterator, edge_type, Arg>;
-    using in2_edge_iterator  =
-      bind2_iterator<neighbor2_iterator, edge_type, id_t>;
-    using out1_edge_iterator =
-      bind1_iterator<neighbor1_iterator, edge_type, Arg>;
-    using out2_edge_iterator =
-      bind1_iterator<neighbor2_iterator, edge_type, id_t>;
-    using edge_iterator =
-      map_range_iterator<vertex1_data_map, std::vector<id_t>, edge_type>;
-    using iterator = join_iterator<
-      map_value_property_iterator<vertex1_data_map>,
-      map_value_property_iterator<vertex2_data_map> >;
-
-    // Constructors, destructors, and related functions
-    //--------------------------------------------------------------------------
-  public:
-    //! Creates an empty graph.
-    factor_graph()
-      : num_edges_(0) { }
-
-    //! Swap with another graph in constant time
-    friend void swap(factor_graph& a, factor_graph& b) {
-      swap(a.data1_, b.data1_);
-      swap(a.data2_, b.data2_);
-      std::swap(a.num_edges_, b.num_edges_);
+  /// Prints the graph to an output stream.
+  friend std::ostream&
+  operator<<(std::ostream& out, const FactorGraph& g) {
+    out << "Type-1 vertices" << std::endl;
+    for (Arg arg : g.arguments()) {
+      out << arg << ": " << g[arg] << std::endl;
     }
-
-    // Accessors
-    //--------------------------------------------------------------------------
-  public:
-    //! Returns the range of all arguments (same a vertices1()).
-    iterator_range<argument_iterator>
-    arguments() const {
-      return { data1_.begin(), data1_.end() };
+    out << "Type-2 vertices" << std::endl;
+    for (Factor* f : g.factors()) {
+      out << f->index() << ": " << g[f] << std::endl;
     }
-
-    //! Returns the range of all factor IDs (same as vertices2()).
-    iterator_range<vertex2_iterator>
-    factors() const {
-      return { data2_.begin(), data2_.end() };
+    out << "Edges" << std::endl;
+    for (edge_type e : g.edges()) {
+      out << e << std::endl;
     }
+    return out;
+  }
 
-    //! Returns the range of all argument (type-1) vertices.
-    iterator_range<vertex1_iterator>
-    vertices1() const {
-      return { data1_.begin(), data1_.end() };
+  // Modifications
+  //--------------------------------------------------------------------------
+  /**
+   * Adds a type-1 vertex to a graph and associates a property with
+   * that vertex. If the vertex is already present, its property is
+   * not overwritten.
+   * \return true if the insertion took place (i.e., vertex was not present).
+   */
+  bool add_vertex(Vertex1 u, const Vertex1Property& p = Vertex1Property()) {
+    assert(u != Vertex1());
+    if (contains(u)) {
+      return false;
+    } else {
+      data1_[u].property = p;
+      return true;
     }
+  }
 
-    //! Returns the range of all factor (type-2) vertices.
-    iterator_range<vertex2_iterator>
-    vertices2() const {
-      return { data2_.begin(), data2_.end() };
+  /**
+   * Adds a type-2 vertex to a graph and associates a property with that
+   * that vertex. If the vertex is already present, its property is
+   * not overwritten.
+   * \return true if the insertion took place (i.e., vertex was not present).
+   */
+  bool add_vertex(Vertex2 u, const Vertex2Property& p = Vertex2Property()) {
+    assert(u != Vertex2());
+    if (contains(u)) {
+      return false;
+    } else {
+      data2_[u].property = p;
+      return true;
     }
+  }
 
-    //! Returns all edges in the graph.
-    iterator_range<edge_iterator>
-    edges() const {
-      return { { data1_.begin(), data1_.end(), &vertex_data1_map::neighbors },
-               { data1_.end(), data1_.end(), &vertex_data1_map::neighbors } };
-    }
-
-    //! Returns the IDs of factors containing an argument.
-    iterator_range<neighbor1_iterator>
-    neighbors(Arg u) const {
-      const vertex1_data& data = data1_.at(u);
-      return { data.neighbors.begin(), data.neighbors.end() };
-    }
-
-    //! Returns the range of arguments of a factor.
-    iterator_range<neighbor2_iterator>
-    neighbors(id_t u) const {
-      const domain<Arg>& args = data2_.at(u).property.domain;
-      return { args.begin(), args.end() };
-    }
-
-    //! Returns the edges incoming to an argument.
-    iterator_range<in1_edge_iterator>
-    in_edges(Arg u) const {
-      iterator_range<neighbor1_iterator> range = neighbors(u);
-      return { { range.begin(), u }, { range.end(), u } };
-    }
-
-    //! Returns the edges incoming to a factor.
-    iterator_range<in2_edge_iterator>
-    in_edges(id_t u) const {
-      iterator_range<neighbor2_iterator> range = neighbors(u);
-      return { { range.begin(), u }, { range.end(), u } };
-    }
-
-    //! Returns the edges outgoing from an argument.
-    iterator_range<out1_edge_iterator>
-    out_edges(Arg u) const {
-      iterator_range<neighbor1_iterator> range = neighbors(u);
-      return { { range.begin(), u }, { range.end(), u } };
-    }
-
-    //! Returns the edges outgoing from a factor.
-    iterator_range<out2_edge_iterator>
-    out_edges(id_t u) const {
-      iterator_range<neighbor2_iterator> range = neighbors(u);
-      return { { range.begin(), u }, { range.end(), u } };
-    }
-
-    //! Returns true if the graph contains the given argument.
-    bool contains(Arg u) const {
-      return data1_.find(u) != data1_.end();
-    }
-
-    //! Returns true if the graph contains the given factor ID.
-    bool contains(id_t u) const {
-      return data2_.find(u) != data2_.end();
-    }
-
-    //! Returns true if the graph contains an edge {u, v}.
-    bool contains(Arg u, id_t v) const {
-      auto it = data1_.find(u);
-      return it != data1_.end() && it->second.contains(v);
-    }
-
-    //! Returns true if the graph contains an undirected edge.
-    bool contains(bipartite_edge<Arg, id_t> e) const {
-      return contains(e.v1(), e.v2());
-    }
-
-    //! Returns an undirected edge between u and v, assuming one exists.
-    bipartite_edge<Arg, id_t> edge(Arg u, id_t v) const {
-      return { u, v };
-    }
-
-    //! Returns an undirected edge between u and v, assuming one exists.
-    bipartite_Edge<id_t, Arg> edge(id_t u, Arg v) const {
-      return { u, v };
-    }
-
-    //! Returns the number of factors containing the given argument.
-    std::size_t degree(Arg u) const {
-      return data1_.at(u).neighbors.size();
-    }
-
-    //! Returns the number of arguments in the given factor.
-    std::size_t degree(id_t u) const {
-      return data2_.at(u).property.domain.size();
-    }
-
-    //! Returns true if the graph has no vertices.
-    bool empty() const {
-      return data1_.empty() && data2_.empty();
-    }
-
-    //! Returns the number of arguments (same as num_vertices1()).
-    std::size_t num_arguments() const {
-      return data1_.size();
-    }
-
-    //! Returns the number of factors (same as num_vertices2()).
-    std::size_t num_factors() const {
-      return data2_.size();
-    }
-
-    //! Returns the number of type-1 vertices (arguments).
-    std::size_t num_vertices1() const {
-      return data1_.size();
-    }
-
-    //! Returns the number of type-2 vertices (factors).
-    std::size_t num_vertices2() const {
-      return data2_.size();
-    }
-
-    //! Returns the total number of vertices.
-    std::size_t num_vertices() const {
-      return data1_.size() + data2_.size();
-    }
-
-    //! Returns the total number of edges.
-    std::size_t num_edges() const {
-      return num_edges_;
-    }
-
-    //! Given an undirected edge (u, v), returns the equivalent edge (v, u).
-    bipartite_edge<Arg, id_t> reverse(bipartite_edge<Arg, id_t> e) const {
-      return e.reverse();
-    }
-
-    //! Returns the property associated with an argument.
-    const ArgumentProperty& operator[](Arg u) const {
-      return data1_.at(u).property.object;
-    }
-
-    //! Returns the property associated with a factor.
-    const FactorProperty& operator[](id_t u) const {
-      return data2_.at(u).property.object;
-    }
-
-    //! Returns the property associated with an argument.
-    ArgumentProperty& operator[](Arg u) {
-      return data1_.at(u).property.object;
-    }
-
-    //! Returns the property associated with a factor.
-    FactorProperty& operator[](id_t u) {
-      return data2_.at(u).property.object;
-    }
-
-    //! Returns the arguments of a factor.
-    const domain<Arg>& arguments(id_t u) const {
-      return data2_.at(u).property.domain;
-    }
-
-    //! Returns the annotated property associated with an argument.
-    const annotated<Arg, ArgumentProperty>& property(Arg u) const {
-      return data1_.at(u).property;
-    }
-
-    //! Returns the annotated property associated with a factor.
-    const annotated<Arg, FactorProperty>& property(id_t u) const {
-      return data2_.at(u).property;
-    }
-
-    //! Returns the begin iterator over the range of all properties.
-    LIBGM_ENABLE_IF((std::is_same<ArgumentProperty, FactorProperty>::value))
-    iterator begin() const {
-      return { data1_.begin(), data1_.end(), data2_.begin() };
-    }
-
-    //! Returns the end iterator over the range of all properties.
-    LIBGM_ENABLE_IF((std::is_same<ArgumentProperty, FactorProperty>::value))
-    iterator end() const {
-      return { data1_.end(), data1_.end(), data2_.end() };
-    }
-
-    /**
-     * Draws a random argument vertex in the graph, assuming one exists.
-     * \todo ensure sampling is uniform
-     */
-    template <typename Generator>
-    Arg sample_argument(Generator& rng) const {
-      return sample_key(data1_, rng); // in sampling.hpp
-    }
-
-    /**
-     * Draws a random factor vertex in the graph, assuming one exists.
-     * \todo ensure sampling is uniform
-     */
-    template <typename Generator>
-    id_t sample_factor(Generator& rng) const {
-      return sample_key(data2_, rng); // in sampling.hpp
-    }
-
-    /**
-     * Returns a cover for a domain, other the vertex given,
-     * or null if there is none.
-     */
-    id_t find_cover(const domain<Arg>& dom, id_t exclude = id_t()) const {
-      assert(!dom.empty());
-
-      // identify the argument with the fewest connected factors
-      std::size_t min_degree = std::numeric_limits<std::size_t>::max();
-      Arg min_arg;
-      for (Arg arg : dom) {
-        if (degree(arg) < min_degree) {
-          min_degree = degree(arg);
-          min_arg = arg;
-        }
-      }
-
-      // identify a subsuming factor among the neighbors of min_arg
-      for (id_t u : neighbors(min_arg)) {
-        if (u != exclude && subset(dom, arguments(u))) {
-          return u;
-        }
-      }
-      return id_t();
-    }
-
-    /**
-     * Compares the graph structure and the vertex & edge properties.
-     * The property types must support operator!=().
-     */
-    bool operator==(const factor_graph& g) const {
-      return
-        num_vertices1() == g.num_vertices1() &&
-        num_vertices2() == g.num_vertices2() &&
-        num_edges() == g.num_edges() &&
-        data1_ == g.data1_ &&
-        data2_ == g.data2_;
-    }
-
-    //! Compares the graph structure and the vertex & edge properties
-    bool operator!=(const factor_graph& g) const {
-      return !(*this == g);
-    }
-
-    //! Prints the graph to an output stream.
-    friend std::ostream&
-    operator<<(std::ostream& out, const factor_graph& g) {
-      out << "Arguments" << std::endl;
-      for (Arg u : g.arguments()) {
-        out << u << ": " << g[u] << std::endl;
-      }
-      out << "Factors" << std::endl;
-      for (id_t u : g.factors()) {
-        out << u << ": " << g.property(u) << std::endl;
-      }
-      out << "Edges" << std::endl;
-      for (edge_type e : g.edges()) {
-        out << e << std::endl;
-      }
-      return out;
-    }
-
-    // Modifications
-    //--------------------------------------------------------------------------
-    /**
-     * Adds an argument to a graph with the associated property,
-     * overwriting the existing property.
-     *
-     * \return true if the insertion took place (i.e., vertex was not present).
-     */
-    bool add_argument(Arg u, const ArgumentProperty& p = ArgumentProperty()) {
-      assert(u != Arg());
-      auto it = data1_.find(u);
-      if (it == data1_.end()) {
-        data1_.emplace(arg, make_annotated({u}, p));
-        return true;
-      } else {
-        it->second.property.domain = {u};
-        it->second.property.object = p;
-        return false;
+  /**
+   * Adds an edge {u, v} to the graph. If the edge already exists, its
+   * property is not overwritten. If u or v are not present, they are added.
+   * \return the edge and bool indicating whether the edge was newly added.
+   */
+  std::pair<bipartite_edge<Vertex1, Vertex2>, bool>
+  add_edge(Vertex1 u, Vertex2 v, const EdgeProperty& p = EdgeProperty()) {
+    assert(u != Vertex1() && v != Vertex2());
+    auto uit = data1_.find(u);
+    if (uit != data1_.end()) {
+      auto vit = uit->second.neighbors.find(v);
+      if (vit != uit->second.neighbors.end()) {
+        return std::make_pair(edge_type(u, v, vit->second), false);
       }
     }
+    EdgeProperty* ptr = new EdgeProperty(p);
+    data1_[u].neighbors[v] = ptr;
+    data2_[v].neighbors[u] = ptr;
+    ++num_edges_;
+    return std::make_pair(edge_type(u, v, ptr), true);
+  }
 
-    /**
-     * Adds a new factor vertex with given domain to a graph and associates
-     * a property with that that vertex.
-     *
-     * \return the id of thew newly added factor
-     */
-    id_t add_factor(const domain<Arg>& args,
-                    const FactorProperty& p = FactorProperty()) {
-      data2_[next_id_].property = make_annotated(args, p);
-      for (Arg arg : args) {
-        data1_[arg].neighbors.push_back(next_id_);
-      }
-      num_edges_ += args.size();
-      return next_id_++;
+  /// Removes a type-1 vertex and all its incident edges from the graph.
+  void remove_vertex(Vertex1 u) {
+    remove_edges(u);
+    data1_.erase(u);
+  }
+
+  /// Removes a type-2 vertex and all its incident edges from the graph.
+  void remove_vertex(Vertex2 u) {
+    remove_edges(u);
+    data2_.erase(u);
+  }
+
+  /// Removes an undirected edge {u, v}. The edge must be present.
+  void remove_edge(Vertex1 u, Vertex2 v) {
+    // find the edge (u, v)
+    vertex1_data& data = data1_.at(u);
+    auto it = data.neighbors.find(v);
+    assert(it != data.neighbors.end());
+
+    // delete the edge data and the two symmetric edges
+    delete it->second;
+    data.neighbors.erase(it);
+    data2_[v].neighbors.erase(u);
+    --num_edges_;
+  }
+
+  /// Removes all edges incident to a type-1 vertex.
+  void remove_edges(Vertex1 u) {
+    neighbor1_map& neighbors = data1_.at(u).neighbors;
+    num_edges_ -= neighbors.size();
+    for (const auto& p : neighbors) {
+      data2_[p.first].neighbors.erase(u);
+      delete p.second;
     }
+    neighbors.clear();
+  }
 
-    /**
-     * Removes an argument from the graph.
-     * Requires that there are no factors adjacent to this argument.
-     */
-    void remove_vertex(Arg u) {
-      assert(data1_.at(u).neighbors.empty());
-      data1_.erase(u);
+  /// Removes all edges incident to a type-2 vertex.
+  void remove_edges(Vertex2 u) {
+    neighbor2_map& neighbors = data2_.at(u).neighbors;
+    num_edges_ -= neighbors.size();
+    for (const auto& p : neighbors) {
+      data1_[p.first].neighbors.erase(u);
+      delete p.second;
     }
+    neighbors.clear();
+  }
 
-    /**
-     * Removes a factor from the graph and all the edges attached to it.
-     */
-    void remove_vertex(id_t u) {
-      const domain<Arg>& args = arguments(u);
-      num_edges_ -= args.size();
-      for (Arg arg : args) {
-        data1_.at(arg).erase(u);
-      }
-      data2_.erase(u);
+  /// Removes all edges from the graph.
+  void remove_edges() {
+    free_edge_data();
+    for (typename vertex1_data_map::reference p : data1_) {
+      p.second.neighbors.clear();
     }
+    for (typename vertex2_data_map::reference p : data2_) {
+      p.second.neighbors.clear();
+    }
+    num_edges_ = 0;
+  }
 
-    /**
-     * Simplify the model by merging factors. For each factor f(X),
-     * if a factor g(Y) exists such that X \subseteq Y, the factor
-     * g is merged into f using the specified function, taking the
-     * source and target factor.
-     */
-    void simplify(std::function<void(id_t, id_t)> merge) {
-      // create a copy because we will be mutating the factors
-      std::vector<id_t> ids(factors().begin(), factors.end());
-      for (id_t u : ids) {
-        id_t v = find_cover(arguments(u), u);
-        if (v) {
-          merge(u, v);
-          remove_vertex(u);
-        }
+  /// Removes all vertices and edges from the graph.
+  void clear() {
+    free_edge_data();
+    data1_.clear();
+    data2_.clear();
+    num_edges_ = 0;
+  }
+
+  /// Saves the graph to an archive.
+  void save(oarchive& ar) const {
+    ar << num_vertices1() << num_vertices2() << num_edges();
+    for (typename vertex1_data_map::const_reference p : data1_) {
+      ar << p.first << p.second.property;
+    }
+    for (typename vertex2_data_map::const_reference p : data2_) {
+      ar << p.first << p.second.property;
+    }
+    for (edge_type e : edges()) {
+      ar << e.v1() << e.v2() << *e.property_;
+    }
+  }
+
+  /// Loads the graph from an archive.
+  void load(iarchive& ar) {
+    clear();
+    std::size_t num_vertices1, num_vertices2, num_edges;
+    Vertex1 u;
+    Vertex2 v;
+    ar >> num_vertices1 >> num_vertices2 >> num_edges;
+    while (num_vertices1-- > 0) {
+      ar >> u;
+      ar >> data1_[u].property;
+    }
+    while (num_vertices2-- > 0) {
+      ar >> v;
+      ar >> data2_[v].property;
+    }
+    while (num_edges-- > 0) {
+      ar >> u >> v;
+      ar >> operator()(u, v);
+    }
+  }
+
+  // Private members
+  //--------------------------------------------------------------------------
+private:
+  void free_edge_data() {
+    for (edge_type e : edges()) {
+      if(e.property_) {
+        delete static_cast<EdgeProperty*>(e.property_);
       }
     }
+  }
 
-    //! Removes all vertices and edges from the graph.
-    void clear() {
-      data1_.clear();
-      data2_.clear();
-      num_edges_ = 0;
-    }
+  /// The properties and neighbors of type-1 vertices.
+  vertex1_data_map data1_;
 
-    //! Saves the graph to an archive.
-    void save(oarchive& ar) const {
-      ar << num_vertices1() << num_vertices2() << num_edges();
-      for (const auto& p : data1_) {
-        ar << p.first << p.second.property;
-      }
-      for (const auto& p : data2_) {
-        ar << p.first << p.second.property;
-      }
-    }
+  /// The properties and neighbors of type-2 vertices.
+  vertex2_data_map data2_;
 
-    //! Loads the graph from an archive.
-    void load(iarchive& ar) {
-      clear();
-      std::size_t num_vertices1, num_vertices2;
-      Arg u;
-      id_t v;
-      ar >> num_vertices1 >> num_vertices2 >> num_edges_;
-      while (num_vertices1-- > 0) {
-        ar >> u;
-        ar >> data1_[u].property;
-      }
-      while (num_vertices2-- > 0) {
-        ar >> v;
-        ar >> data2_[v].property;
-        for (Arg arg : data2_[v].property.domain) {
-          data1_[arg].neighbors.push_back(v);
-        }
-      }
-    }
+  /// The number of edges.
+  std::size_t num_edges_;
 
-    // Private members
-    //--------------------------------------------------------------------------
-  private:
-    //! The properties and neighbors of type-1 vertices (arguments).
-    vertex1_data_map data1_;
+}; // class FactorGraph
 
-    //! The properties and neighbors of type-2 vertices (factors).
-    vertex2_data_map data2_;
-
-    //! The number of edges.
-    std::size_t num_edges_;
-
-  }; // class factor_graph
+template <typename Vertex1Property = void_,
+          typename Vertex2Property = void_,
+          typename EdgeProperty = void_>
 
 } // namespace libgm
 
