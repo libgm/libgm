@@ -15,6 +15,8 @@ namespace libgm {
   /**
    * A model representing a finite mixture (sum) of distributions.
    *
+   * \todo This needs to be cleaned up
+   *
    * \tparam F
    *         The factor type representing each mixture component.
    *

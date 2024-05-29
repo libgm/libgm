@@ -4,17 +4,13 @@ template <typename DERIVED, typename VALUE>
 struct Marginal {
   struct VTable {
     VALUE (Impl<DERIVED>::*marginal)() const;
-    DERIVED (Impl<DERIVED>::*marginal_dims)(const Dims&) const;
     DERIVED (Impl<DERIVED>::*marginal_front)(unsigned) const;
     DERIVED (Impl<DERIVED>::*marginal_back)(unsigned) const;
+    DERIVED (Impl<DERIVED>::*marginal_list)(const DimList&) const;
   };
 
   VALUE marginal() const {
     return static_cast<const DERIVED&>(*this).call(&VTable::marginal);
-  }
-
-  DERIVED marginal(const Dims& dims) const {
-    return static_cast<const DERIVED&>(*this).call(&VTable::marginal_dims, dims);
   }
 
   DERIVED marginal_front(unsigned n) const {
@@ -24,23 +20,23 @@ struct Marginal {
   DERIVED marginal_back(unsigned n) const {
     return static_cast<const DERIVED&>(*this).call(&VTable::marginal_back, n);
   }
+
+  DERIVED marginal(const DimList& dims) const {
+    return static_cast<const DERIVED&>(*this).call(&VTable::marginal_list, dims);
+  }
 };
 
-template <typename DERIVED, typename VALUE, typename VECTOR = void>
+template <typename DERIVED, typename VALUE>
 struct Maximum {
   struct VTable {
-    VALUE (Impl<DERIVED>::*maximum)(VECTOR*) const;
-    DERIVED (Impl<DERIVED>::*maximum_dims)(const Dims&) const;
+    VALUE (Impl<DERIVED>::*maximum)(Assignment*) const;
     DERIVED (Impl<DERIVED>::*maximum_front)(unsigned) const;
     DERIVED (Impl<DERIVED>::*maximum_back)(unsigned) const;
+    DERIVED (Impl<DERIVED>::*maximum_list)(const DimList&) const;
   };
 
-  VALUE maximum(VECTOR* arg = nullptr) const {
+  VALUE maximum(Assignment* arg = nullptr) const {
     return static_cast<const DERIVED&>(*this).call(&VTable::maximum, arg);
-  }
-
-  DERIVED maximum(const Dims& dims) const {
-    return static_cast<const DERIVED&>(*this).call(&VTable::maximum_dims, dims);
   }
 
   DERIVED maximum_front(unsigned n) const {
@@ -50,23 +46,23 @@ struct Maximum {
   DERIVED maximum_back(unsigned n) const {
     return static_cast<const DERIVED&>(*this).call(&VTable::maximum_back, n);
   }
+
+  DERIVED maximum(const DimList& dims) const {
+    return static_cast<const DERIVED&>(*this).call(&VTable::maximum_list, dims);
+  }
 };
 
-template <typename DERIVED, typename VALUE, typename VECTOR = void>
+template <typename DERIVED, typename VALUE>
 struct Minimum {
   struct VTable {
-    VALUE (Impl<DERIVED>::*minimum)(VECTOR*) const;
-    DERIVED (Impl<DERIVED>::*minimum_dims)(const Dims& dims) const;
+    VALUE (Impl<DERIVED>::*minimum)(Assignment*) const;
     DERIVED (Impl<DERIVED>::*mininum_front)(unsigned) const;
     DERIVED (Impl<DERIVED>::*minimum_back)(unsigned) const;
+    DERIVED (Impl<DERIVED>::*minimum_list)(const DimList&) const;
   };
 
-  DERIVED minimum(VECTOR* arg = nullptr) const {
+  DERIVED minimum(Assignment* arg = nullptr) const {
     return static_cast<const DERIVED&>(*this).call(&VTable::minimum, arg);
-  }
-
-  DERIVED minimum(const Dims& dims) const {
-    return static_cast<const DERIVED&>(*this).call(&VTable::minimum_dims, dims);
   }
 
   DERIVED minimum_front(unsigned n) const {
@@ -75,6 +71,10 @@ struct Minimum {
 
   DERIVED minimum_back(unsigned n) const {
     return static_cast<const DERIVED&>(*this).call(&VTable::minimum_back, n);
+  }
+
+  DERIVED minimum(const DimList& dims) const {
+    return static_cast<const DERIVED&>(*this).call(&VTable::minimum_list, dims);
   }
 };
 

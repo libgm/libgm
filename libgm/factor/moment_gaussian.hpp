@@ -29,12 +29,11 @@ namespace libgm {
 template <typename T>
 class MomentGaussian
   : Implements<
-      Equal<MomentGaussian<T>>,
       Assign<MomentGaussian<T>, Exp<T>>,
       Multiply<MomentGaussian<T>, Exp<T>>,
       Multiply<MomentGaussian<T>, MomentGaussian<T>>,
-      MultiplyJoin<MomentGaussian<T>>,
       MultiplyIn<MomentGaussian<T>, Exp<T>>,
+      MultiplyJoin<MomentGaussian<T>>,
       Divide<MomentGaussian<T>, Exp<T>>,
       DivideIn<MomentGaussian<T>, Exp<T>>,
       Marginal<MomentGaussian<T>>,
@@ -63,11 +62,8 @@ public:
   /// with the specified mean vector, covariance matrix, and coefficients.
   MomentGaussian(VectorType mean, MatrixType cov, MatrixType coef, T lm = 0);
 
-
-
-  // Accessors
+  // Accessors (these need to be cleaned up)
   //--------------------------------------------------------------------------
-
 
   /// Returns the log multiplier.
   RealType log_multiplier() const {
@@ -99,26 +95,10 @@ public:
     return param_(v);
   }
 
-  // Mutations
-  //--------------------------------------------------------------------------
-
-  /// Multiplies this factor by another one in-place.
-  template <typename Other>
-  moment_gaussian&
-  operator*=(const moment_gaussian_base<RealType, Other>& f) {
-    assert(!f.derived().alias(param_));
-    f.derived().multiply_inplace(all(head_arity()), param_);
-    return *this;
-  }
-
   /// Normalizes this factor in-place.
   void normalize() {
     param_.lm = RealType(0);
   }
-
-private:
-  /// The parameters of the factor, encapsulated as a struct.
-  std::unique_ptr<Impl<MomentGaussian>> impl_;
 
 }; // class MomentGaussian
 

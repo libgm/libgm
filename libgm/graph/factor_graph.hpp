@@ -507,6 +507,7 @@ private:
 template <typename Vertex1Property = void_,
           typename Vertex2Property = void_,
           typename EdgeProperty = void_>
+class FactorGraphT;
 
 } // namespace libgm
 

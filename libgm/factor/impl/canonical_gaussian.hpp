@@ -3,7 +3,7 @@
 namespace libgm {
 
 template <typename T>
-struct Impl<CanonicalGausssian<T>> {
+struct CanonicalGausssian<T>::Impl {
   /// The type of the LLT Cholesky decomposition object.
   using CholeskyType = Eigen::LLT<DenseMatrix<T>>;
 
@@ -56,21 +56,21 @@ struct Impl<CanonicalGausssian<T>> {
     return eta.size();
   }
 
-  void save(oarchive& ar) const {
+  void save(oarchive& ar) const override {
     ar << eta << lambda << lm;
   }
 
   //! Deserializes the parameters from an archive.
-  void load(iarchive& ar) {
+  void load(iarchive& ar) override {
     ar >> eta >> lambda >> lm;
   }
 
   Exp<T> eval(const Assignment& a) const {
-    return exp(a);
+    return log(a);
   }
 
   Val<T> log(const Assignment& a) const {
-    auto x = a.vector<0, T>();
+    auto x = a.vector<T>();
     return -T(0.5) * x.transpose() * lambda * x + eta.dot(x) + lm;
   }
 
@@ -78,7 +78,7 @@ struct Impl<CanonicalGausssian<T>> {
     return eta == other.eta && lambda == other.lambda && lm == other.lm;
   }
 
-  void print(std::ostream& out) const {
+  void print(std::ostream& out) const override {
     out << eta << std::endl << lambda << std::endl << lm;
   }
 
@@ -136,35 +136,49 @@ struct Impl<CanonicalGausssian<T>> {
     return {b * eta + a * x.eta, b * lambda + a * x.lambda, b * lm + a * x.lm};
   }
 
-  void multiply_in(const CanonicalGaussian<T>& other, const Dims& dims) {
+  void multiply_in(const CanonicalGaussian<T>& other, const std::vector<unsigned>& dims) {
     const Impl& x = other.impl();
     sub(eta, dims) += x.eta;
     sub(lambda, dims, dims) += x.lambda;
     lm += x.lm;
   }
 
-  void multiply_in(const CanonicalGaussian<T>& other, unsigned start, unsigned n) {
+  void multiply_in_front(const CanonicalGaussian<T>& other, unsigned n) {
     const Impl& x = other.impl();
-    eta.segment(start, n) += x.eta;
-    lambda.block(start, start, n, n) += x.lambda;
+    eta.head(n) += x.eta;
+    lambda.topLeftCorner(n, n) += x.lambda;
     lm += x.lm;
   }
 
-  void divide_in(const CanonicalGaussian<T>& other, const Dims& dims) {
+  void multiply_in_back(const CanonicalGaussian<T>& other, unsigned n) {
+    const Impl& x = other.impl();
+    eta.tail(n) += x.eta;
+    lambda.bottomRightCorner(n, n) += x.lambda;
+    lm += x.lm;
+  }
+
+  void divide_in(const CanonicalGaussian<T>& other, const std::vector<unsigned>& dims) {
     const Impl& x = other.impl();
     sub(eta, dims) -= x.eta;
     sub(lambda, dims, dims) -= x.lambda;
     lm -= x.lm;
   }
 
-  void divide_in(const CanonicalGaussian<T>& other, unsigned start, unsigned n) {
+  void divide_in_front(const CanonicalGaussian<T>& other, unsigned n) {
     const Impl& x = other.impl();
-    eta.segment(start, n) -= x.eta;
-    lambda.block(start, start, n, n) -= x.lambda;
+    eta.head(n) -= x.eta;
+    lambda.topLeftCorner(n, n) -= x.lambda;
     lm -= x.lm;
   }
 
-  CanonicalGaussian<T> multiply(const CanonicalGaussian<T>& other, const Dims& i, const Dims& j)
+  void divide_in_back(const CanonicalGaussian<T>& other, unsigned n) {
+    const Impl& x = other.impl();
+    eta.tail(n) -= x.eta;
+    lambda.bottomRightCorner(n, n) -= x.lambda;
+    lm -= x.lm;
+  }
+
+  CanonicalGaussian<T> multiply(const CanonicalGaussian<T>& other, const std::vector<unsigned>& i, const std::vector<unsigned>& j)
   const {
     const Impl& x = other.impl();
     std::unique_ptr<Impl> result = zeros((i | j).count());
@@ -188,7 +202,7 @@ struct Impl<CanonicalGausssian<T>> {
     return std::move(result);
   }
 
-  CanonicalGaussian<T> divide(const CanonicalGaussian<T>& other, const Dims& i, const Dims& j)
+  CanonicalGaussian<T> divide(const CanonicalGaussian<T>& other, const std::vector<unsigned>& i, const std::vector<unsigned>& j)
   const {
     const Impl& x = other.impl();
     std::unique_ptr<Impl> result = zeros((i | j).count());
@@ -221,8 +235,8 @@ struct Impl<CanonicalGausssian<T>> {
     return {lv, log_tag()};
   }
 
-  CanonicalGaussian<T> marginal(const Dims& i) const {
-    return reduce(i).marginal();
+  CanonicalGaussian<T> marginal(const std::vector<unsigned>& dims) const {
+    return reduce(dims).marginal();
   }
 
   CanonicalGaussian<T> marginal_front(unsigned n) const {
@@ -247,8 +261,8 @@ struct Impl<CanonicalGausssian<T>> {
     );
   }
 
-  CanonicalGaussian<T> maximum(const Dims& i) const {
-    return reduce(i).maximum();
+  CanonicalGaussian<T> maximum(const std::vector<unsigned>& dims) const {
+    return reduce(dims).maximum();
   }
 
   CanonicalGaussian<T> maximum_front(unsigned n) const {
@@ -259,7 +273,7 @@ struct Impl<CanonicalGausssian<T>> {
     return reduce(n, size() - n, 0).maximum();
   }
 
-  CanonicalGaussian<T> restrict(const Dims& i, const Assignment& a) const {
+  CanonicalGaussian<T> restrict(const std::vector<unsigned>& i, const Assignment& a) const {
     return reduce(i).restrict(a);
   }
 
@@ -271,7 +285,7 @@ struct Impl<CanonicalGausssian<T>> {
     return reduce(n, size() - n, 0).restrict(a);
   }
 
-  CanonicalGaussian<T> conditional(const Dims& i) const {
+  CanonicalGaussian<T> conditional(const std::vector<unsigned>& i) const {
     return reduce(i).conditinal();
   }
 
@@ -279,7 +293,7 @@ struct Impl<CanonicalGausssian<T>> {
     return reduce(n, 0, n).conditional();
   }
 
-  CanonicalGaussian<T> conditional_back(unsigend n) const {
+  CanonicalGaussian<T> conditional_back(unsigned n) const {
     return reduce(n, size() - n, 0).conditional(vec);
   }
 
@@ -401,7 +415,7 @@ struct Impl<CanonicalGausssian<T>> {
     }
 
     CanonicalGaussian<T> restrict(const Assignment& a) {
-      auto values = a.vector<0, T>();
+      auto values = a.vector<T>();
       auto result = std::make_unique<Impl>();
       result->eta = std::move(eta_x);
       result->eta.noalias() -= lam_xy * values;
@@ -411,8 +425,8 @@ struct Impl<CanonicalGausssian<T>> {
     }
   };
 
-  Reduce<MatrixType, VectorType> reduce(const Dims& i) const {
-    Dims j = exclude(i);
+  Reduce<MatrixType, VectorType> reduce(const std::vector<unsigned>& i) const {
+    std::vector<unsigned> j = exclude(i);
     return {
       sub(eta, i),
       sub(eta, j),
@@ -468,15 +482,15 @@ CanonicalGaussian<T>::~CanonicalGaussian() {}
 
 template <typename T>
 T CanonicalGaussian<T>::log_multiplier() const {
-  return param_->lm;
+  return impl_->lm;
 }
 
 const VectorType& CanonicalGuassian<T>::inf_vector() const {
-  return param_->eta;
+  return impl_->eta;
 }
 
 const MatrixType& CanonicalGuassian<T>::inf_matrix() const {
-  return param_->lambda;
+  return impl_->lambda;
 }
 
 }  // namespace libgm

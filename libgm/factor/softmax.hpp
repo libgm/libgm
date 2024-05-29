@@ -29,6 +29,8 @@ namespace libgm {
    *
    * \tparam T a real type for representing each parameter
    *
+   * \todo This needs to be cleaned up.
+
    * \ingroup factor_types
    * \see Factor
    */

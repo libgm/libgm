@@ -1,5 +1,5 @@
-#ifndef LIBGM_LOGARITHMIC_HPP
-#define LIBGM_LOGARITHMIC_HPP
+#ifndef LIBGM_EXP_HPP
+#define LIBGM_EXP_HPP
 
 #include <libgm/math/numerical_error.hpp>
 #include <libgm/math/tags.hpp>
@@ -23,16 +23,16 @@ namespace libgm {
    *
    * This class supports basic arithmetic operations. The conversion
    * to/from the real representation must be performed explicitly.
-   * This is to prevent unintended conversions between T and logarithmic<T>.
+   * This is to prevent unintended conversions between T and Exp<T>.
    *
    * \todo specialize std::numeric_limits
    *
    * \ingroup math_number
    */
   template <typename T>
-  struct logarithmic {
+  struct Exp {
     static_assert(std::numeric_limits<T>::has_infinity,
-                  "logarithmic<T> is only defined for T which have infinity");
+                  "Exp<T> is only defined for T which have infinity");
 
     //! The log space representation of \f$x\f$, i.e., the value \f$\log x\f$.
     T lv;
@@ -43,7 +43,7 @@ namespace libgm {
     /**
      * Default constructor. Initializes this object to exp(0) = 1.
      */
-    logarithmic()
+    Exp()
       : lv(0) { }
 
     /**
@@ -54,7 +54,7 @@ namespace libgm {
      *        this constructor from the real-valued constructor below.
      *
      */
-    logarithmic(T lv, log_tag)
+    Exp(T lv, log_tag)
       : lv(lv) { }
 
     /**
@@ -63,14 +63,14 @@ namespace libgm {
      *
      * \param value the value this object should represent
      */
-    explicit logarithmic(T value)
+    explicit Exp(T value)
       : lv(std::log(value)) { }
 
     /**
      * Conversion constructor from a different logarithmic type.
      */
     template <typename U>
-    explicit logarithmic(const logarithmic<U>& log)
+    explicit Exp(const Exp<U>& log)
       : lv(log.lv) { }
 
     /**
@@ -125,7 +125,7 @@ namespace libgm {
      * \return  the value \f$\log (x + y)\f$, where this object
      *          represents \f$\log y\f$
      */
-    logarithmic operator+(const logarithmic& a) const {
+    Exp operator+(const Exp& a) const {
       if (a.lv == -std::numeric_limits<T>::infinity()) {
         return *this;
       }
@@ -134,7 +134,7 @@ namespace libgm {
       }
       T lx, ly;
       std::tie(ly, lx) = std::minmax(lv, a.lv);
-      return logarithmic(std::log1p(std::exp(ly - lx)) + lx, log_tag());
+      return Exp(std::log1p(std::exp(ly - lx)) + lx, log_tag());
     }
 
     /**
@@ -142,13 +142,13 @@ namespace libgm {
      * value and the supplied log space value. This works by converting
      * into real-space and taking log on the result.
      */
-    logarithmic operator-(const logarithmic& a) const {
+    Exp operator-(const Exp& a) const {
       if (lv <= a.lv) {
         throw numerical_error(
-          "logarithmic subtraction yields a negative value"
+          "Exp subtraction yields a negative value"
         );
       } else {
-        return logarithmic(std::exp(lv) - std::exp(a.lv));
+        return Exp(std::exp(lv) - std::exp(a.lv));
       }
     }
 
@@ -160,8 +160,8 @@ namespace libgm {
      * \return  the value \f$x \times y\f$ represented in log-space,
      *          where this object represents \f$x\f$ in log-space
      */
-    logarithmic operator*(const logarithmic& a) const {
-      return logarithmic(lv + a.lv, log_tag());
+    Exp operator*(const Exp& a) const {
+      return Exp(lv + a.lv, log_tag());
     }
 
     /**
@@ -172,8 +172,8 @@ namespace libgm {
      * \return  the value \f$x / y\f$, where this object
      *          represents \f$x\f$ in log-space
      */
-    logarithmic operator/(const logarithmic& a) const {
-      return logarithmic(lv - a.lv, log_tag());
+    Exp operator/(const Exp& a) const {
+      return Exp(lv - a.lv, log_tag());
     }
 
     /**
@@ -185,7 +185,7 @@ namespace libgm {
      *          \f$x + y\f$ in log-space, where this object originally
      *          represented \f$x\f$ in log-space
      */
-    logarithmic& operator+=(const logarithmic& y) {
+    Exp& operator+=(const Exp& y) {
       *this = *this + y;
       return *this;
     }
@@ -195,7 +195,7 @@ namespace libgm {
      * value and the supplied log space value. This works by converting
      * into real-space and taking log on the result.
      */
-    logarithmic& operator-=(const logarithmic& y) {
+    Exp& operator-=(const Exp& y) {
       *this = *this - y;
       return *this;
     }
@@ -209,7 +209,7 @@ namespace libgm {
      *          \f$x \times y\f$ in log-space, where this object
      *          originally represented \f$x\f$ in log-space
      */
-    logarithmic& operator*=(const logarithmic& y) {
+    Exp& operator*=(const Exp& y) {
       lv += y.lv;
       return *this;
     }
@@ -223,7 +223,7 @@ namespace libgm {
      *          \f$x \times y\f$ in log-space, where this object
      *          originally represented \f$x\f$ in log-space
      */
-    logarithmic& operator/=(const logarithmic& y) {
+    Exp& operator/=(const Exp& y) {
       lv -= y.lv;
       return *this;
     }
@@ -236,7 +236,7 @@ namespace libgm {
      * \return  true if \f$x = y\f$, where this object
      *          represents \f$x\f$ in log-space
      */
-    bool operator==(const logarithmic& a) const {
+    bool operator==(const Exp& a) const {
       return lv == a.lv;
     }
 
@@ -248,7 +248,7 @@ namespace libgm {
      * \return  true if \f$x \neq y\f$, where this object
      *          represents \f$x\f$ in log-space
      */
-    bool operator!=(const logarithmic& a) const {
+    bool operator!=(const Exp& a) const {
       return lv != a.lv;
     }
 
@@ -260,7 +260,7 @@ namespace libgm {
      * \return  true if \f$x < y\f$, where this object
      *          represents \f$x\f$ in log-space
      */
-    bool operator<(const logarithmic& a) const {
+    bool operator<(const Exp& a) const {
       return lv < a.lv;
     }
 
@@ -272,7 +272,7 @@ namespace libgm {
      * \return  true if \f$x > y\f$, where this object
      *          represents \f$x\f$ in log-space
      */
-    bool operator>(const logarithmic& a) const {
+    bool operator>(const Exp& a) const {
       return lv > a.lv;
     }
 
@@ -284,7 +284,7 @@ namespace libgm {
      * \return  true if \f$x \le y\f$, where this object
      *          represents \f$x\f$ in log-space
      */
-    bool operator<=(const logarithmic& a) const {
+    bool operator<=(const Exp& a) const {
       return lv <= a.lv;
     }
 
@@ -296,28 +296,28 @@ namespace libgm {
      * \return  true if \f$x \ge y\f$, where this object
      *          represents \f$x\f$ in log-space
      */
-    bool operator>=(const logarithmic& a) const {
+    bool operator>=(const Exp& a) const {
       return lv >= a.lv;
     }
 
     /**
      * Returns the power of the logarithmic object raised to an exponent.
      */
-    friend logarithmic pow(const logarithmic<T>& x, T exponent) {
-      return logarithmic(x.lv * exponent, log_tag());
+    friend Exp pow(const Exp<T>& x, T exponent) {
+      return Exp(x.lv * exponent, log_tag());
     }
 
     /**
      * Returns the logarithmic of the logaritmic object, i.e. lv.
      */
-    friend T log(const logarithmic<T>& x) {
+    friend T log(const Exp<T>& x) {
       return x.lv;
     }
 
     /**
      * Writes this log space representation to the supplied stream.
      */
-    friend std::ostream& operator<<(std::ostream& out, const logarithmic& x) {
+    friend std::ostream& operator<<(std::ostream& out, const Exp& x) {
       out << "exp(" << x.lv << ")";
       return out;
     }
@@ -336,7 +336,7 @@ namespace libgm {
      *
      * @param in the stream from which this value is read
      */
-    friend std::istream& operator>>(std::istream& in, logarithmic& x) {
+    friend std::istream& operator>>(std::istream& in, Exp& x) {
       // Read off any leading whitespace.
       in >> std::ws;
       // Check to see if this value is written in log space.
@@ -353,21 +353,20 @@ namespace libgm {
       return in;
     }
 
-  }; // struct logarithmic
+  }; // struct Exp
 
   /**
-   * Logarithmic value with double storage.
-   * \relates logarithmic
+   * Exp value with double storage.
+   * \relates Exp
    */
-  using logd = logarithmic<double>;
+  using expd = Exp<double>;
 
   /**
-   * Logarithmic value with float storage.
-   * \relates logarithmic
+   * Exp value with float storage.
+   * \relates Exp
    */
-  using logf = logarithmic<float>;
+  using expf = Exp<float>;
 
 } // namespace libgm
 
 #endif
-

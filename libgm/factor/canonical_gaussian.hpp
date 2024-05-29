@@ -1,13 +1,13 @@
 #ifndef LIBGM_FACTOR_CANONICAL_GAUSSIAN_HPP
 #define LIBGM_FACTOR_CANONICAL_GAUSSIAN_HPP
 
-#include <libgm/math/logarithmic.hpp>
+#include <libgm/factor/interfaces.hpp>
+#include <libgm/math/exp.hpp>
 
 namespace libgm {
 
 // Forward declaration of the factor
-template <typename RealType> class canonical_gaussian;
-template <typename RealType> class moment_gaussian;
+template <typename T> class MomentGaussian;
 
 /**
  * A factor of a multivariate normal (Gaussian) distribution in the natural
@@ -21,22 +21,24 @@ template <typename RealType> class moment_gaussian;
 template <typename T>
 class CanonicalGaussian
   : Implements<
-      Equal<CanonicalGaussian<T>>,
-      Print<CanonicalGaussian<T>>,
-      Assign<CanonicalGaussian<T>, Logarithmic<T>>,
+      Assign<CanonicalGaussian<T>, Exp<T>>,
       Assign<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-      Multiply<CanonicalGaussian<T>, Logarithmic<T>>,
+      Multiply<CanonicalGaussian<T>, Exp<T>>,
       Multiply<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-      MultiplyIn<CanonicalGaussian<T>, Logarithmic<T>>,
+      MultiplyIn<CanonicalGaussian<T>, Exp<T>>,
       MultiplyIn<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-      MultiplyJoin<CanonicalGaussian<T>>,
-      MultiplyJoinIn<CanonicalGaussian<T>>,
-      Divide<CanonicalGaussian<T>, Logarithmic<T>>,
+      MultiplySpan<CanonicalGaussian<T>>,
+      MultiplySpanIn<CanonicalGaussian<T>>,
+      MultiplyList<CanonicalGaussian<T>>,
+      MultiplyListIn<CanonicalGaussian<T>>,
+      Divide<CanonicalGaussian<T>, Exp<T>>,
       Divide<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-      DivideIn<CanonicalGaussian<T>, Logarithmic<T>>,
+      DivideIn<CanonicalGaussian<T>, Exp<T>>,
       DivideIn<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-      DivideJoin<CanonicalGaussian<T>>,
-      DivideJoinIn<CanonicalGaussian<T>>,
+      DivideSpan<CanonicalGaussian<T>>,
+      DivideSpanIn<CanonicalGaussian<T>>,
+      DivideList<CanonicalGaussian<T>>,
+      DivideListIn<CanonicalGaussian<T>>,
       Power<CanonicalGaussian<T>>,
       Marginal<CanonicalGaussian<T>>,
       Maximum<CanonicalGaussian<T>>,
@@ -46,7 +48,7 @@ class CanonicalGaussian
 public:
   // Factor member types
   using real_type = T;
-  using result_type = Logarithmic<T>;
+  using result_type = Exp<T>;
   using ImplPtr = std::unique_ptr<Impl<CanonicalGaussian>>;
 
   /// Constructs an empty factor.
@@ -62,13 +64,13 @@ public:
   CanonicalGaussian(ImplPtr ptr) : impl_(std::move(ptr)) {}
 
   /// Constructs a canonical Gaussian factor equivalent to a constant.
-  explicit CanonicalGaussian(Logarithmic<T> value);
+  explicit CanonicalGaussian(Exp<T> value);
 
   /// Constructs a canonical Gaussian factor from a moment Gaussian.
   explicit CanonicalGaussian(const MomentGaussian<T>& mg);
 
   /// Constructs a factor with given arity and constant value.
-  CanonicalGaussian(unsigned arity, Logarithmic<T> value);
+  CanonicalGaussian(unsigned arity, Exp<T> value);
 
   /// Constructs a factor with the given information vector and matrix.
   CanonicalGaussian(const VectorType& eta, const MatrixType& lambda, T lv = 0);

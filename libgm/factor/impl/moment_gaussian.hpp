@@ -1,7 +1,7 @@
 namespace libgm {
 
 template <typename T>
-struct Impl<MomentGaussian<T>> {
+struct MomentGaussian<T>::Impl {
   /// The type of the LLT Cholesky decomposition object.
   using CholeskyType = Eigen::LLT<DenseMatrix<T>>;
   using VectorType = Eigen::Matrix<T, Eigen::Dynamic, 1>;
@@ -40,7 +40,7 @@ struct Impl<MomentGaussian<T>> {
     return lm == x.lm && mean == x.mean && cov == x.cov && coef == x.coef;
   }
 
-  void print(std::ostream& out) const {
+  void print(std::ostream& out) const override {
    out << mean << std::endl
        << cov << std::endl
        << coef << std::endl
@@ -75,7 +75,7 @@ struct Impl<MomentGaussian<T>> {
     return {mean.tail(n), cov.lowerRightCorner(n, n), coef.bottomRows(n), lm};
   }
 
-  MomentGaussian<T> marginal_list(const IndexList& i) const {
+  MomentGaussian<T> marginal_dims(const Dims& i) const {
     return {sub(mean, i), sub(cov, i, i), rows(coef, i), lm};
   }
 
@@ -404,12 +404,12 @@ struct Impl<MomentGaussian<T>> {
   }
 
   /// Serializes the factor to an archive.
-  void save(oarchive& ar) const {
+  void save(oarchive& ar) const override {
     ar << param_;
   }
 
   /// Deserializes the factor from an archive.
-  void load(iarchive& ar) {
+  void load(iarchive& ar) override {
     ar >> param_;
   }
 

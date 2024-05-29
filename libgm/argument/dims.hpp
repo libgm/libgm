@@ -6,15 +6,15 @@ public:
     return variant(std::in_place_index_t<0>());
   }
 
-  static Dims head(size_t n) {
+  static Dims front(size_t n) {
     return variant(std::in_place_index_t<1>(), n);
   }
 
-  static Dims tail(size_t n) {
+  static Dims back(size_t n) {
     return variant(std::in_place_index_t<2>(), n);
   }
 
-  static Dims list(sdt::vector<unsigned> indices) {
+  static Dims list(std::vector<unsigned> indices) {
     return variant(std::in_place_index_t<3>(), std::move(indices));
   }
 

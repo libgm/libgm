@@ -25,11 +25,10 @@
 
 namespace libgm {
 
-// Forward declarations
-template <typename Arg> class domain;
-
 /**
  * A domain that holds the arguments in an std::vector.
+ * Domains can be sorted or unsorted (TBD), which affects the
+ * speed of their operations.
  */
 class Domain : public std::vector<Arg> {
 public:
@@ -77,7 +76,7 @@ public:
 
   /**
    * Returns the number of times an argument is present in the domain.
-   * This operation has a linear time complexity.
+   * This operation has a logarithmic time complexity.
    */
   bool contains(Arg x) const;
 
@@ -138,13 +137,13 @@ public:
    * Returns the shape of the arguments in this domain.
    * This operation has a linear time complexity.
    */
-  Shape shape(const ShapeMap& map, std::vector<size_t>& vec) const;
+  std::vector<size_t> shape(const ShapeMap& map) const;
 
   /**
    * Computes the dims of the specified arguments in this domain.
    * This operation has a linear time complexity.
    */
-  Dims dims(const ShapeMap& map, const Domain& args) const;
+  std::vector<unsigned> dims(const Domain& args) const;
 
 }; // class Domain
 

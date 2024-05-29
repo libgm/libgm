@@ -82,27 +82,15 @@ size_t Domain::arity(const ShapeMap& map, size_t start = 0) const {
   return size;
 }
 
-Shape Domain::shape(const ShapeMap& map, std::vector<size_t>& vec) const {
-  vec.clear();
-  size_t real_size = 0;
-  for (Arg arg : *this) {
-    Shape shape = map(arg);
-    if (shape.is_discrete()) {
-      vec.insert(vec.back(), shape.begin(), shape.end());
-    } else {
-      real_size += shape.size();
-    }
+std::vector<size_t> Domain::shape(const ShapeMap& map) const {
+  std::vector<size_t> shape(size());
+  for (size_t i = 0; i < size(); ++i) {
+    shape[i] = map((*this)][i]);
   }
-  if (vec.empty()) {
-    return Shape(real_size);
-  } else if (real_size == 0) {
-    return Shape(vec.data(), vec.size());
-  } else {
-    throw std::invalid_argument("Hybrid domains not supported yet");
-  }
+  return shape;
 }
 
-Dims Domain::dims(const ShapeMap& map, const Domain& args) const {
+Dims Domain::dims(const Domain& args) const {
   if (args == *this) {
     return Dims::all();
   }
@@ -113,15 +101,13 @@ Dims Domain::dims(const ShapeMap& map, const Domain& args) const {
     return Dims::tail(args.arity(map));
   }
   if (subset(args, *this)) {
-    std::vector<unsigned> result;
-    boost::counting_iterator<unsigned> it(0);
+    std::vector<unsigned> result(args.size());
     for (size_t i = 0, j = 0; i < size() && j < size(); ++i) {
-      Shape shape = map((*this)[i]);
+      // TODO: fix for unsorted domains
       if ((*this)[i] == args[j]) {
-        std::copy(it, it + shape.size(), std::back_inserter(result));
+        result[j] = i;
         ++j;
       }
-      it += shape.size();
     }
     return Dims::list(std::move(result));
   }
