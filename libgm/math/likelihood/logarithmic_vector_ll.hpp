@@ -1,5 +1,4 @@
-#ifndef LIBGM_LOGARITHMIC_VECTOR_LL_HPP
-#define LIBGM_LOGARITHMIC_VECTOR_LL_HPP
+#pragma once
 
 #include <libgm/datastructure/uint_vector.hpp>
 #include <libgm/datastructure/real_pair.hpp>
@@ -7,104 +6,104 @@
 
 namespace libgm {
 
+/**
+ * A log-likelihood function of a probability distribution over one argument
+ * in the natural (logarithmic) parameterization and its derivatives.
+ *
+ * \tparam T the real type representing the parameters
+ */
+template <typename T = double>
+class LogarithmicVectorLL {
+public:
+  /// The real type representing the log-likelihood.
+  typedef T real_type;
+
+  /// The regularization parameter type.
+  typedef T regul_type;
+
+  /// The array of natural parameters.
+  typedef DenseVector<T> param_type;
+
   /**
-   * A log-likelihood function of a probability distribution over one argument
-   * in the natural (logarithmic) parameterization and its derivatives.
-   *
-   * \tparam T the real type representing the parameters
+   * Constructs a log-likelihood function for a logarithmic_array
+   * with the specified parameters.
    */
-  template <typename T = double>
-  class logarithmic_vector_ll {
-  public:
-    //! The real type representing the log-likelihood.
-    typedef T real_type;
+  explicit LogarithmicVectorLL(const DenseVector<T>& l)
+    : l_(l) { }
 
-    //! The regularization parameter type.
-    typedef T regul_type;
+  /**
+   * Returns the log-likelihood of the specified data point.
+   */
+  T value(std::size_t i) const {
+    return l_[i];
+  }
 
-    //! The array of natural parameters.
-    typedef dense_vector<T> param_type;
+  /**
+   * Returns the log-likelihood of the specified data point.
+   */
+  T value(const uint_vector& x) const {
+    assert(x.size() == 1);
+    return l_[x[0]];
+  }
 
-    /**
-     * Constructs a log-likelihood function for a logarithmic_array
-     * with the specified parameters.
-     */
-    explicit logarithmic_vector_ll(const dense_vector<T>& l)
-      : l_(l) { }
+  /**
+   * Returns the log-likelihood of the specified datapoint
+   * and the slope along the given direction.
+   */
+  real_pair<T> value_slope(std::size_t i, const DenseVector<T>& dir) const {
+    assert(l_.rows() == dir.rows());
+    return { l_[i], dir[i] };
+  }
 
-    /**
-     * Returns the log-likelihood of the specified data point.
-     */
-    T value(std::size_t i) const {
-      return l_[i];
-    }
+  /**
+   * Returns the log-likelihood of the specified datapoint
+   * and the slope along the given direction.
+   */
+  real_pair<T>
+  value_slope(const uint_vector& x, const DenseVector<T>& dir) const {
+    assert(x.size() == 1);
+    return value_slope(x[0], dir);
+  }
 
-    /**
-     * Returns the log-likelihood of the specified data point.
-     */
-    T value(const uint_vector& x) const {
-      assert(x.size() == 1);
-      return l_[x[0]];
-    }
+  /**
+   * Adds a gradient of the log-likelihood of the specified data
+   * point with weight w to the gradient array g.
+   */
+  void add_gradient(std::size_t i, T w, DenseVector<T>& g) const {
+    assert(l_.rows() == g.rows());
+    g[i] += w;
+  }
 
-    /**
-     * Returns the log-likelihood of the specified datapoint
-     * and the slope along the given direction.
-     */
-    real_pair<T> value_slope(std::size_t i, const dense_vector<T>& dir) const {
-      assert(l_.rows() == dir.rows());
-      return { l_[i], dir[i] };
-    }
+  /**
+   * Adds a gradient of the log-likelihood of the specified data
+   * point with weight w to the gradient array g
+   */
+  void add_gradient(const uint_vector& x, T w, DenseVector<T>& g) const {
+    assert(x.size() == 1);
+    add_gradient(x[0], w, g);
+  }
 
-    /**
-     * Returns the log-likelihood of the specified datapoint
-     * and the slope along the given direction.
-     */
-    real_pair<T>
-    value_slope(const uint_vector& x, const dense_vector<T>& dir) const {
-      assert(x.size() == 1);
-      return value_slope(x[0], dir);
-    }
+  /**
+   * Adds the diagonal of the Hessian of log-likelihood of the specified
+   * data point with weight w to the Hessian diagonal h.
+   */
+  void add_hessian_diag(std::size_t i, T w, DenseVector<T>& h) const {
+    assert(l_.rows() == h.rows());
+  }
 
-    /**
-     * Adds a gradient of the log-likelihood of the specified data
-     * point with weight w to the gradient array g.
-     */
-    void add_gradient(std::size_t i, T w, dense_vector<T>& g) const {
-      assert(l_.rows() == g.rows());
-      g[i] += w;
-    }
+  /**
+   * Adds the diagonal of the Hessian of log-likelihood of the specified
+   * data point with weight w to the Hessian diagonal h.
+   */
+  void add_hessian_diag(const uint_vector& x, T w, DenseVector<T>& h) const {
+    assert(x.size() == 1);
+  }
 
-    /**
-     * Adds a gradient of the log-likelihood of the specified data
-     * point with weight w to the gradient array g
-     */
-    void add_gradient(const uint_vector& x, T w, dense_vector<T>& g) const {
-      assert(x.size() == 1);
-      add_gradient(x[0], w, g);
-    }
+private:
+  /// The parameters at which we evaluate the log-likelihood derivatives.
+  const DenseVector<T>& l_;
 
-    /**
-     * Adds the diagonal of the Hessian of log-likelihood of the specified
-     * data point with weight w to the Hessian diagonal h.
-     */
-    void add_hessian_diag(std::size_t i, T w, dense_vector<T>& h) const {
-      assert(l_.rows() == h.rows());
-    }
-
-    /**
-     * Adds the diagonal of the Hessian of log-likelihood of the specified
-     * data point with weight w to the Hessian diagonal h.
-     */
-    void add_hessian_diag(const uint_vector& x, T w, dense_vector<T>& h) const {
-      assert(x.size() == 1);
-    }
-
-  private:
-    //! The parameters at which we evaluate the log-likelihood derivatives.
-    const dense_vector<T>& l_;
-
-  }; // class logarithmic_vector_ll
+}; // class LogarithmicVectorLL
 
 } //namespace libgm
 

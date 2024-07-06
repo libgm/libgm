@@ -1,44 +1,31 @@
-#ifndef LIBGM_ASSIGNMENT_HPP
-#define LIBGM_ASSIGNMENT_HPP
+#pragma once
 
-#include <variant>
+#include <libgm/argument/values.hpp>
 
-#include <libgm/config.hpp>
+#include <tuple>
 
 namespace libgm {
 
 class Assignment {
 public:
-  struct Value {
-    uint32_t start;
-    uint16_t size;
-    uint16_t data;
-  };
+  /// ?
+  Assignment(const Domain& domain, const ShapeMap& map);
 
-  using Pointer = std::variant<uint32_t*, float*, double*>;
-
-  struct Data {
-    Pointer ptr;
-    size_t size;
-  };
-
-  Value& operator[](Arg arg) {
-    return values_[arg];
-  }
-
-  Value at(Arg arg) const {
-    return values_.at(arg);
-  }
+  Values values(Arg arg) const;
+  Values values(const Domain& domain) const;
 
   void advance();
 
-  void append(Data data);
-
 private:
-  ankerl::nordered_dense::map<Arg, Value> values_;
+  struct Index {
+    uint32_t start : 32;
+    uint32_t size : 24;
+    uin8_t type : 8;
+  };
+
+  std::tuple<size_t*, double*, float*> data_;
+  std::array<uint32_t, 3> sizes;
+  ankerl::nordered_dense::map<Arg, Index> indices_;
 };
 
-
 } // namespace libgm
-
-#endif

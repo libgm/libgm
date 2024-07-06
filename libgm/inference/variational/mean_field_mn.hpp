@@ -17,7 +17,6 @@ namespace libgm {
  */
 class MeanFieldPairwise {
 public:
-
   // Factor types
   struct NodePotential {
 
@@ -36,7 +35,7 @@ public:
    * The graph vertices must not change after initialization
    * (the potentials may).
    */
-  explicit MeanFIeldPairwise(const MarkovNetwork<NodePotential, EdgePotential>* graph)
+  explicit MeanFieldPairwise(const MarkovNetwork<NodePotential, EdgePotential>* graph)
     : graph_(*graph) {
     for (Arg v : graph_.vertices()) {
       beliefs_[v] = Belief::ones(v->shape({v}, shape_map), bt);

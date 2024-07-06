@@ -1,4 +1,8 @@
-#include <libgm/factor/canonical_gaussian.hpp>
+#include "../canonical_gaussian.hpp"
+
+#include <libgm/factor/moment_gaussian.hpp>
+
+#include <boost/math/constants/constants.hpp>
 
 namespace libgm {
 
@@ -6,6 +10,9 @@ template <typename T>
 struct CanonicalGausssian<T>::Impl {
   /// The type of the LLT Cholesky decomposition object.
   using CholeskyType = Eigen::LLT<DenseMatrix<T>>;
+
+  /// The partitioning of the random vector.
+  Shape shape;
 
   /// The information vector.
   DenseVector<T> eta;
@@ -16,343 +23,367 @@ struct CanonicalGausssian<T>::Impl {
   /// The log-multiplier.
   T lm = T(0);
 
-  void assign(const CanonicalGaussian<T>& other) {
-    *this = other.impl_;
+  /// Pre-computed constant.
+  static const T log_two_pi = std::log(boost::math::constants::two_pi<T>);
+
+  /// Returns the spans for the given dimensions.
+  std::vector<Span> spans(const Dims& dims, bool ignore_out_of_range = false) const {
+    return shape.spans(dims, ignore_out_of_range);
   }
 
-  void assign(Exp<T> value) {
+  // Evaluation
+  //--------------------------------------------------------------------------
+  T log(const Values& values) const {
+    auto x = values.vector<T>();
+    return -T(0.5) * x.transpose() * lambda * x + eta.dot(x) + lm;
+  }
+
+  // Conversion
+  //--------------------------------------------------------------------------
+  MomentGaussian<T> moment() const {
+    CholeskyType chol;
+    chol.compute(lambda);
+    check(chol, "moment");
+    DenseVector<T> mean = chol.solve(cg.eta);
+    T adjust = (size() * log_two_pi - logdet(chol) + mean.dot(eta)) / T(2);
+    return {shape, mean, chol.solve(DenseMatrix<T>::Identity(n, n)), lm + adjust};
+  }
+
+  // Object operations
+  //--------------------------------------------------------------------------
+
+  void equals(const Object& other) const override {
+    const Impl& x = impl(other);
+    return shape == x.shape && eta == x.eta && lambda == x.lambda && lm == other.lm;
+  }
+
+  void print(std::ostream& out) const override {
+    out << shape << std::endl << eta << std::endl << lambda << std::endl << lm;
+  }
+
+  void save(oarchive& ar) const override {
+    ar << shape << eta << lambda << lm;
+  }
+
+  /// Deserializes the parameters from an archive.
+  void load(iarchive& ar) override {
+    ar >> shape >> eta >> lambda >> lm;
+  }
+
+  // Assignment
+  //--------------------------------------------------------------------------
+
+  void assign(const Exp<T>& value) {
+    shape.clear();
     eta.clear();
     lambda.claer();
     lm = value.lv;
   }
 
-  void assign(const MomentGaussian<T>& mg) {
-    CholeskyType chol(mg.covariance());
-    if (chol.info() != Eigen::Success) {
-      throw numerical_error(
-        "canonical_gaussian: Cannot invert the covariance matrix. "
-        "Are you passing in a non-singular moment Gaussian distribution?"
-      );
-    }
-    MatrixType sol_xy = chol.solve(mg.coefficients());
+  // Direct operations
+  //--------------------------------------------------------------------------
 
-    std::size_t m = mg.head_size();
-    std::size_t n = mg.tail_size();
-    resize(m + n);
-
-    eta.segment(0, m) = chol.solve(mg.mean());
-    eta.segment(m, n).noalias() = -sol_xy.transpose() * mg.mean();
-
-    lambda.block(0, 0, m, m) = chol.solve(MatrixType::Identity(m, m));
-    lambda.block(0, m, m, n) = -sol_xy;
-    lambda.block(m, 0, n, m) = -sol_xy.transpose();
-    lambda.block(m, m, n, n).noalias() = mg.coef.transpose() * sol_xy;
-
-    lm = mg.lm - (m * std::log(two_pi<T>()) + logdet(chol)
-                  + eta.segment(0, m).dot(mg.mean())) / T(2);
+  ImplPtr multiply(const Exp<T>& x) const {
+    return std::make_unique<Impl>(shape, eta, lambda, lm + log(x));
   }
 
-  unsigned arity() const {
-    return eta.size();
+  ImplPtr divide(const Exp<T>& x) const {
+    return std::make_unique<Impl>(shape, eta, lambda, lm - log(x));
   }
 
-  void save(oarchive& ar) const override {
-    ar << eta << lambda << lm;
+  ImplPtr divide_inverse(const Exp<T>& x) const {
+    return std::make_unique<Impl>(shape, -eta, -lambda, log(x) - lm);
   }
 
-  //! Deserializes the parameters from an archive.
-  void load(iarchive& ar) override {
-    ar >> eta >> lambda >> lm;
+  ImplPtr multiply(const Object& other) const {
+    const Impl& x = impl(other);
+    check(x.shape);
+    return std::make_unique<Impl>(shape, eta + x.eta, lambda + x.lambda, lm + x.lm);
   }
 
-  Exp<T> eval(const Assignment& a) const {
-    return log(a);
-  }
-
-  Val<T> log(const Assignment& a) const {
-    auto x = a.vector<T>();
-    return -T(0.5) * x.transpose() * lambda * x + eta.dot(x) + lm;
-  }
-
-  bool equal(const CanonicalGaussian<T>& other) const {
-    return eta == other.eta && lambda == other.lambda && lm == other.lm;
-  }
-
-  void print(std::ostream& out) const override {
-    out << eta << std::endl << lambda << std::endl << lm;
+  ImplPtr divide(const Object& other) const {
+    const Impl& x = impl(other);
+    check(x.shape);
+    return std::make_unique<Impl>(shape, eta - x.eta, lambda - x.lambda, lm - x.lm);
   }
 
   void multiply_in(const Exp<T>& x) {
-    lm += log(x);
+    lm += x.lv;
   }
 
   void divide_in(const Exp<T>& x) {
-    lm -= log(x);
+    lm -= x.lv;
   }
 
-  void multiply_in(const CanonicalGaussian<T>& other) {
-    const Impl& x = other.impl();
+  void multiply_in(const Object& other) {
+    const Impl& x = impl(other);
+    check(x.shape);
     eta += x.eta;
     lambda += x.lambda;
     lm += x.lm;
   }
 
-  void divide_in(const CanonicalGaussian<T>& other) {
-    const Impl& x = other.impl();
+  void divide_in(const Object& other) {
+    const Impl& x = impl(other);
+    check(x.shape);
     eta -= x.eta;
     lambda -= x.lambda;
     lm -= x.lm;
   }
 
-  CanonicalGaussian<T> multiply(const Exp<T>& x) const {
-    return {eta, lambda, lm + log(x)};
+  // Join operations
+  //--------------------------------------------------------------------------
+
+  ImplPtr multiply_front(const Object& other) const {
+    std::unique_ptr<Impl> result(new Impl(*this));
+    result->multiply_in_front(other);
+    return result;
   }
 
-  CanonicalGaussian<T> divide(const Exp<T>& x) const {
-    return {eta, lambda, lm - log(x)};
+  ImplPtr multiply_back(const Object& other) const {
+    std::unique_ptr<Impl> result(new Impl(*this));
+    result->multiply_in_back(other);
+    return result;
   }
 
-  CanonicalGaussian<T> divide_inverse(const Exp<T>& x) const {
-    return {-eta, -lambda, log(x) - lm};
+  ImplPtr multiply(const Object& other, const Dims& i, const Dims& j) const {
+    const Impl& x = impl(other);
+    auto result = std::make_unique<Impl>(join(shape, x.shape, i, j));
+    std::vector<Span> is = result->spans(i);
+    std::vector<Span> js = result->spans(j);
+    sub(result->eta, is) = eta;
+    sub(result->eta, js) += x.eta;
+    sub(result->lambda, is, is) = lambda;
+    sub(result->lambda, js, js) += x.lambda;
+    result->lm = lm + x.lm;
+    return std::move(result);
   }
 
-  CanonicalGaussian<T> power(const Val<T>& alpha) const {
-    return {eta * alpha, lambda * alpha, lm * alpha}; // copy or move?
+  ImplPtr divide(const Object& other, const Dims& i, const Dims& j) const {
+    const Impl& x = impl(other);
+    auto result = std::make_unique<Impl>(join(shape, x.shape, i, j));
+    std::vector<Span> is = result->spans(i);
+    std::vector<Span> js = result->spans(j);
+    sub(result->eta, is) = eta;
+    sub(result->eta, js) -= x.eta;
+    sub(result->lambda, is, is) = lambda;
+    sub(result->lambda, js, js) -= x.lambda;
+    result->lm = lm - x.lm;
+    return std::move(result);
   }
 
-  CanonicalGausssian<T> multiply(const CanonicalGaussian<T>& other) const {
-    const Impl& x = other.impl();
-    return {eta + x.eta, lambda + x.lambda, lm + x.lm};
-  }
-
-  CanonicalGausssian<T> divide(const CanonicalGaussian<T>& other) const {
-    const Impl& x = other.impl();
-    return {eta - x.eta, lambda - x.lambda, lm - x.lm};
-  }
-
-  CanonicalGaussian<T> weighted_update(const CanonicalGaussian& other, const Val<T>& a) const {
-    const Impl& x = other.impl();
-    T b = 1 - a;
-    return {b * eta + a * x.eta, b * lambda + a * x.lambda, b * lm + a * x.lm};
-  }
-
-  void multiply_in(const CanonicalGaussian<T>& other, const std::vector<unsigned>& dims) {
-    const Impl& x = other.impl();
-    sub(eta, dims) += x.eta;
-    sub(lambda, dims, dims) += x.lambda;
-    lm += x.lm;
-  }
-
-  void multiply_in_front(const CanonicalGaussian<T>& other, unsigned n) {
-    const Impl& x = other.impl();
+  void multiply_in_front(const Object& other) {
+    const Impl& x = impl(other);
+    check_front(x.shape);
+    size_t n = x.size();
     eta.head(n) += x.eta;
     lambda.topLeftCorner(n, n) += x.lambda;
     lm += x.lm;
   }
 
-  void multiply_in_back(const CanonicalGaussian<T>& other, unsigned n) {
-    const Impl& x = other.impl();
+  void multiply_in_back(const Object& other) {
+    const Impl& x = impl(other);
+    check_back(x.shape);
+    size_t n = x.size();
     eta.tail(n) += x.eta;
     lambda.bottomRightCorner(n, n) += x.lambda;
     lm += x.lm;
   }
 
-  void divide_in(const CanonicalGaussian<T>& other, const std::vector<unsigned>& dims) {
-    const Impl& x = other.impl();
-    sub(eta, dims) -= x.eta;
-    sub(lambda, dims, dims) -= x.lambda;
-    lm -= x.lm;
+  void multiply_in(const Object& other, const Dims& dims) {
+    const Impl& x = impl(other);
+    check(dims, x.shape);
+    std::vector<Span> is = spans(dims);
+    sub(eta, is) += x.eta;
+    sub(lambda, is, is) += x.lambda;
+    lm += x.lm;
   }
 
-  void divide_in_front(const CanonicalGaussian<T>& other, unsigned n) {
-    const Impl& x = other.impl();
+  void divide_in_front(const Object& other) {
+    const Impl& x = impl(other);
+    check_front(x.shape);
+    size_t n = s.size();
     eta.head(n) -= x.eta;
     lambda.topLeftCorner(n, n) -= x.lambda;
     lm -= x.lm;
   }
 
-  void divide_in_back(const CanonicalGaussian<T>& other, unsigned n) {
-    const Impl& x = other.impl();
+  void divide_in_back(const Object& other) {
+    const Impl& x = impl(other);
+    check_back(x.shape);
+    size_t n = s.size();
     eta.tail(n) -= x.eta;
     lambda.bottomRightCorner(n, n) -= x.lambda;
     lm -= x.lm;
   }
 
-  CanonicalGaussian<T> multiply(const CanonicalGaussian<T>& other, const std::vector<unsigned>& i, const std::vector<unsigned>& j)
-  const {
-    const Impl& x = other.impl();
-    std::unique_ptr<Impl> result = zeros((i | j).count());
-    sub(result->eta, i) = eta;
-    sub(result->eta, j) += x.eta;
-    sub(result->lambda, i, i) = lambda;
-    sub(result->lambda, j, j) += x.lambda;
-    result->lm = lm + x.lm;
-    return std::move(result);
+  void divide_in(const Object& other, const Dims& dims) {
+    const Impl& x = impl(other);
+    check(dims, x.shape);
+    std::vector<Span> is = spans(dims);
+    sub(eta, i) -= x.eta;
+    sub(lambda, i, i) -= x.lambda;
+    lm -= x.lm;
   }
 
-  CanonicalGaussian<T> multiply(const CanonicalGaussian<T>& other, unsigned si, unsigned sj) const {
-    const Impl& x = other.impl();
-    size_t m = size(), n = x.size();
-    std::unique_ptr<Impl> result = zeros(std::max(si + m, sj + n));
-    result->eta.segment(si, m) = eta;
-    result->eta.segment(sj, n) += x.eta;
-    result->lambda.block(si, si, m, m) = lambda;
-    result->lambda.block(sj, sj, n, n) += x.lambda;
-    result->lm = lm + x.lm;
-    return std::move(result);
+  // Arithmetic operations
+  //--------------------------------------------------------------------------
+
+  ImlPtr pow(T alpha) const {
+    return std::make_unique<Impl>(shape, eta * alpha, lambda * alpha, lm * alpha);
   }
 
-  CanonicalGaussian<T> divide(const CanonicalGaussian<T>& other, const std::vector<unsigned>& i, const std::vector<unsigned>& j)
-  const {
-    const Impl& x = other.impl();
-    std::unique_ptr<Impl> result = zeros((i | j).count());
-    sub(result->eta, i) = eta;
-    sub(result->eta, j) -= x.eta;
-    sub(result->lambda, i, i) = lambda;
-    sub(result->lambda, j, j) -= x.lambda;
-    result->lm = lm - x.lm;
-    return std::move(result);
+  ImplPtr weighted_update(const Object& other, T a) const {
+    const Impl& x = impl(other);
+    assert(shape == other.shape);
+    T b = 1 - a;
+    return std::make_unique<Impl>(shape, b*eta + a*x.eta, b*lambda + a*x.lambda, b*lm + a*x.lm);
   }
 
-  CanonicalGaussian<T> divide(const CanonicalGaussian<T>& other, unsigned si, unsigned sj) const {
-    const Impl& x = other.impl();
-    size_t m = size(), n = x.size();
-    std::unique_ptr<Impl> result = zeros(std::max(si + m, sj + n));
-    result->eta.segment(si, m) = eta;
-    result->eta.segment(sj, n) -= x.eta;
-    result->lambda.block(si, si, m, m) = lambda;
-    result->lambda.block(sj, sj, n, n) -= x.lambda;
-    result->lm = lm - x.lm;
-    return std::move(result);
-  }
+  // Aggregates
+  //--------------------------------------------------------------------------
 
   Exp<T> marginal() const {
-    CholeskyType chol(lambda);
-    T lv = lm +
-      (+ size() * std::log(two_pi<RealType>())
-        - logdet(chol)
-        + eta.dot(chol.solve(eta))) / T(2);
-    return {lv, log_tag()};
+    CholeskyType chol;
+    chol.compute(lambda);
+    check(chol, "marginal");
+    T lv = lm + ((size() * log_two_pi) - logdet(chol) + eta.dot(chol.solve(eta))) / T(2);
+    return Exp<T>(lv);
   }
 
-  CanonicalGaussian<T> marginal(const std::vector<unsigned>& dims) const {
+  Exp<T> maximum(Values* values) const {
+    CholeskyType chol;
+    chol.compute(lambda);
+    check(chol, "maximum");
+    DenseVector<T> vec = chol.solve(eta);
+    if (values) *values = vec;
+    return Exp<T>(lm + eta.dot(vec) / T(2));
+  }
+
+  ImplPtr marginal_front(unsigned n) const {
+    return reduce_front(n).marginal();
+  }
+
+  ImplPtr marginal_back(unsigned n) const {
+    return reduce_back(n).marginal();
+  }
+
+  ImplPtr marginal(const Dims& dims) const {
     return reduce(dims).marginal();
   }
 
-  CanonicalGaussian<T> marginal_front(unsigned n) const {
-    return reduce(n, 0, n).marginal();
+  ImplPtr maximum_front(unsigned n) const {
+    return reduce_front(n).maximum();
   }
 
-  CanonicalGaussian<T> marginal_back(unsigned n) const {
-    return reduce(n, size() - n, 0).marginal();
+  ImplPtr maximum_back(unsigned n) const {
+    return reduce_back(n).maximum();
   }
 
-  Exp<T> maximum(Assignment* a) const {
-    CholeskyType chol(lambda);
-    if (chol.info() == Eigen::Success) {
-      VectorType vec = chol.solve(eta);
-      T value = lm + eta.dot(vec) / 2;
-      if (a) *a = std::move(vec);
-      return {value, log_tag()};
-    };
-
-    throw NumericalError(
-      "CanonicalGaussian::maximum(): Cholesky decomposition failed"
-    );
-  }
-
-  CanonicalGaussian<T> maximum(const std::vector<unsigned>& dims) const {
+  ImplPtr maximum(const Dims& dims) const {
     return reduce(dims).maximum();
   }
 
-  CanonicalGaussian<T> maximum_front(unsigned n) const {
-    return reduce(n, 0, n).maximum();
+  // Normalization
+  //--------------------------------------------------------------------------
+
+  void normalize() {
+    lm -= marginal().lv;
   }
 
-  CanonicalGaussian<T> maximum_back(unsigned n) const {
-    return reduce(n, size() - n, 0).maximum();
+  void normalize(unsigned n) {
+    // determine the block sizes
+    size_t nx = shape.sum_head(n);
+    size_t ny = size() - nx;
+
+    // compute sol_xy = lam_xx^{-1} * lam_xy and sol_x = lam_xx^{-1} eta_x
+    CholeskyType chol_xx;
+    DenseMatrix<T> sol_xy = lambda.topRightCorner(nx, ny);
+    DenseVector<T> sol_x = eta.head(nx);
+    chol_xx.compute(lam.bottomRightCorner(nx, nx));
+    check(chol_xx, "conditional");
+    if (nx) {
+      chol_xx.solveInPlace(sol_xy);
+      chol_xx.solveInPlace(sol_x);
+    }
+
+    // update the distribution
+    eta.tail(ny).noalias() = sol_xy.transpose() * eta.head(nx);
+    lambda.bottomRightCorner(ny, ny).noalias() = lambda.bottomLeftCorner(ny, nx) * sol_xy;
+    lm = (logdet(chol_xx) - log_two_pi * nx - eta.head(nx).dot(sol_x)) / T(2);
+
+    return std::move(result);
   }
 
-  CanonicalGaussian<T> restrict(const std::vector<unsigned>& i, const Assignment& a) const {
-    return reduce(i).restrict(a);
+  // Restrictions
+  //--------------------------------------------------------------------------
+
+  ImplPtr restrict_front(const Values& values) const {
+    return reduce_front(values.size()).restrict(values);
   }
 
-  CanonicalGaussian<T> restrict_front(unsigned n, const Assignment& a) const {
-    return reduce(n, 0, n).restrict(a);
+  ImplPtr restrict_back(const Values& values) const {
+    return reduce_back(values.size()).restrict(values);
   }
 
-  CanonicalGaussian<T> restrict_back(unsigned n, const Assignment& a) const {
-    return reduce(n, size() - n, 0).restrict(a);
+  ImplPtr restrict(const Dims& dims, const Values& values) const {
+    return reduce(dims).restrict(values);
   }
 
-  CanonicalGaussian<T> conditional(const std::vector<unsigned>& i) const {
-    return reduce(i).conditinal();
-  }
-
-  CanonicalGaussian<T> conditional_front(unsigned n) const {
-    return reduce(n, 0, n).conditional();
-  }
-
-  CanonicalGaussian<T> conditional_back(unsigned n) const {
-    return reduce(n, size() - n, 0).conditional(vec);
-  }
+  // Entropy and divergences
+  //--------------------------------------------------------------------------
 
   T entropy() const {
     CholeskyType chol;
     chol.compute(lambda);
-    return (size() * (std::log(two_pi<T>()) + T(1)) - logdet(chol)) / T(2);
+    check(chol, "entropy");
+    return (size() * (log_two_pi + T(1)) - logdet(chol)) / T(2);
   }
 
-  T kl_divergence(const CanonicalGaussian<T>& other) const {
+  T kl_divergence(const Object& other) const {
     const Impl& p = *this;
-    const Impl& q = other.impl();
-    assert(p.size() == q.size());
+    const Impl& q = impl(other);
+    check(q.shape);
     CholeskyType chol_p, chol_q;
     chol_p.compute(p.lambda);
     chol_q.compute(q.lambda);
-    VectorType diff = chol_p.solve(p.eta) - chol_q.solve(q.eta);
-    auto identity = MatrixType::Identity(p.size(), p.size());
+    check(chol_p, "kl_divergence (p)");
+    check(chol_q, "kl_divergence (q)");
+    DenseVector<T> diff = chol_p.solve(p.eta) - chol_q.solve(q.eta);
+    auto identity = DenseMatrix<T>::Identity(p.size(), p.size());
     T trace = (q.lambda.array() * chol_p.solve(identity).array()).sum();
     T means = diff.transpose() * q.lambda * diff;
     T logdets = logdet(chol_p) - logdet(chol_q);
     return (trace + means + logdets - p.size()) / T(2);
   }
 
-  T max_diff(const CanonicalGaussian& other) const {
-    const Impl& x = other.impl();
+  T max_diff(const Object& other) const {
+    const Impl& x = impl(other);
+    check(x.shape);
     T d_eta = (eta - x.eta).array().abs().maxCoeff();
     T d_lam = (lambda - x.lambda).array().abs().maxCoeff();
-    return std::max(d_eta, d_lam);
+    T d_lm = lm - x.lm;
+    return std::max({d_eta, d_lam, d_lm});
   }
 
-  bool normalizable() const {
-    return std::isfinite(marginal());
-  }
-
-  void normalize() {
-    lm -= marginal().lv;
-  }
-
-  CanonicalGaussian<T> reorder(const IndexVector) {
-    ///
-  }
+  // Implementation of reductions
+  //--------------------------------------------------------------------------
 
   template <typename MAT, typename VEC>
   struct Reduce {
+    Shape shape;
     VEC eta_x, eta_y;
     MAT lam_xx, lam_xy, lamy_yy;
     T lm;
 
-    CanonicalGaussian<T> collapse(bool adjust_lm) {
+    ImplPtr collapse(bool adjust_lm) {
       // compute sol_yx = lam_yy^{-1} * lam_yx and sol_y = lam_yy^{-1} eta_y
       // using the Cholesky decomposition
-      Eigen::LLT<MatrixType> chol_yy;
-      MatrixType sol_yx = lam_xy.transpose();
-      VectorType sol_y = eta_y;
+      Eigen::LLT<DenseMatrix<T>> chol_yy;
+      DenseMatrix<T> sol_yx = lam_xy.transpose();
+      DenseVector<T> sol_y = eta_y;
       chol_yy.compute(lam_yy);
-      if (chol_yy.info() != Eigen::Success) {
-        throw numerical_error("CanonicalGaussian collapse: Cholesky decomposition failed");
-      }
+      check(chol_yy, "collapse");
       if (!eta_y.empty()) {
         chol_yy.solveInPlace(sol_yx);
         chol_yy.solveInPlace(sol_y);
@@ -360,63 +391,33 @@ struct CanonicalGausssian<T>::Impl {
 
       // compute the aggregate parameters
       auto result = std::make_unique<Impl>();
+      result->shape = std::move(shape);
       result->eta = std::move(eta_x);
       result->eta.noalias() -= sol_yx.transpose() * eta_y;
       result->lambda = std::move(lam_xx);
       result->lambda.noalias() -= lam_xy * sol_yx;
-      result->lm = lm + RealType(0.5) * eta_y.dot(sol_y);
+      result->lm = lm + eta_y.dot(sol_y) / T(2);
 
       // adjust the log-multiplier if computing the marginal
       if (adjust_lm) {
-        result->lm += RealType(0.5) * std::log(two_pi<RealType>()) * eta_y.size();
-        result->lm -= RealType(0.5) * logdet(chol_yy);
+        result->lm += (log_two_pi * eta_y.size() - logdet(chol_yy)) / T(2);
       }
 
       return std::move(result);
     }
 
-    CanonicalGaussian<T> marginal() {
+    ImplPtr marginal() {
       return collapse(/*adjust_lm=*/true);
     }
 
-    CanonicalGaussian<T> maximum() {
+    ImplPtr maximum() {
       return collapse(/*adjust_lm=*/false);
     }
 
-    CanonicalGaussian<T> conditional() {
-      // FIX THE INDICES
-
-      // compute sol_yx = lam_yy^{-1} * lam_yx and sol_y = lam_yy^{-1} eta_y
-      Eigen::LLT<MatrixType> chol_yy;
-      MatrixType sol_yx = lam_xy.transpose();
-      VectorType sol_y = eta_y;
-      chol_yy.compute(lam_yy);
-      if (chol_yy.info() != Eigen::Success) {
-        throw numerical_error("canonical_gaussian conditional: Cholesky decomposition failed");
-      }
-      if (!eta_y.empty()) {
-        chol_yy.solveInPlace(sol_yx);
-        chol_yy.solveInPlace(sol_y);
-      }
-
-      // compute the conditional parameters
-      unsigned m = eta_x.size();
-      unsigned n = eta_y.size();
-      auto result = std::make_unique<Impl>(m + n);
-      result->eta.segment(0, m) = eta_x;
-      result->eta.segment(m, n).noalias() = sol_yx.transpose() * eta_x;
-      result->lambda.block(0, 0, m, m) = lam_xx;
-      result->lambda.block(0, m, m, n) = lam_xy;
-      result->lambda.block(m, 0, n, m) = lam_xy.transpose();
-      result->lambda.block(m, m, n, n).noalias() = sol_yx.transpose() * lam_xy;
-      result->lm = T(0.5) * (logdet(chol_yy) - std::log(two_pi<RealType>()) * m - eta_x.dot(sol_y));
-
-      return std::move(result);
-    }
-
-    CanonicalGaussian<T> restrict(const Assignment& a) {
+    ImplPtr restrict(const Values& values) {
       auto values = a.vector<T>();
       auto result = std::make_unique<Impl>();
+      result->shape = std::move(shape);
       result->eta = std::move(eta_x);
       result->eta.noalias() -= lam_xy * values;
       result->lambda = std::move(lam_xx);
@@ -425,72 +426,94 @@ struct CanonicalGausssian<T>::Impl {
     }
   };
 
-  Reduce<MatrixType, VectorType> reduce(const std::vector<unsigned>& i) const {
-    std::vector<unsigned> j = exclude(i);
+  Reduce<SegmentType, BlockType> reduce_front(unsigned n) const {
+    size_t nx = shape.prefix_sum(n);
+    size_t ny = size() - nx;
     return {
-      sub(eta, i),
-      sub(eta, j),
-      sub(lambda, i, i),
-      sub(lambda, i, j),
-      sub(lambda, j, j),
+      shape.prefix(n),
+      eta.head(nx),
+      eta.tail(ny),
+      lambda.topLeftCorner(nx, nx),
+      lambda.topRightCorner(nx, ny),
+      lambda.bottomRightCorner(ny, ny),
       lm,
     };
   }
 
-  Reduce<SegmentType, BlockType> reduce(unsigned nx, unsigned sx, unsigned sy) const {
-    unsigned ny = size() - nx;
+  Reduce<SegmentType, BlockType> reduce_back(unsigned n) const {
+    size_t nx = shape.suffix_sum(n);
+    size_t ny = size() - nx;
     return {
-      eta.segment(sx, nx),
-      eta.segment(sy, ny),
-      lambda.block(sx, sx, nx, nx),
-      lambda.block(sx, sy, nx, ny),
-      lambda.block(sy, sy, ny, ny),
+      shape.suffix(n),
+      eta.tail(nx),
+      eta.head(ny),
+      lambda.bottomRightCorner(nx, nx),
+      lambda.bottomLeftCorner(nx, ny),
+      lambda.topLeftCorner(ny, ny),
+      lm,
+    };
+  }
+
+  Reduce<DenseMatrix<T>, DenseVector<T>> reduce(const Dims& i) const {
+    std::vector<Span> is = shape.spans(i);
+    std::vector<Span> js = shape.spans(~i, /*ignore_out_of_range=*/true);
+    return {
+      shape.subseq(i),
+      sub(eta, is),
+      sub(eta, js),
+      sub(lambda, is, is),
+      sub(lambda, is, js),
+      sub(lambda, js, js),
       lm,
     };
   }
 }; // class Impl
 
 template <typename T>
-CanonicalGaussian<T>::CanonicalGaussian(const CanonicalGaussian& other) {
-  impl_.reset(new Impl<CanonicalGausssian>>(other.impl_));
-}
+CanonicalGaussian<T>::CanonicalGaussian(Exp<T> value)
+  : Factor(std::make_unique<Impl>({}, value)) {}
 
 template <typename T>
-CanonicalGaussian<T>::CanonicalGaussian(Exp<T> value) {
-  impl_.reset(new Impl<CanonicalGaussian>>());
-  impl_->lm = value.lv;
-}
+CanonicalGaussian<T>::CanonicalGaussian(Shape shape, Exp<T> value)
+  : Factor(std::make_unique<Impl>(std::move(shape), value)) {}
 
 template <typename T>
-CanonicalGaussian::CanonicalGaussian(const MomentGaussian& mg) {
-  impl_.reset(new Impl<CanonicalGaussian>>());
-  impl_->assign(mg);
-}
+CanonicalGaussian<T>::CanonicalGaussian(Shape shape, DenseVector<T> eta, DenseMatrix<T> lambda, T lv)
+  : Factor(std::make_unique<Impl>(std::move(shape), std::move(eta), std::move(lambda), lv)) {}
 
 template <typename T>
-CanonicaLGaussian<T>::CanonicalGaussian(const VectorType& eta, const MatrixType& lambda, T lv) {
-  impl_.reset(new Impl<CanonicalGaussian>{eta, lambda, lv});
+unsigned CanonicalGaussian<T>::arity() const {
+  return impl().shape.size();
 }
-
-template <typename T>
-CanonicalGaussian<T>::CanonicalGaussian(VectorType&& eta, MatrixType&& lambda, T lv) {
-  impl_.reset(new Impl<CanonicalGaussian>{std::move(eta), std::move(lambda), lv});
-}
-
-template <typename T>
-CanonicalGaussian<T>::~CanonicalGaussian() {}
 
 template <typename T>
 T CanonicalGaussian<T>::log_multiplier() const {
-  return impl_->lm;
+  return impl().lm;
 }
 
-const VectorType& CanonicalGuassian<T>::inf_vector() const {
-  return impl_->eta;
+template <typename T>
+const DenseVector<T>& CanonicalGuassian<T>::inf_vector() const {
+  return impl().eta;
 }
 
-const MatrixType& CanonicalGuassian<T>::inf_matrix() const {
-  return impl_->lambda;
+template <typename T>
+const DenseMatrix<T>& CanonicalGuassian<T>::inf_matrix() const {
+  return impl().lambda;
 }
 
-}  // namespace libgm
+template <typename T>
+Exp<T> CanonicalGaussian<T>::operator()(const Values& values) const {
+  return Exp<T>(log(a));
+}
+
+template <typename T>
+T CanonicalGaussian<T>::log(const Values& values) const {
+  return impl().log(values);
+}
+
+template <typename T>
+MomentGaussian<T> CanonicalGaussian<T>::moment() const {
+  return impl().moment();
+}
+
+} // namespace libgm

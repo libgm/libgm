@@ -1,6 +1,8 @@
-#ifndef LIBGM_FACTOR_CANONICAL_GAUSSIAN_HPP
-#define LIBGM_FACTOR_CANONICAL_GAUSSIAN_HPP
+#pragma once
 
+#include <libgm/argument/shape.hpp>
+#include <libgm/argument/values.hpp>
+#include <Libgm/factor/implements.hpp>
 #include <libgm/factor/interfaces.hpp>
 #include <libgm/math/exp.hpp>
 
@@ -21,78 +23,85 @@ template <typename T> class MomentGaussian;
 template <typename T>
 class CanonicalGaussian
   : Implements<
-      Assign<CanonicalGaussian<T>, Exp<T>>,
-      Assign<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-      Multiply<CanonicalGaussian<T>, Exp<T>>,
-      Multiply<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-      MultiplyIn<CanonicalGaussian<T>, Exp<T>>,
-      MultiplyIn<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-      MultiplySpan<CanonicalGaussian<T>>,
-      MultiplySpanIn<CanonicalGaussian<T>>,
-      MultiplyList<CanonicalGaussian<T>>,
-      MultiplyListIn<CanonicalGaussian<T>>,
-      Divide<CanonicalGaussian<T>, Exp<T>>,
-      Divide<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-      DivideIn<CanonicalGaussian<T>, Exp<T>>,
-      DivideIn<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-      DivideSpan<CanonicalGaussian<T>>,
-      DivideSpanIn<CanonicalGaussian<T>>,
-      DivideList<CanonicalGaussian<T>>,
-      DivideListIn<CanonicalGaussian<T>>,
-      Power<CanonicalGaussian<T>>,
-      Marginal<CanonicalGaussian<T>>,
-      Maximum<CanonicalGaussian<T>>,
-      Entropy<CanonicalGaussian<T>, T>,
-      KlDivergence<CanonicalGaussian<T>, T>> {
+      // Direct operations
+      Multiply<CanonicalGaussian, Exp<T>>,
+      Multiply<CanonicalGaussian, CanonicalGaussian>,
+      MultiplyIn<CanonicalGaussian, Exp<T>>,
+      MultiplyIn<CanonicalGaussian, CanonicalGaussian>,
+      Divide<CanonicalGaussian, Exp<T>>,
+      Divide<CanonicalGaussian, CanonicalGaussian>,
+      DivideIn<CanonicalGaussian, Exp<T>>,
+      DivideIn<CanonicalGaussian, CanonicalGaussian>,
+
+      // Join operations
+      MultiplySpan<CanonicalGaussian>,
+      MultiplySpanIn<CanonicalGaussian>,
+      MultiplyDims<CanonicalGaussian>,
+      MultiplyDimsIn<CanonicalGaussian>,
+      DivideSpan<CanonicalGaussian>,
+      DivideSpanIn<CanonicalGaussian>,
+      DivideDims<CanonicalGaussian>,
+      DivideDimsIn<CanonicalGaussian>,
+
+      // Arithmetic operations
+      Power<CanonicalGaussian>,
+
+      // Aggregates
+      Marginal<CanonicalGaussian, Exp<T>>,
+      Maximum<CanonicalGaussian, Exp<T>>,
+      MarginalSpan<CanonicalGaussian>,
+      MarginalDims<CanonicalGaussian>,
+      MaximumSpan<CanonicalGaussian>,
+      MaximumDims<CanonicalGaussian>,
+
+      // Normalization
+      Normalize<CanonicalGaussian>,
+      NormalizeHead<CanonicalGaussian>,
+
+      // Restriction
+      RestrictSpan<CanonicalGaussian>,
+      RestrictDims<CanonicalGaussian>,
+
+      // Entropy and divergences
+      Entropy<CanonicalGaussian, T>,
+      KlDivergence<CanonicalGaussian, T>
+      MaxDifference<CanonicalGaussian, T>
+    > {
 
 public:
+  static VTable vtable;
+
   // Factor member types
-  using real_type = T;
   using result_type = Exp<T>;
-  using ImplPtr = std::unique_ptr<Impl<CanonicalGaussian>>;
 
   /// Constructs an empty factor.
   CanonicalGaussian() = default;
 
-  /// Move constructor.
-  CanonicalGaussian(CanonicalGaussian&& other) = default;
-
-  /// Copy constructor.
-  CanonicalGaussian(const CanonicalGaussian& other);
-
   /// Constructs a factor with given implementation.
-  CanonicalGaussian(ImplPtr ptr) : impl_(std::move(ptr)) {}
+  CanonicalGaussian(ImplPtr ptr) : Implements(&vtable, std::move(ptr)) {}
 
   /// Constructs a canonical Gaussian factor equivalent to a constant.
   explicit CanonicalGaussian(Exp<T> value);
 
-  /// Constructs a canonical Gaussian factor from a moment Gaussian.
-  explicit CanonicalGaussian(const MomentGaussian<T>& mg);
+  /// Constructs a factor with given shape and constant value.
+  CanonicalGaussian(Shape shape, Exp<T> value);
 
-  /// Constructs a factor with given arity and constant value.
-  CanonicalGaussian(unsigned arity, Exp<T> value);
-
-  /// Constructs a factor with the given information vector and matrix.
-  CanonicalGaussian(const VectorType& eta, const MatrixType& lambda, T lv = 0);
-
-  /// Constructs a factor with the given information vector and matrix.
-  CanonicalGaussian(VectorType&& eta, MatrixType&& lambda, T lv = 0);
-
-  /// Destructor.
-  ~CanonicalGaussian();
-
-  /// Returns true if the factor has no data. This is different from arity() == 0.
-  bool empty() const {
-    return !impl_;
-  }
+  /// Constructs a factor with the given shape and information vector / matrix.
+  CanonicalGaussian(Shape shape, VectorType eta, MatrixType lambda, T lv = 0);
 
   /// Exchanges the content of two factors.
   friend void swap(CanonicalGaussian& f, CanonicalGaussian& g) {
     swap(f.impl_, g.impl_);
   }
 
+  // Accessors
+  //--------------------------------------------------------------------------
+
+  /// Returns the number of arguments of the factor.
+  unsigned arity() const;
+
   /// Returns the log multiplier.
-  RealType log_multiplier() const;
+  T log_multiplier() const;
 
   /// Returns the information vector.
   const VectorType& inf_vector() const;
@@ -100,12 +109,17 @@ public:
   /// Returns the information matrix.
   const MatrixType& inf_matrix() const;
 
-private:
-  //! The parameters of the factor, encapsulated as a struct.
-  std::unique_ptr<Impl<CanonicalGaussian>> impl_;
+  /// Evaluates the factor for the given vector.
+  Exp<T> operator()(const Values& values) const;
 
-}; // class canonical_gaussian
+  /// Returns the log-value of the factor for the given vector.
+  T log(const Valuess& values) const;
+
+  // Conversions
+  //--------------------------------------------------------------------------
+
+  MomentGausisan<T> moment() const;
+
+}; // class CanonicalGaussian
 
 } // namespace libgm
-
-#endif

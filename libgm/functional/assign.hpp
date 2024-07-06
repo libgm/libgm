@@ -1,133 +1,109 @@
-#ifndef LIBGM_FUNCTIONAL_ASSIGN_HPP
-#define LIBGM_FUNCTIONAL_ASSIGN_HPP
+#pragma once
 
 #include <utility>
 
 namespace libgm {
 
-  //! Assigns one object to another.
-  template <typename T = void>
-  struct assign {
-    T& operator()(T& x, const T& y) const {
-      x = y;
-      return x;
-    }
-  };
+/// Assigns one object to another.
+template <typename T = void>
+struct Assign {
+  T& operator()(T& x, const T& y) const {
+    return x = y;
+  }
+};
 
-  //! Assigns one object to another.
-  template <>
-  struct assign<void> {
-    template <typename X, typename Y>
-    auto operator()(X&& x, Y&& y) const
-      -> decltype(std::forward<X>(x) = std::forward<Y>(y)) {
-      return std::forward<X>(x) = std::forward<Y>(y);
-    }
-  };
+/// Assigns one object to another.
+template <>
+struct Assign<void> {
+  template <typename X, typename Y>
+  decltype(auto) operator()(X&& x, Y&& y) const {
+    return std::forward<X>(x) = std::forward<Y>(y);
+  }
+};
 
-  //! Adds one object to another one in place.
-  template <typename T = void>
-  struct plus_assign {
-    T& operator()(T& x, const T& y) const {
-      x += y;
-      return x;
-    }
-  };
+/// Adds one object to another one in place.
+template <typename T = void>
+struct PlusAssign {
+  T& operator()(T& x, const T& y) const {
+    return x += y;
+  }
+};
 
-  //! Adds one object to another one in place.
-  template <>
-  struct plus_assign<void> {
-    template <typename X, typename Y>
-    auto operator()(X&& x, Y&& y) const
-      -> decltype(std::forward<X>(x) += std::forward<Y>(y)) {
-      return std::forward<X>(x) += std::forward<Y>(y);
-    }
-    template <typename X>
-    X&& operator()(X&& x) const {
-      return std::forward<X>(x);
-    }
-  };
+/// Adds one object to another one in place.
+template <>
+struct PlusAssign<void> {
+  template <typename X, typename Y>
+  decltype(auto) operator()(X&& x, Y&& y) const {
+    return std::forward<X>(x) += std::forward<Y>(y);
+  }
+};
 
-  //! Subtracts one object from another one in place.
-  template <typename T = void>
-  struct minus_assign {
-    T& operator()(T& x, const T& y) {
-      x -= y;
-      return x;
-    }
-  };
+/// Subtracts one object from another one in place.
+template <typename T = void>
+struct MinusAssign {
+  T& operator()(T& x, const T& y) {
+    return x -= y;
+  }
+};
 
-  //! Subtracts one object from another one in place.
-  template <>
-  struct minus_assign<void> {
-    template <typename X, typename Y>
-    auto operator()(X&& x, Y&& y) const
-      -> decltype(std::forward<X>(x) -= std::forward<Y>(y)) {
-      return std::forward<X>(x) -= std::forward<Y>(y);
-    }
-    template <typename X>
-    X&& operator()(X&& x) const {
-      x = -x;
-      return std::forward<X>(x);
-    }
-  };
+/// Subtracts one object from another one in place.
+template <>
+struct MinusAssign<void> {
+  template <typename X, typename Y>
+  decltype(auto) operator()(X&& x, Y&& y) const {
+    return std::forward<X>(x) -= std::forward<Y>(y);
+  }
+};
 
-  //! Multiplies one object by another one in place.
-  template <typename T = void>
-  struct multiplies_assign {
-    T& operator()(T& x, const T& y) const {
-      x *= y;
-      return x;
-    }
-  };
+/// Multiplies one object by another one in place.
+template <typename T = void>
+struct MultipliesAssign {
+  T& operator()(T& x, const T& y) const {
+    return x *= y;
+  }
+};
 
-  //! Multiplies one object by another one in place.
-  template <>
-  struct multiplies_assign<void> {
-    template <typename X, typename Y>
-    auto operator()(X&& x, Y&& y) const
-      -> decltype(std::forward<X>(x) *= std::forward<Y>(y)) {
-      return std::forward<X>(x) *= std::forward<Y>(y);
-    }
-  };
+/// Multiplies one object by another one in place.
+template <>
+struct MultipliesAssign<void> {
+  template <typename X, typename Y>
+  decltype(auto) operator()(X&& x, Y&& y) const {
+    return std::forward<X>(x) *= std::forward<Y>(y);
+  }
+};
 
-  //! Divides one object by another one in place.
-  template <typename T = void>
-  struct divides_assign {
-    T& operator()(T& x, const T& y) const {
-      x /= y;
-      return x;
-    }
-  };
+/// Divides one object by another one in place.
+template <typename T = void>
+struct DividesAssign {
+  T& operator()(T& x, const T& y) const {
+    return x /= y;
+  }
+};
 
-  //! Divides one object by another one in place.
-  template <>
-  struct divides_assign<void> {
-    template <typename X, typename Y>
-    auto operator()(X&& x, Y&& y) const
-      -> decltype(std::forward<X>(x) /= std::forward<Y>(y)) {
-      return std::forward<X>(x) /= std::forward<Y>(y);
-    }
-  };
+/// Divides one object by another one in place.
+template <>
+struct DividesAssign<void> {
+  template <typename X, typename Y>
+  decltype(auto) operator()(X&& x, Y&& y) const {
+    return std::forward<X>(x) /= std::forward<Y>(y);
+  }
+};
 
-  //! Performs the modulus operation in place.
-  template <typename T = void>
-  struct modulus_assign {
-    T& operator()(T& x, const T& y) const {
-      x %= y;
-      return x;
-    }
-  };
+/// Performs the modulus operation in place.
+template <typename T = void>
+struct ModulusAssign {
+  T& operator()(T& x, const T& y) const {
+    return x %= y;
+  }
+};
 
-  //! Performs the modulus operation in place.
-  template <>
-  struct modulus_assign<void> {
-    template <typename X, typename Y>
-    auto operator()(X&& x, Y&& y) const
-      -> decltype(std::forward<X>(x) %= std::forward<Y>(y)) {
-      return std::forward<X>(x) %= std::forward<Y>(y);
-    }
-  };
+/// Performs the modulus operation in place.
+template <>
+struct ModulusAssign<void> {
+  template <typename X, typename Y>
+  decltype(auto) operator()(X&& x, Y&& y) const {
+    return std::forward<X>(x) %= std::forward<Y>(y);
+  }
+};
 
 } // namespace libgm
-
-#endif

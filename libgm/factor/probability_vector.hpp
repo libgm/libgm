@@ -1,14 +1,15 @@
-#ifndef LIBGM_PROBABILITY_VECTOR_HPP
-#define LIBGM_PROBABILITY_VECTOR_HPP
+#pragma once
 
-#include <libgm/math/exp.hpp>
-#include <libgm/math/likelihood/logarithmic_vector_ll.hpp>
-#include <libgm/math/random/categorical_distribution.hpp>
-
-#include <iostream>
-#include <numeric>
+#include <libgm/argument/shape.hpp>
+#include <libgm/factor/implements.hpp>
+#include <libgm/factor/interfaces.hpp>
+#include <libgm/math/eigen/dense.hpp>
 
 namespace libgm {
+
+// Forward declarations
+template <typename T> class LogarithmicVector;
+template <typename T> class ProbabilityTable;
 
 /**
  * A factor of a categorical probability distribution whose domain
@@ -27,25 +28,41 @@ namespace libgm {
 template <typename T>
 class ProbabilityVector
   : Implements<
-      Multiply<ProbabilityVector<T>, T>,
-      Multiply<ProbabilityVector<T>, ProbabilityVector<T>>,
-      MultiplyIn<ProbabilityVector<T>, T>,
-      MultiplyIn<ProbabilityVector<T>, ProbabilityVector<T>>,
-      Divide<ProbabilityVector<T>, T>,
-      Divide<ProbabilityVector<T>, ProbabilityVector<T>>,
-      DivideIn<ProbabilityVector<T>, T>,
-      DivideIn<ProbabilityVector<T>, ProbabilityVector<T>>,
-      Power<ProbabilityVector<T>>,
-      Marginal<ProbabilityVector<T>>,
-      Maximum<ProbabilityVector<T>>,
-      Entropy<ProbabilityVector<T>, T>,
-      KlDivergence<ProbabilityVector<T>, T>> {
+      // Direct operations
+      Multiply<ProbabilityVector, T>,
+      Multiply<ProbabilityVector, ProbabilityVector>,
+      MultiplyIn<ProbabilityVector, T>,
+      MultiplyIn<ProbabilityVector, ProbabilityVector>,
+      Divide<ProbabilityVector, T>,
+      Divide<ProbabilityVector, ProbabilityVector>,
+      DivideIn<ProbabilityVector, T>,
+      DivideIn<ProbabilityVector, ProbabilityVector>,
+
+      // Arithmetic
+      Power<ProbabilityVector, T>,
+      WeightedUpdate<ProbabilityVector, T>,
+
+      // Aggregates
+      Marginal<ProbabilityVector, T>,
+      Maximum<ProbabilityVector, T>,
+      Minimum<ProbabilityVector, T>,
+
+      // Normalization
+      Normalize<ProbabilityVector>,
+
+      // Entropy and divergences
+      Entropy<ProbabilityVector, T>,
+      CrossEntropy<ProbabilityVector, T>,
+      KlDivergence<ProbabilityVector, T>,
+      SumDifference<ProbabilityVector, T>,
+      MaxDifference<ProbabilityVector, T>
+    > {
 public:
   // Public types
   //--------------------------------------------------------------------------
   using real_type = T;
   using result_type = T;
-  using ll_type = ProbabilityVectorLL<T>;
+  // using ll_type = ProbabilityVectorLL<T>;
 
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
@@ -53,19 +70,16 @@ public:
   /// Default constructor. Creates an empty factor.
   ProbabilityVector() { }
 
-  /// Constructs a factor with given arguments and uninitialized parameters.
+  /// Constructs a factor with given length and uninitialized parameters.
   explicit ProbabilityVector(size_t length);
 
-  /// Constructs a factor with the given arguments and constant value.
+  /// Constructs a factor with the given length and constant value.
   ProbabilityVector(size_t length, T x);
 
   /// Constructs a factor with the given parameters.
-  ProbabilityVector(const DenseVector<T>& param);
+  ProbabilityVector(DenseVector<T> param);
 
   /// Constructs a factor with the given parameters.
-  ProbabilityVector(DenseVector<T>&& param);
-
-  /// Constructs a factor with the given arguments and parameters.
   ProbabilityVector(std::initializer_list<T> params);
 
   /// Swaps the content of two ProbabilityVector factors.
@@ -87,20 +101,6 @@ public:
   /// Returns the total number of elements of the factor.
   size_t size() const;
 
-  /**
-   * Returns the pointer to the first parameter or nullptr if the factor is
-   * empty.
-   */
-  T* begin();
-  const RealType* begin() const;
-
-  /**
-   * Returns the pointer past the last parameter or nullptr if the factor is
-   * empty.
-   */
-  T* end();
-  const T* end() const
-
   /// Provides mutable access to the parameter array of this factor.
   DenseVector<T>& param();
 
@@ -113,19 +113,26 @@ public:
   }
 
   /// Returns the value of the factor for the given assignment.
-  Exp<T> operator()(const Assignment& a) const {
-    return Exp<T>(log(a));
+  Exp<T> operator()(const Values& values) const {
+    return Exp<T>(log(values));
   }
 
   /// Returns the log-value of the factor for the given row.
   T log(size_t row) const;
 
   /// Returns the log-value of the factor for the given index.
-  T log(const Assignment& a) const;
+  T log(const Values& values) const;
+
+  // Conversions
+  //-----------------------------------------------
+
+  /// Converts this vector of probabilities to a vector of log-probabilities.
+  LogarithmicVector<T> logarithmic() const;
+
+  /// Converts this vector to a table.
+  ProbabilityTable<T> table() const;
 
 }; // class ProbabilityVector
 
 
 } // namespace libgm
-
-#endif

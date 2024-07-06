@@ -1,15 +1,20 @@
-#ifndef LIBGM_PROBABILITY_MATRIX_HPP
-#define LIBGM_PROBABILITY_MATRIX_HPP
+#pragma once
 
+#include <libgm/argument/shape.hpp>
+#include <libgm/factor/implements.hpp>
+#include <libgm/factor/interfaces.hpp>
 #include <libgm/math/eigen/dense.hpp>
-#include <libgm/serialization/eigen.hpp>
-#include <libgm/math/likelihood/logarithmic_matrix_ll.hpp>
-#include <libgm/math/random/bivariate_categorical_distribution.hpp>
+// #include <libgm/math/likelihood/logarithmic_matrix_ll.hpp>
+// #include <libgm/math/random/bivariate_categorical_distribution.hpp>
 
-#include <iostream>
-#include <numeric>
+#include <initializer_list>
 
 namespace libgm {
+
+// Forward declarations
+template <typename T> class ProbabilityVector;
+template <typename T> class ProbabilityTable;
+template <typename T> class LogarithmicMatrix;
 
 /**
  * A factor of a categorical probability distribution whose domain
@@ -28,23 +33,51 @@ namespace libgm {
 template <typename T>
 class ProbablityMatrix
   : Implements<
-      Multiply<ProbablityMatrix<T>, T>,
-      Multiply<ProbablityMatrix<T>, ProbablityMatrix<T>>,
-      MultiplyIn<ProbablityMatrix<T>, T>,
-      MultiplyIn<ProbablityMatrix<T>, ProbablityMatrix<T>>,
-      MultiplySpan<ProbablityMatrix<T>, ProbablityVector<T>>,
-      MultiplySpanIn<ProbablityMatrix<T>, ProbablityVector<T>>,
-      Divide<ProbablityMatrix<T>, T>,
-      Divide<ProbablityMatrix<T>, ProbablityMatrix<T>>,
-      DivideIn<ProbablityMatrix<T>, T>,
-      DivideIn<ProbablityMatrix<T>, ProbablityMatrix<T>>,
-      DivideSpan<ProbablityMatrix<T>, ProbablityVector<T>>,
-      DivideSpanIn<ProbablityMatrix<T>, ProbablityVector<T>>,
-      Power<ProbablityMatrix<T>>,
-      Marginal<ProbablityMatrix<T>>,
-      Maximum<ProbablityMatrix<T>>,
-      Entropy<ProbablityMatrix<T>, T>,
-      KlDivergence<ProbablityMatrix<T>, T>> {
+      // Direct operations
+      Multiply<ProbabilityMatrix, T>,
+      Multiply<ProbabilityMatrix, ProbabilityMatrix>,
+      MultiplyIn<ProbabilityMatrix, T>,
+      MultiplyIn<ProbabilityMatrix, ProbabilityMatrix>,
+      Divide<ProbabilityMatrix, T>,
+      Divide<ProbabilityMatrix, ProbabilityMatrix>,
+      DivideIn<ProbabilityMatrix, T>,
+      DivideIn<ProbabilityMatrix, ProbabilityMatrix>,
+
+      // Join operations
+      MultiplySpan<ProbabilityMatrix, ProbabilityVector<T>>,
+      MultiplySpanIn<ProbabilityMatrix, ProbabilityVector<T>>,
+      DivideSpan<ProbabilityMatrix, ProbabilityVector<T>>,
+      DivideSpanIn<ProbabilityMatrix, ProbabilityVector<T>>,
+
+      // Arithmetic
+      Power<ProbabilityMatrix, T>,
+      WeightedUpdate<ProbabilityMatrix, T>,
+
+      // Aggregates
+      Marginal<ProbabilityMatrix, T>,
+      Maximum<ProbabilityMatrix, T>,
+      Minimum<ProbabilityMatrix, T>,
+      MarginalSpan<ProbabilityMatrix, ProbabilityVector<T>>,
+      MaximumSpan<ProbabilityMatrix, ProbabilityVector<T>>,
+      MinimumSpan<ProbabilityMatrix, ProbabilityVector<T>>,
+
+      // Normalization
+      Normalize<ProbabilityMatrix>,
+      NormalizeHead<ProbabilityMatrix>,
+
+      // Restriction
+      RestrictSpan<ProbabilityMatrix, ProbabilityVector<T>>,
+
+      // Reshaping
+      Transpose<ProbabilityMatrix>,
+
+      // Entropy and divergences
+      Entropy<ProbabilityMatrix, T>,
+      CrossEntropy<ProbabilityMatrix, T>,
+      KlDivergence<ProbabilityMatrix, T>,
+      SumDifference<ProbabilityMatrix, T>,
+      MaxDifference<ProbabilityMatrix, T>
+    > {
 public:
   // Public types
   //--------------------------------------------------------------------------
@@ -61,21 +94,18 @@ public:
   ProbablityMatrix(size_t rows, size_t cols);
 
   /// Constructs a factor with the given shape and uninitialized parameters.
-  explicit ProbablityMatrix(std::pair<size_t, size_t>& shape);
+  explicit ProbablityMatrix(const ShapeVec& shape);
 
   /// Constructs a factor with the given shape and constant value.
   ProbablityMatrix(size_t rows, size_t cols, T x);
 
   /// Constructs a factor with the given shape and constant value.
-  ProbablityMatrix(std::pair<size_t, size_t> shape, T x);
+  ProbablityMatrix(const ShapeVec& shape, T x);
 
   /// Constructs a factor with the given parameters.
-  ProbablityMatrix(const DenseMatrix<T>& param);
+  ProbablityMatrix(DenseMatrix<T> param);
 
-  /// Constructs a factor with the given argument and parameters.
-  ProbablityMatrix(DenseMatrix<T>&& param);
-
-  /// Constructs a factor with the given arguments and parameters.
+  /// Constructs a factor with the given shape and parameters.
   ProbablityMatrix(size_t rows, size_t cols, std::initializer_list<T> values);
 
   /// Swaps the content of two ProbablityMatrix factors.
@@ -90,9 +120,7 @@ public:
   //--------------------------------------------------------------------------
 
   /// Returns the number of arguments of this factor.
-  size_t arity() const {
-    return 2;
-  }
+  size_t arity() const { return 2; }
 
   /// Returns the number of rows of the factor.
   size_t rows() const;
@@ -103,45 +131,37 @@ public:
   /// Returns the total number of elements of the factor.
   size_t size() const;
 
-  /**
-   * Returns the pointer to the first parameter or nullptr if the factor is
-   * empty.
-   */
-  T* begin();
-  const T* begin() const;
-
-  /**
-   * Returns the pointer past the last parameter or nullptr if the factor is
-   * empty.
-   */
-  T* end();
-  const T* end() const;
-
   /// Provides access to the parameter array of this factor.
   DenseMatrix<T>& param();
   const DenseMatrix<T>& param() const;
 
   /// Returns the value of the factor for the given row and column.
-  Exp<T> operator()(size_t row, size_t col) const {
-    return Exp<T>(log(row, col));
+  T operator()(size_t row, size_t col) const {
+    return T(log(row, col));
   }
 
   /// Returns the value of the factor for the given index.
-  Exp<T> operator()(const Assignment& a) const {
-    return Exp<T>(log(a));
+  T operator()(const Values& values) const {
+    return T(log(values));
   }
 
   /// Returns the log-value of the factor for the given row and column.
   RealType log(size_t row, size_t col) const;
 
   /// Returns the log-value of the factor for the given index.
-  RealType log(const Assignment& index) const;
+  RealType log(const Values& values) const;
+
+  // Conversions
+  //--------------------------------------------------------------------------
+
+  /// Converts this matrix of probabilities to a matrix of log-probabilities.
+  ProbabilityMatrix<T> logarithmic();
+
+  /// Converts this matrix of probabiliteis to a table.
+  ProbablityTable<T> table() const;
 
 }; // class ProbablityMatrix
 
 } // namespace libgm
-
-#endif
-
 
 #endif

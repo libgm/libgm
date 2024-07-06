@@ -1,58 +1,47 @@
-#ifndef LIBGM_MAP_BIND2_ITERATOR_HPP
-#define LIBGM_MAP_BIND2_ITERATOR_HPP
+#pragma once
 
-#include <iterator>
+#include <boost/iterator/iterator_facade.hpp>
 
 namespace libgm {
 
-  /**
-   * An iterator that constructs a ternary object, consisting of a map key
-   * a fixed key, and a map value.
-   */
-  template <typename Map,
-            typename Result,
-            typename Second = typename Map::key_type>
-  class map_bind2_iterator :
-    public std::iterator<std::forward_iterator_tag, Result> {
-  public:
-    using reference = Result;
-    using iterator  = typename Map::const_iterator;
+/**
+ * An iterator that constructs a ternary object, consisting of a map key,
+ * a fixed key, and a map value.
+ */
+template <typename Map, typename Result, typename Second = typename Map::key_type>
+class MapBind2Iterator
+  : public boost::iterator_facade<
+      MapBind2Iterator,
+      Result,
+      std::forward_iterator_tag,
+      Result
+    > {
+public:
+  using base_iterator = typename Map::const_iterator;
 
-    map_bind2_iterator()
-      : it_(), second_() { }
+  MapBind2Iterator() = default;
 
-    map_bind2_iterator(iterator it, Second second)
-      : it_(it), second_(second) { }
+  MapBind2Iterator(base_iterator it, Second second)
+    : it_(it), second_(second) { }
 
-    Edge operator*() const {
-      return { it_->first, second_, it_->second };
-    }
+private:
+  friend class boost::iterator_core_access;
 
-    map_bind2_iterator& operator++() {
-      ++it_;
-      return *this;
-    }
+  void increment() {
+    ++it_;
+  }
 
-    map_bind2_iterator operator++(int) {
-      map_bind2_iterator copy(*this);
-      ++it_;
-      return copy;
-    }
+  bool equal(const MapBind2Iterator& other) const {
+    return it_ == other.it_;
+  }
 
-    bool operator==(const map_bind2_iterator& o) const {
-      return it_ == o.it_;
-    }
+  Result dereference() const {
+    return { it_->first, second_, it_->second };
+  }
 
-    bool operator!=(const map_bind2_iterator& o) const {
-      return it_ != o.it_;
-    }
+  base_iterator it_;
+  Second second_;
 
-  private:
-    iterator it_;
-    Second second_;
-
-  }; // class map_bind2_iterator
+}; // class MapBind2Iterator
 
 } // namespace libgm
-
-#endif

@@ -1,8 +1,6 @@
 #ifndef LIBGM_BIDIRECTIONAL_HPP
 #define LIBGM_BIDIRECTIONAL_HPP
 
-#include <libgm/graph/undirected_edge.hpp>
-
 #include <iosfwd>
 
 namespace libgm {
@@ -15,7 +13,7 @@ namespace libgm {
    * \ingroup graph_types
    */
   template <typename Property>
-  struct bidirectional {
+  struct Bidirectional {
     Property forward; //!< The property in the direction min(u,v) --> max(u,v)
     Property reverse; //!< The property in the direciton max(u,v) --> min(u,v)
 
@@ -34,18 +32,18 @@ namespace libgm {
     }
 
     //! Returns the property for the directed edge (e.source(), e.target())
-    template <typename Vertex>
-    Property& operator()(const undirected_edge<Vertex>& e) {
+    template <typename Edge>
+    Property& operator()(Edge e) {
       return e.source() < e.target() ? forward : reverse;
     }
 
     //! Returns the property for the directed edge (e.source(), e.target())
-    template <typename Vertex>
-    const Property& operator()(const undirected_edge<Vertex>& e) const {
+    template <typename Edge>
+    const Property& operator()(Edge e) const {
       return e.source() < e.target() ? forward : reverse;
     }
 
-  }; // class bidirectional
+  }; // class Bidirectional
 
   //! \relates bidirectional
   template <typename Property>

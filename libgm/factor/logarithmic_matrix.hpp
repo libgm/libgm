@@ -1,17 +1,22 @@
-#ifndef LIBGM_FACTOR_LOGARITHMIC_MATRIX_HPP
-#define LIBGM_FACTOR_LOGARITHMIC_MATRIX_HPP
+#pragma once
 
-#include <libgm/factor/utility/traits.hpp>
+#include <libgm/argument/shape.hpp>
+#include <libgm/datastructure/table.hpp>
+#include <libgm/factorimplements.hpp>
+#include <libgm/factor/interfaces.hpp>
 #include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/exp.hpp>
-#include <libgm/serialization/eigen.hpp>
-#include <libgm/math/likelihood/logarithmic_matrix_ll.hpp>
-#include <libgm/math/random/bivariate_categorical_distribution.hpp>
+// #include <libgm/math/likelihood/logarithmic_matrix_ll.hpp>
+// #include <libgm/math/random/bivariate_categorical_distribution.hpp>
 
-#include <iostream>
-#include <numeric>
+#include <initializer_list>
 
 namespace libgm {
+
+// Forward declarations
+template <typename T> class LogarithmicVector;
+template <typename T> class LogarithmicTable;
+template <typename T> class ProbabilityMatrix;
 
 /**
   * A factor of a categorical logarithmic distribution whose domain
@@ -29,29 +34,57 @@ namespace libgm {
   */
 template <typename T>
 class LogarithmicMatrix
-  : Implements<
-      Multiply<LogarithmicMatrix<T>, Exp<T>>,
-      Multiply<LogarithmicMatrix<T>, LogarithmicMatrix<T>>,
-      MultiplyIn<LogarithmicMatrix<T>, Exp<T>>,
-      MultiplyIn<LogarithmicMatrix<T>, LogarithmicMatrix<T>>,
-      MultiplySpan<LogarithmicMatrix<T>, LogarithmicVector<T>>,
-      MultiplySpanIn<LogarithmicMatrix<T>, LogarithmicVector<T>>,
-      Divide<LogarithmicMatrix<T>, Exp<T>>,
-      Divide<LogarithmicMatrix<T>, LogarithmicMatrix<T>>,
-      DivideIn<LogarithmicMatrix<T>, Exp<T>>,
-      DivideIn<LogarithmicMatrix<T>, LogarithmicMatrix<T>>,
-      DivideSpan<LogarithmicMatrix<T>, LogarithmicVector<T>>,
-      DivideSpanIn<LogarithmicMatrix<T>, LogarithmicVector<T>>,
-      Power<LogarithmicMatrix<T>>,
-      Marginal<LogarithmicMatrix<T>>,
-      Maximum<LogarithmicMatrix<T>>,
-      Entropy<LogarithmicMatrix<T>, T>,
-      KlDivergence<LogarithmicMatrix<T>, T>> {
+  : public Implements<
+      // Direct operations
+      Multiply<LogarithmicMatrix, Exp<T>>,
+      Multiply<LogarithmicMatrix, LogarithmicMatrix>,
+      MultiplyIn<LogarithmicMatrix, Exp<T>>,
+      MultiplyIn<LogarithmicMatrix, LogarithmicMatrix>,
+      Divide<LogarithmicMatrix, Exp<T>>,
+      Divide<LogarithmicMatrix, LogarithmicMatrix>,
+      DivideIn<LogarithmicMatrix, Exp<T>>,
+      DivideIn<LogarithmicMatrix, LogarithmicMatrix>,
+
+      // Join operations
+      MultiplySpan<LogarithmicMatrix, LogarithmicVector<T>>,
+      MultiplySpanIn<LogarithmicMatrix, LogarithmicVector<T>>,
+      DivideSpan<LogarithmicMatrix, LogarithmicVector<T>>,
+      DivideSpanIn<LogarithmicMatrix, LogarithmicVector<T>>,
+
+      // Arithmetic
+      Power<LogarithmicMatrix, T>,
+      WeightedUpdate<LogarithmicMatrix, T>,
+
+      // Aggregates
+      Marginal<LogarithmicMatrix, Exp<T>>,
+      Maximum<LogarithmicMatrix, Exp<T>>,
+      Minimum<LogarithmicMatrix, Exp<T>>,
+      MarginalSpan<LogarithmicMatrix, LogarithmicVector<T>>,
+      MaximumSpan<LogarithmicMatrix, LogarithmicVector<T>>,
+      MinimumSpan<LogarithmicMatrix, LogarithmicVector<T>>,
+
+      // Normalization
+      Normalize<LogarithmicMatrix>,
+      NormalizeHead<LogarithmicMatrix>,
+
+      // Restriction
+      RestrictSpan<LogarithmicMatrix, LogarithmicVector<T>>,
+
+      // Reshaping
+      Transpose<LogarithmicMatrix>,
+
+      // Entropy and divergences
+      Entropy<LogarithmicMatrix, T>,
+      CrossEntropy<LogarithmicMatrix, T>,
+      KlDivergence<LogarithmicMatrix, T>,
+      SumDifference<LogarithmicMatrix, T>,
+      MaxDifference<LogarithmicMatrix, T>
+    > {
 public:
   // Public types
   //--------------------------------------------------------------------------
 
-  using ll_type = LogarithmicMatrixLL<T>;
+  // using ll_type = LogarithmicMatrixLL<T>;
 
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
@@ -63,21 +96,18 @@ public:
   LogarithmicMatrix(size_t rows, size_t cols);
 
   /// Constructs a factor with the given shape and uninitialized parameters.
-  explicit LogarithmicMatrix(std::pair<size_t, size_t>& shape);
+  explicit LogarithmicMatrix(const Shape& shape);
 
   /// Constructs a factor with the given shape and constant value.
   LogarithmicMatrix(size_t rows, size_t cols, Exp<T> x);
 
   /// Constructs a factor with the given shape and constant value.
-  LogarithmicMatrix(std::pair<size_t, size_t> shape, Exp<T> x);
+  LogarithmicMatrix(const Shape& shape, Exp<T> x);
 
   /// Constructs a factor with the given parameters.
-  LogarithmicMatrix(const DenseMatrix<T>& param);
+  LogarithmicMatrix(DenseMatrix<T> param);
 
-  /// Constructs a factor with the given argument and parameters.
-  LogarithmicMatrix(DenseMatrix<T>&& param);
-
-  /// Constructs a factor with the given arguments and parameters.
+  /// Constructs a factor with the given shape and parameters.
   LogarithmicMatrix(size_t rows, size_t cols, std::initializer_list<T> values);
 
   /// Swaps the content of two LogarithmicMatrix factors.
@@ -92,9 +122,7 @@ public:
   //--------------------------------------------------------------------------
 
   /// Returns the number of arguments of this factor.
-  size_t arity() const {
-    return 2;
-  }
+  size_t arity() const { return 2; }
 
   /// Returns the number of rows of the factor.
   size_t rows() const;
@@ -104,20 +132,6 @@ public:
 
   /// Returns the total number of elements of the factor.
   size_t size() const;
-
-  /**
-   * Returns the pointer to the first parameter or nullptr if the factor is
-   * empty.
-   */
-  T* begin();
-  const T* begin() const;
-
-  /**
-   * Returns the pointer past the last parameter or nullptr if the factor is
-   * empty.
-   */
-  T* end();
-  const T* end() const;
 
   /// Provides access to the parameter array of this factor.
   DenseMatrix<T>& param();
@@ -129,18 +143,25 @@ public:
   }
 
   /// Returns the value of the factor for the given index.
-  Exp<T> operator()(const Assignment& a) const {
-    return Exp<T>(log(a));
+  Exp<T> operator()(const Values& values) const {
+    return Exp<T>(log(values));
   }
 
   /// Returns the log-value of the factor for the given row and column.
   RealType log(size_t row, size_t col) const;
 
   /// Returns the log-value of the factor for the given index.
-  RealType log(const Assignment& index) const;
+  RealType log(const Values& values) const;
+
+  // Conversions
+  //--------------------------------------------------------------------------
+
+  /// Converts this matrix of log-probabilities to a matrix or probabilities.
+  ProbabilityMatrix<T> probability() const;
+
+  /// Converts this matrix to a table of log-probabilities.
+  LogarithmicTable<T> table() const;
 
 }; // class LogarithmicMatrix
 
 } // namespace libgm
-
-#endif

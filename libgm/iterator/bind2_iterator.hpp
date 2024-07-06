@@ -1,57 +1,45 @@
-#ifndef LIBGM_BIND2_ITERATOR_HPP
-#define LIBGM_BIND2_ITERATOR_HPP
+#pragma once
 
-#include <iterator>
+#include <boost/iterator/iterator_facade.hpp>
 
 namespace libgm {
 
-  /**
-   * An iterator that constructs a binary object, consisting of a fixed key
-   * and elements of a range defined by an iterator.
-   */
-  template <typename It,
-            typename Result,
-            typename Second = std::iterator_traits<It>::value_type>
-  class bind2_iterator :
-    public std::iterator<std::forward_iterator_tag, Result> {
-  public:
-    using reference = Result;
+/**
+ * An iterator that constructs a binary object, consisting of a fixed key
+ * and elements of a range defined by another iterator.
+ */
+template <typename It, typename Result, typename Second = std::iterator_traits<It>::value_type>
+class Bind2Iterator :
+  : public boost::iterator_facade<
+      Bind2Iterator
+      Result,
+      std::forward_iterator_tag,
+      Result
+    > {
+public:
+  Bind2Iterator() = default;
 
-    bind2_iterator()
-      : it_(), first_() { }
+  Bind2Iterator(It it, Second second)
+    : it_(it), second_(second) { }
 
-    bind2_iterator(It it, Second second)
-      : it_(it), second_(second) { }
+private:
+  friend class boost::iterator_core_access;
 
-    Result operator*() const {
-      return { *it_, second_ };
-    }
+  void increment() {
+    ++it_;
+  }
 
-    bind2_iterator& operator++() {
-      ++it_;
-      return *this;
-    }
+  bool equal(const Bind2Iterator& other) const {
+    return it_ == other.it_;
+  }
 
-    bind2_iterator operator++(int) {
-      bind2_iterator copy(*this);
-      ++it_;
-      return copy;
-    }
+  Result dereference() const {
+    return { *it_, second_ };
+  }
 
-    bool operator==(const bind2_iterator& o) const {
-      return it_ == o.it_;
-    }
+  It it_;
+  Second second_;
 
-    bool operator!=(const bind2_iterator& o) const {
-      return it_ != o.it_;
-    }
-
-  private:
-    iterator it_;
-    Second second_;
-
-  }; // class bind2_iterator
+}; // class Bind2Iterator
 
 } // namespace libgm
-
-#endif

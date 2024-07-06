@@ -822,13 +822,6 @@ namespace libgm {
     }
 
     /**
-     * A convenience function that does not do anything.
-     */
-    table<T>& transform(identity) {
-      return *this;
-    }
-
-    /**
      * Transforms the content of this table by applying a binary operation
      * to the elements of this table and the given table. The two tables
      * must have the same shapes.

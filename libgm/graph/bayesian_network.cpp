@@ -6,7 +6,7 @@ namespace libgm {
 struct BayesianNetwork::Vertex {
   Object property;
   Domain parents;
-  NeighborSet children;
+  AdjacencySet children;
 
   bool equals(const Vertex& other) const {
     return parents == other.parents && property == other.property;
@@ -30,8 +30,8 @@ struct BayesianNetwork::Impl : Object::Impl {
 
   bool equals(const Object::Impl& other) const override {
     const Impl& impl = static_cast<const Impl&>(other);
-    if (num_edges != impl.num_edges) return false;
     if (data.size() != impl.data.size()) return false;
+    if (num_edges != impl.num_edges) return false;
     for (const [u, ptr] : data) {
       auto it = impl.data.find(u);
       if (it == impl.data.end()) return false;
@@ -86,8 +86,27 @@ struct BayesianNetwork::Impl : Object::Impl {
     data.clear();
     num_edges = 0;
   }
-
 };
+
+BayesianNetwork::Impl& BayesianNetwork::impl() {
+  return static_cast<Impl&>(*impl_);
+}
+
+const BayesianNetwork::Impl& BayesianNetwork::impl() const {
+  return static_cast<Impl&>(*impl_);
+}
+
+BayesianNetwork::Vertex& BayesianNetwork::data(Arg arg) {
+  return *impl().data.arg(arg);
+}
+
+const BayesianNetwork::Vertex& BayesianNetwork::data(Arg arg) const {
+  return *impl().data.arg(arg);
+}
+
+const BayesianNetwork::Impl& BayesianNetwork::impl() const {
+  return static_cast<Impl&>(*impl_);
+}
 
 BayesianNetwork::BayesianNetwork(size_t count)
   : Object(new Impl(count)) {}
@@ -124,16 +143,20 @@ bool BayesianNetwork::contains(Arg u) const {
 }
 
 bool BayesianNetwork::contains(Arg u, Arg v) const {
-  return edge(u, v).second;
+  return bool(edge(u, v));
 }
 
 bool BayesianNetwork::contains(const DirectedEdge<Arg> e) const {
   return contains(e.source(), e.target());
 }
 
-std::pair<DirectedEdge<Arg>, bool> BayesianNetwork::edge(Arg u, Arg v) const {
+DirectedEdge<Arg> BayesianNetwork::edge(Arg u, Arg v) const {
   auto it = impl().data.find(u);
-  return {{u, v}, it != impl().data.end() && it->second->children.count(v)};
+  if (it != impl().data.end()) {
+    return {u, v};
+  } else {
+    return {};
+  }
 }
 
 size_t BayesianNetwork::in_degree(Arg u) const {

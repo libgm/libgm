@@ -1,74 +1,42 @@
-#ifndef LIBGM_MAP_KEY_ITERATOR_HPP
-#define LIBGM_MAP_KEY_ITERATOR_HPP
+#pragma once
 
-#include <iterator>
+#include <boost/iterator/iterator_facade.hpp>
 
 namespace libgm {
 
-  /**
-   * This iterator is used to iterate over the key in an associative container.
-   * \ingroup iterator
-   */
-  template <class Map>
-  class map_key_iterator :
-    public std::iterator<typename Map::const_iterator::iterator_category,
-                         typename Map::key_type,
-                         typename Map::difference_type> {
-  public:
-    typedef const typename Map::key_type& reference;
+/**
+ * This iterator is used to iterate over the key in an associative container.
+ * \ingroup iterator
+ */
+template <class Map>
+class MapKeyIterator
+  : public boost::iterator_facade<
+      MapKeyIterator,
+      const typename Map::key_type,
+      std::forward_iterator_tag
+    > {
+public:
+  MapKeyIterator() = default;
 
-  private:
-    typename Map::const_iterator it;
-    template <typename It>
-    friend bool operator<(const map_key_iterator<It>& it1,
-                          const map_key_iterator<It>& it2);
-    template <typename It>
-    friend int operator-(const map_key_iterator<It>& it1,
-                         const map_key_iterator<It>& it2);
+  MapKeyIterator(typename Map::const_iterator it)
+    : it_(it) { }
 
-  public:
-    map_key_iterator() : it() { }
+private:
+  friend class boost::iterator_core_access;
 
-    map_key_iterator(typename Map::const_iterator it) : it(it) { }
+  void increment() {
+    ++it_;
+  }
 
-    reference operator*() const {
-      return it->first;
-    }
+  bool equal(const MapKeyIterator& other) const {
+    return it_ == other.it_;
+  }
 
-    map_key_iterator& operator++() {
-      ++it;
-      return *this;
-    }
+  const typename Map::key_type& dereference() const {
+    return it_->first;
+  }
 
-    map_key_iterator operator++(int) {
-      return map_key_iterator(it++);
-    }
-
-    bool operator==(const map_key_iterator& other) const {
-      return it == other.it;
-    }
-
-    bool operator!=(const map_key_iterator& other) const {
-      return it != other.it;
-    }
-
-    // the following operations are only supported if the iterator
-    // has a random access category
-    map_key_iterator& operator+=(int difference) {
-      it += difference;
-      return *this;
-    }
-
-    bool operator<(const map_key_iterator& other) {
-      return it < other.it;
-    }
-
-    int operator-(const map_key_iterator& other) {
-      return it - other.it;
-    }
-
-  }; // class map_key_iterator
+  typename Map::const_iterator it_;
+}; // class MapKeyIterator
 
 } // namespace libgm
-
-#endif

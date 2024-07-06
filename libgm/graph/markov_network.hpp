@@ -1,5 +1,4 @@
-#ifndef LIBGM_UNDIRECTED_GRAPH_HPP
-#define LIBGM_UNDIRECTED_GRAPH_HPP
+#pragma once
 
 #include <libgm/graph/undirected_edge.hpp>
 #include <libgm/graph/util/vertex_edge_property_iterator.hpp>
@@ -39,9 +38,9 @@ private:
   // Graph concept typedefs
   //--------------------------------------------------------------------------
 public:
-  // Descirptors
+  // Descriptors
   using vertex_descirptor = Arg;
-  using edge_descriptor   = UndirectedEdge<Arg, Object>;
+  using edge_descriptor   = UndirectedEdge<Arg>;
 
   // Iterators (the exact types are implementation detail)
   using out_edge_iterator  = MapBind1Iterator<AdjacencyMap, edge_descriptor>;
@@ -51,8 +50,8 @@ public:
   class edge_iterator;
 
   // Graph categories
-  using directed_category = undirected_tag;
-  using edge_parallel_category = disallow_parallel_edge_tag;
+  using directed_category = boost::undirected_tag;
+  using edge_parallel_category = boost::disallow_parallel_edge_tag;
   struct traversal_category :
     public virtual boost::vertex_list_graph_tag,
     public virtual boost::incidence_graph_tag,
@@ -63,6 +62,9 @@ public:
   using vertices_size_type = size_t;
   using edges_size_type = size_t;
   using degree_size_type = size_t;
+
+  /// Visitor
+  using VertexVisitor = std::function<void(Arg);
 
   // Constructors and destructors
   //--------------------------------------------------------------------------
@@ -84,12 +86,6 @@ public:
   /// Returns the null vertex.
   static Arg null_vertex() { return Arg(); }
 
-  /// Returns the range of all vertices.
-  boost::iterator_range<vertex_iterator> vertices() const;
-
-  /// Returns the range of all edges in the graph.
-  boost::iterator_range<edge_iterator> edges() const;
-
   /// Returns the edges outgoing from a vertex.
   boost::iterator_range<out_edge_iterator> out_edges(Arg u) const;
 
@@ -99,6 +95,12 @@ public:
   /// Returns the vertices adjacent to u.
   boost::iterator_range<adjacency_iterator> adjacent_vertices(Arg u) const;
 
+  /// Returns the range of all vertices.
+  boost::iterator_range<vertex_iterator> vertices() const;
+
+  /// Returns the range of all edges in the graph.
+  boost::iterator_range<edge_iterator> edges() const;
+
   /// Returns true if the graph contains the given vertex.
   bool contains(Arg u) const;
 
@@ -106,7 +108,7 @@ public:
   bool contains(Arg u, Arg v) const;
 
   /// Returns true if the graph contains an undirected edge.
-  bool contains(const UndirectedEdge<Arg, Object>& e) const;
+  bool contains(const UndirectedEdge<Arg>& e) const;
 
   /// Returns an undirected edge (u, v). The edge must exist.
   UndirectedEdge<Arg, Object> edge(Arg u,  Arg v) const;
@@ -136,26 +138,10 @@ public:
   const Object& operator[](Arg u) const;
 
   /// Returns the property associated with an edge.
-  Object& operator[](const UndirectedEdge<Arg, Object>& e);
+  Object& operator[](const UndirectedEdge<Arg>& e);
 
   /// Returns the property associated with an edge.
-  const Object& operator[](const UndirectedEdge<Arg, Object>& e) const;
-
-  /**
-   * Returns the property associated with edge {u, v}.
-   * The edge must exist.
-   */
-  const EdgeProperty& operator()(Arg u, Arg v) const {
-    return *static_cast<EdgeProperty*>(edge(u, v).property_);
-  }
-
-  /**
-   * Returns the property associated with edge {u, v}.
-   * The edge is added if necessary.
-   */
-  EdgeProperty& operator()(Arg u, Arg v) {
-    return *static_cast<EdgeProperty*>(add_edge(u, v).first.property_);
-  }
+  const Object& operator[](const UndirectedEdge<Arg>& e) const;
 
   // Modifications
   //--------------------------------------------------------------------------
@@ -191,6 +177,20 @@ public:
 
   /// Removes all vertices and edges from the graph.
   void clear();
+
+  struct EliminationStrategy {
+    virtual ptrdiff_t priority(Arg u, const MarkovNetwork& g) const = 0;
+    virtual void update(Arg u, const MarkovNetwork& g, std::vector<Arg>& output) const = 0;
+  };
+
+  /**
+   * Runs the vertex elimination algorithm on a graph. The algorithm eliminates
+   * each node from the graph; eliminating a node involves connecting the node's
+   * neighbors into a new clique and then removing the node from the graph.
+   * The nodes are eliminated greedily in the order specified by the elimination
+   * strategy.
+   */
+  void eliminate(EliminationStrategy& strategy, VertexVisitor visitor);
 
   // Implementation of edge iterator
   //--------------------------------------------------------------------------
@@ -267,22 +267,24 @@ public:
 }; // class MarkovNetwork
 
 /**
- * A class that representeds an undirected graph as an adjancy list (map).
- * The template is paraemterized by the vertex type as well as the type
- * of properties associated with vertices and edges.
+ * A class that represents a Markov network with strongly typed vertex and edge properties.
  *
- * \tparam VertexProperty
- *         The type of data associated with vertices.
- * \tparam EdgeProperty
- *         The type of data associated with edges.
+ * \tparam VP
+ *         The type of data associated with vertices. Must be void or a subclass of Object.
+ * \tparam EP
+ *         The type of data associated with edges. Must be void or a subclass of Object.
  *
  * \ingroup graph_types
  */
-template <typename VertexProperty = void,
-          typename EdgeProperty = void>
-class MarkovNetworkT {
+template <typename VP = void, typename EP = void>
+struct MarkovNetworkT : PropertyCaster<MarkovNetwork, VP, EP> {
+  bool add_vertex(Arg u, Nullable<VP> vp = Nullable<VP>()) {
+    return MarkovNetwork::add_vertex(u, std::move(vp));
+  }
+
+  std::pair<edge_descriptor, bool> add_edge(Arg u, Arg v, Nullable<EP> ep = Nullable<EP>()) {
+    return MarkovNetwork::add_edge(u, v, std::move(ep));
+  }
 };
 
 } // namespace libgm
-
-#endif

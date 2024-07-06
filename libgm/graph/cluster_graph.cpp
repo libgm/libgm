@@ -1,121 +1,358 @@
 #include "cluster_graph.hpp"
 
+#include <libgm/argument/domain_index.hpp>
+#include <libgm/graph/base.hpp>
+#include <libgm/graph/util/bidirectional.hpp>
+#include <libgm/graph/algorithm/mst.hpp>
+#include <libgm/graph/algorithm/test_connected.hpp>
+#include <libgm/graph/algorithm/test_tree.hpp>
+#include <libgm/graph/algorithm/tree_traversal.hpp>
+#include <libgm/graph/algorithm/triangulate.hpp>
+
+#include <algorithm>
+#include <functional>
+#include <iterator>
+#include <numeric>
+#include <stdexcept>
+#include <unordered_set>
+#include <vector>
+
 namespace libgm {
 
-using Vertex = ClusterGraph::Vertex;
-using Edge = Clustergraph::Edge;
+/**
+ * The information stored with each vertex of the cluster graph.
+ *
+ * The base class stores the cluster along with the id of the vertex.
+ * The intrusive list is used to maintain the correspo
+ */
+struct ClusterGraph::Vertex : VertexBase, Domain {
+  /// The vertex property.
+  Object property;
+
+  /// The cluster graph owning this vertex.
+  const ClusterGraph* graph;
+
+  /// The index of the vertex (useful for vertex_index map).
+  size_t index = -1;
+
+  /// The color associated with a vertex.
+  boost::default_color_type color;
+
+  /// True if the vertex has been marked. This field is not serialized.
+  bool marked = false;
+
+  /// The outgoing edges from this node.
+  OutEdgeSet out_edges;
+
+  /// Default constructor. Default-initializes the property.
+  Vertex() = default;
+
+  Vertex(Domain cluster, Object object, const ClusterGraph* graph)
+    : Domain(std::move(cluster)), property(std::move(property)), graph(graph) { }
+
+  static Vertex* from_domain(const Domain* domain) {
+    return static_cast<Vertex*>(const_cast<Domain*>(domain));
+  }
+
+  const Domain& cluster() const {
+    return *this;
+  }
+
+  Domain& cluster() const {
+    return *this;
+  }
+
+  void save(oarchive& ar) const {
+    ar << cluster() << property << id << neighbors;
+  }
+
+  void load(iarchive& ar) {
+    ar >> cluster() >> property >> id >> neighbors;
+  }
+
+  friend std::ostream& operator<<(std::ostream& out, Vertex* v) {
+    out << v->id;
+    return out;
+  }
+
+  friend std::ostream& operator<<(std::ostream& out, Vertex& v) {
+    out << v.id << '(' << v.cluster() << ", " << v.property << ", " << v.marked << ')';
+    return out;
+  }
+
+}; // struct Vertex
+
+
+/**
+ * The information stored with each edge of the cluster graph.
+ *
+ * The base class stores the cluster along with the id of the vertex.
+ */
+struct ClusterGraph::Edge : EdgeBase, Domain {
+  /// The edge property associated with the edge.
+  Object property;
+
+  /**
+   * For edge = (u, v), reachable(e) stores the variables in the subtree rooted at u,
+   * away from v, in the sorted order. This field is not serialized.
+   */
+  Bidirectional<Domain> reachable;
+
+  /// True if the edge has been marked. This field is not serialized.
+  bool marked = false;
+
+  Edge(Vertex* source, Vertex* target, Domain separator, Object property)
+    : Domain(std::move(separator)), endpoints{source, target}, property(std::move(property)) {}
+
+  static Edge* from_domain(const Domain* domain) {
+    return static_cast<Edge*>(const_cast<Domain*>(domain));
+  }
+
+  const Domain& separator() const {
+    return *this;
+  }
+
+  Domain& separator() {
+    return *this;
+  }
+
+  /// Serialize members.
+  void save(oarchive& ar) const {
+    ar << separator() << endpoints << property;
+  }
+
+  /// Deserialize members
+  void load(oiarchive& ar) {
+    ar >> separator() >> endpoints >> property;
+  }
+
+  /// Outputs the edge information to an output stream.
+  friend std::ostream& operator<<(std::ostream& out, const Edge& e) {
+    out << '(' << e.spearator() << ' ' << e.property << ' ' << e.marked << ')';
+    return out;
+  }
+}; // class Edge
+
 
 struct ClusterGraph::Impl : Object::Impl {
   /// An index of clusters that permits fast superset/intersection queries.
-  set_index<Vertex*, Domain> cluster_index;
+  DomainIndex cluster_index;
 
   /// An index of separators that permits fast superset/intersection queries.
-  set_index<edge_type, Domain> separator_index;
+  DomainIndex separator_index;
 
-  /// The underlying undirected graph.
-  std::vector<Vertex*> data_;
+  /// The list of all vertices.
+  VertexList vertices;
+
+  /// The list of all edges.
+  EdgeList edges;
 };
 
-bool operator==(const Vertex& a, const Vertex& b); {
-  return a.cluster_ == b.cluster_ && a.property_ == b.property_;
+boost::iterator_range<ClusterGraph::out_edge_iterator> ClusterGraph::out_edges(Vertex* u) const {
+  return { u->out_edges.begin(), u->out_edges.end() };
 }
 
-bool operator!=(const Vertex& a, const Vertex& b) {
-  return !(a == b);
+boost::iterator_range<ClusterGraph::in_edge_iterator> ClusterGraph::in_edges(Vertex* u) const {
+  return { u->out_edges.begin(), u->out_edges.end() };
 }
 
-std::ostream& operator<<(std::ostream& out, const Vertex& v) {
-  out << '(' << v.cluster_ << ' ' << v.property_ << ' ' << v.marked_ << ')';
-  return out;
+boost::iterator_range<ClusterGraph::adjacency_iterator> ClusterGraph::adjacent_vertices(Vertex* u)
+const {
+  return { u->out_edges.begin(), u->out_edges.end() };
 }
 
+boost::iterator_range<ClusterGraph::vertex_iterator> ClusterGraph::vertices() const {
+  return { impl().vertices.begin(), impl().vertices.end() };
+}
 
-    void save(oarchive& ar) const {
-      ar << domain << property;
-    }
-
-    void load(iarchive& ar) {
-      ar >> domain >> property;
-    }
-
-    Shape shape(const ShapeMap& map, std::vector<size_t>& vec) const {
-      return cluster_.shape(map, vec);
-    }
+boost::iterator_range<ClusterGraph::edge_iterator> ClusterGraph::edges() const {
+  return { impl().edges.begin(), impl().edges.end() };
+}
 
 bool ClusterGraph::empty() const {
-  return impl().data.empty();
+  return impl().vertices.empty();
 }
 
 bool ClusterGraph::contains(Vertex* u) const {
-  return u && u.graph_ == this;
+  return u && u->graph == this;
+}
+
+size_t ClusterGraph::num_vertices() {
+  return impl().vertices.size();
+}
+
+size_t ClusterGraph::num_edges() const {
+  return impl().edges.size();
+}
+
+size_t ClusterGraph::in_degree(Vertex* u) {
+  return u->out_edges.size();
+}
+
+size_t ClusterGraph::out_degree(Vertex* u) {
+  return u->out_edges.size();
+}
+
+size_t ClusterGraph::degree(Vertex* u) {
+  return u->out_edges.size();
+}
+
+edge_descriptor ClusterGraph::edge(Vertex* u, Vertex* v) {
+  auto it = u->out_edges.find(v);
+  if (it != u->out_edges.end()) {
+    return *it;
+  } else {
+    return {};
+  }
 }
 
 bool ClusterGraph::contains(Vertex* u, Vertex* v) const {
-  return contains(u) && contains(v) && u->neighbors_.count(v);
+  return contains(u) && contains(v) && u->out_edges.contains(v);
 }
 
-bool ClusterGraph::contains(UndirectedEdge<Vertex*> e) const {
+bool ClusterGraph::contains(edge_descriptor e) const {
   return contains(e.source(), e.target());
 }
 
-boost::iterator_range<argument_iterator> ClusterGraph::arguments() const {
-  return impl().cluster_index.values();
+Object& ClusterGraph::operator[](Vertex* u) {
+  return u->property;
+}
+
+const Object& ClusterGraph::operator[](Vertex* u) const {
+  return u->property;
+}
+
+Object& ClusterGraph::operator[](Edge* e) {
+  return e->property;
+}
+
+const Object& ClusterGraph::operator[](Edge* e) const {
+  return e->property;
 }
 
 size_t ClusterGraph::num_arguments() const {
-  return impl().cluster_index.num_values();
+  return impl().cluster_index.num_arguments();
 }
 
 size_t ClusterGraph::count(Arg x) const {
   return impl().cluster_index.count(x);
 }
 
-Object& ClusterGraph::operator[](Vertex* u) {
-  return u->property_;
+boost::iterator_range<argument_iterator> ClusterGraph::arguments() const {
+  return impl().cluster_index.arguments();
 }
 
-const Object& ClusterGraph::operator[](Vertex* u) const {
-  return u->property_;
+const Domain& ClusterGraph::cluster(Vertex* v) const {
+  return *v;
 }
 
-Object& ClusterGraph::operator[](const edge_descriptor& e) {
-  return e->property_;
+const Domain& ClusterGraph::separator(Edge* e) const {
+  return *e;
 }
 
-const Object& ClusterGraph::operator[](const edge_descriptor& e) const {
-  return e->property_;
+ShapeVec ClusterGraph::shape(Vertex* v, const ShapeMap& map) const {
+  return v->shape(map);
 }
 
-const Object& operator()(Vertex* u, Vertex* v) const {
-  return edge(u, v, g).first.property_;
+ShapeVec ClusterGraph::shape(Edge* e, const ShapeMap& map) const {
+  return e->shape(map);
 }
 
-bool operator==(const ClusterGraph& other) const {
-  return graph_ == other.graph_;
+Dims ClusterGraph::dims(Vertex* v, const Domain& dom) const {
+  return v->dims(dom);
 }
 
-bool operator!=(const ClusterGraph& other) const {
-  return graph_ != other.graph_;
+Dims ClusterGraph::dims(Edge* e, const Domain& dom) const {
+  return e->dims(dom);
+}
+
+Dims ClusterGraph::source_dims(edge_descriptor e) const {
+  return e.source()->dims(*e);
+}
+
+Dims ClusterGraph::target_dims(edge_descriptor e) const {
+  return e.target()->dims(*e);
+}
+
+MarkovNetwork<void, void> ClusterGraph::markov_network() const {
+  MarkovNetwork<void, void> mn;
+  for (Vertex* v : vertices()) {
+    mn.make_clique(*v);
+  }
+  return mn;
 }
 
 bool ClusterGraph::is_connected() const {
-  return test_connected(*this);
+  if (empty()) return true;
+
+  // Visitor counting the visited vertices.
+  size_t count = 0;
+  struct Visitor : boost::default_bfs_visitor {
+    size_t& count;
+
+    void discover_vertex(Vertex*, const ClusterGraph&) {
+      ++count;
+    }
+  } visitor{count};
+
+
+  // Perform the BFS
+  boost::breadth_first_search(*this, *vertices().begin(), queue, visitor, vertex_color_map());
+
+  // The graph is connected if we successfully visited all vertices.
+  return count == num_vertices();
 }
 
 bool ClusterGraph::is_tree() const {
-  return num_edges(*this) == num_vertices(*this) - 1 && connected();
+  return num_edges() == num_vertices() - 1 && is_connected();
 }
 
 bool ClusterGraph::has_running_intersection() const {
   const auto& cluster_index = impl().cluster_index;
-  for (Arg x : cluster_index.values()) {
+
+  // Initialize the color of all vertices
+  reset_color();
+
+  // Queue of vertices
+  std::queue<Vertex*> queue;
+  std::vector<Vertex*> examined;
+
+  for (Arg x : cluster_index.arguments()) {
     size_t n = cluster_index.count(x);
-    Vertex* v = cluster_index[x];
-    size_t nreachable = test_tree(*this, v, [&](const edge_descriptor& e) {
-        return e->separator().count(x) && e.target()->cluster().count(x);
-      });
+    Vertex* v = domain_to_vertex(cluster_index[x]);
+
+    // Visitor counting the visited vertices and filtering edges.
+    size_t nreachable = 0;
+    struct Visitor : boost::default_bfs_visitor {
+      size_t& count;
+      std::vector<Vertex*>& examined;
+      Arg x;
+
+      void discover_vertex(Vertex* v, const ClusterGraph&) {
+        ++count;
+        examined.push_back(v);
+      }
+
+      void examine_edge(edge_descriptor e, const ClusterGraph& g) {
+        if (!g.impl().ordering.contains(x, *e) ||
+            !g.impl().ordering.contains(x, *e.target())) {
+          e.target()->color = boost::black_color;
+          examined.push_back(e.target());
+        }
+      }
+    } visitor{nreachable, examined, x};
+
+    // Perform the BFS
+    examined.clear();
+    boost::breadth_first_visit(*this, v, queue, visitor, vertex_color_map());
     if (nreachable != n) return false;
+
+    // Revert the color of all examined vertices
+    for (Vertex* v : examined) {
+      v->color = boost::white_color;
+    }
   }
+
   return true;
 }
 
@@ -125,51 +362,99 @@ bool ClusterGraph::is_triangulated() const {
 
 std::ptrdiff_t ClusterGraph::tree_width() const {
   size_t max_size = 0;
-  for (Vertex* v : *this) {
-    max_size = std::max(max_size, v->cluster().size());
+  for (Vertex* v : vertices()) {
+    max_size = std::max(max_size, v->size());
   }
   return std::ptrdiff_t(max_size) - 1;
 }
 
-vertex_descriptor ClusterGraph::find_cluster_cover(const Domain& dom) const {
-  return impl().cluster_index.find_min_cover(dom);
+Vertex* ClusterGraph::find_cluster_cover(const Domain& dom) const {
+  return Vertex::from_domain(impl().cluster_index.find_min_cover(dom, ordering));
 }
 
-edge_descriptor ClusterGraph::find_separator_cover(const Domain& dom) const {
-  return impl().separator_index.find_min_cover(dom);
+Edge* ClusterGraph::find_separator_cover(const Domain& dom) const {
+  return Edge::from_domain(impl().separator_index.find_min_cover(dom, ordering));
 }
 
-vertex_descriptor ClusterGraph::find_cluster_meets(const Domain& dom) const {
-  return impl().cluster_index.find_max_intersection(dom);
+Vertex* ClusterGraph::find_cluster_meets(const Domain& dom) const {
+  return Vertex::from_domain(impl().cluster_index.find_max_intersection(dom, ordering));
 }
 
-edge_descriptor ClusterGraph::find_separator_meets(const Domain& dom) const {
-  return impl().separator_index.find_max_intersection(dom);
+Edge* ClusterGraph::find_separator_meets(const Domain& dom) const {
+  return Edge::from_domain(impl().separator_index.find_max_intersection(dom, ordering));
 }
 
 void ClusterGraph::intersecting_clusters(const Domain& dom, vertex_visitor visitor) const {
-  impl().cluster_index.intersecting_sets(dom, std::move(visitor));
+  for (auto handle : impl().cluster_index.find_intersections(dom)) {
+    visitor(Vertex::from_domain(handle));
+  }
 }
 
 void ClusterGraph::intersecting_separators(const Domain& dom, edge_visitor visitor) const {
-  impl().separator_index.intersecting_sets(dom, std::move(visitor));
+  for (auto handle : impl().separator_index.find_intersections(dom)) {
+    visitor(Edge::from_domain(handle));
+  }
 }
 
+/**
+ * An edge visitor that computes the reachable vars in the cluster graph.
+ * When using with a message passing protocol (MPP) traversal on a tree,
+ * this visitor is guaranteed to compute the reachable variables for each
+ * edge the tree.
+ */
+class ReachableVisitor {
+public:
+  ReachableVisitor(const ClusterGraph* graph,
+                   bool propagate_past_empty,
+                   const ankerl::unordered_dense::set<Arg>* filter = nullptr)
+    : graph_(graph),
+      propagate_past_empty_(propagate_past_empty),
+      filter_(filter) { }
+
+  void operator()(ClusterGraph::edge_descriptor e) const {
+    Domain r;
+    if (!e->empty() || propagate_past_empty_) {
+      // extract the (possibly filtered) variables from the cluster
+      for (Arg x : *e.source()) {
+        if (!filter_ || filter_->count(x)) { r.push_back(x); }
+      }
+
+      // compute the union of the incoming reachable variables
+      for (auto in : graph_.in_edges(e.source())) {
+        if (in.source() != e.target()) {
+          r.append(in->reachable(in));
+        }
+      }
+      // eliminate duplicates
+      r.unique();
+    }
+
+    // store the result
+    graph_[e].reachable(e) = r;
+  }
+
+private:
+  graph_type& graph_;
+  bool propagate_past_empty_;
+  const std::unordered_set<Arg>* filter_;
+
+}; // class ReachableVisitor
+
 void ClusterGraph::compute_reachable(bool past_empty) {
-  mpp_traversal(*this, nullptr, ReachableVisitor(this, past_empty));
+  mpp_traversal(nullptr, ReachableVisitor(this, past_empty));
 }
 
 void ClusterGraph::compute_reachable(bool past_empty, const Domain& filter) {
-  std::unordered_set<Arg> set(filter.begin(), filter.end());
-  mpp_traversal(*this, nullptr, ReachableVisitor(this, past_empty, &set));
+  ankerl::unordered_dense::set<Arg> set(filter.begin(), filter.end());
+  mpp_traversal(nullptr, ReachableVisitor(this, past_empty, &set));
 }
 
 void ClusterGraph::mark_subtree_cover(const Domain& dom, bool force_continuous) {
   if (empty()) { return; }
 
   // Initialize the vertices to be white.
-  for (Vertex* v : *this) {
-    v->marked_ = false;
+  for (Vertex* v : vertices()) {
+    v->marked = false;
   }
 
   // Compute the reachable variables for the set.
@@ -179,20 +464,19 @@ void ClusterGraph::mark_subtree_cover(const Domain& dom, bool force_continuous) 
   // reachable variables in both directions have a non-empty
   // symmetric difference.
   ankerl::unordered_dense::set<Arg> cover;
-  for (UndirectedEdge<Vertex*> e : edges()) {
+  for (edge_descriptor e : edges()) {
     Vertex* u = e.source();
     Vertex* v = e.target();
-    const Domain& r1 = e->reachable_.forward;
-    const Domain& r2 = e->reachable_.reverse;
-    if (!std::includes(r1.begin(), r1.end(), r2.begin(), r2.end()) &&
-        !std::includes(r2.begin(), r2.end(), r1.begin(), r1.end())) {
-      e->marked_ = true;
-      u->marked_ = true;
-      v->marked_ = true;
-      cover.insert(u->cluster_.begin(), u->cluster_.end());
-      cover.insert(v->cluster_.begin(), v->cluster_.end());
+    const Domain& r1 = e->reachable.forward;
+    const Domain& r2 = e->reachable.reverse;
+    if (!subset(r1, r2) && !subset(r2, r1)) {
+      e->marked = true;
+      u->marked = true;
+      v->marked = true;
+      cover.insert(u->begin(), u->end());
+      cover.insert(v->begin(), v->end());
     } else {
-      e->marked_ = false;
+      e->marked = false;
     }
   }
 
@@ -214,121 +498,205 @@ void ClusterGraph::mark_subtree_cover(const Domain& dom, bool force_continuous) 
   }
 }
 
-Vertex* ClusterGraph::add_vertex(Domain cluster, Object vp) {
-  Vertex* v = new Vertex(std::move(cluster), std::move(vp));
-  impl().data.push_back(v);
-  impl().cluster_index.insert(v, cluster);
+void ClusterGraph::pre_order_traversal(Arg* start, EdgeVisitor edge_visitor) const {
+  // Set the color of all vertices (needed because we use dfs_visit, rather than dfs_search).
+  reset_color();
+
+  // Initialize the visitor
+  struct Visitor : boost::default_dfs_visitor {
+    EdgeVisitor visit_edge;
+
+    void tree_edge(edge_descriptor e, const ClusterGraph& g) {
+      visit_edge(e);
+    }
+
+    void black_target(edge_descriptor e, const ClusterGraph& g) {
+      throw std::invalid_argument("ClusterGraph::pre_order_traversal: detected a loop");
+    }
+  } visitor{std::move(edge_visitor)};
+
+  // Run the DFS
+  boost::depth_first_visit(*this, start, visitor, vertex_color_map());
+}
+
+void ClusterGraph::post_order_traversal(Arg* start, EdgeVisitor edge_visitor) const {
+  // Set the color of all vertices (needed because we use dfs_visit, rather than dfs_search).
+  reset_color();
+
+  // Initialize the visitor
+  struct Visitor : boost::default_dfs_visitor {
+    EdgeVisitor visit_edge;
+
+    void finish_edge(edge_descriptor e, const ClusterGraph& g) {
+      if (e.target()->color != boost::gray_color) {
+        visit_edge(e.reverse());
+      }
+    }
+
+    void black_target(edge_descriptor e, const ClusterGraph& g) {
+      throw std::invalid_argument("ClusterGraph::post_order_traversal: detected a loop");
+    }
+  } visitor{std::move(edge_visitor)};
+
+  // Run the DFS
+  boost::depth_first_visit(*this, start, visitor, vertex_color_map());
+}
+
+void ClusterGraph::mpp_traversal(Arg* start, EdgeVisitor edge_visitor) const {
+  if (empty()) return;
+  if (!start) start = root();
+
+  // Set the color of all vertices (needed because we use dfs_visit, rather than dfs_search).
+  reset_color();
+
+  // Initialize the visitor
+  struct Visitor : boost::default_dfs_visitor {
+    EdgeVisitor visit_edge;
+
+    void tree_edge(edge_descriptor e, const ClusterGraph& g) {
+      visit_edge(e);
+    }
+
+    void finish_edge(edge_descriptor e, const ClusterGraph& g) {
+      if (e.target()->color != boost::gray_color) {
+        visit_edge(e.reverse());
+      }
+    }
+
+    void black_target(edge_descriptor e, const ClusterGraph& g) {
+      throw std::invalid_argument("ClusterGraph::post_order_traversal: detected a loop");
+    }
+  } visitor{std::move(edge_visitor)};
+
+  // Run the DFS
+  boost::depth_first_visit(*this, start, visitor, vertex_color_map());
+}
+
+Vertex* ClusterGraph::add_vertex(Domain cluster, Object property) {
+  Vertex* v = new Vertex(std::move(cluster), std::move(property), this);
+  impl().cluster_index.insert(v);
+  impl().vertices.push_back(v);
+  // TODO: id
   return v;
 }
 
-std::pair<edge_descriptor, bool>
-ClusterGraph::add_edge(Vertex* u, Vertex* v, Domain separator, Object ep) {
-  auto it = u->neighbors_.find(v);
-  if (it != u->neighbors_.end()) {
-    assert(subset(separator, u->cluster_));
-    assert(subset(separator, v->cluster_));
-    Edge* e = new Edge(std::move(separator), std::move(ep));
-    u->neighbors_.emplace(v, e);
-    v->neighbors_.emplace(u, e);
-    impl().separator_index.insert(edge, separator);
-    ++impl().num_edges;
-    return {{u, v, e}, true};
-  } else {
-    return {{u, v, it->second}, false};
+std::pair<edge_descriptor, bool> ClusterGraph::add_edge(Vertex* u, Vertex* v, Domain separator, Object ep) {
+  assert(u != v);
+
+  auto it = u->neighbors.find(v);
+  if (it != u->neighbors.end()) {
+    return {it->second, false};
   }
+
+  assert(subset(separator, u->cluster));
+  assert(subset(separator, v->cluster));
+  Edge* e = new Edge(u, v, std::move(separator), std::move(ep));
+  impl().separator_index.insert(e);
+  u->neighbors.emplace(v, edge_descriptor::primary(e));
+  v->neighbors.emplace(u, edge_descriptor::reverse(e));
+  return {edge_descriptor(e), true};
 }
 
 std::pair<edge_descriptor, bool> ClusterGraph::add_edge(Vertex* u, Vertex* v, Object ep) {
-  return add_edge(u, v, u->cluster_ & v->cluster_, std::move(ep));
+  return add_edge(u, v, ordering.intersect(*u, *v), std::move(ep));
 }
 
 void ClusterGraph::update_cluster(Vertex* u, const Domain& cluster) {
-  if (u->cluster_ != cluster) {
-    u->cluster_ = cluster;
+  if (*u != cluster) {
     impl().cluster_index.erase(u);
-    impl().cluster_index.insert(u, cluster);
+    *u = cluster;
+    impl().cluster_index.insert(u);
   }
 }
 
-void ClusterGraph::update_separator(edge_descriptor e, const Domain& separator) {
-  if (e->separator_ != separator) {
-    e->separator_ = separator;
+void ClusterGraph::update_separator(Edge* e, const Domain& separator) {
+  if (*e != separator) {
     impl().separator_index.erase(e);
-    impl().separator_index.insert(e, separator);
+    *e = separator;
+    impl().separator_index.insert(e);
   }
 }
 
-Vertex* ClusterGraph::merge(edge_descriptor e) {
-  Vertex* u = e.source();
-  Vertex* v = e.target();
-  v_->cluster += u->cluster_;
-  for (edg_descriptor in : u->in_edges()) {
-    if (in.source() != v) {
-      auto [e, inserted] = add_edge(in.source(), v, std::move(in->property_));
+Vertex* ClusterGraph::merge(Edge* e) {
+  Vertex* u = e->endpoint[0];
+  Vertex* v = e->endpoint[1];
+
+  // Copy the edges adjacent to u
+  for (auto [target, out] : u->out_edges) {
+    if (target != v) {
+      bool inserted = add_edge(v, target, *out, std::move(out->property)).second;
       assert(inserted);
     }
   }
+
+  // Update the cluster at v
+  update_cluster(v, ordering.union_(*v, *u));
+
+  // Remove the dead node
   remove_vertex(u);
   return v;
 }
 
 void ClusterGraph::remove_vertex(Vertex* u) {
-  for (auto [v, e] : u->neighbors_) {
-    v->neighbors_.erase(u);
+  clear_vertex(u);
+  impl().vertices.erase(u);
+  impl().cluster_index.erase(u);
+  assert(false); // TODO: update the index
+  delete u;
+}
+
+void ClusterGraph::remove_edge(Edge* e) {
+  --impl().num_edges;
+  impl().separator_index.erase(e);
+  e->target->out_edges.erase(e->source);
+  e->source->out_edges.erase(e->target);
+  delete e;
+}
+
+void ClusterGraph::clear_vertex(Vertex* u) {
+  impl().num_edges -= u->out_edges.size();
+  for (auto [target, out] : u->out_edges) {
+    Edge* e = out;
+    separator_index.erase(e);
+    target->out_edges.erase(u);
     delete e;
   }
-  impl().data.erase(u);
-  impl().cluster_index.erase(u);
-}
-
-void ClusterGraph::remove_edge(Vertex* u, Vertex* v) {
-  impl().separator_index.erase(graph_.edge(u, v));
-  graph_.remove_edge(u, v);
-}
-
-void ClusterGraph::remove_edges(Vertex* u) {
-  for (UndirectedEdge<Vertex*> e : graph_.out_edges(u)) {
-    separator_index_.erase(e);
-  }
-  graph_.remove_edges(u);
+  u->out_edges.clear();
 }
 
 void ClusterGraph::remove_edges() {
-  graph_.remove_edges();
-  separator_index_.clear();
+  for (Vertex* v : vertices()) {
+    for (auto [_, out] : v->out_edges) {
+      if (out.primary()) delete static_cast<Edge*>(out);
+    }
+  }
+  impl().separator_index.clear();
+  impl().num_edges = 0;
 }
 
 /// Removes all vertices and edges from the graph
 void ClusterGraph::clear() {
   remove_edges();
   remove_vertices();
-  // impl().cluster_index.clear();
-  // impl().separator_index.clear();
 }
 
-void triangulate() {
-  compute_reachable(true);
+void ClusterGraph::reset_color() {
   for (Vertex* v : vertices()) {
-    Domain c = cluster(v);
-    in_edge_iterator it1, end;
-    for (std::tie(it1, end) = in_edges(v); it1 != end; ++it1) {
-      in_edge_iterator it2 = it1;
-      while (++it2 != end) {
-        std::set_intersection(reachable(*it1).begin(), reachable(*it1).end(),
-                              reachable(*it2).begin(), reachable(*it2).end(),
-                              std::inserter(c, c.end()));
-      }
-    }
-    c.unique();
-    graph_[v].cluster = c;
+    v->color = boost::white_color;
   }
-  assert(false); // TODO: update the separators
 }
 
 void ClusterGraph::triangulated(MarkovNetwork& g, EliminationStrategy strategy) {
   clear();
-  libgm::triangulate_maximal<Domain>(g, [&](Domain&& dom) {
-      add_cluster(dom); }, strategy);
+  g.eliminate(strategy, [&](MarkovNetwork::vertex_descriptor v) {
+    Domain clique(g.degree(v));
+    clique[0] = v;
+    boost::range::copy(g.adjacent_vertices(v), clique.begin() + 1);
+    clique.sorted();
+    if (impl().cluster_index.is_maximal(clique)) {
+      add_vertex(std::move(clique));
+    };
+  });
   mst_edges();
 }
 
@@ -347,118 +715,66 @@ void ClusterGraph::mst_edges() {
   // Select a distinguished vertex of the tree.
   Vertex* root = *vertices().begin();
 
-  // For each pair of overlapping cliques, add a candidate edge to the graph
+  // For each pair of overlapping cliques, add a candidate edge to the graph.
   // Also, add edges between a distinguished vertex and all other vertices,
-  // to ensure that the resulting junction tree is connected
+  // to ensure that the resulting junction tree is connected.
   for (Vertex* u : vertices()) {
-    intersecting_clusters(cluster(u), [&](Vertex* v) {
-        if (u < v) { graph_.add_edge(u, v); }
+    intersecting_clusters(cluster(u), [this](Vertex* v) {
+        if (u->id < v->id) { add_edge(u, v); }
       });
-    if (root != u) { graph_.add_edge(root, u); }
+    if (root != u) { add_edge(root, u); }
   }
 
-  // Compute the edges of a maximum spanning tree using Kruskal's algorithm
-  std::vector<UndirectedEdge<Vertex*>> tree_edges;
-  kruskal_minimum_spanning_tree(
-    graph_,
-    [&](UndirectedEdge<Vertex*> e) {
-      return -int(cluster_index_.intersection_size(e.source(), e.target()));
-    },
-    std::back_inserter(tree_edges)
-  );
+  // The pairs of endpoints of the MST edges, along with an output iterator populating them.
+  std::vector<std::pair<Vertex*, Vertex*>> tree_edges;
+  auto output = boost::make_function_output_iterator([&tree_edges](edge_descriptor e) {
+    tree_edges.emplace_back(e.source(), s.target());
+  });
 
-  // Remove all edges and add back the computed edges
-  graph_.remove_edges();
-  for (UndirectedEdge<Vertex*> e : tree_edges) {
-    add_edge(e.source(), e.target());
-  }
-}
+  // The property map that returns the weight of each edge. This is the negative separator size.
+  // Note this property is called multiple times for each edge, so it needs to be O(1).
+  auto weight = boost::make_function_property_map<edge_descriptor>([this](edge_descriptor e) {
+    return -ptrdiff_t(e->size());
+  });
 
-/**
- * An edge visitor that computes the reachable vars in the cluster graph.
- * When using with a message passing protocol (MPP) traversal on a tree,
- * this visitor is guaranteed to compute the reachable variables for each
- * edge the tree.
- */
-class ClusterGraph::ReachableVisitor {
-public:
-  reachable_visitor(graph_type& graph,
-                    bool propagate_past_empty,
-                    const std::unordered_set<Arg>* filter = nullptr)
-    : graph_(graph),
-      propagate_past_empty_(propagate_past_empty),
-      filter_(filter) { }
+  // Compute the edges of a maximum spanning tree using Kruskal's algorithm.
+  boost::kruskal_minimum_spanning_tree(*this, output, boost::weight_map(weight));
 
-  void operator()(UndirectedEdge<Vertex*> e) const {
-    Domain r;
-    if (!graph_[e].property.domain.empty() || propagate_past_empty_) {
-      // extract the (possibly filtered) variables from the cluster
-      for (Arg x : graph_[e.source()].cluster) {
-        if (!filter_ || filter_->count(x)) { r.push_back(x); }
-      }
-      // compute the union of the incoming reachable variables
-      for (UndirectedEdge<Vertex*> in : graph_.in_edges(e.source())) {
-        if (in.source() != e.target()) {
-          r.append(graph_[in].reachable(in));
-        }
-      }
-      // eliminate duplicates
-      r.unique();
-    }
-
-    // store the result
-    graph_[e].reachable(e) = r;
-  }
-
-private:
-  graph_type& graph_;
-  bool propagate_past_empty_;
-  const std::unordered_set<Arg>* filter_;
-
-}; // class ReachableVisitor
-
-
-void ClusterGraphBase::after_load()
-{
-  cluster_index_.clear();
-  separator_index_.clear();
-  for (vertex_type v : graph_.vertices()) {
-    cluster_index_.insert(v, cluster(v));
-  }
-  for (UndirectedEdge<id_t> e : graph_.edges()) {
-    id_t u = e.source();
-    id_t v = e.target();
-    graph_[e].index(u, v) = cluster(u).index(separator(e));
-    graph_[e].index(v, u) = cluster(v).index(separator(e));
-    separator_index_.insert(e, separator(e));
+  // Remove all edges and add back the MST edges.
+  remove_edges();
+  for (auto [s, t] : tree_edges) {
+    add_edge(s, t);
   }
 }
+
+// void ClusterGraphBase::after_load()
+// {
+//   cluster_index.clear();
+//   separator_index.clear();
+//   for (vertex_type v : graph_.vertices()) {
+//     cluster_index.insert(v, cluster(v));
+//   }
+//   for (UndirectedEdge<id_t> e : graph_.edges()) {
+//     id_t u = e.source();
+//     id_t v = e.target();
+//     graph_[e].index(u, v) = cluster(u).index(separator(e));
+//     graph_[e].index(v, u) = cluster(v).index(separator(e));
+//     separator_index.insert(e, separator(e));
+//   }
+// }
 
 std::ostream& operator<<(std::ostream& out, conset ClusterGraphBase& base) {
   out << g.graph_;
   return out;
 }
 
-size_t in_degree(Vertex* u, const ClusterGraph&) {
-  return u->degree();
+boost::default_color_type get(const ClusterGraph::ColorMap&, ClusterGraph::Vertex* v) {
+  return v->color;
 }
 
-size_t in_degree(Vertex* u, const ClusterGraph&) {
-  return u->degree();
+/// Sets the color associated with a vertex.
+void put(const ClusterGraph::ColorMap&, ClusterGraph::Vertex* v, boost::default_color_type c) {
+  v->color = c;
 }
 
-size_t degree(Vertex* u, const ClusterGraph&) {
-  return u->degree();
-}
-
-size_t num_vertices(const ClusterGraph& g) {
-  return g.impl().data.size();
-}
-
-size_t num_edges(const ClusterGraph& g) const {
-  return g.impl().num_edges;
-}
-
-std::pair<edge_descriptor, bool> ClusterGraph::edge(Vertex* u, Vertex* v, const ClusterGraph& g) {
-  return {u, v, u->neighbors.at(v)};
-}
+} // namespace libgm

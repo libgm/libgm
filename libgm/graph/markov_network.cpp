@@ -268,6 +268,37 @@ void MarkovNetwork::clear() {
   impl().num_edges = 0;
 }
 
+void MarkovNetwork::eliminate(const EliminationStrategy& strategy, VertexVisitor visitor) {
+  // Initialize the queue.
+  MutableQueue<Arg, ptrdiff_t> queue;
+  for (Arg u : vertices()) {
+    queue.push(u, strategy.priority(u, *this));
+  }
+
+  // Reuse the affected vertices vector.
+  std::vector<Arg> affected_vertices;
+  while (!queue.empty()) {
+    // The next vertex to be eliminated.
+    Arg u = queue.pop().first;
+
+    // Find out vertices whose priority may change
+    affected_vertices.clear();
+    strategy.updated(u, *this, affected_vertices);
+
+    // Eliminate the vertex
+    visitor(u);
+    add_clique(adjacent_vertices(u));
+    remove_edges(u);
+
+    // Update the priorities
+    for (Arg v : affected_vertices) {
+      if (v != u) {
+        queue.update(v, strategy.priority(v, *this));
+      }
+    }
+  }
+}
+
 class edge_iterator
   : public std::iterator<std::forward_iterator_tag, edge_type> {
 public:

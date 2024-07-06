@@ -1,57 +1,45 @@
-#ifndef LIBGM_BIND1_ITERATOR_HPP
-#define LIBGM_BIND1_ITERATOR_HPP
+#pragma once
 
-#include <iterator>
+#include <boost/iterator/iterator_facade.hpp>
 
 namespace libgm {
 
-  /**
-   * An iterator that constructs a binary object, consisting of a fixed key
-   * and elements of a range defined by an iterator.
-   */
-  template <typename It,
-            typename Result,
-            typename First = std::iterator_traits<It>::value_type>
-  class bind1_iterator :
-    public std::iterator<std::forward_iterator_tag, Result> {
-  public:
-    using reference = Result;
+/**
+ * An iterator that constructs a binary object, consisting of a fixed key
+ * and elements of a range defined by another iterator.
+ */
+template <typename It, typename Result, typename First = std::iterator_traits<It>::value_type>
+class Bind1Iterator
+  : public boost::iterator_facade<
+      Bind1Iterator
+      Result,
+      std::forward_iterator_tag,
+      Result
+    > {
+public:
+  Bind1Iterator() = default;
 
-    bind1_iterator()
-      : it_(), first_() { }
+  Bind1Iterator(It it, First first)
+    : it_(it), first_(first) { }
 
-    bind1_iterator(It it, First first)
-      : it_(it), first_(first) { }
+private:
+  friend class boost::iterator_core_access;
 
-    Result operator*() const {
-      return { first_, *it_ };
-    }
+  void increment() {
+    ++it_;
+  }
 
-    bind1_iterator& operator++() {
-      ++it_;
-      return *this;
-    }
+  bool equal(const Bind1Iterator& other) const {
+    return it_ == other.it_;
+  }
 
-    bind1_iterator operator++(int) {
-      bind1_iterator copy(*this);
-      ++it_;
-      return copy;
-    }
+  Result dereference() const {
+    return { first_, *it_ };
+  }
 
-    bool operator==(const bind1_iterator& o) const {
-      return it_ == o.it_;
-    }
+  It it_;
+  First first_;
 
-    bool operator!=(const bind1_iterator& o) const {
-      return it_ != o.it_;
-    }
-
-  private:
-    iterator it_;
-    First first_;
-
-  }; // class bind1_iterator
+}; // class Bind1Iterator
 
 } // namespace libgm
-
-#endif

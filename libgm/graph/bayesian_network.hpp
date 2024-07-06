@@ -1,5 +1,4 @@
-#ifndef LIBGM_BAYESIAN_NETWORK_HPP
-#define LIBGM_BAYESIAN_NETWORK_HPP
+#pragma once
 
 #include <libgm/argument/domain.hpp>
 #include <libgm/graph/algorithm/graph_traversal.hpp>
@@ -44,6 +43,9 @@ private:
   Impl& impl();
   const Impl& impl() const;
 
+  Vertex& data(Arg arg);
+  const Vertex& data(Arg arg) const;
+
   //--------------------------------------------------------------------------
 public:
   // Descriptors
@@ -55,7 +57,6 @@ public:
   using in_edge_iterator   = Bind2Iterator<Domain::const_iterator, edge_descriptor>;
   using adjacency_iterator = NeighborSet::const_iterator;
   using vertex_iterator    = MapKeyIterator<VertexDataMap>;
-  using edge_iterator = map_range_iterator<VertexDataMap, NeighborSet, edge_descriptor>;
 
   // Constructors
   //--------------------------------------------------------------------------
@@ -66,12 +67,6 @@ public:
   // Accessors
   //--------------------------------------------------------------------------
 
-  /// Returns the range of all vertices.
-  boost::iterator_range<vertex_iterator> vertices() const;
-
-  /// Returns all edges in the graph.
-  boost::iterator_range<edge_iterator> edges() const;
-
   /// Returns the outgoing edges from a vertex.
   boost::iterator_range<out_edge_iterator> out_edges(Arg u) const;
 
@@ -80,6 +75,9 @@ public:
 
   /// Returns the children of u.
   boost::iterator_range<adjacency_iterator> adjacent_vertices(Arg u) const;
+
+  /// Returns the range of all vertices.
+  boost::iterator_range<vertex_iterator> vertices() const;
 
   /// Returns true if the graph contains the given vertex.
   bool contains(Arg u) const;
@@ -90,7 +88,7 @@ public:
   /// Returns true if the graph contains a directed edge.
   bool contains(const DirectedEdge<Arg> e) const;
 
-  /// Returns a directed edge (u,v) between two vertices and indicator if one exists.
+  /// Returns a directed edge (u,v) between two vertices or null edge if one does not exist.
   DirectedEdge<Arg> edge(Arg u, Arg v) const;
 
   /// Returns the number of outgoing edges to a vertex.
@@ -150,26 +148,4 @@ public:
 
 }; // class BayesianNetwork
 
-inline auto vertices(const BayesianNetwor& g) {
-  return make_iterator_pair(g.vertices());
-}
-
-inline auto edges(const BayesianNetwork& g) {
-  return make_iterator_pair(e.edges());
-}
-
-inline auto out_edges(Arg u, const BayesianNetwork& g) {
-  return make_iterator_pair(g.out_edges(u));
-}
-
-inline auto in_edges(Arg u, const BayesianNetwork& g) {
-  return make_iterator_pair(g.in_edges(u));
-}
-
-inline auto adjacent_vertices(Arg u, const BayesianNetwork& g) {
-  return make_iterator_pair(g.adjacent_vertices(u));
-}
-
 } // namespace libgm
-
-#endif

@@ -1,25 +1,20 @@
+#pragma once
+
+#include <bitset>
+
 namespace libgm {
 
-class Dims {
-public:
-  static Dims all() {
-    return variant(std::in_place_index_t<0>());
-  }
+/**
+ * A set of dimensions.
+ *
+ * This choice hard-codes the maximum number of arguments a factor can have to 64.
+ * This should be enough for most reasonable applications (past 64, the inference
+ * will be slow). Note that, for example, the multivariate normal factors
+ * MomentGaussian and CanonicalGaussian can have more than 64 dimensions, because
+ * each argument in those factors can have length > 1.
+ *
+ * TODO: check the order of bits printed in the operator<< - MSB or LSB first?
+ */
+using Dims = std::bitset<64>;
 
-  static Dims front(size_t n) {
-    return variant(std::in_place_index_t<1>(), n);
-  }
-
-  static Dims back(size_t n) {
-    return variant(std::in_place_index_t<2>(), n);
-  }
-
-  static Dims list(std::vector<unsigned> indices) {
-    return variant(std::in_place_index_t<3>(), std::move(indices));
-  }
-
-private:
-  using variant = std::variant<std::monostate, size_t, size_t, std::vector<unsigned>>;
-};
-
-}  // namespace libgm
+} // namespace libgm
