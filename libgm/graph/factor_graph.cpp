@@ -24,23 +24,6 @@ struct FactorGraph::Impl : Object::Impl {
   FactorList factors;
 };
 
-
-// /// Assignment
-// FactorGraph& operator=(const FactorGraph& g) {
-//   if (this == &g) { return *this; }
-//   free_edge_data();
-//   data1_ = g.data1_;
-//   data2_ = g.data2_;
-//   num_edges_ = g.num_edges_;
-//   for (edge_type e : edges()) {
-//     EdgeProperty* ptr =
-//       new EdgeProperty(*static_cast<EdgeProperty*>(e.property_));
-//     data1_[e.v1()].neighbors[e.v2()] = ptr;
-//     data2_[e.v2()].neighbors[e.v1()] = ptr;
-//   }
-//   return *this;
-// }
-
 friend void swap(FactorGraph& a, FactorGraph& b) {
   swap(a.impl_, b.impl_);
 }
@@ -58,8 +41,7 @@ const Domain& FactorGraph::arguments(Factor* u) const {
 }
 
 const FactorGraph::FactorSet& FactorGraph::factors(Arg u) const {
-  Argument* a = argument(u);
-  return { a->factors_.begin(), a->factors_.end() };
+  return argument(u).factors;
 }
 
 bool FactorGraph::contains(Arg u) const {

@@ -163,10 +163,28 @@ public:
    */
   void condition(const Assignemnt& a);
 
+private:
   /**
-   * Conditions the Decomposable model and returns the result as a factor.
+   * Passes the flow along an edge.
    */
-  Annotated<Potential> condition_flatten(const Assignment& a) const;
+  void pass_flow(edge_descriptor e);
+
+  /**
+   * Passes flows outwards from the supplied vertex.
+   */
+  void distribute_evidence(Vertex* v);
+
+  /**
+   * Recalibrates the model by passing flows using the message
+   * passing protocol.
+   */
+  void calibrate();
+
+  /**
+   * Normalizes this Decomposable model; all clique and separator
+   * marginals are normalized.
+   */
+  void normalize();
 
 }; // class Decomposable
 
