@@ -339,6 +339,215 @@ T LogarithmicMatrix<T>::log(const DiscreteValues& values) const {
 }
 
 template <typename T>
+LogarithmicMatrix<T> LogarithmicMatrix<T>::operator*(const Exp<T>& x) const {
+  LogarithmicMatrix result;
+  impl().multiply(x, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicMatrix<T> LogarithmicMatrix<T>::operator*(const LogarithmicMatrix& other) const {
+  LogarithmicMatrix result;
+  impl().multiply(other, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicMatrix<T>& LogarithmicMatrix<T>::operator*=(const Exp<T>& x) {
+  impl().multiply_in(x);
+  return *this;
+}
+
+template <typename T>
+LogarithmicMatrix<T>& LogarithmicMatrix<T>::operator*=(const LogarithmicMatrix& other) {
+  impl().multiply_in(other);
+  return *this;
+}
+
+template <typename T>
+LogarithmicMatrix<T> LogarithmicMatrix<T>::operator/(const Exp<T>& x) const {
+  LogarithmicMatrix result;
+  impl().divide(x, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicMatrix<T> LogarithmicMatrix<T>::divide_inverse(const Exp<T>& x) const {
+  LogarithmicMatrix result;
+  impl().divide_inverse(x, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicMatrix<T> LogarithmicMatrix<T>::operator/(const LogarithmicMatrix& other) const {
+  LogarithmicMatrix result;
+  impl().divide(other, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicMatrix<T>& LogarithmicMatrix<T>::operator/=(const Exp<T>& x) {
+  impl().divide_in(x);
+  return *this;
+}
+
+template <typename T>
+LogarithmicMatrix<T>& LogarithmicMatrix<T>::operator/=(const LogarithmicMatrix& other) {
+  impl().divide_in(other);
+  return *this;
+}
+
+template <typename T>
+LogarithmicMatrix<T> LogarithmicMatrix<T>::multiply_front(const LogarithmicVector<T>& other) const {
+  LogarithmicMatrix result;
+  impl().multiply_front(other, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicMatrix<T> LogarithmicMatrix<T>::multiply_back(const LogarithmicVector<T>& other) const {
+  LogarithmicMatrix result;
+  impl().multiply_back(other, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicMatrix<T>& LogarithmicMatrix<T>::multiply_in_front(const LogarithmicVector<T>& other) {
+  impl().multiply_in_front(other);
+  return *this;
+}
+
+template <typename T>
+LogarithmicMatrix<T>& LogarithmicMatrix<T>::multiply_in_back(const LogarithmicVector<T>& other) {
+  impl().multiply_in_back(other);
+  return *this;
+}
+
+template <typename T>
+LogarithmicMatrix<T> LogarithmicMatrix<T>::divide_front(const LogarithmicVector<T>& other) const {
+  LogarithmicMatrix result;
+  impl().divide_front(other, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicMatrix<T> LogarithmicMatrix<T>::divide_back(const LogarithmicVector<T>& other) const {
+  LogarithmicMatrix result;
+  impl().divide_back(other, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicMatrix<T>& LogarithmicMatrix<T>::divide_in_front(const LogarithmicVector<T>& other) {
+  impl().divide_in_front(other);
+  return *this;
+}
+
+template <typename T>
+LogarithmicMatrix<T>& LogarithmicMatrix<T>::divide_in_back(const LogarithmicVector<T>& other) {
+  impl().divide_in_back(other);
+  return *this;
+}
+
+template <typename T>
+LogarithmicMatrix<T> LogarithmicMatrix<T>::pow(T x) const {
+  LogarithmicMatrix result;
+  impl().power(x, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicMatrix<T> LogarithmicMatrix<T>::weighted_update(const LogarithmicMatrix& other, T x) const {
+  LogarithmicMatrix result;
+  impl().weighted_update(other, x, result);
+  return result;
+}
+
+template <typename T>
+Exp<T> LogarithmicMatrix<T>::maximum(DiscreteValues* values) const {
+  return impl().maximum(values);
+}
+
+template <typename T>
+Exp<T> LogarithmicMatrix<T>::minimum(DiscreteValues* values) const {
+  return impl().minimum(values);
+}
+
+template <typename T>
+LogarithmicVector<T> LogarithmicMatrix<T>::maximum_front(unsigned n) const {
+  LogarithmicVector<T> result;
+  impl().maximum_front(n, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicVector<T> LogarithmicMatrix<T>::maximum_back(unsigned n) const {
+  LogarithmicVector<T> result;
+  impl().maximum_back(n, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicVector<T> LogarithmicMatrix<T>::minimum_front(unsigned n) const {
+  LogarithmicVector<T> result;
+  impl().minimum_front(n, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicVector<T> LogarithmicMatrix<T>::minimum_back(unsigned n) const {
+  LogarithmicVector<T> result;
+  impl().minimum_back(n, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicVector<T> LogarithmicMatrix<T>::restrict_front(const DiscreteValues& values) const {
+  LogarithmicVector<T> result;
+  impl().restrict_front(values, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicVector<T> LogarithmicMatrix<T>::restrict_back(const DiscreteValues& values) const {
+  LogarithmicVector<T> result;
+  impl().restrict_back(values, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicMatrix<T> LogarithmicMatrix<T>::transpose() const {
+  LogarithmicMatrix result;
+  impl().transpose(result);
+  return result;
+}
+
+template <typename T>
+T LogarithmicMatrix<T>::entropy() const {
+  return impl().entropy();
+}
+
+template <typename T>
+T LogarithmicMatrix<T>::cross_entropy(const LogarithmicMatrix& other) const {
+  return impl().cross_entropy(other);
+}
+
+template <typename T>
+T LogarithmicMatrix<T>::kl_divergence(const LogarithmicMatrix& other) const {
+  return impl().kl_divergence(other);
+}
+
+template <typename T>
+T LogarithmicMatrix<T>::sum_diff(const LogarithmicMatrix& other) const {
+  return impl().sum_difference(other);
+}
+
+template <typename T>
+T LogarithmicMatrix<T>::max_diff(const LogarithmicMatrix& other) const {
+  return impl().max_difference(other);
+}
+
+template <typename T>
 ProbabilityMatrix<T> LogarithmicMatrix<T>::probability() const {
   return impl().param.exp();
 }
@@ -349,40 +558,17 @@ LogarithmicTable<T> LogarithmicMatrix<T>::table() const {
 }
 
 template <typename T>
-const typename LogarithmicMatrix<T>::VTable LogarithmicMatrix<T>::vtable{
-  &LogarithmicMatrix<T>::Impl::multiply,
-  &LogarithmicMatrix<T>::Impl::multiply,
-  &LogarithmicMatrix<T>::Impl::multiply_in,
-  &LogarithmicMatrix<T>::Impl::multiply_in,
-  &LogarithmicMatrix<T>::Impl::divide,
-  &LogarithmicMatrix<T>::Impl::divide_inverse,
-  &LogarithmicMatrix<T>::Impl::divide,
-  &LogarithmicMatrix<T>::Impl::divide_in,
-  &LogarithmicMatrix<T>::Impl::divide_in,
-  &LogarithmicMatrix<T>::Impl::multiply_front,
-  &LogarithmicMatrix<T>::Impl::multiply_back,
-  &LogarithmicMatrix<T>::Impl::multiply_in_front,
-  &LogarithmicMatrix<T>::Impl::multiply_in_back,
-  &LogarithmicMatrix<T>::Impl::divide_front,
-  &LogarithmicMatrix<T>::Impl::divide_back,
-  &LogarithmicMatrix<T>::Impl::divide_in_front,
-  &LogarithmicMatrix<T>::Impl::divide_in_back,
-  &LogarithmicMatrix<T>::Impl::power,
-  &LogarithmicMatrix<T>::Impl::weighted_update,
-  &LogarithmicMatrix<T>::Impl::maximum,
-  &LogarithmicMatrix<T>::Impl::minimum,
-  &LogarithmicMatrix<T>::Impl::maximum_front,
-  &LogarithmicMatrix<T>::Impl::maximum_back,
-  &LogarithmicMatrix<T>::Impl::minimum_front,
-  &LogarithmicMatrix<T>::Impl::minimum_back,
-  &LogarithmicMatrix<T>::Impl::restrict_front,
-  &LogarithmicMatrix<T>::Impl::restrict_back,
-  &LogarithmicMatrix<T>::Impl::transpose,
-  &LogarithmicMatrix<T>::Impl::entropy,
-  &LogarithmicMatrix<T>::Impl::cross_entropy,
-  &LogarithmicMatrix<T>::Impl::kl_divergence,
-  &LogarithmicMatrix<T>::Impl::sum_difference,
-  &LogarithmicMatrix<T>::Impl::max_difference,
-};
+typename LogarithmicMatrix<T>::Impl& LogarithmicMatrix<T>::impl() {
+  if (!impl_) {
+    impl_ = std::make_unique<Impl>();
+  }
+  return *static_cast<Impl*>(impl_.get());
+}
+
+template <typename T>
+const typename LogarithmicMatrix<T>::Impl& LogarithmicMatrix<T>::impl() const {
+  assert(impl_);
+  return *static_cast<const Impl*>(impl_.get());
+}
 
 } // namespace libgm

@@ -1,12 +1,17 @@
 #pragma once
 
-#include <libgm/math/exp.hpp>
+#include <libgm/argument/shape.hpp>
+#include <libgm/assignment/real_values.hpp>
+#include <libgm/object.hpp>
 #include <libgm/math/eigen/dense.hpp>
+#include <libgm/math/exp.hpp>
 // #include <libgm/math/likelihood/moment_gaussian_ll.hpp>
 // #include <libgm/math/likelihood/moment_gaussian_mle.hpp>
 // #include <libgm/math/random/multivariate_normal_distribution.hpp>
 
 namespace libgm {
+
+template <typename T> class CanonicalGaussian;
 
 /**
  * The parameters of a conditional multivariate normal (Gaussian) distribution
@@ -26,39 +31,13 @@ namespace libgm {
  * \see Factor
  */
 template <typename T>
-class MomentGaussian
-  : public Object,
-    public Implements<
-      // Direct operations
-      Multiply<MomentGaussian<T>, Exp<T>>,
-      Multiply<MomentGaussian<T>, MomentGaussian<T>>,
-      MultiplyIn<MomentGaussian<T>, Exp<T>>,
-      Divide<MomentGaussian<T>, Exp<T>>,
-      DivideIn<MomentGaussian<T>, Exp<T>>,
-
-      // Joins
-      MultiplyDims<MomentGaussian<T>, MomentGaussian<T>>,
-
-      // Aggreates
-      Marginal<MomentGaussian<T>, Exp<T>>,
-      Maximum<MomentGaussian<T>, Exp<T>, RealValues<T>>,
-
-      // Normalization
-      Normalize<MomentGaussian<T>>,
-      NormalizeHead<MomentGaussian<T>>,
-
-      // Restriction
-      RestrictSpan<MomentGaussian<T>, RealValues<T>>,
-      RestrictDims<MomentGaussian<T>, RealValues<T>>,
-
-      // Divergences
-      Entropy<MomentGaussian<T>, T>,
-      KlDivergence<MomentGaussian<T>, T>
-    > {
+class MomentGaussian : public Object {
 public:
   using result_type = Exp<T>;
   // using mle_type = MomentGaussianMLE<T>;
   // using ll_type = MomentGaussianLL<T>;
+
+  struct Impl;
 
   /// Constructs an empty moment Gaussian.
   MomentGaussian() = default;
@@ -93,11 +72,67 @@ public:
   const Matrix<T>& coefficients() const;
 
   /// Evaluates the factor for a vector.
-  Exp<T> operator()(const RealValues<T>& v) const;
+  Exp<T> operator()(const RealValues<T>& values) const;
 
   /// Returns the log-value of the factor for a vector.
-  T log(const RealValues<T>& v) const;
+  T log(const RealValues<T>& values) const;
 
-}; // class MomentGaussian
+  // Direct operations
+  //--------------------------------------------------------------------------
+
+  MomentGaussian operator*(const Exp<T>& x) const;
+  MomentGaussian operator*(const MomentGaussian& other) const;
+  MomentGaussian& operator*=(const Exp<T>& x);
+
+  MomentGaussian operator/(const Exp<T>& x) const;
+  MomentGaussian& operator/=(const Exp<T>& x);
+
+  friend MomentGaussian operator*(const Exp<T>& x, const MomentGaussian& y) {
+    return y * x;
+  }
+
+  friend MomentGaussian operator/(const Exp<T>& x, const MomentGaussian& y) {
+    return y.divide_inverse(x);
+  }
+
+  // Join operations
+  //--------------------------------------------------------------------------
+
+  MomentGaussian multiply(const MomentGaussian& other, const Dims& i, const Dims& j) const;
+
+  friend MomentGaussian multiply(const MomentGaussian& a, const MomentGaussian& b, const Dims& i, const Dims& j) {
+    return a.multiply(b, i, j);
+  }
+
+  // Aggregates
+  //--------------------------------------------------------------------------
+
+  Exp<T> marginal() const;
+  Exp<T> maximum(RealValues<T>* values = nullptr) const;
+
+  // Normalization
+  //--------------------------------------------------------------------------
+
+  void normalize();
+  void normalize_head(unsigned nhead);
+
+  // Restriction
+  //--------------------------------------------------------------------------
+
+  MomentGaussian restrict_front(const RealValues<T>& values) const;
+  MomentGaussian restrict_back(const RealValues<T>& values) const;
+  MomentGaussian restrict_dims(const Dims& dims, const RealValues<T>& values) const;
+
+  // Divergences
+  //--------------------------------------------------------------------------
+
+  T entropy() const;
+  T kl_divergence(const MomentGaussian& other) const;
+
+private:
+  MomentGaussian divide_inverse(const Exp<T>& x) const;
+  Impl& impl();
+  const Impl& impl() const;
+};
 
 } // namespace libgm

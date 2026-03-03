@@ -2,8 +2,7 @@
 
 #include <libgm/argument/shape.hpp>
 #include <libgm/assignment/real_values.hpp>
-#include <libgm/factor/implements.hpp>
-#include <libgm/factor/interfaces.hpp>
+#include <libgm/object.hpp>
 #include <libgm/math/exp.hpp>
 #include <libgm/math/eigen/dense.hpp>
 
@@ -22,63 +21,13 @@ template <typename T> class MomentGaussian;
  * \ingroup factor_types
  */
 template <typename T>
-class CanonicalGaussian
-  : public Object,
-    public Implements<
-      // Direct operations
-      Multiply<CanonicalGaussian<T>, Exp<T>>,
-      Multiply<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-      MultiplyIn<CanonicalGaussian<T>, Exp<T>>,
-      MultiplyIn<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-      Divide<CanonicalGaussian<T>, Exp<T>>,
-      Divide<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-      DivideIn<CanonicalGaussian<T>, Exp<T>>,
-      DivideIn<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-
-      // Join operations
-      MultiplySpan<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-      MultiplyDims<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-      MultiplyInSpan<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-      MultiplyInDims<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-      DivideSpan<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-      DivideDims<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-      DivideInSpan<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-      DivideInDims<CanonicalGaussian<T>, CanonicalGaussian<T>>,
-
-      // Arithmetic operations
-      Power<CanonicalGaussian<T>, T>,
-      WeightedUpdate<CanonicalGaussian<T>, T>,
-
-      // Aggregates
-      Marginal<CanonicalGaussian<T>, Exp<T>>,
-      Maximum<CanonicalGaussian<T>, Exp<T>, RealValues<T>>,
-      MarginalSpan<CanonicalGaussian<T>>,
-      MarginalDims<CanonicalGaussian<T>>,
-      MaximumSpan<CanonicalGaussian<T>>,
-      MaximumDims<CanonicalGaussian<T>>,
-
-      // Normalization
-      Normalize<CanonicalGaussian<T>>,
-      NormalizeHead<CanonicalGaussian<T>>,
-
-      // Restriction
-      RestrictSpan<CanonicalGaussian<T>, RealValues<T>>,
-      RestrictDims<CanonicalGaussian<T>, RealValues<T>>,
-
-      // Entropy and divergences
-      Entropy<CanonicalGaussian<T>, T>,
-      KlDivergence<CanonicalGaussian<T>, T>,
-      MaxDifference<CanonicalGaussian<T>, T>
-    > {
+class CanonicalGaussian : public Object {
 public:
   // Factor member types
   using result_type = Exp<T>;
 
   // Implementation class.
   struct Impl;
-
-  // Function table.
-  static const typename CanonicalGaussian::VTable vtable;
 
   /// Constructs an empty factor.
   CanonicalGaussian() = default;
@@ -127,12 +76,109 @@ public:
   /// Returns the log-value of the factor for the given vector.
   T log(const RealValues<T>& values) const;
 
+  // Direct operations
+  //--------------------------------------------------------------------------
+
+  CanonicalGaussian operator*(const Exp<T>& x) const;
+  CanonicalGaussian operator*(const CanonicalGaussian& other) const;
+  CanonicalGaussian& operator*=(const Exp<T>& x);
+  CanonicalGaussian& operator*=(const CanonicalGaussian& other);
+
+  CanonicalGaussian operator/(const Exp<T>& x) const;
+  CanonicalGaussian operator/(const CanonicalGaussian& other) const;
+  CanonicalGaussian& operator/=(const Exp<T>& x);
+  CanonicalGaussian& operator/=(const CanonicalGaussian& other);
+
+  friend CanonicalGaussian operator*(const Exp<T>& x, const CanonicalGaussian& y) {
+    return y * x;
+  }
+
+  friend CanonicalGaussian operator/(const Exp<T>& x, const CanonicalGaussian& y) {
+    return y.divide_inverse(x);
+  }
+
+  // Join operations
+  //--------------------------------------------------------------------------
+
+  CanonicalGaussian multiply_front(const CanonicalGaussian& other) const;
+  CanonicalGaussian multiply_back(const CanonicalGaussian& other) const;
+  CanonicalGaussian multiply(const CanonicalGaussian& other, const Dims& i, const Dims& j) const;
+  CanonicalGaussian& multiply_in_front(const CanonicalGaussian& other);
+  CanonicalGaussian& multiply_in_back(const CanonicalGaussian& other);
+  CanonicalGaussian& multiply_in(const CanonicalGaussian& other, const Dims& dims);
+
+  CanonicalGaussian divide_front(const CanonicalGaussian& other) const;
+  CanonicalGaussian divide_back(const CanonicalGaussian& other) const;
+  CanonicalGaussian divide(const CanonicalGaussian& other, const Dims& i, const Dims& j) const;
+  CanonicalGaussian& divide_in_front(const CanonicalGaussian& other);
+  CanonicalGaussian& divide_in_back(const CanonicalGaussian& other);
+  CanonicalGaussian& divide_in(const CanonicalGaussian& other, const Dims& dims);
+
+  friend CanonicalGaussian multiply(const CanonicalGaussian& a, const CanonicalGaussian& b, const Dims& i, const Dims& j) {
+    return a.multiply(b, i, j);
+  }
+
+  friend CanonicalGaussian divide(const CanonicalGaussian& a, const CanonicalGaussian& b, const Dims& i, const Dims& j) {
+    return a.divide(b, i, j);
+  }
+
+  // Arithmetic operations
+  //--------------------------------------------------------------------------
+
+  CanonicalGaussian pow(T alpha) const;
+  CanonicalGaussian weighted_update(const CanonicalGaussian& other, T alpha) const;
+
+  friend CanonicalGaussian pow(const CanonicalGaussian& f, T alpha) {
+    return f.pow(alpha);
+  }
+
+  friend CanonicalGaussian weighted_update(const CanonicalGaussian& a, const CanonicalGaussian& b, T alpha) {
+    return a.weighted_update(b, alpha);
+  }
+
+  // Aggregates
+  //--------------------------------------------------------------------------
+
+  Exp<T> marginal() const;
+  Exp<T> maximum(RealValues<T>* values = nullptr) const;
+  CanonicalGaussian marginal_front(unsigned n) const;
+  CanonicalGaussian marginal_back(unsigned n) const;
+  CanonicalGaussian marginal_dims(const Dims& dims) const;
+  CanonicalGaussian maximum_front(unsigned n) const;
+  CanonicalGaussian maximum_back(unsigned n) const;
+  CanonicalGaussian maximum_dims(const Dims& dims) const;
+
+  // Normalization
+  //--------------------------------------------------------------------------
+
+  void normalize();
+  void normalize_head(unsigned nhead);
+
+  // Restriction
+  //--------------------------------------------------------------------------
+
+  CanonicalGaussian restrict_front(const RealValues<T>& values) const;
+  CanonicalGaussian restrict_back(const RealValues<T>& values) const;
+  CanonicalGaussian restrict_dims(const Dims& dims, const RealValues<T>& values) const;
+
+  // Entropy and divergences
+  //--------------------------------------------------------------------------
+
+  T entropy() const;
+  T kl_divergence(const CanonicalGaussian& other) const;
+  T max_diff(const CanonicalGaussian& other) const;
+
+  friend T max_diff(const CanonicalGaussian& a, const CanonicalGaussian& b) {
+    return a.max_diff(b);
+  }
+
   // Conversions
   //--------------------------------------------------------------------------
 
   MomentGaussian<T> moment() const;
 
 private:
+  CanonicalGaussian divide_inverse(const Exp<T>& x) const;
   Impl& impl();
   const Impl& impl() const;
 

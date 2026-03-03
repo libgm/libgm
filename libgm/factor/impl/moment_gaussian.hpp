@@ -1,3 +1,5 @@
+#include "../moment_gaussian.hpp"
+
 namespace libgm {
 
 template <typename T>
@@ -6,6 +8,7 @@ struct MomentGaussian<T>::Impl {
   using CholeskyType = Eigen::LLT<DenseMatrix<T>>;
   using VectorType = DenseVector<T>;
   using MatrixType = DenseMatrix<T>;
+  using ImplPtr = std::unique_ptr<Impl>;
 
   /// The shape of the head arguments.
   Shape head_shape;
@@ -78,7 +81,8 @@ struct MomentGaussian<T>::Impl {
 
   // Join operations
   //--------------------------------------------------------------------------
-
+  // Commented out for future work.
+#if 0
   ImplPtr multiply_head(const Object& other) const {
     assert(0);
   }
@@ -93,77 +97,73 @@ struct MomentGaussian<T>::Impl {
     }
   }
 
+  /**
+   * Multiplies two moment_gaussians when (a range of) the head of one operand
+   * matches (a range of) the tail of the other operand. The ordering of the
+   * operands is specified via the forward flag.
+   */
+  template <typename HeadIt, typename TailIt>
+  friend void multiply_head_tail(const moment_gaussian_param& f,
+                                 const moment_gaussian_param& g,
+                                 index_range<HeadIt> f_head,
+                                 index_range<TailIt> g_tail,
+                                 bool forward,
+                                 moment_gaussian_param& r) {
+    assert(f_head.size() == g_tail.size());
 
+    // compute the positions of the head and tail of f and g in the output
+    std::size_t n = f_head.size();
+    span x(forward ? 0 : g.head_size(), f.head_size());     // head of f
+    span y(forward ? f.head_size() : 0, g.head_size());     // head of g
+    span v(forward ? 0 : g.tail_size() - n, f.tail_size()); // tail of f
+    span w(forward ? f.tail_size() : 0, g.tail_size() - n); // tail of g
 
-
-
-    /**
-     * Multiplies two moment_gaussians when (a range of) the head of one operand
-     * matches (a range of) the tail of the other operand. The ordering of the
-     * operands is specified via the forward flag.
-     */
-    template <typename HeadIt, typename TailIt>
-    friend void multiply_head_tail(const moment_gaussian_param& f,
-                                   const moment_gaussian_param& g,
-                                   index_range<HeadIt> f_head,
-                                   index_range<TailIt> g_tail,
-                                   bool forward,
-                                   moment_gaussian_param& r) {
-      assert(f_head.size() == g_tail.size());
-
-      // compute the positions of the head and tail of f and g in the output
-      std::size_t n = f_head.size();
-      span x(forward ? 0 : g.head_size(), f.head_size());     // head of f
-      span y(forward ? f.head_size() : 0, g.head_size());     // head of g
-      span v(forward ? 0 : g.tail_size() - n, f.tail_size()); // tail of f
-      span w(forward ? f.tail_size() : 0, g.tail_size() - n); // tail of g
-
-      // compute the result
-      r.resize(f.head_size() + g.head_size(),
-               f.tail_size() + g.tail_size() - n);
-      dense_matrix<RealType> coef = subcols(g.coef, g_tail); // used frequently
-      subvec(r.mean, x) = f.mean;
-      subvec(r.mean, y).noalias() = g.mean + coef * subvec(f.mean, f_head);
-      submat(r.cov, x, x) = f.cov;
-      submat(r.cov, x, y).noalias() = subcols(f.cov, f_head) * coef.transpose();
-      submat(r.cov, y, x) = submat(r.cov, x, y).transpose();
-      submat(r.cov, y, y).noalias() =
-        g.cov + coef * submat(f.cov, f_head, f_head) * coef.transpose();
-      submat(r.coef, x, v) = f.coef;
-      submat(r.coef, x, w) = dense_matrix<RealType>::Zero(x.size(), w.size());
-      submat(r.coef, y, v).noalias() = coef * subrows(f.coef, f_head);
-      submat(r.coef, y, w) = subcols(g.coef, complement(g_tail, g.tail_size()));
-      r.lm = f.lm + g.lm;
-    }
-
-    /**
-     * Multiplies two moment_gugaussians when (a range of) the tail of the left
-     * operand matches (a range of) the tail of the right operand.
-     */
-    template <typename TailIt1, typename TailIt2>
-    friend void multiply_tails(const moment_gaussian_param& f,
-                               const moment_gaussian_param& g,
-                               index_range<TailIt1> f_tail,
-                               index_range<TailIt2> g_tail,
-                               moment_gaussian_param& r) {
-      assert(f_tail.size() == g_tail.size());
-      std::size_t n = f_tail.size();
-      r.zero(f.head_size() + g.head_size(),
+    // compute the result
+    r.resize(f.head_size() + g.head_size(),
              f.tail_size() + g.tail_size() - n);
-      span x(0, f.head_size());
-      span y(f.head_size(), g.head_size());
-      span v(0, f.tail_size());
-      span w(f.tail_size(), g.tail_size() - n);
-      subvec(r.mean, x) = f.mean;
-      subvec(r.mean, y) = g.mean;
-      submat(r.cov, x, x) = f.cov;
-      submat(r.cov, y, y) = g.cov;
-      submat(r.coef, x, v) = f.coef;
-      submat(r.coef, y, f_tail) = subcols(g.coef, g_tail);
-      submat(r.coef, y, w) = subcols(g.coef, complement(g_tail, g.tail_size()));
-      r.lm = f.lm + g.lm;
-    }
+    dense_matrix<RealType> coef = subcols(g.coef, g_tail); // used frequently
+    subvec(r.mean, x) = f.mean;
+    subvec(r.mean, y).noalias() = g.mean + coef * subvec(f.mean, f_head);
+    submat(r.cov, x, x) = f.cov;
+    submat(r.cov, x, y).noalias() = subcols(f.cov, f_head) * coef.transpose();
+    submat(r.cov, y, x) = submat(r.cov, x, y).transpose();
+    submat(r.cov, y, y).noalias() =
+      g.cov + coef * submat(f.cov, f_head, f_head) * coef.transpose();
+    submat(r.coef, x, v) = f.coef;
+    submat(r.coef, x, w) = dense_matrix<RealType>::Zero(x.size(), w.size());
+    submat(r.coef, y, v).noalias() = coef * subrows(f.coef, f_head);
+    submat(r.coef, y, w) = subcols(g.coef, complement(g_tail, g.tail_size()));
+    r.lm = f.lm + g.lm;
+  }
 
+  /**
+   * Multiplies two moment_gugaussians when (a range of) the tail of the left
+   * operand matches (a range of) the tail of the right operand.
+   */
+  template <typename TailIt1, typename TailIt2>
+  friend void multiply_tails(const moment_gaussian_param& f,
+                             const moment_gaussian_param& g,
+                             index_range<TailIt1> f_tail,
+                             index_range<TailIt2> g_tail,
+                             moment_gaussian_param& r) {
+    assert(f_tail.size() == g_tail.size());
+    std::size_t n = f_tail.size();
+    r.zero(f.head_size() + g.head_size(),
+           f.tail_size() + g.tail_size() - n);
+    span x(0, f.head_size());
+    span y(f.head_size(), g.head_size());
+    span v(0, f.tail_size());
+    span w(f.tail_size(), g.tail_size() - n);
+    subvec(r.mean, x) = f.mean;
+    subvec(r.mean, y) = g.mean;
+    submat(r.cov, x, x) = f.cov;
+    submat(r.cov, y, y) = g.cov;
+    submat(r.coef, x, v) = f.coef;
+    submat(r.coef, y, f_tail) = subcols(g.coef, g_tail);
+    submat(r.coef, y, w) = subcols(g.coef, complement(g_tail, g.tail_size()));
+    r.lm = f.lm + g.lm;
+  }
+#endif
 
   // Aggregates
   //--------------------------------------------------------------------------
@@ -270,7 +270,6 @@ struct MomentGaussian<T>::Impl {
 
   // Entropy and divergences
   //--------------------------------------------------------------------------
-
 
   T entropy() const {
     assert(is_marginal());
@@ -395,116 +394,98 @@ struct MomentGaussian<T>::Impl {
   }
 };
 
+// TODO: Integrate the following functions into the Impl class.
+//
+//   auto values = a.vector<T>(0);
+//   size_t m = tail_arity();
+//   if (n < m) {
+//     auto r = std::make_unique<Impl>();
+//     return r;
+//   } else {
+//     return restrict_tail(values);
+//   }
+//
+// ImplPtr restrict_tail
+//     r->mean = mean + coef * values.tail(m);
+//     r->coef = MatrixType(mean.size(), 0);
+//     r->cov = cov;
+//     r->lm = lm;
+//
+// /// Assigns a constant to this factor.
+// moment_gaussian& operator=(logarithmic<RealType> x) {
+//   reset(0);
+//   param_.lm = log(x);
+//   return *this;
+// }
+//
+// /// Serializes the factor to an archive.
+// void save(oarchive& ar) const override {
+//   ar << param_;
+// }
+//
+// /// Deserializes the factor from an archive.
+// void load(iarchive& ar) override {
+//   ar >> param_;
+// }
+//
+// /// Returns the dimensionality of the parameters for the given domain.
+// template <typename Arg>
+// static std::size_t shape(const domain<Arg>& dom) {
+//   return dom.num_dimensions();
+// }
+//
+// void canonical() {
+//   CholeskyType chol(mg.covariance());
+//   if (chol.info() != Eigen::Success) {
+//     throw numerical_error(
+//       "CanonicalGaussian: Cannot invert the covariance matrix. "
+//       "Are you passing in a non-singular moment Gaussian distribution?"
+//     );
+//   }
+//   MatrixType sol_xy = chol.solve(mg.coefficients());
+//
+//   size_t m = mg.head_size();
+//   size_t n = mg.tail_size();
+//   resize(m + n);
+//
+//   eta.segment(0, m) = chol.solve(mg.mean());
+//   eta.segment(m, n).noalias() = -sol_xy.transpose() * mg.mean();
+//
+//   lambda.block(0, 0, m, m) = chol.solve(MatrixType::Identity(m, m));
+//   lambda.block(0, m, m, n) = -sol_xy;
+//   lambda.block(m, 0, n, m) = -sol_xy.transpose();
+//   lambda.block(m, m, n, n).noalias() = mg.coef.transpose() * sol_xy;
+//
+//   lm = mg.lm - (m * std::log(two_pi<T>()) + logdet(chol)
+//                 + eta.segment(0, m).dot(mg.mean())) / T(2);
+// }
+//
+// T log_multiplier() const {
+//   return param_.lm;
+// }
+//
+// const Vector<T>& mean() const {
+//   return param_.mean;
+// }
+//
+// const Matrix<T>& covariance() const {
+//   return param_.cov;
+// }
+//
+// const Matrix<T>& coefficients() const {
+//   return param_.coef;
+// }
+//
+// Exp<T> operator()(const RealValues<T>& v) const {
+//   return Exp<T>(log(v));
+// }
+//
+// T log(const RealValues<T>& v) const {
+//   return param_(v);
+// }
+//
+// void normalize() {
+//   param_.lm = RealType(0);
+// }
 
-
-
-
-    auto values = a.vector<T>(0);
-    size_t m = tail_arity();
-    if (n < m) {
-      auto r = std::make_unique<Impl>();
-      return r;
-    } else {
-      return restrict_tail(values);
-    }
-
-  ImplPtr restrict_tail
-      r->mean = mean + coef * values.tail(m);
-      r->coef = MatrixType(mean.size(), 0);
-      r->cov = cov;
-      r->lm = lm;
-
-
-
-};
-
-
-
-
-
-  /// Assigns a constant to this factor.
-  moment_gaussian& operator=(logarithmic<RealType> x) {
-    reset(0);
-    param_.lm = log(x);
-    return *this;
-  }
-
-  /// Serializes the factor to an archive.
-  void save(oarchive& ar) const override {
-    ar << param_;
-  }
-
-  /// Deserializes the factor from an archive.
-  void load(iarchive& ar) override {
-    ar >> param_;
-  }
-
-
-  /// Returns the dimensionality of the parameters for the given domain.
-  template <typename Arg>
-  static std::size_t shape(const domain<Arg>& dom) {
-    return dom.num_dimensions();
-  }
-
-void canonical() {
-    CholeskyType chol(mg.covariance());
-    if (chol.info() != Eigen::Success) {
-      throw numerical_error(
-        "CanonicalGaussian: Cannot invert the covariance matrix. "
-        "Are you passing in a non-singular moment Gaussian distribution?"
-      );
-    }
-    MatrixType sol_xy = chol.solve(mg.coefficients());
-
-    size_t m = mg.head_size();
-    size_t n = mg.tail_size();
-    resize(m + n);
-
-    eta.segment(0, m) = chol.solve(mg.mean());
-    eta.segment(m, n).noalias() = -sol_xy.transpose() * mg.mean();
-
-    lambda.block(0, 0, m, m) = chol.solve(MatrixType::Identity(m, m));
-    lambda.block(0, m, m, n) = -sol_xy;
-    lambda.block(m, 0, n, m) = -sol_xy.transpose();
-    lambda.block(m, m, n, n).noalias() = mg.coef.transpose() * sol_xy;
-
-    lm = mg.lm - (m * std::log(two_pi<T>()) + logdet(chol)
-                  + eta.segment(0, m).dot(mg.mean())) / T(2);
-  }
-
-
-  T log_multiplier() const {
-    return param_.lm;
-  }
-
-  /// Returns the mean vector.
-  const Vector<T>& mean() const {
-    return param_.mean;
-  }
-
-  /// Returns the covariance matrix.
-  const Matrix<T>& covariance() const {
-    return param_.cov;
-  }
-
-  /// Returns the coefficient matrix.
-  const Matrix<T>& coefficients() const {
-    return param_.coef;
-  }
-
-  /// Evaluates the factor for a vector.
-  Exp<T> operator()(const RealValues<T>& v) const {
-    return Exp<T>(log(v));
-  }
-
-  /// Returns the log-value of the factor for a vector.
-  T log(const RealValues<T>& v) const {
-    return param_(v);
-  }
-
-  /// Normalizes this factor in-place.
-  void normalize() {
-    param_.lm = RealType(0);
-  }
-
-}; // class MomentGaussian
+} // namespace libgm

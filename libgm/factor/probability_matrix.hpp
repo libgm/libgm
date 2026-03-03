@@ -2,8 +2,7 @@
 
 #include <libgm/argument/shape.hpp>
 #include <libgm/assignment/discrete_values.hpp>
-#include <libgm/factor/implements.hpp>
-#include <libgm/factor/interfaces.hpp>
+#include <libgm/object.hpp>
 #include <libgm/math/eigen/dense.hpp>
 // #include <libgm/math/likelihood/logarithmic_matrix_ll.hpp>
 // #include <libgm/math/random/bivariate_categorical_distribution.hpp>
@@ -32,62 +31,12 @@ template <typename T> class LogarithmicMatrix;
  * \see Factor
  */
 template <typename T>
-class ProbabilityMatrix
-  : public Object,
-    public Implements<
-      // Direct operations
-      Multiply<ProbabilityMatrix<T>, T>,
-      Multiply<ProbabilityMatrix<T>, ProbabilityMatrix<T>>,
-      MultiplyIn<ProbabilityMatrix<T>, T>,
-      MultiplyIn<ProbabilityMatrix<T>, ProbabilityMatrix<T>>,
-      Divide<ProbabilityMatrix<T>, T>,
-      Divide<ProbabilityMatrix<T>, ProbabilityMatrix<T>>,
-      DivideIn<ProbabilityMatrix<T>, T>,
-      DivideIn<ProbabilityMatrix<T>, ProbabilityMatrix<T>>,
-
-      // Join operations
-      MultiplySpan<ProbabilityMatrix<T>, ProbabilityVector<T>>,
-      MultiplyInSpan<ProbabilityMatrix<T>, ProbabilityVector<T>>,
-      DivideSpan<ProbabilityMatrix<T>, ProbabilityVector<T>>,
-      DivideInSpan<ProbabilityMatrix<T>, ProbabilityVector<T>>,
-
-      // Arithmetic
-      Power<ProbabilityMatrix<T>, T>,
-      WeightedUpdate<ProbabilityMatrix<T>, T>,
-
-      // Aggregates
-      Marginal<ProbabilityMatrix<T>, T>,
-      Maximum<ProbabilityMatrix<T>, T, DiscreteValues>,
-      Minimum<ProbabilityMatrix<T>, T, DiscreteValues>,
-      MarginalSpan<ProbabilityMatrix<T>, ProbabilityVector<T>>,
-      MaximumSpan<ProbabilityMatrix<T>, ProbabilityVector<T>>,
-      MinimumSpan<ProbabilityMatrix<T>, ProbabilityVector<T>>,
-
-      // Normalization
-      Normalize<ProbabilityMatrix<T>>,
-      NormalizeHead<ProbabilityMatrix<T>>,
-
-      // Restriction
-      RestrictSpan<ProbabilityMatrix<T>, DiscreteValues, ProbabilityVector<T>>,
-
-      // Reshaping
-      Transpose<ProbabilityMatrix<T>>,
-
-      // Entropy and divergences
-      Entropy<ProbabilityMatrix<T>, T>,
-      CrossEntropy<ProbabilityMatrix<T>, T>,
-      KlDivergence<ProbabilityMatrix<T>, T>,
-      SumDifference<ProbabilityMatrix<T>, T>,
-      MaxDifference<ProbabilityMatrix<T>, T>
-    > {
+class ProbabilityMatrix : public Object {
 public:
   using result_type = T;
 
   /// Implementation class.
   struct Impl;
-
-  /// Function table.
-  static const typename ProbabilityMatrix::VTable vtable;
 
   /// Default constructor. Creates an empty factor.
   ProbabilityMatrix() = default;
@@ -143,6 +92,100 @@ public:
   /// Returns the log-value of the factor for the given index.
   T log(const DiscreteValues& values) const;
 
+  // Direct operations
+  //--------------------------------------------------------------------------
+
+  ProbabilityMatrix operator*(T x) const;
+  ProbabilityMatrix operator*(const ProbabilityMatrix& other) const;
+  ProbabilityMatrix& operator*=(T x);
+  ProbabilityMatrix& operator*=(const ProbabilityMatrix& other);
+
+  ProbabilityMatrix operator/(T x) const;
+  ProbabilityMatrix operator/(const ProbabilityMatrix& other) const;
+  ProbabilityMatrix& operator/=(T x);
+  ProbabilityMatrix& operator/=(const ProbabilityMatrix& other);
+
+  friend ProbabilityMatrix operator*(T x, const ProbabilityMatrix& y) {
+    return y * x;
+  }
+
+  friend ProbabilityMatrix operator/(T x, const ProbabilityMatrix& y) {
+    return y.divide_inverse(x);
+  }
+
+  // Join operations
+  //--------------------------------------------------------------------------
+
+  ProbabilityMatrix multiply_front(const ProbabilityVector<T>& other) const;
+  ProbabilityMatrix multiply_back(const ProbabilityVector<T>& other) const;
+  ProbabilityMatrix& multiply_in_front(const ProbabilityVector<T>& other);
+  ProbabilityMatrix& multiply_in_back(const ProbabilityVector<T>& other);
+  ProbabilityMatrix divide_front(const ProbabilityVector<T>& other) const;
+  ProbabilityMatrix divide_back(const ProbabilityVector<T>& other) const;
+  ProbabilityMatrix& divide_in_front(const ProbabilityVector<T>& other);
+  ProbabilityMatrix& divide_in_back(const ProbabilityVector<T>& other);
+
+  // Arithmetic
+  //--------------------------------------------------------------------------
+
+  ProbabilityMatrix pow(T x) const;
+  ProbabilityMatrix weighted_update(const ProbabilityMatrix& other, T x) const;
+
+  friend ProbabilityMatrix pow(const ProbabilityMatrix& a, T x) {
+    return a.pow(x);
+  }
+
+  friend ProbabilityMatrix weighted_update(const ProbabilityMatrix& a, const ProbabilityMatrix& b, T x) {
+    return a.weighted_update(b, x);
+  }
+
+  // Aggregates
+  //--------------------------------------------------------------------------
+
+  T marginal() const;
+  T maximum(DiscreteValues* values = nullptr) const;
+  T minimum(DiscreteValues* values = nullptr) const;
+  ProbabilityVector<T> marginal_front(unsigned n) const;
+  ProbabilityVector<T> marginal_back(unsigned n) const;
+  ProbabilityVector<T> maximum_front(unsigned n) const;
+  ProbabilityVector<T> maximum_back(unsigned n) const;
+  ProbabilityVector<T> minimum_front(unsigned n) const;
+  ProbabilityVector<T> minimum_back(unsigned n) const;
+
+  // Normalization
+  //--------------------------------------------------------------------------
+
+  void normalize();
+  void normalize_head(unsigned nhead);
+
+  // Restriction
+  //--------------------------------------------------------------------------
+
+  ProbabilityVector<T> restrict_front(const DiscreteValues& values) const;
+  ProbabilityVector<T> restrict_back(const DiscreteValues& values) const;
+
+  // Reshaping
+  //--------------------------------------------------------------------------
+
+  ProbabilityMatrix transpose() const;
+
+  // Entropy and divergences
+  //--------------------------------------------------------------------------
+
+  T entropy() const;
+  T cross_entropy(const ProbabilityMatrix& other) const;
+  T kl_divergence(const ProbabilityMatrix& other) const;
+  T sum_diff(const ProbabilityMatrix& other) const;
+  T max_diff(const ProbabilityMatrix& other) const;
+
+  friend T sum_diff(const ProbabilityMatrix& a, const ProbabilityMatrix& b) {
+    return a.sum_diff(b);
+  }
+
+  friend T max_diff(const ProbabilityMatrix& a, const ProbabilityMatrix& b) {
+    return a.max_diff(b);
+  }
+
   // Conversions
   //--------------------------------------------------------------------------
 
@@ -153,6 +196,7 @@ public:
   ProbabilityTable<T> table() const;
 
 private:
+  ProbabilityMatrix divide_inverse(T x) const;
   Impl& impl();
   const Impl& impl() const;
 

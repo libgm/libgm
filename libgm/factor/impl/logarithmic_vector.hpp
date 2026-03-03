@@ -205,6 +205,114 @@ T LogarithmicVector<T>::log(const DiscreteValues& values) const {
 }
 
 template <typename T>
+LogarithmicVector<T> LogarithmicVector<T>::operator*(const Exp<T>& x) const {
+  LogarithmicVector result;
+  impl().multiply(x, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicVector<T> LogarithmicVector<T>::operator*(const LogarithmicVector& other) const {
+  LogarithmicVector result;
+  impl().multiply(other, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicVector<T>& LogarithmicVector<T>::operator*=(const Exp<T>& x) {
+  impl().multiply_in(x);
+  return *this;
+}
+
+template <typename T>
+LogarithmicVector<T>& LogarithmicVector<T>::operator*=(const LogarithmicVector& other) {
+  impl().multiply_in(other);
+  return *this;
+}
+
+template <typename T>
+LogarithmicVector<T> LogarithmicVector<T>::operator/(const Exp<T>& x) const {
+  LogarithmicVector result;
+  impl().divide(x, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicVector<T> LogarithmicVector<T>::divide_inverse(const Exp<T>& x) const {
+  LogarithmicVector result;
+  impl().divide_inverse(x, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicVector<T> LogarithmicVector<T>::operator/(const LogarithmicVector& other) const {
+  LogarithmicVector result;
+  impl().divide(other, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicVector<T>& LogarithmicVector<T>::operator/=(const Exp<T>& x) {
+  impl().divide_in(x);
+  return *this;
+}
+
+template <typename T>
+LogarithmicVector<T>& LogarithmicVector<T>::operator/=(const LogarithmicVector& other) {
+  impl().divide_in(other);
+  return *this;
+}
+
+template <typename T>
+LogarithmicVector<T> LogarithmicVector<T>::pow(T x) const {
+  LogarithmicVector result;
+  impl().power(x, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicVector<T> LogarithmicVector<T>::weighted_update(const LogarithmicVector& other, T x) const {
+  LogarithmicVector result;
+  impl().weighted_update(other, x, result);
+  return result;
+}
+
+template <typename T>
+Exp<T> LogarithmicVector<T>::maximum(DiscreteValues* values) const {
+  return impl().maximum(values);
+}
+
+template <typename T>
+Exp<T> LogarithmicVector<T>::minimum(DiscreteValues* values) const {
+  return impl().minimum(values);
+}
+
+template <typename T>
+T LogarithmicVector<T>::entropy() const {
+  return impl().entropy();
+}
+
+template <typename T>
+T LogarithmicVector<T>::cross_entropy(const LogarithmicVector& other) const {
+  return impl().cross_entropy(other);
+}
+
+template <typename T>
+T LogarithmicVector<T>::kl_divergence(const LogarithmicVector& other) const {
+  return impl().kl_divergence(other);
+}
+
+template <typename T>
+T LogarithmicVector<T>::sum_diff(const LogarithmicVector& other) const {
+  return impl().sum_difference(other);
+}
+
+template <typename T>
+T LogarithmicVector<T>::max_diff(const LogarithmicVector& other) const {
+  return impl().max_difference(other);
+}
+
+template <typename T>
 ProbabilityVector<T> LogarithmicVector<T>::probability() const {
   return param().exp();
 }
@@ -215,25 +323,17 @@ LogarithmicTable<T> LogarithmicVector<T>::table() const {
 }
 
 template <typename T>
-const typename LogarithmicVector<T>::VTable LogarithmicVector<T>::vtable{
-  &LogarithmicVector<T>::Impl::multiply,
-  &LogarithmicVector<T>::Impl::multiply,
-  &LogarithmicVector<T>::Impl::multiply_in,
-  &LogarithmicVector<T>::Impl::multiply_in,
-  &LogarithmicVector<T>::Impl::divide,
-  &LogarithmicVector<T>::Impl::divide_inverse,
-  &LogarithmicVector<T>::Impl::divide,
-  &LogarithmicVector<T>::Impl::divide_in,
-  &LogarithmicVector<T>::Impl::divide_in,
-  &LogarithmicVector<T>::Impl::power,
-  &LogarithmicVector<T>::Impl::weighted_update,
-  &LogarithmicVector<T>::Impl::maximum,
-  &LogarithmicVector<T>::Impl::minimum,
-  &LogarithmicVector<T>::Impl::entropy,
-  &LogarithmicVector<T>::Impl::cross_entropy,
-  &LogarithmicVector<T>::Impl::kl_divergence,
-  &LogarithmicVector<T>::Impl::sum_difference,
-  &LogarithmicVector<T>::Impl::max_difference,
-};
+typename LogarithmicVector<T>::Impl& LogarithmicVector<T>::impl() {
+  if (!impl_) {
+    impl_ = std::make_unique<Impl>();
+  }
+  return *static_cast<Impl*>(impl_.get());
+}
+
+template <typename T>
+const typename LogarithmicVector<T>::Impl& LogarithmicVector<T>::impl() const {
+  assert(impl_);
+  return *static_cast<const Impl*>(impl_.get());
+}
 
 } // namespace libgm

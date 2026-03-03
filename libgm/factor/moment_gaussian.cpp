@@ -3,7 +3,7 @@
 
 namespace libgm {
 
-template MomentGaussian<float>;
-template MomentGaussian<double>;
+template class MomentGaussian<float>;
+template class MomentGaussian<double>;
 
 }

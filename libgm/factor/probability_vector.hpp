@@ -2,8 +2,7 @@
 
 #include <libgm/argument/shape.hpp>
 #include <libgm/assignment/discrete_values.hpp>
-#include <libgm/factor/implements.hpp>
-#include <libgm/factor/interfaces.hpp>
+#include <libgm/object.hpp>
 #include <libgm/math/eigen/dense.hpp>
 
 namespace libgm {
@@ -27,47 +26,13 @@ template <typename T> class ProbabilityTable;
  * \see Factor
  */
 template <typename T>
-class ProbabilityVector
-  : public Object,
-    public Implements<
-      // Direct operations
-      Multiply<ProbabilityVector<T>, T>,
-      Multiply<ProbabilityVector<T>, ProbabilityVector<T>>,
-      MultiplyIn<ProbabilityVector<T>, T>,
-      MultiplyIn<ProbabilityVector<T>, ProbabilityVector<T>>,
-      Divide<ProbabilityVector<T>, T>,
-      Divide<ProbabilityVector<T>, ProbabilityVector<T>>,
-      DivideIn<ProbabilityVector<T>, T>,
-      DivideIn<ProbabilityVector<T>, ProbabilityVector<T>>,
-
-      // Arithmetic
-      Power<ProbabilityVector<T>, T>,
-      WeightedUpdate<ProbabilityVector<T>, T>,
-
-      // Aggregates
-      Marginal<ProbabilityVector<T>, T>,
-      Maximum<ProbabilityVector<T>, T, DiscreteValues>,
-      Minimum<ProbabilityVector<T>, T, DiscreteValues>,
-
-      // Normalization
-      Normalize<ProbabilityVector<T>>,
-
-      // Entropy and divergences
-      Entropy<ProbabilityVector<T>, T>,
-      CrossEntropy<ProbabilityVector<T>, T>,
-      KlDivergence<ProbabilityVector<T>, T>,
-      SumDifference<ProbabilityVector<T>, T>,
-      MaxDifference<ProbabilityVector<T>, T>
-    > {
+class ProbabilityVector : public Object {
 public:
   // The result of applying a vector to an index.
   using result_type = T;
 
   // Implementation class
   struct Impl;
-
-  // Function table.
-  static const typename ProbabilityVector::VTable vtable;
 
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
@@ -124,6 +89,70 @@ public:
   /// Returns the log-value of the factor for the given index.
   T log(const DiscreteValues& values) const;
 
+  // Direct operations
+  //--------------------------------------------------------------------------
+
+  ProbabilityVector operator*(T x) const;
+  ProbabilityVector operator*(const ProbabilityVector& other) const;
+  ProbabilityVector& operator*=(T x);
+  ProbabilityVector& operator*=(const ProbabilityVector& other);
+
+  ProbabilityVector operator/(T x) const;
+  ProbabilityVector operator/(const ProbabilityVector& other) const;
+  ProbabilityVector& operator/=(T x);
+  ProbabilityVector& operator/=(const ProbabilityVector& other);
+
+  friend ProbabilityVector operator*(T x, const ProbabilityVector& y) {
+    return y * x;
+  }
+
+  friend ProbabilityVector operator/(T x, const ProbabilityVector& y) {
+    return y.divide_inverse(x);
+  }
+
+  // Arithmetic
+  //--------------------------------------------------------------------------
+
+  ProbabilityVector pow(T x) const;
+  ProbabilityVector weighted_update(const ProbabilityVector& other, T x) const;
+
+  friend ProbabilityVector pow(const ProbabilityVector& a, T x) {
+    return a.pow(x);
+  }
+
+  friend ProbabilityVector weighted_update(const ProbabilityVector& a, const ProbabilityVector& b, T x) {
+    return a.weighted_update(b, x);
+  }
+
+  // Aggregates
+  //--------------------------------------------------------------------------
+
+  T marginal() const;
+  T maximum(DiscreteValues* values = nullptr) const;
+  T minimum(DiscreteValues* values = nullptr) const;
+
+  // Normalization
+  //--------------------------------------------------------------------------
+
+  void normalize();
+
+  // Entropy and divergences
+  //--------------------------------------------------------------------------
+
+  T entropy() const;
+  T cross_entropy(const ProbabilityVector& other) const;
+  T kl_divergence(const ProbabilityVector& other) const;
+  T sum_diff(const ProbabilityVector& other) const;
+  T max_diff(const ProbabilityVector& other) const;
+
+  friend T sum_diff(const ProbabilityVector& a, const ProbabilityVector& b) {
+    return a.sum_diff(b);
+  }
+
+  friend T max_diff(const ProbabilityVector& a, const ProbabilityVector& b) {
+    return a.max_diff(b);
+  }
+
   // Conversions
   //-----------------------------------------------
 
@@ -134,6 +163,7 @@ public:
   ProbabilityTable<T> table() const;
 
 private:
+  ProbabilityVector divide_inverse(T x) const;
   Impl& impl();
   const Impl& impl() const;
 

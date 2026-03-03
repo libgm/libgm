@@ -2,8 +2,7 @@
 
 #include <libgm/argument/shape.hpp>
 #include <libgm/assignment/discrete_assignment.hpp>
-#include <libgm/factor/implements.hpp>
-#include <libgm/factor/interfaces.hpp>
+#include <libgm/object.hpp>
 #include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/exp.hpp>
 // #include <libgm/math/likelihood/logarithmic_matrix_ll.hpp>
@@ -33,57 +32,13 @@ template <typename T> class ProbabilityMatrix;
   * \see Factor
   */
 template <typename T>
-class LogarithmicMatrix
-  : public Object,
-    public Implements<
-      // Direct operations
-      Multiply<LogarithmicMatrix<T>, Exp<T>>,
-      Multiply<LogarithmicMatrix<T>, LogarithmicMatrix<T>>,
-      MultiplyIn<LogarithmicMatrix<T>, Exp<T>>,
-      MultiplyIn<LogarithmicMatrix<T>, LogarithmicMatrix<T>>,
-      Divide<LogarithmicMatrix<T>, Exp<T>>,
-      Divide<LogarithmicMatrix<T>, LogarithmicMatrix<T>>,
-      DivideIn<LogarithmicMatrix<T>, Exp<T>>,
-      DivideIn<LogarithmicMatrix<T>, LogarithmicMatrix<T>>,
-
-      // Join operations
-      MultiplySpan<LogarithmicMatrix<T>, LogarithmicVector<T>>,
-      MultiplyInSpan<LogarithmicMatrix<T>, LogarithmicVector<T>>,
-      DivideSpan<LogarithmicMatrix<T>, LogarithmicVector<T>>,
-      DivideInSpan<LogarithmicMatrix<T>, LogarithmicVector<T>>,
-
-      // Arithmetic
-      Power<LogarithmicMatrix<T>, T>,
-      WeightedUpdate<LogarithmicMatrix<T>, T>,
-
-      // Aggregates
-      Maximum<LogarithmicMatrix<T>, Exp<T>, DiscreteValues>,
-      Minimum<LogarithmicMatrix<T>, Exp<T>, DiscreteValues>,
-      MaximumSpan<LogarithmicMatrix<T>, LogarithmicVector<T>>,
-      MinimumSpan<LogarithmicMatrix<T>, LogarithmicVector<T>>,
-
-      // Restriction
-      RestrictSpan<LogarithmicMatrix<T>, DiscreteValues, LogarithmicVector<T>>,
-
-      // Reshaping
-      Transpose<LogarithmicMatrix<T>>,
-
-      // Entropy and divergences
-      Entropy<LogarithmicMatrix<T>, T>,
-      CrossEntropy<LogarithmicMatrix<T>, T>,
-      KlDivergence<LogarithmicMatrix<T>, T>,
-      SumDifference<LogarithmicMatrix<T>, T>,
-      MaxDifference<LogarithmicMatrix<T>, T>
-    > {
+class LogarithmicMatrix : public Object {
 public:
   /// The result of applying this factor to an index.
   using result_type = Exp<T>;
 
   /// Implementation class.
   struct Impl;
-
-  /// Function table.
-  static const typename LogarithmicMatrix::VTable vtable;
 
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
@@ -146,6 +101,91 @@ public:
   /// Returns the log-value of the factor for the given index.
   T log(const DiscreteValues& values) const;
 
+  // Direct operations
+  //--------------------------------------------------------------------------
+
+  LogarithmicMatrix operator*(const Exp<T>& x) const;
+  LogarithmicMatrix operator*(const LogarithmicMatrix& other) const;
+  LogarithmicMatrix& operator*=(const Exp<T>& x);
+  LogarithmicMatrix& operator*=(const LogarithmicMatrix& other);
+
+  LogarithmicMatrix operator/(const Exp<T>& x) const;
+  LogarithmicMatrix operator/(const LogarithmicMatrix& other) const;
+  LogarithmicMatrix& operator/=(const Exp<T>& x);
+  LogarithmicMatrix& operator/=(const LogarithmicMatrix& other);
+
+  friend LogarithmicMatrix operator*(const Exp<T>& x, const LogarithmicMatrix& y) {
+    return y * x;
+  }
+
+  friend LogarithmicMatrix operator/(const Exp<T>& x, const LogarithmicMatrix& y) {
+    return y.divide_inverse(x);
+  }
+
+  // Join operations
+  //--------------------------------------------------------------------------
+
+  LogarithmicMatrix multiply_front(const LogarithmicVector<T>& other) const;
+  LogarithmicMatrix multiply_back(const LogarithmicVector<T>& other) const;
+  LogarithmicMatrix& multiply_in_front(const LogarithmicVector<T>& other);
+  LogarithmicMatrix& multiply_in_back(const LogarithmicVector<T>& other);
+  LogarithmicMatrix divide_front(const LogarithmicVector<T>& other) const;
+  LogarithmicMatrix divide_back(const LogarithmicVector<T>& other) const;
+  LogarithmicMatrix& divide_in_front(const LogarithmicVector<T>& other);
+  LogarithmicMatrix& divide_in_back(const LogarithmicVector<T>& other);
+
+  // Arithmetic
+  //--------------------------------------------------------------------------
+
+  LogarithmicMatrix pow(T x) const;
+  LogarithmicMatrix weighted_update(const LogarithmicMatrix& other, T x) const;
+
+  friend LogarithmicMatrix pow(const LogarithmicMatrix& a, T x) {
+    return a.pow(x);
+  }
+
+  friend LogarithmicMatrix weighted_update(const LogarithmicMatrix& a, const LogarithmicMatrix& b, T x) {
+    return a.weighted_update(b, x);
+  }
+
+  // Aggregates
+  //--------------------------------------------------------------------------
+
+  Exp<T> maximum(DiscreteValues* values = nullptr) const;
+  Exp<T> minimum(DiscreteValues* values = nullptr) const;
+  LogarithmicVector<T> maximum_front(unsigned n) const;
+  LogarithmicVector<T> maximum_back(unsigned n) const;
+  LogarithmicVector<T> minimum_front(unsigned n) const;
+  LogarithmicVector<T> minimum_back(unsigned n) const;
+
+  // Restriction
+  //--------------------------------------------------------------------------
+
+  LogarithmicVector<T> restrict_front(const DiscreteValues& values) const;
+  LogarithmicVector<T> restrict_back(const DiscreteValues& values) const;
+
+  // Reshaping
+  //--------------------------------------------------------------------------
+
+  LogarithmicMatrix transpose() const;
+
+  // Entropy and divergences
+  //--------------------------------------------------------------------------
+
+  T entropy() const;
+  T cross_entropy(const LogarithmicMatrix& other) const;
+  T kl_divergence(const LogarithmicMatrix& other) const;
+  T sum_diff(const LogarithmicMatrix& other) const;
+  T max_diff(const LogarithmicMatrix& other) const;
+
+  friend T sum_diff(const LogarithmicMatrix& a, const LogarithmicMatrix& b) {
+    return a.sum_diff(b);
+  }
+
+  friend T max_diff(const LogarithmicMatrix& a, const LogarithmicMatrix& b) {
+    return a.max_diff(b);
+  }
+
   // Conversions
   //--------------------------------------------------------------------------
 
@@ -156,6 +196,7 @@ public:
   LogarithmicTable<T> table() const;
 
 private:
+  LogarithmicMatrix divide_inverse(const Exp<T>& x) const;
   Impl& impl();
   const Impl& impl() const;
 

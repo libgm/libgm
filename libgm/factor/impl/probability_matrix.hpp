@@ -211,7 +211,7 @@ struct ProbabilityMatrix<T>::Impl : Object::Impl {
     divide_in(marginal());
   }
 
-  void normalize(unsigned nhead = 1) {
+  void normalize(unsigned nhead) {
     assert(nhead == 1);
     param.rowwise() /= param.colwise().sum();
   }
@@ -375,6 +375,244 @@ T ProbabilityMatrix<T>::log(const DiscreteValues& values) const {
 }
 
 template <typename T>
+ProbabilityMatrix<T> ProbabilityMatrix<T>::operator*(T x) const {
+  ProbabilityMatrix result;
+  impl().multiply(x, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityMatrix<T> ProbabilityMatrix<T>::operator*(const ProbabilityMatrix& other) const {
+  ProbabilityMatrix result;
+  impl().multiply(other, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityMatrix<T>& ProbabilityMatrix<T>::operator*=(T x) {
+  impl().multiply_in(x);
+  return *this;
+}
+
+template <typename T>
+ProbabilityMatrix<T>& ProbabilityMatrix<T>::operator*=(const ProbabilityMatrix& other) {
+  impl().multiply_in(other);
+  return *this;
+}
+
+template <typename T>
+ProbabilityMatrix<T> ProbabilityMatrix<T>::operator/(T x) const {
+  ProbabilityMatrix result;
+  impl().divide(x, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityMatrix<T> ProbabilityMatrix<T>::divide_inverse(T x) const {
+  ProbabilityMatrix result;
+  impl().divide_inverse(x, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityMatrix<T> ProbabilityMatrix<T>::operator/(const ProbabilityMatrix& other) const {
+  ProbabilityMatrix result;
+  impl().divide(other, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityMatrix<T>& ProbabilityMatrix<T>::operator/=(T x) {
+  impl().divide_in(x);
+  return *this;
+}
+
+template <typename T>
+ProbabilityMatrix<T>& ProbabilityMatrix<T>::operator/=(const ProbabilityMatrix& other) {
+  impl().divide_in(other);
+  return *this;
+}
+
+template <typename T>
+ProbabilityMatrix<T> ProbabilityMatrix<T>::multiply_front(const ProbabilityVector<T>& other) const {
+  ProbabilityMatrix result;
+  impl().multiply_front(other, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityMatrix<T> ProbabilityMatrix<T>::multiply_back(const ProbabilityVector<T>& other) const {
+  ProbabilityMatrix result;
+  impl().multiply_back(other, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityMatrix<T>& ProbabilityMatrix<T>::multiply_in_front(const ProbabilityVector<T>& other) {
+  impl().multiply_in_front(other);
+  return *this;
+}
+
+template <typename T>
+ProbabilityMatrix<T>& ProbabilityMatrix<T>::multiply_in_back(const ProbabilityVector<T>& other) {
+  impl().multiply_in_back(other);
+  return *this;
+}
+
+template <typename T>
+ProbabilityMatrix<T> ProbabilityMatrix<T>::divide_front(const ProbabilityVector<T>& other) const {
+  ProbabilityMatrix result;
+  impl().divide_front(other, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityMatrix<T> ProbabilityMatrix<T>::divide_back(const ProbabilityVector<T>& other) const {
+  ProbabilityMatrix result;
+  impl().divide_back(other, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityMatrix<T>& ProbabilityMatrix<T>::divide_in_front(const ProbabilityVector<T>& other) {
+  impl().divide_in_front(other);
+  return *this;
+}
+
+template <typename T>
+ProbabilityMatrix<T>& ProbabilityMatrix<T>::divide_in_back(const ProbabilityVector<T>& other) {
+  impl().divide_in_back(other);
+  return *this;
+}
+
+template <typename T>
+ProbabilityMatrix<T> ProbabilityMatrix<T>::pow(T x) const {
+  ProbabilityMatrix result;
+  impl().power(x, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityMatrix<T> ProbabilityMatrix<T>::weighted_update(const ProbabilityMatrix& other, T x) const {
+  ProbabilityMatrix result;
+  impl().weighted_update(other, x, result);
+  return result;
+}
+
+template <typename T>
+T ProbabilityMatrix<T>::marginal() const {
+  return impl().marginal();
+}
+
+template <typename T>
+T ProbabilityMatrix<T>::maximum(DiscreteValues* values) const {
+  return impl().maximum(values);
+}
+
+template <typename T>
+T ProbabilityMatrix<T>::minimum(DiscreteValues* values) const {
+  return impl().minimum(values);
+}
+
+template <typename T>
+ProbabilityVector<T> ProbabilityMatrix<T>::marginal_front(unsigned n) const {
+  ProbabilityVector<T> result;
+  impl().marginal_front(n, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityVector<T> ProbabilityMatrix<T>::marginal_back(unsigned n) const {
+  ProbabilityVector<T> result;
+  impl().marginal_back(n, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityVector<T> ProbabilityMatrix<T>::maximum_front(unsigned n) const {
+  ProbabilityVector<T> result;
+  impl().maximum_front(n, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityVector<T> ProbabilityMatrix<T>::maximum_back(unsigned n) const {
+  ProbabilityVector<T> result;
+  impl().maximum_back(n, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityVector<T> ProbabilityMatrix<T>::minimum_front(unsigned n) const {
+  ProbabilityVector<T> result;
+  impl().minimum_front(n, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityVector<T> ProbabilityMatrix<T>::minimum_back(unsigned n) const {
+  ProbabilityVector<T> result;
+  impl().minimum_back(n, result);
+  return result;
+}
+
+template <typename T>
+void ProbabilityMatrix<T>::normalize() {
+  impl().normalize();
+}
+
+template <typename T>
+void ProbabilityMatrix<T>::normalize_head(unsigned nhead) {
+  impl().normalize(nhead);
+}
+
+template <typename T>
+ProbabilityVector<T> ProbabilityMatrix<T>::restrict_front(const DiscreteValues& values) const {
+  ProbabilityVector<T> result;
+  impl().restrict_front(values, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityVector<T> ProbabilityMatrix<T>::restrict_back(const DiscreteValues& values) const {
+  ProbabilityVector<T> result;
+  impl().restrict_back(values, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityMatrix<T> ProbabilityMatrix<T>::transpose() const {
+  ProbabilityMatrix result;
+  impl().transpose(result);
+  return result;
+}
+
+template <typename T>
+T ProbabilityMatrix<T>::entropy() const {
+  return impl().entropy();
+}
+
+template <typename T>
+T ProbabilityMatrix<T>::cross_entropy(const ProbabilityMatrix& other) const {
+  return impl().cross_entropy(other);
+}
+
+template <typename T>
+T ProbabilityMatrix<T>::kl_divergence(const ProbabilityMatrix& other) const {
+  return impl().kl_divergence(other);
+}
+
+template <typename T>
+T ProbabilityMatrix<T>::sum_diff(const ProbabilityMatrix& other) const {
+  return impl().sum_difference(other);
+}
+
+template <typename T>
+T ProbabilityMatrix<T>::max_diff(const ProbabilityMatrix& other) const {
+  return impl().max_difference(other);
+}
+
+template <typename T>
 LogarithmicMatrix<T> ProbabilityMatrix<T>::logarithmic() const {
   return param().log();
 }
@@ -385,45 +623,17 @@ ProbabilityTable<T> ProbabilityMatrix<T>::table() const {
 }
 
 template <typename T>
-const typename ProbabilityMatrix<T>::VTable ProbabilityMatrix<T>::vtable{
-  &ProbabilityMatrix<T>::Impl::multiply,
-  &ProbabilityMatrix<T>::Impl::multiply,
-  &ProbabilityMatrix<T>::Impl::multiply_in,
-  &ProbabilityMatrix<T>::Impl::multiply_in,
-  &ProbabilityMatrix<T>::Impl::divide,
-  &ProbabilityMatrix<T>::Impl::divide_inverse,
-  &ProbabilityMatrix<T>::Impl::divide,
-  &ProbabilityMatrix<T>::Impl::divide_in,
-  &ProbabilityMatrix<T>::Impl::divide_in,
-  &ProbabilityMatrix<T>::Impl::multiply_front,
-  &ProbabilityMatrix<T>::Impl::multiply_back,
-  &ProbabilityMatrix<T>::Impl::multiply_in_front,
-  &ProbabilityMatrix<T>::Impl::multiply_in_back,
-  &ProbabilityMatrix<T>::Impl::divide_front,
-  &ProbabilityMatrix<T>::Impl::divide_back,
-  &ProbabilityMatrix<T>::Impl::divide_in_front,
-  &ProbabilityMatrix<T>::Impl::divide_in_back,
-  &ProbabilityMatrix<T>::Impl::power,
-  &ProbabilityMatrix<T>::Impl::weighted_update,
-  &ProbabilityMatrix<T>::Impl::marginal,
-  &ProbabilityMatrix<T>::Impl::maximum,
-  &ProbabilityMatrix<T>::Impl::minimum,
-  &ProbabilityMatrix<T>::Impl::marginal_front,
-  &ProbabilityMatrix<T>::Impl::marginal_back,
-  &ProbabilityMatrix<T>::Impl::maximum_front,
-  &ProbabilityMatrix<T>::Impl::maximum_back,
-  &ProbabilityMatrix<T>::Impl::minimum_front,
-  &ProbabilityMatrix<T>::Impl::minimum_back,
-  &ProbabilityMatrix<T>::Impl::normalize,
-  &ProbabilityMatrix<T>::Impl::normalize,
-  &ProbabilityMatrix<T>::Impl::restrict_front,
-  &ProbabilityMatrix<T>::Impl::restrict_back,
-  &ProbabilityMatrix<T>::Impl::transpose,
-  &ProbabilityMatrix<T>::Impl::entropy,
-  &ProbabilityMatrix<T>::Impl::cross_entropy,
-  &ProbabilityMatrix<T>::Impl::kl_divergence,
-  &ProbabilityMatrix<T>::Impl::sum_difference,
-  &ProbabilityMatrix<T>::Impl::max_difference,
-};
+typename ProbabilityMatrix<T>::Impl& ProbabilityMatrix<T>::impl() {
+  if (!impl_) {
+    impl_ = std::make_unique<Impl>();
+  }
+  return *static_cast<Impl*>(impl_.get());
+}
+
+template <typename T>
+const typename ProbabilityMatrix<T>::Impl& ProbabilityMatrix<T>::impl() const {
+  assert(impl_);
+  return *static_cast<const Impl*>(impl_.get());
+}
 
 } // namespace libgm

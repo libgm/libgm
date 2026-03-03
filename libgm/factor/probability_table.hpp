@@ -3,8 +3,7 @@
 #include <libgm/argument/shape.hpp>
 #include <libgm/assignment/discrete_values.hpp>
 #include <libgm/datastructure/table.hpp>
-#include <libgm/factor/implements.hpp>
-#include <libgm/factor/interfaces.hpp>
+#include <libgm/object.hpp>
 // #include <libgm/math/likelihood/canonical_table_ll.hpp>
 // #include <libgm/math/random/multivariate_categorical_distribution.hpp>
 
@@ -32,68 +31,13 @@ template <typename T> class ProbabilityVector;
  * \see Factor
  */
 template <typename T>
-class ProbabilityTable
-  : public Object,
-    public Implements<
-      // Direct operations
-      Multiply<ProbabilityTable<T>, T>,
-      Multiply<ProbabilityTable<T>, ProbabilityTable<T>>,
-      MultiplyIn<ProbabilityTable<T>, T>,
-      MultiplyIn<ProbabilityTable<T>, ProbabilityTable<T>>,
-      Divide<ProbabilityTable<T>, T>,
-      Divide<ProbabilityTable<T>, ProbabilityTable<T>>,
-      DivideIn<ProbabilityTable<T>, T>,
-      DivideIn<ProbabilityTable<T>, ProbabilityTable<T>>,
-
-      // Join operations
-      MultiplySpan<ProbabilityTable<T>, ProbabilityTable<T>>,
-      MultiplyDims<ProbabilityTable<T>, ProbabilityTable<T>>,
-      MultiplyInSpan<ProbabilityTable<T>, ProbabilityTable<T>>,
-      MultiplyInDims<ProbabilityTable<T>, ProbabilityTable<T>>,
-      DivideSpan<ProbabilityTable<T>, ProbabilityTable<T>>,
-      DivideDims<ProbabilityTable<T>, ProbabilityTable<T>>,
-      DivideInSpan<ProbabilityTable<T>, ProbabilityTable<T>>,
-      DivideInDims<ProbabilityTable<T>, ProbabilityTable<T>>,
-
-      // Arithmetic
-      Power<ProbabilityTable<T>, T>,
-      WeightedUpdate<ProbabilityTable<T>, T>,
-
-      // Aggregates
-      Marginal<ProbabilityTable<T>, T>,
-      Maximum<ProbabilityTable<T>, T, DiscreteValues>,
-      Minimum<ProbabilityTable<T>, T, DiscreteValues>,
-      MarginalSpan<ProbabilityTable<T>>,
-      MarginalDims<ProbabilityTable<T>>,
-      MaximumSpan<ProbabilityTable<T>>,
-      MaximumDims<ProbabilityTable<T>>,
-      MinimumSpan<ProbabilityTable<T>>,
-      MinimumDims<ProbabilityTable<T>>,
-
-      // Normalization
-      Normalize<ProbabilityTable<T>>,
-      NormalizeHead<ProbabilityTable<T>>,
-
-      // Restriction
-      RestrictSpan<ProbabilityTable<T>, DiscreteValues>,
-      RestrictDims<ProbabilityTable<T>, DiscreteValues>,
-
-      // Entropy and divergences
-      Entropy<ProbabilityTable<T>, T>,
-      CrossEntropy<ProbabilityTable<T>, T>,
-      KlDivergence<ProbabilityTable<T>, T>,
-      SumDifference<ProbabilityTable<T>, T>,
-      MaxDifference<ProbabilityTable<T>, T>
-    > {
+class ProbabilityTable : public Object {
 public:
   /// Result of evaluating this table on a vector.
   using result_type = T;
 
   /// Implementation class
   struct Impl;
-
-  /// Function table.
-  static const typename ProbabilityTable::VTable vtable;
 
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
@@ -145,6 +89,112 @@ public:
   /// Returns the log-value of the expression for the given index.
   T log(const DiscreteValues& values) const;
 
+  // Direct operations
+  //--------------------------------------------------------------------------
+
+  ProbabilityTable operator*(T x) const;
+  ProbabilityTable operator*(const ProbabilityTable& other) const;
+  ProbabilityTable& operator*=(T x);
+  ProbabilityTable& operator*=(const ProbabilityTable& other);
+
+  ProbabilityTable operator/(T x) const;
+  ProbabilityTable operator/(const ProbabilityTable& other) const;
+  ProbabilityTable& operator/=(T x);
+  ProbabilityTable& operator/=(const ProbabilityTable& other);
+
+  friend ProbabilityTable operator*(T x, const ProbabilityTable& y) {
+    return y * x;
+  }
+
+  friend ProbabilityTable operator/(T x, const ProbabilityTable& y) {
+    return y.divide_inverse(x);
+  }
+
+  // Join operations
+  //--------------------------------------------------------------------------
+
+  ProbabilityTable multiply_front(const ProbabilityTable& other) const;
+  ProbabilityTable multiply_back(const ProbabilityTable& other) const;
+  ProbabilityTable multiply(const ProbabilityTable& other, const Dims& i, const Dims& j) const;
+  ProbabilityTable& multiply_in_front(const ProbabilityTable& other);
+  ProbabilityTable& multiply_in_back(const ProbabilityTable& other);
+  ProbabilityTable& multiply_in(const ProbabilityTable& other, const Dims& dims);
+
+  ProbabilityTable divide_front(const ProbabilityTable& other) const;
+  ProbabilityTable divide_back(const ProbabilityTable& other) const;
+  ProbabilityTable divide(const ProbabilityTable& other, const Dims& i, const Dims& j) const;
+  ProbabilityTable& divide_in_front(const ProbabilityTable& other);
+  ProbabilityTable& divide_in_back(const ProbabilityTable& other);
+  ProbabilityTable& divide_in(const ProbabilityTable& other, const Dims& dims);
+
+  friend ProbabilityTable multiply(const ProbabilityTable& a, const ProbabilityTable& b, const Dims& i, const Dims& j) {
+    return a.multiply(b, i, j);
+  }
+
+  friend ProbabilityTable divide(const ProbabilityTable& a, const ProbabilityTable& b, const Dims& i, const Dims& j) {
+    return a.divide(b, i, j);
+  }
+
+  // Arithmetic
+  //--------------------------------------------------------------------------
+
+  ProbabilityTable pow(T x) const;
+  ProbabilityTable weighted_update(const ProbabilityTable& other, T x) const;
+
+  friend ProbabilityTable pow(const ProbabilityTable& a, T x) {
+    return a.pow(x);
+  }
+
+  friend ProbabilityTable weighted_update(const ProbabilityTable& a, const ProbabilityTable& b, T x) {
+    return a.weighted_update(b, x);
+  }
+
+  // Aggregates
+  //--------------------------------------------------------------------------
+
+  T marginal() const;
+  T maximum(DiscreteValues* values = nullptr) const;
+  T minimum(DiscreteValues* values = nullptr) const;
+  ProbabilityTable marginal_front(unsigned n) const;
+  ProbabilityTable marginal_back(unsigned n) const;
+  ProbabilityTable marginal_dims(const Dims& retain) const;
+  ProbabilityTable maximum_front(unsigned n) const;
+  ProbabilityTable maximum_back(unsigned n) const;
+  ProbabilityTable maximum_dims(const Dims& retain) const;
+  ProbabilityTable minimum_front(unsigned n) const;
+  ProbabilityTable minimum_back(unsigned n) const;
+  ProbabilityTable minimum_dims(const Dims& retain) const;
+
+  // Normalization
+  //--------------------------------------------------------------------------
+
+  void normalize();
+  void normalize_head(unsigned nhead);
+
+  // Restriction
+  //--------------------------------------------------------------------------
+
+  ProbabilityTable restrict_front(const DiscreteValues& values) const;
+  ProbabilityTable restrict_back(const DiscreteValues& values) const;
+  ProbabilityTable restrict_dims(const Dims& dims, const DiscreteValues& values) const;
+
+  // Entropy and divergences
+  //--------------------------------------------------------------------------
+
+  T entropy() const;
+  T cross_entropy(const ProbabilityTable& other) const;
+  T kl_divergence(const ProbabilityTable& other) const;
+  T sum_diff(const ProbabilityTable& other) const;
+  T max_diff(const ProbabilityTable& other) const;
+
+  friend T sum_diff(const ProbabilityTable& a, const ProbabilityTable& b) {
+    return a.sum_diff(b);
+  }
+
+  friend T max_diff(const ProbabilityTable& a, const ProbabilityTable& b) {
+    return a.max_diff(b);
+  }
+
   // Conversions
   //--------------------------------------------------------------------------
 
@@ -158,6 +208,7 @@ public:
   ProbabilityMatrix<T> matrix() const;
 
 private:
+  ProbabilityTable divide_inverse(T x) const;
   Impl& impl();
   const Impl& impl() const;
 

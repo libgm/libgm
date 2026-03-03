@@ -1,5 +1,7 @@
 #include "../canonical_gaussian.hpp"
 
+#include <libgm/factor/implements.hpp>
+#include <libgm/factor/interfaces.hpp>
 #include <libgm/factor/moment_gaussian.hpp>
 #include <libgm/math/eigen/logdet.hpp>
 #include <libgm/math/eigen/submatrix.hpp>
@@ -151,22 +153,22 @@ struct CanonicalGaussian<T>::Impl : Object::Impl {
 
   void multiply_front(const CanonicalGaussian& other, CanonicalGaussian& result) const {
     result.reset(clone());
-    result.multiply_front(other);
+    result.multiply_in_front(other);
   }
 
   void multiply_back(const CanonicalGaussian& other, CanonicalGaussian& result) const {
     result.reset(clone());
-    result.multiply_back(other);
+    result.multiply_in_back(other);
   }
 
   void divide_front(const CanonicalGaussian& other, CanonicalGaussian& result) const {
     result.reset(clone());
-    result.divide_front(other);
+    result.divide_in_front(other);
   }
 
   void divide_back(const CanonicalGaussian& other, CanonicalGaussian& result) const {
     result.reset(clone());
-    result.divide_back(other);
+    result.divide_in_back(other);
   }
 
   void multiply_dims(const CanonicalGaussian& other, const Dims& i, const Dims& j, CanonicalGaussian& result) const {
@@ -524,6 +526,21 @@ unsigned CanonicalGaussian<T>::arity() const {
 }
 
 template <typename T>
+void CanonicalGaussian<T>::reset(Shape shape) {
+  impl_ = std::make_unique<Impl>(std::move(shape), Exp<T>(0));
+}
+
+template <typename T>
+void CanonicalGaussian<T>::reset(Impl* impl) {
+  impl_.reset(impl);
+}
+
+template <typename T>
+const Shape& CanonicalGaussian<T>::shape() const {
+  return impl().shape;
+}
+
+template <typename T>
 T CanonicalGaussian<T>::log_multiplier() const {
   return impl().lm;
 }
@@ -549,54 +566,274 @@ T CanonicalGaussian<T>::log(const RealValues<T>& values) const {
 }
 
 template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::operator*(const Exp<T>& x) const {
+  CanonicalGaussian result;
+  impl().multiply(x, result);
+  return result;
+}
+
+template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::operator*(const CanonicalGaussian& other) const {
+  CanonicalGaussian result;
+  impl().multiply(other, result);
+  return result;
+}
+
+template <typename T>
+CanonicalGaussian<T>& CanonicalGaussian<T>::operator*=(const Exp<T>& x) {
+  impl().multiply_in(x);
+  return *this;
+}
+
+template <typename T>
+CanonicalGaussian<T>& CanonicalGaussian<T>::operator*=(const CanonicalGaussian& other) {
+  impl().multiply_in(other);
+  return *this;
+}
+
+template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::operator/(const Exp<T>& x) const {
+  CanonicalGaussian result;
+  impl().divide(x, result);
+  return result;
+}
+
+template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::divide_inverse(const Exp<T>& x) const {
+  CanonicalGaussian result;
+  impl().divide_inverse(x, result);
+  return result;
+}
+
+template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::operator/(const CanonicalGaussian& other) const {
+  CanonicalGaussian result;
+  impl().divide(other, result);
+  return result;
+}
+
+template <typename T>
+CanonicalGaussian<T>& CanonicalGaussian<T>::operator/=(const Exp<T>& x) {
+  impl().divide_in(x);
+  return *this;
+}
+
+template <typename T>
+CanonicalGaussian<T>& CanonicalGaussian<T>::operator/=(const CanonicalGaussian& other) {
+  impl().divide_in(other);
+  return *this;
+}
+
+template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::multiply_front(const CanonicalGaussian& other) const {
+  CanonicalGaussian result;
+  impl().multiply_front(other, result);
+  return result;
+}
+
+template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::multiply_back(const CanonicalGaussian& other) const {
+  CanonicalGaussian result;
+  impl().multiply_back(other, result);
+  return result;
+}
+
+template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::multiply(const CanonicalGaussian& other, const Dims& i, const Dims& j) const {
+  CanonicalGaussian result;
+  impl().multiply_dims(other, i, j, result);
+  return result;
+}
+
+template <typename T>
+CanonicalGaussian<T>& CanonicalGaussian<T>::multiply_in_front(const CanonicalGaussian& other) {
+  impl().multiply_in_front(other);
+  return *this;
+}
+
+template <typename T>
+CanonicalGaussian<T>& CanonicalGaussian<T>::multiply_in_back(const CanonicalGaussian& other) {
+  impl().multiply_in_back(other);
+  return *this;
+}
+
+template <typename T>
+CanonicalGaussian<T>& CanonicalGaussian<T>::multiply_in(const CanonicalGaussian& other, const Dims& dims) {
+  impl().multiply_in_dims(other, dims);
+  return *this;
+}
+
+template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::divide_front(const CanonicalGaussian& other) const {
+  CanonicalGaussian result;
+  impl().divide_front(other, result);
+  return result;
+}
+
+template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::divide_back(const CanonicalGaussian& other) const {
+  CanonicalGaussian result;
+  impl().divide_back(other, result);
+  return result;
+}
+
+template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::divide(const CanonicalGaussian& other, const Dims& i, const Dims& j) const {
+  CanonicalGaussian result;
+  impl().divide_dims(other, i, j, result);
+  return result;
+}
+
+template <typename T>
+CanonicalGaussian<T>& CanonicalGaussian<T>::divide_in_front(const CanonicalGaussian& other) {
+  impl().divide_in_front(other);
+  return *this;
+}
+
+template <typename T>
+CanonicalGaussian<T>& CanonicalGaussian<T>::divide_in_back(const CanonicalGaussian& other) {
+  impl().divide_in_back(other);
+  return *this;
+}
+
+template <typename T>
+CanonicalGaussian<T>& CanonicalGaussian<T>::divide_in(const CanonicalGaussian& other, const Dims& dims) {
+  impl().divide_in_dims(other, dims);
+  return *this;
+}
+
+template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::pow(T alpha) const {
+  CanonicalGaussian result;
+  impl().power(alpha, result);
+  return result;
+}
+
+template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::weighted_update(const CanonicalGaussian& other, T alpha) const {
+  CanonicalGaussian result;
+  impl().weighted_update(other, alpha, result);
+  return result;
+}
+
+template <typename T>
+Exp<T> CanonicalGaussian<T>::marginal() const {
+  return impl().marginal();
+}
+
+template <typename T>
+Exp<T> CanonicalGaussian<T>::maximum(RealValues<T>* values) const {
+  return impl().maximum(values);
+}
+
+template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::marginal_front(unsigned n) const {
+  CanonicalGaussian result;
+  impl().marginal_front(n, result);
+  return result;
+}
+
+template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::marginal_back(unsigned n) const {
+  CanonicalGaussian result;
+  impl().marginal_back(n, result);
+  return result;
+}
+
+template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::marginal_dims(const Dims& dims) const {
+  CanonicalGaussian result;
+  impl().marginal_dims(dims, result);
+  return result;
+}
+
+template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::maximum_front(unsigned n) const {
+  CanonicalGaussian result;
+  impl().maximum_front(n, result);
+  return result;
+}
+
+template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::maximum_back(unsigned n) const {
+  CanonicalGaussian result;
+  impl().maximum_back(n, result);
+  return result;
+}
+
+template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::maximum_dims(const Dims& dims) const {
+  CanonicalGaussian result;
+  impl().maximum_dims(dims, result);
+  return result;
+}
+
+template <typename T>
+void CanonicalGaussian<T>::normalize() {
+  impl().normalize();
+}
+
+template <typename T>
+void CanonicalGaussian<T>::normalize_head(unsigned nhead) {
+  impl().normalize(nhead);
+}
+
+template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::restrict_front(const RealValues<T>& values) const {
+  CanonicalGaussian result;
+  impl().restrict_front(values, result);
+  return result;
+}
+
+template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::restrict_back(const RealValues<T>& values) const {
+  CanonicalGaussian result;
+  impl().restrict_back(values, result);
+  return result;
+}
+
+template <typename T>
+CanonicalGaussian<T> CanonicalGaussian<T>::restrict_dims(const Dims& dims, const RealValues<T>& values) const {
+  CanonicalGaussian result;
+  impl().restrict_dims(dims, values, result);
+  return result;
+}
+
+template <typename T>
+T CanonicalGaussian<T>::entropy() const {
+  return impl().entropy();
+}
+
+template <typename T>
+T CanonicalGaussian<T>::kl_divergence(const CanonicalGaussian& other) const {
+  return impl().kl_divergence(other);
+}
+
+template <typename T>
+T CanonicalGaussian<T>::max_diff(const CanonicalGaussian& other) const {
+  return impl().max_difference(other);
+}
+
+template <typename T>
 MomentGaussian<T> CanonicalGaussian<T>::moment() const {
   return impl().moment();
 }
 
 template <typename T>
-const T CanonicalGaussian<T>::Impl::log_two_pi = std::log(boost::math::constants::two_pi<T>());
+typename CanonicalGaussian<T>::Impl& CanonicalGaussian<T>::impl() {
+  if (!impl_) {
+    impl_ = std::make_unique<Impl>();
+  }
+  return *static_cast<Impl*>(impl_.get());
+}
 
 template <typename T>
-const typename CanonicalGaussian<T>::VTable CanonicalGaussian<T>::vtable{
-  &CanonicalGaussian<T>::Impl::multiply,
-  &CanonicalGaussian<T>::Impl::multiply,
-  &CanonicalGaussian<T>::Impl::multiply_in,
-  &CanonicalGaussian<T>::Impl::multiply_in,
-  &CanonicalGaussian<T>::Impl::divide,
-  &CanonicalGaussian<T>::Impl::divide_inverse,
-  &CanonicalGaussian<T>::Impl::divide,
-  &CanonicalGaussian<T>::Impl::divide_in,
-  &CanonicalGaussian<T>::Impl::divide_in,
-  &CanonicalGaussian<T>::Impl::multiply_front,
-  &CanonicalGaussian<T>::Impl::multiply_back,
-  &CanonicalGaussian<T>::Impl::multiply_dims,
-  &CanonicalGaussian<T>::Impl::multiply_in_front,
-  &CanonicalGaussian<T>::Impl::multiply_in_back,
-  &CanonicalGaussian<T>::Impl::multiply_in_dims,
-  &CanonicalGaussian<T>::Impl::divide_front,
-  &CanonicalGaussian<T>::Impl::divide_back,
-  &CanonicalGaussian<T>::Impl::divide_dims,
-  &CanonicalGaussian<T>::Impl::divide_in_front,
-  &CanonicalGaussian<T>::Impl::divide_in_back,
-  &CanonicalGaussian<T>::Impl::divide_in_dims,
-  &CanonicalGaussian<T>::Impl::power,
-  &CanonicalGaussian<T>::Impl::weighted_update,
-  &CanonicalGaussian<T>::Impl::marginal,
-  &CanonicalGaussian<T>::Impl::maximum,
-  &CanonicalGaussian<T>::Impl::marginal_front,
-  &CanonicalGaussian<T>::Impl::marginal_back,
-  &CanonicalGaussian<T>::Impl::marginal_dims,
-  &CanonicalGaussian<T>::Impl::maximum_front,
-  &CanonicalGaussian<T>::Impl::maximum_back,
-  &CanonicalGaussian<T>::Impl::maximum_dims,
-  &CanonicalGaussian<T>::Impl::normalize,
-  &CanonicalGaussian<T>::Impl::normalize,
-  &CanonicalGaussian<T>::Impl::restrict_front,
-  &CanonicalGaussian<T>::Impl::restrict_back,
-  &CanonicalGaussian<T>::Impl::restrict_dims,
-  &CanonicalGaussian<T>::Impl::entropy,
-  &CanonicalGaussian<T>::Impl::kl_divergence,
-  &CanonicalGaussian<T>::Impl::max_difference,
-};
+const typename CanonicalGaussian<T>::Impl& CanonicalGaussian<T>::impl() const {
+  assert(impl_);
+  return *static_cast<const Impl*>(impl_.get());
+}
+
+template <typename T>
+const T CanonicalGaussian<T>::Impl::log_two_pi = std::log(boost::math::constants::two_pi<T>());
 
 } // namespace libgm

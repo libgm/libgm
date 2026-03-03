@@ -2,8 +2,7 @@
 
 #include <libgm/argument/shape.hpp>
 #include <libgm/assignment/discrete_values.hpp>
-#include <libgm/factor/implements.hpp>
-#include <libgm/factor/interfaces.hpp>
+#include <libgm/object.hpp>
 #include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/exp.hpp>
 // #include <libgm/math/likelihood/logarithmic_vector_ll.hpp>
@@ -32,43 +31,13 @@ template <typename T> class ProbabilityVector;
   * \see Factor
   */
 template <typename T>
-class LogarithmicVector
-  : public Object,
-    public Implements<
-      // Direct operations
-      Multiply<LogarithmicVector<T>, Exp<T>>,
-      Multiply<LogarithmicVector<T>, LogarithmicVector<T>>,
-      MultiplyIn<LogarithmicVector<T>, Exp<T>>,
-      MultiplyIn<LogarithmicVector<T>, LogarithmicVector<T>>,
-      Divide<LogarithmicVector<T>, Exp<T>>,
-      Divide<LogarithmicVector<T>, LogarithmicVector<T>>,
-      DivideIn<LogarithmicVector<T>, Exp<T>>,
-      DivideIn<LogarithmicVector<T>, LogarithmicVector<T>>,
-
-      // Arithmetic
-      Power<LogarithmicVector<T>, T>,
-      WeightedUpdate<LogarithmicVector<T>, T>,
-
-      // Aggregates
-      Maximum<LogarithmicVector<T>, Exp<T>, DiscreteValues>,
-      Minimum<LogarithmicVector<T>, Exp<T>, DiscreteValues>,
-
-      // Entropy and divergences
-      Entropy<LogarithmicVector<T>, T>,
-      CrossEntropy<LogarithmicVector<T>, T>,
-      KlDivergence<LogarithmicVector<T>, T>,
-      SumDifference<LogarithmicVector<T>, T>,
-      MaxDifference<LogarithmicVector<T>, T>
-    > {
+class LogarithmicVector : public Object {
 public:
   /// The result of applying this factor to an index.
   using result_type = Exp<T>;
 
   /// Implementation class.
   struct Impl;
-
-  /// Functino table
-  static const typename LogarithmicVector::VTable vtable;
 
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
@@ -129,6 +98,64 @@ public:
   /// Returns the log-value of the factor for the given index.
   T log(const DiscreteValues& values) const;
 
+  // Direct operations
+  //--------------------------------------------------------------------------
+
+  LogarithmicVector operator*(const Exp<T>& x) const;
+  LogarithmicVector operator*(const LogarithmicVector& other) const;
+  LogarithmicVector& operator*=(const Exp<T>& x);
+  LogarithmicVector& operator*=(const LogarithmicVector& other);
+
+  LogarithmicVector operator/(const Exp<T>& x) const;
+  LogarithmicVector operator/(const LogarithmicVector& other) const;
+  LogarithmicVector& operator/=(const Exp<T>& x);
+  LogarithmicVector& operator/=(const LogarithmicVector& other);
+
+  friend LogarithmicVector operator*(const Exp<T>& x, const LogarithmicVector& y) {
+    return y * x;
+  }
+
+  friend LogarithmicVector operator/(const Exp<T>& x, const LogarithmicVector& y) {
+    return y.divide_inverse(x);
+  }
+
+  // Arithmetic
+  //--------------------------------------------------------------------------
+
+  LogarithmicVector pow(T x) const;
+  LogarithmicVector weighted_update(const LogarithmicVector& other, T x) const;
+
+  friend LogarithmicVector pow(const LogarithmicVector& a, T x) {
+    return a.pow(x);
+  }
+
+  friend LogarithmicVector weighted_update(const LogarithmicVector& a, const LogarithmicVector& b, T x) {
+    return a.weighted_update(b, x);
+  }
+
+  // Aggregates
+  //--------------------------------------------------------------------------
+
+  Exp<T> maximum(DiscreteValues* values = nullptr) const;
+  Exp<T> minimum(DiscreteValues* values = nullptr) const;
+
+  // Entropy and divergences
+  //--------------------------------------------------------------------------
+
+  T entropy() const;
+  T cross_entropy(const LogarithmicVector& other) const;
+  T kl_divergence(const LogarithmicVector& other) const;
+  T sum_diff(const LogarithmicVector& other) const;
+  T max_diff(const LogarithmicVector& other) const;
+
+  friend T sum_diff(const LogarithmicVector& a, const LogarithmicVector& b) {
+    return a.sum_diff(b);
+  }
+
+  friend T max_diff(const LogarithmicVector& a, const LogarithmicVector& b) {
+    return a.max_diff(b);
+  }
+
   /// Converts this vector of log-probabilities to a vector of probabilities.
   ProbabilityVector<T> probability() const;
 
@@ -136,6 +163,7 @@ public:
   LogarithmicTable<T> table() const;
 
 private:
+  LogarithmicVector divide_inverse(const Exp<T>& x) const;
   Impl& impl();
   const Impl& impl() const;
 

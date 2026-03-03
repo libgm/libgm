@@ -324,6 +324,255 @@ T LogarithmicTable<T>::log(const DiscreteValues& values) const {
 }
 
 template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::operator*(const Exp<T>& x) const {
+  LogarithmicTable result;
+  impl().multiply(x, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::operator*(const LogarithmicTable& other) const {
+  LogarithmicTable result;
+  impl().multiply(other, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicTable<T>& LogarithmicTable<T>::operator*=(const Exp<T>& x) {
+  impl().multiply_in(x);
+  return *this;
+}
+
+template <typename T>
+LogarithmicTable<T>& LogarithmicTable<T>::operator*=(const LogarithmicTable& other) {
+  impl().multiply_in(other);
+  return *this;
+}
+
+template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::operator/(const Exp<T>& x) const {
+  LogarithmicTable result;
+  impl().divide(x, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::divide_inverse(const Exp<T>& x) const {
+  LogarithmicTable result;
+  impl().divide_inverse(x, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::operator/(const LogarithmicTable& other) const {
+  LogarithmicTable result;
+  impl().divide(other, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicTable<T>& LogarithmicTable<T>::operator/=(const Exp<T>& x) {
+  impl().divide_in(x);
+  return *this;
+}
+
+template <typename T>
+LogarithmicTable<T>& LogarithmicTable<T>::operator/=(const LogarithmicTable& other) {
+  impl().divide_in(other);
+  return *this;
+}
+
+template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::multiply_front(const LogarithmicTable& other) const {
+  LogarithmicTable result;
+  impl().multiply_front(other, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::multiply_back(const LogarithmicTable& other) const {
+  LogarithmicTable result;
+  impl().multiply_back(other, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::multiply(const LogarithmicTable& other, const Dims& i, const Dims& j) const {
+  LogarithmicTable result;
+  impl().multiply_dims(other, i, j, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicTable<T>& LogarithmicTable<T>::multiply_in_front(const LogarithmicTable& other) {
+  impl().multiply_in_front(other);
+  return *this;
+}
+
+template <typename T>
+LogarithmicTable<T>& LogarithmicTable<T>::multiply_in_back(const LogarithmicTable& other) {
+  impl().multiply_in_back(other);
+  return *this;
+}
+
+template <typename T>
+LogarithmicTable<T>& LogarithmicTable<T>::multiply_in(const LogarithmicTable& other, const Dims& dims) {
+  impl().multiply_in_dims(other, dims);
+  return *this;
+}
+
+template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::divide_front(const LogarithmicTable& other) const {
+  LogarithmicTable result;
+  impl().divide_front(other, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::divide_back(const LogarithmicTable& other) const {
+  LogarithmicTable result;
+  impl().divide_back(other, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::divide(const LogarithmicTable& other, const Dims& i, const Dims& j) const {
+  LogarithmicTable result;
+  impl().divide_dims(other, i, j, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicTable<T>& LogarithmicTable<T>::divide_in_front(const LogarithmicTable& other) {
+  impl().divide_in_front(other);
+  return *this;
+}
+
+template <typename T>
+LogarithmicTable<T>& LogarithmicTable<T>::divide_in_back(const LogarithmicTable& other) {
+  impl().divide_in_back(other);
+  return *this;
+}
+
+template <typename T>
+LogarithmicTable<T>& LogarithmicTable<T>::divide_in(const LogarithmicTable& other, const Dims& dims) {
+  impl().divide_in_dims(other, dims);
+  return *this;
+}
+
+template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::pow(T x) const {
+  LogarithmicTable result;
+  impl().power(x, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::weighted_update(const LogarithmicTable& other, T x) const {
+  LogarithmicTable result;
+  impl().weighted_update(other, x, result);
+  return result;
+}
+
+template <typename T>
+Exp<T> LogarithmicTable<T>::maximum(DiscreteValues* values) const {
+  return impl().maximum(values);
+}
+
+template <typename T>
+Exp<T> LogarithmicTable<T>::minimum(DiscreteValues* values) const {
+  return impl().minimum(values);
+}
+
+template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::maximum_front(unsigned n) const {
+  LogarithmicTable result;
+  impl().maximum_front(n, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::maximum_back(unsigned n) const {
+  LogarithmicTable result;
+  impl().maximum_back(n, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::maximum_dims(const Dims& dims) const {
+  LogarithmicTable result;
+  impl().maximum_dims(dims, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::minimum_front(unsigned n) const {
+  LogarithmicTable result;
+  impl().minimum_front(n, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::minimum_back(unsigned n) const {
+  LogarithmicTable result;
+  impl().minimum_back(n, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::minimum_dims(const Dims& dims) const {
+  LogarithmicTable result;
+  impl().minimum_dims(dims, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::restrict_front(const DiscreteValues& values) const {
+  LogarithmicTable result;
+  impl().restrict_front(values, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::restrict_back(const DiscreteValues& values) const {
+  LogarithmicTable result;
+  impl().restrict_back(values, result);
+  return result;
+}
+
+template <typename T>
+LogarithmicTable<T> LogarithmicTable<T>::restrict_dims(const Dims& dims, const DiscreteValues& values) const {
+  LogarithmicTable result;
+  impl().restrict_dims(dims, values, result);
+  return result;
+}
+
+template <typename T>
+T LogarithmicTable<T>::entropy() const {
+  return impl().entropy();
+}
+
+template <typename T>
+T LogarithmicTable<T>::cross_entropy(const LogarithmicTable& other) const {
+  return impl().cross_entropy(other);
+}
+
+template <typename T>
+T LogarithmicTable<T>::kl_divergence(const LogarithmicTable& other) const {
+  return impl().kl_divergence(other);
+}
+
+template <typename T>
+T LogarithmicTable<T>::sum_diff(const LogarithmicTable& other) const {
+  return impl().sum_difference(other);
+}
+
+template <typename T>
+T LogarithmicTable<T>::max_diff(const LogarithmicTable& other) const {
+  return impl().max_difference(other);
+}
+
+template <typename T>
 ProbabilityTable<T> LogarithmicTable<T>::probability() const {
   ProbabilityTable<T> result;
   transform(param(), ExponentOp<T>(), result.param());
@@ -344,46 +593,17 @@ LogarithmicMatrix<T> LogarithmicTable<T>::matrix() const {
 }
 
 template <typename T>
-const typename LogarithmicTable<T>::VTable LogarithmicTable<T>::vtable{
-  &LogarithmicTable<T>::Impl::multiply,
-  &LogarithmicTable<T>::Impl::multiply,
-  &LogarithmicTable<T>::Impl::multiply_in,
-  &LogarithmicTable<T>::Impl::multiply_in,
-  &LogarithmicTable<T>::Impl::divide,
-  &LogarithmicTable<T>::Impl::divide_inverse,
-  &LogarithmicTable<T>::Impl::divide,
-  &LogarithmicTable<T>::Impl::divide_in,
-  &LogarithmicTable<T>::Impl::divide_in,
-  &LogarithmicTable<T>::Impl::multiply_front,
-  &LogarithmicTable<T>::Impl::multiply_back,
-  &LogarithmicTable<T>::Impl::multiply_dims,
-  &LogarithmicTable<T>::Impl::multiply_in_front,
-  &LogarithmicTable<T>::Impl::multiply_in_back,
-  &LogarithmicTable<T>::Impl::multiply_in_dims,
-  &LogarithmicTable<T>::Impl::divide_front,
-  &LogarithmicTable<T>::Impl::divide_back,
-  &LogarithmicTable<T>::Impl::divide_dims,
-  &LogarithmicTable<T>::Impl::divide_in_front,
-  &LogarithmicTable<T>::Impl::divide_in_back,
-  &LogarithmicTable<T>::Impl::divide_in_dims,
-  &LogarithmicTable<T>::Impl::power,
-  &LogarithmicTable<T>::Impl::weighted_update,
-  &LogarithmicTable<T>::Impl::maximum,
-  &LogarithmicTable<T>::Impl::minimum,
-  &LogarithmicTable<T>::Impl::maximum_front,
-  &LogarithmicTable<T>::Impl::maximum_back,
-  &LogarithmicTable<T>::Impl::maximum_dims,
-  &LogarithmicTable<T>::Impl::minimum_front,
-  &LogarithmicTable<T>::Impl::minimum_back,
-  &LogarithmicTable<T>::Impl::minimum_dims,
-  &LogarithmicTable<T>::Impl::restrict_front,
-  &LogarithmicTable<T>::Impl::restrict_back,
-  &LogarithmicTable<T>::Impl::restrict_dims,
-  &LogarithmicTable<T>::Impl::entropy,
-  &LogarithmicTable<T>::Impl::cross_entropy,
-  &LogarithmicTable<T>::Impl::kl_divergence,
-  &LogarithmicTable<T>::Impl::sum_difference,
-  &LogarithmicTable<T>::Impl::max_difference,
-};
+typename LogarithmicTable<T>::Impl& LogarithmicTable<T>::impl() {
+  if (!impl_) {
+    impl_ = std::make_unique<Impl>();
+  }
+  return *static_cast<Impl*>(impl_.get());
+}
+
+template <typename T>
+const typename LogarithmicTable<T>::Impl& LogarithmicTable<T>::impl() const {
+  assert(impl_);
+  return *static_cast<const Impl*>(impl_.get());
+}
 
 } // namespace libgm

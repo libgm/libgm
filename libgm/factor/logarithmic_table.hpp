@@ -3,8 +3,7 @@
 #include <libgm/argument/shape.hpp>
 #include <libgm/assignment/discrete_values.hpp>
 #include <libgm/datastructure/table.hpp>
-#include <libgm/factor/implements.hpp>
-#include <libgm/factor/interfaces.hpp>
+#include <libgm/object.hpp>
 #include <libgm/math/exp.hpp>
 // #include <libgm/math/likelihood/canonical_table_ll.hpp>
 // #include <libgm/math/random/multivariate_categorical_distribution.hpp>
@@ -30,61 +29,13 @@ template <typename T> class ProbabilityTable;
  * \ingroup factor_types
  */
 template <typename T>
-class LogarithmicTable
-  : public Object,
-    public Implements<
-      // Direct operations
-      Multiply<LogarithmicTable<T>, Exp<T>>,
-      Multiply<LogarithmicTable<T>, LogarithmicTable<T>>,
-      MultiplyIn<LogarithmicTable<T>, Exp<T>>,
-      MultiplyIn<LogarithmicTable<T>, LogarithmicTable<T>>,
-      Divide<LogarithmicTable<T>, Exp<T>>,
-      Divide<LogarithmicTable<T>, LogarithmicTable<T>>,
-      DivideIn<LogarithmicTable<T>, Exp<T>>,
-      DivideIn<LogarithmicTable<T>, LogarithmicTable<T>>,
-
-      // Join operations
-      MultiplySpan<LogarithmicTable<T>, LogarithmicTable<T>>,
-      MultiplyDims<LogarithmicTable<T>, LogarithmicTable<T>>,
-      MultiplyInSpan<LogarithmicTable<T>, LogarithmicTable<T>>,
-      MultiplyInDims<LogarithmicTable<T>, LogarithmicTable<T>>,
-      DivideSpan<LogarithmicTable<T>, LogarithmicTable<T>>,
-      DivideDims<LogarithmicTable<T>, LogarithmicTable<T>>,
-      DivideInSpan<LogarithmicTable<T>, LogarithmicTable<T>>,
-      DivideInDims<LogarithmicTable<T>, LogarithmicTable<T>>,
-
-      // Arithmetic operations
-      Power<LogarithmicTable<T>, T>,
-      WeightedUpdate<LogarithmicTable<T>, T>,
-
-      // Aggregates
-      Maximum<LogarithmicTable<T>, Exp<T>, DiscreteValues>,
-      Minimum<LogarithmicTable<T>, Exp<T>, DiscreteValues>,
-      MaximumSpan<LogarithmicTable<T>>,
-      MaximumDims<LogarithmicTable<T>>,
-      MinimumSpan<LogarithmicTable<T>>,
-      MinimumDims<LogarithmicTable<T>>,
-
-      // Restriction
-      RestrictSpan<LogarithmicTable<T>, DiscreteValues>,
-      RestrictDims<LogarithmicTable<T>, DiscreteValues>,
-
-      // Entropy and divergences
-      Entropy<LogarithmicTable<T>, T>,
-      CrossEntropy<LogarithmicTable<T>, T>,
-      KlDivergence<LogarithmicTable<T>, T>,
-      SumDifference<LogarithmicTable<T>, T>,
-      MaxDifference<LogarithmicTable<T>, T>
-    > {
+class LogarithmicTable : public Object {
 public:
   /// The result of applying this factor to an index.
   using result_type = Exp<T>;
 
   /// Implementation class.
   struct Impl;
-
-  /// Function table.
-  static const typename LogarithmicTable::VTable vtable;
 
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
@@ -136,6 +87,102 @@ public:
   /// Returns the log-value of the expression for the given index.
   T log(const DiscreteValues& values) const;
 
+  // Direct operations
+  //--------------------------------------------------------------------------
+
+  LogarithmicTable operator*(const Exp<T>& x) const;
+  LogarithmicTable operator*(const LogarithmicTable& other) const;
+  LogarithmicTable& operator*=(const Exp<T>& x);
+  LogarithmicTable& operator*=(const LogarithmicTable& other);
+
+  LogarithmicTable operator/(const Exp<T>& x) const;
+  LogarithmicTable operator/(const LogarithmicTable& other) const;
+  LogarithmicTable& operator/=(const Exp<T>& x);
+  LogarithmicTable& operator/=(const LogarithmicTable& other);
+
+  friend LogarithmicTable operator*(const Exp<T>& x, const LogarithmicTable& y) {
+    return y * x;
+  }
+
+  friend LogarithmicTable operator/(const Exp<T>& x, const LogarithmicTable& y) {
+    return y.divide_inverse(x);
+  }
+
+  // Join operations
+  //--------------------------------------------------------------------------
+
+  LogarithmicTable multiply_front(const LogarithmicTable& other) const;
+  LogarithmicTable multiply_back(const LogarithmicTable& other) const;
+  LogarithmicTable multiply(const LogarithmicTable& other, const Dims& i, const Dims& j) const;
+  LogarithmicTable& multiply_in_front(const LogarithmicTable& other);
+  LogarithmicTable& multiply_in_back(const LogarithmicTable& other);
+  LogarithmicTable& multiply_in(const LogarithmicTable& other, const Dims& dims);
+
+  LogarithmicTable divide_front(const LogarithmicTable& other) const;
+  LogarithmicTable divide_back(const LogarithmicTable& other) const;
+  LogarithmicTable divide(const LogarithmicTable& other, const Dims& i, const Dims& j) const;
+  LogarithmicTable& divide_in_front(const LogarithmicTable& other);
+  LogarithmicTable& divide_in_back(const LogarithmicTable& other);
+  LogarithmicTable& divide_in(const LogarithmicTable& other, const Dims& dims);
+
+  friend LogarithmicTable multiply(const LogarithmicTable& a, const LogarithmicTable& b, const Dims& i, const Dims& j) {
+    return a.multiply(b, i, j);
+  }
+
+  friend LogarithmicTable divide(const LogarithmicTable& a, const LogarithmicTable& b, const Dims& i, const Dims& j) {
+    return a.divide(b, i, j);
+  }
+
+  // Arithmetic operations
+  //--------------------------------------------------------------------------
+
+  LogarithmicTable pow(T x) const;
+  LogarithmicTable weighted_update(const LogarithmicTable& other, T x) const;
+
+  friend LogarithmicTable pow(const LogarithmicTable& a, T x) {
+    return a.pow(x);
+  }
+
+  friend LogarithmicTable weighted_update(const LogarithmicTable& a, const LogarithmicTable& b, T x) {
+    return a.weighted_update(b, x);
+  }
+
+  // Aggregates
+  //--------------------------------------------------------------------------
+
+  Exp<T> maximum(DiscreteValues* values = nullptr) const;
+  Exp<T> minimum(DiscreteValues* values = nullptr) const;
+  LogarithmicTable maximum_front(unsigned n) const;
+  LogarithmicTable maximum_back(unsigned n) const;
+  LogarithmicTable maximum_dims(const Dims& dims) const;
+  LogarithmicTable minimum_front(unsigned n) const;
+  LogarithmicTable minimum_back(unsigned n) const;
+  LogarithmicTable minimum_dims(const Dims& dims) const;
+
+  // Restriction
+  //--------------------------------------------------------------------------
+
+  LogarithmicTable restrict_front(const DiscreteValues& values) const;
+  LogarithmicTable restrict_back(const DiscreteValues& values) const;
+  LogarithmicTable restrict_dims(const Dims& dims, const DiscreteValues& values) const;
+
+  // Entropy and divergences
+  //--------------------------------------------------------------------------
+
+  T entropy() const;
+  T cross_entropy(const LogarithmicTable& other) const;
+  T kl_divergence(const LogarithmicTable& other) const;
+  T sum_diff(const LogarithmicTable& other) const;
+  T max_diff(const LogarithmicTable& other) const;
+
+  friend T sum_diff(const LogarithmicTable& a, const LogarithmicTable& b) {
+    return a.sum_diff(b);
+  }
+
+  friend T max_diff(const LogarithmicTable& a, const LogarithmicTable& b) {
+    return a.max_diff(b);
+  }
+
   // Conversions
   //--------------------------------------------------------------------------
 
@@ -149,6 +196,7 @@ public:
   LogarithmicMatrix<T> matrix() const;
 
 private:
+  LogarithmicTable divide_inverse(const Exp<T>& x) const;
   Impl& impl();
   const Impl& impl() const;
 

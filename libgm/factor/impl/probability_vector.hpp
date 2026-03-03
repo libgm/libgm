@@ -65,11 +65,11 @@ struct ProbabilityVector<T>::Impl : Object::Impl {
   // Direct operations
   //--------------------------------------------------------------------------
 
-  void multiply(const T& x, ProbabilityVector& result) const override {
-    result.param() = a.param() * x;
+  void multiply(const T& x, ProbabilityVector& result) const {
+    result.param() = param * x;
   }
 
-  void divide(const T& x, ProbabilityVector& result) const override {
+  void divide(const T& x, ProbabilityVector& result) const {
     result.param() = param / x;
   }
 
@@ -174,6 +174,12 @@ ProbabilityVector<T>::ProbabilityVector(size_t length, T x)
 }
 
 template <typename T>
+ProbabilityVector<T>::ProbabilityVector(const Shape& shape, T x)
+  : Object(std::make_unique<Impl>(shape)) {
+  impl().param.fill(x);
+}
+
+template <typename T>
 ProbabilityVector<T>::ProbabilityVector(std::initializer_list<T> values)
   : Object(std::make_unique<Impl>(values.size())) {
   std::copy(values.begin(), values.end(), impl().param.data());
@@ -218,6 +224,124 @@ T ProbabilityVector<T>::log(const DiscreteValues& values) const {
 }
 
 template <typename T>
+ProbabilityVector<T> ProbabilityVector<T>::operator*(T x) const {
+  ProbabilityVector result;
+  impl().multiply(x, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityVector<T> ProbabilityVector<T>::operator*(const ProbabilityVector& other) const {
+  ProbabilityVector result;
+  impl().multiply(other, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityVector<T>& ProbabilityVector<T>::operator*=(T x) {
+  impl().multiply_in(x);
+  return *this;
+}
+
+template <typename T>
+ProbabilityVector<T>& ProbabilityVector<T>::operator*=(const ProbabilityVector& other) {
+  impl().multiply_in(other);
+  return *this;
+}
+
+template <typename T>
+ProbabilityVector<T> ProbabilityVector<T>::operator/(T x) const {
+  ProbabilityVector result;
+  impl().divide(x, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityVector<T> ProbabilityVector<T>::divide_inverse(T x) const {
+  ProbabilityVector result;
+  impl().divide_inverse(x, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityVector<T> ProbabilityVector<T>::operator/(const ProbabilityVector& other) const {
+  ProbabilityVector result;
+  impl().divide(other, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityVector<T>& ProbabilityVector<T>::operator/=(T x) {
+  impl().divide_in(x);
+  return *this;
+}
+
+template <typename T>
+ProbabilityVector<T>& ProbabilityVector<T>::operator/=(const ProbabilityVector& other) {
+  impl().divide_in(other);
+  return *this;
+}
+
+template <typename T>
+ProbabilityVector<T> ProbabilityVector<T>::pow(T x) const {
+  ProbabilityVector result;
+  impl().power(x, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityVector<T> ProbabilityVector<T>::weighted_update(const ProbabilityVector& other, T x) const {
+  ProbabilityVector result;
+  impl().weighted_update(other, x, result);
+  return result;
+}
+
+template <typename T>
+T ProbabilityVector<T>::marginal() const {
+  return impl().marginal();
+}
+
+template <typename T>
+T ProbabilityVector<T>::maximum(DiscreteValues* values) const {
+  return impl().maximum(values);
+}
+
+template <typename T>
+T ProbabilityVector<T>::minimum(DiscreteValues* values) const {
+  return impl().minimum(values);
+}
+
+template <typename T>
+void ProbabilityVector<T>::normalize() {
+  impl().normalize();
+}
+
+template <typename T>
+T ProbabilityVector<T>::entropy() const {
+  return impl().entropy();
+}
+
+template <typename T>
+T ProbabilityVector<T>::cross_entropy(const ProbabilityVector& other) const {
+  return impl().cross_entropy(other);
+}
+
+template <typename T>
+T ProbabilityVector<T>::kl_divergence(const ProbabilityVector& other) const {
+  return impl().kl_divergence(other);
+}
+
+template <typename T>
+T ProbabilityVector<T>::sum_diff(const ProbabilityVector& other) const {
+  return impl().sum_difference(other);
+}
+
+template <typename T>
+T ProbabilityVector<T>::max_diff(const ProbabilityVector& other) const {
+  return impl().max_difference(other);
+}
+
+template <typename T>
 LogarithmicVector<T> ProbabilityVector<T>::logarithmic() const {
   return param().log();
 }
@@ -228,27 +352,17 @@ ProbabilityTable<T> ProbabilityVector<T>::table() const {
 }
 
 template <typename T>
-const typename ProbabilityVector<T>::VTable ProbabilityVector<T>::vtable{
-  &ProbabilityVector<T>::Impl::multiply,
-  &ProbabilityVector<T>::Impl::multiply,
-  &ProbabilityVector<T>::Impl::multiply_in,
-  &ProbabilityVector<T>::Impl::multiply_in,
-  &ProbabilityVector<T>::Impl::divide,
-  &ProbabilityVector<T>::Impl::divide_inverse,
-  &ProbabilityVector<T>::Impl::divide,
-  &ProbabilityVector<T>::Impl::divide_in,
-  &ProbabilityVector<T>::Impl::divide_in,
-  &ProbabilityVector<T>::Impl::power,
-  &ProbabilityVector<T>::Impl::weighted_update,
-  &ProbabilityVector<T>::Impl::marginal,
-  &ProbabilityVector<T>::Impl::maximum,
-  &ProbabilityVector<T>::Impl::minimum,
-  &ProbabilityVector<T>::Impl::normalize,
-  &ProbabilityVector<T>::Impl::entropy,
-  &ProbabilityVector<T>::Impl::cross_entropy,
-  &ProbabilityVector<T>::Impl::kl_divergence,
-  &ProbabilityVector<T>::Impl::sum_difference,
-  &ProbabilityVector<T>::Impl::max_difference,
-};
+typename ProbabilityVector<T>::Impl& ProbabilityVector<T>::impl() {
+  if (!impl_) {
+    impl_ = std::make_unique<Impl>();
+  }
+  return *static_cast<Impl*>(impl_.get());
+}
+
+template <typename T>
+const typename ProbabilityVector<T>::Impl& ProbabilityVector<T>::impl() const {
+  assert(impl_);
+  return *static_cast<const Impl*>(impl_.get());
+}
 
 } // namespace libgm

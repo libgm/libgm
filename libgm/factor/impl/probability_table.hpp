@@ -355,6 +355,291 @@ T ProbabilityTable<T>::log(const DiscreteValues& values) const {
 }
 
 template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::operator*(T x) const {
+  ProbabilityTable result;
+  impl().multiply(x, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::operator*(const ProbabilityTable& other) const {
+  ProbabilityTable result;
+  impl().multiply(other, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T>& ProbabilityTable<T>::operator*=(T x) {
+  impl().multiply_in(x);
+  return *this;
+}
+
+template <typename T>
+ProbabilityTable<T>& ProbabilityTable<T>::operator*=(const ProbabilityTable& other) {
+  impl().multiply_in(other);
+  return *this;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::operator/(T x) const {
+  ProbabilityTable result;
+  impl().divide(x, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::divide_inverse(T x) const {
+  ProbabilityTable result;
+  impl().divide_inverse(x, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::operator/(const ProbabilityTable& other) const {
+  ProbabilityTable result;
+  impl().divide(other, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T>& ProbabilityTable<T>::operator/=(T x) {
+  impl().divide_in(x);
+  return *this;
+}
+
+template <typename T>
+ProbabilityTable<T>& ProbabilityTable<T>::operator/=(const ProbabilityTable& other) {
+  impl().divide_in(other);
+  return *this;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::multiply_front(const ProbabilityTable& other) const {
+  ProbabilityTable result;
+  impl().multiply_front(other, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::multiply_back(const ProbabilityTable& other) const {
+  ProbabilityTable result;
+  impl().multiply_back(other, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::multiply(const ProbabilityTable& other, const Dims& i, const Dims& j) const {
+  ProbabilityTable result;
+  impl().multiply_dims(other, i, j, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T>& ProbabilityTable<T>::multiply_in_front(const ProbabilityTable& other) {
+  impl().multiply_in_front(other);
+  return *this;
+}
+
+template <typename T>
+ProbabilityTable<T>& ProbabilityTable<T>::multiply_in_back(const ProbabilityTable& other) {
+  impl().multiply_in_back(other);
+  return *this;
+}
+
+template <typename T>
+ProbabilityTable<T>& ProbabilityTable<T>::multiply_in(const ProbabilityTable& other, const Dims& dims) {
+  impl().multiply_in_dims(other, dims);
+  return *this;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::divide_front(const ProbabilityTable& other) const {
+  ProbabilityTable result;
+  impl().divide_front(other, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::divide_back(const ProbabilityTable& other) const {
+  ProbabilityTable result;
+  impl().divide_back(other, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::divide(const ProbabilityTable& other, const Dims& i, const Dims& j) const {
+  ProbabilityTable result;
+  impl().divide_dims(other, i, j, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T>& ProbabilityTable<T>::divide_in_front(const ProbabilityTable& other) {
+  impl().divide_in_front(other);
+  return *this;
+}
+
+template <typename T>
+ProbabilityTable<T>& ProbabilityTable<T>::divide_in_back(const ProbabilityTable& other) {
+  impl().divide_in_back(other);
+  return *this;
+}
+
+template <typename T>
+ProbabilityTable<T>& ProbabilityTable<T>::divide_in(const ProbabilityTable& other, const Dims& dims) {
+  impl().divide_in_dims(other, dims);
+  return *this;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::pow(T x) const {
+  ProbabilityTable result;
+  impl().power(x, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::weighted_update(const ProbabilityTable& other, T x) const {
+  ProbabilityTable result;
+  impl().weighted_update(other, x, result);
+  return result;
+}
+
+template <typename T>
+T ProbabilityTable<T>::marginal() const {
+  return impl().marginal();
+}
+
+template <typename T>
+T ProbabilityTable<T>::maximum(DiscreteValues* values) const {
+  return impl().maximum(values);
+}
+
+template <typename T>
+T ProbabilityTable<T>::minimum(DiscreteValues* values) const {
+  return impl().minimum(values);
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::marginal_front(unsigned n) const {
+  ProbabilityTable result;
+  impl().marginal_front(n, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::marginal_back(unsigned n) const {
+  ProbabilityTable result;
+  impl().marginal_back(n, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::marginal_dims(const Dims& retain) const {
+  ProbabilityTable result;
+  impl().marginal_dims(retain, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::maximum_front(unsigned n) const {
+  ProbabilityTable result;
+  impl().maximum_front(n, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::maximum_back(unsigned n) const {
+  ProbabilityTable result;
+  impl().maximum_back(n, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::maximum_dims(const Dims& retain) const {
+  ProbabilityTable result;
+  impl().maximum_dims(retain, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::minimum_front(unsigned n) const {
+  ProbabilityTable result;
+  impl().minimum_front(n, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::minimum_back(unsigned n) const {
+  ProbabilityTable result;
+  impl().minimum_back(n, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::minimum_dims(const Dims& retain) const {
+  ProbabilityTable result;
+  impl().minimum_dims(retain, result);
+  return result;
+}
+
+template <typename T>
+void ProbabilityTable<T>::normalize() {
+  impl().normalize();
+}
+
+template <typename T>
+void ProbabilityTable<T>::normalize_head(unsigned nhead) {
+  impl().normalize(nhead);
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::restrict_front(const DiscreteValues& values) const {
+  ProbabilityTable result;
+  impl().restrict_front(values, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::restrict_back(const DiscreteValues& values) const {
+  ProbabilityTable result;
+  impl().restrict_back(values, result);
+  return result;
+}
+
+template <typename T>
+ProbabilityTable<T> ProbabilityTable<T>::restrict_dims(const Dims& dims, const DiscreteValues& values) const {
+  ProbabilityTable result;
+  impl().restrict_dims(dims, values, result);
+  return result;
+}
+
+template <typename T>
+T ProbabilityTable<T>::entropy() const {
+  return impl().entropy();
+}
+
+template <typename T>
+T ProbabilityTable<T>::cross_entropy(const ProbabilityTable& other) const {
+  return impl().cross_entropy(other);
+}
+
+template <typename T>
+T ProbabilityTable<T>::kl_divergence(const ProbabilityTable& other) const {
+  return impl().kl_divergence(other);
+}
+
+template <typename T>
+T ProbabilityTable<T>::sum_diff(const ProbabilityTable& other) const {
+  return impl().sum_difference(other);
+}
+
+template <typename T>
+T ProbabilityTable<T>::max_diff(const ProbabilityTable& other) const {
+  return impl().max_difference(other);
+}
+
+template <typename T>
 LogarithmicTable<T> ProbabilityTable<T>::logarithmic() const {
   LogarithmicTable<T> result;
   transform(param(), LogarithmOp<T>(), result.param());
@@ -375,52 +660,17 @@ ProbabilityMatrix<T> ProbabilityTable<T>::matrix() const {
 }
 
 template <typename T>
-const typename ProbabilityTable<T>::VTable ProbabilityTable<T>::vtable{
-  &ProbabilityTable<T>::Impl::multiply,
-  &ProbabilityTable<T>::Impl::multiply,
-  &ProbabilityTable<T>::Impl::multiply_in,
-  &ProbabilityTable<T>::Impl::multiply_in,
-  &ProbabilityTable<T>::Impl::divide,
-  &ProbabilityTable<T>::Impl::divide_inverse,
-  &ProbabilityTable<T>::Impl::divide,
-  &ProbabilityTable<T>::Impl::divide_in,
-  &ProbabilityTable<T>::Impl::divide_in,
-  &ProbabilityTable<T>::Impl::multiply_front,
-  &ProbabilityTable<T>::Impl::multiply_back,
-  &ProbabilityTable<T>::Impl::multiply_dims,
-  &ProbabilityTable<T>::Impl::multiply_in_front,
-  &ProbabilityTable<T>::Impl::multiply_in_back,
-  &ProbabilityTable<T>::Impl::multiply_in_dims,
-  &ProbabilityTable<T>::Impl::divide_front,
-  &ProbabilityTable<T>::Impl::divide_back,
-  &ProbabilityTable<T>::Impl::divide_dims,
-  &ProbabilityTable<T>::Impl::divide_in_front,
-  &ProbabilityTable<T>::Impl::divide_in_back,
-  &ProbabilityTable<T>::Impl::divide_in_dims,
-  &ProbabilityTable<T>::Impl::power,
-  &ProbabilityTable<T>::Impl::weighted_update,
-  &ProbabilityTable<T>::Impl::marginal,
-  &ProbabilityTable<T>::Impl::maximum,
-  &ProbabilityTable<T>::Impl::minimum,
-  &ProbabilityTable<T>::Impl::marginal_front,
-  &ProbabilityTable<T>::Impl::marginal_back,
-  &ProbabilityTable<T>::Impl::marginal_dims,
-  &ProbabilityTable<T>::Impl::maximum_front,
-  &ProbabilityTable<T>::Impl::maximum_back,
-  &ProbabilityTable<T>::Impl::maximum_dims,
-  &ProbabilityTable<T>::Impl::minimum_front,
-  &ProbabilityTable<T>::Impl::minimum_back,
-  &ProbabilityTable<T>::Impl::minimum_dims,
-  &ProbabilityTable<T>::Impl::normalize,
-  &ProbabilityTable<T>::Impl::normalize,
-  &ProbabilityTable<T>::Impl::restrict_front,
-  &ProbabilityTable<T>::Impl::restrict_back,
-  &ProbabilityTable<T>::Impl::restrict_dims,
-  &ProbabilityTable<T>::Impl::entropy,
-  &ProbabilityTable<T>::Impl::cross_entropy,
-  &ProbabilityTable<T>::Impl::kl_divergence,
-  &ProbabilityTable<T>::Impl::sum_difference,
-  &ProbabilityTable<T>::Impl::max_difference,
-};
+typename ProbabilityTable<T>::Impl& ProbabilityTable<T>::impl() {
+  if (!impl_) {
+    impl_ = std::make_unique<Impl>();
+  }
+  return *static_cast<Impl*>(impl_.get());
+}
+
+template <typename T>
+const typename ProbabilityTable<T>::Impl& ProbabilityTable<T>::impl() const {
+  assert(impl_);
+  return *static_cast<const Impl*>(impl_.get());
+}
 
 } // namespace libgm
