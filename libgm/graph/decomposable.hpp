@@ -4,7 +4,7 @@
 #include <libgm/argument/assignment.hpp>
 #include <libgm/datastructure/subrange.hpp>
 #include <libgm/factor/implements.hpp>
-#include <libgm/factor/interfaces.hpp>
+#include <libgm/factor/concepts.hpp>
 #include <libgm/graph/cluster_graph.hpp>
 
 namespace libgm {

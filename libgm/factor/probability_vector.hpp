@@ -29,6 +29,8 @@ template <typename T>
 class ProbabilityVector : public Object {
 public:
   // The result of applying a vector to an index.
+  using value_type = T;
+  using value_list = DiscreteValues;
   using result_type = T;
 
   // Implementation class

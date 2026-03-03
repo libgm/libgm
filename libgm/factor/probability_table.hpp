@@ -34,6 +34,8 @@ template <typename T>
 class ProbabilityTable : public Object {
 public:
   /// Result of evaluating this table on a vector.
+  using value_type = T;
+  using value_list = DiscreteValues;
   using result_type = T;
 
   /// Implementation class

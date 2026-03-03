@@ -31,6 +31,8 @@ class Softmax
   //==========================================================================
 public:
   // Factor member types
+  using value_type = RealType;
+  using value_list = Values;
   using result_type = T;
 
   // LearnableFactor member types

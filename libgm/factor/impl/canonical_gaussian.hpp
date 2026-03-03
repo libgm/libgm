@@ -1,7 +1,7 @@
 #include "../canonical_gaussian.hpp"
 
 #include <libgm/factor/implements.hpp>
-#include <libgm/factor/interfaces.hpp>
+#include <libgm/factor/concepts.hpp>
 #include <libgm/factor/moment_gaussian.hpp>
 #include <libgm/math/eigen/logdet.hpp>
 #include <libgm/math/eigen/submatrix.hpp>

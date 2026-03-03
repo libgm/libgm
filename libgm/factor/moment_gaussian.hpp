@@ -33,6 +33,8 @@ template <typename T> class CanonicalGaussian;
 template <typename T>
 class MomentGaussian : public Object {
 public:
+  using value_type = T;
+  using value_list = RealValues<T>;
   using result_type = Exp<T>;
   // using mle_type = MomentGaussianMLE<T>;
   // using ll_type = MomentGaussianLL<T>;

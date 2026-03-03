@@ -35,6 +35,8 @@ template <typename T>
 class LogarithmicMatrix : public Object {
 public:
   /// The result of applying this factor to an index.
+  using value_type = T;
+  using value_list = DiscreteValues;
   using result_type = Exp<T>;
 
   /// Implementation class.

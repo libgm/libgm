@@ -24,6 +24,8 @@ template <typename T>
 class CanonicalGaussian : public Object {
 public:
   // Factor member types
+  using value_type = T;
+  using value_list = RealValues<T>;
   using result_type = Exp<T>;
 
   // Implementation class.

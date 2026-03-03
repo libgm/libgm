@@ -33,6 +33,8 @@ template <typename T> class LogarithmicMatrix;
 template <typename T>
 class ProbabilityMatrix : public Object {
 public:
+  using value_type = T;
+  using value_list = DiscreteValues;
   using result_type = T;
 
   /// Implementation class.

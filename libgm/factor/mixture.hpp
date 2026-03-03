@@ -24,6 +24,8 @@ public:
   //--------------------------------------------------------------------------
 
   // Factor member types
+  using value_type  = T;
+  using value_list  = typename F::value_list;
   using real_type   = typename F::real_type;
   using result_type = typename F::result_type;
 

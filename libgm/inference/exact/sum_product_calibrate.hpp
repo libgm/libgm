@@ -1,7 +1,7 @@
 #pragma once
 
 #include <libgm/factor/implements.hpp>
-#include <libgm/factor/interfaces.hpp>
+#include <libgm/factor/concepts.hpp>
 #include <libgm/graph/cluster_graph.hpp>
 #include <libgm/graph/util/bidirectional.hpp>
 

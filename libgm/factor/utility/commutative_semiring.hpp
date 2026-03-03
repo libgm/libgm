@@ -1,7 +1,7 @@
 #pragma once
 
-#include <libgm/factor/interfaces/aggregates.hpp>
-#include <libgm/factor/interfaces/join.hpp>
+#include <libgm/factor/concepts/aggregates.hpp>
+#include <libgm/factor/concepts/join.hpp>
 #include <libgm/factor/vtables/aggregates.hpp>
 #include <libgm/factor/vtables/join.hpp>
 
