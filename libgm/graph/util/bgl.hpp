@@ -1,7 +1,15 @@
+#pragma once
+
+#include <libgm/datastructure/subrange.hpp>
+
 #include <utility>
 
 namespace libgm {
 
+template <typename IT>
+std::pair<IT, IT> make_iterator_pair(const SubRange<IT>& range) {
+  return {range.begin(), range.end()};
+}
 
 // Ranges
 //============================================================================
@@ -28,7 +36,7 @@ auto vertices(const G& g) {
 
 template <typename G>
 auto edges(const G& g) {
-  return make_iterator_pair(e.edges());
+  return make_iterator_pair(g.edges());
 }
 
 // Accessors

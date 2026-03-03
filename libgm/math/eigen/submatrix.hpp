@@ -1,7 +1,7 @@
 #pragma once
 
 #include <libgm/enable_if.hpp>
-#include <libgm/functional/Assign<>.hpp>
+#include <libgm/functional/assign.hpp>
 
 #include <type_traits>
 
@@ -19,7 +19,7 @@ namespace libgm {
  *         but must be in a column major format.
  */
 template <typename Matrix>
-class Submatrix : public Eigen::ReturnByValue<Submatrix> {
+class SubMatrix : public Eigen::ReturnByValue<SubMatrix<Matrix>> {
   /// Indicates if the underlying container is mutable.
   const static bool is_mutable = !std::is_const<Matrix>::value;
 
@@ -28,7 +28,7 @@ public:
   using scalar_type = typename Matrix::Scalar;
 
   /// Constructs a Submatrix with the given row and column indices.
-  Submatrix(Matrix& mat, const Spans& rows, const Spans& cols)
+  SubMatrix(Matrix& mat, const Spans& rows, const Spans& cols)
     : mat_(mat), rows_(rows), cols_(cols) {}
 
   /// Returns the number of rows of this view.
@@ -66,19 +66,19 @@ public:
 
   /// Assign<>s the elements of a matrix to this Submatrix.
   LIBGM_ENABLE_IF_N(is_mutable, typename Derived)
-  Submatrix& operator=(const Eigen::MatrixBase<Derived>& a) {
+  SubMatrix& operator=(const Eigen::MatrixBase<Derived>& a) {
     return update(a, Assign<>());
   }
 
   /// Adds a matrix to this Submatrix element-wise.
   LIBGM_ENABLE_IF_N(is_mutable, typename Derived)
-  Submatrix& operator+=(const Eigen::MatrixBase<Derived>& a) {
+  SubMatrix& operator+=(const Eigen::MatrixBase<Derived>& a) {
     return update(a, PlusAssign<>());
   }
 
   /// Subtracts a matrix from this Submatrix element-wise.
   LIBGM_ENABLE_IF_N(is_mutable, typename Derived)
-  Submatrix& operator-=(const Eigen::MatrixBase<Derived>& a) {
+  SubMatrix& operator-=(const Eigen::MatrixBase<Derived>& a) {
     return update(a, MinusAssign<>());
   }
 
@@ -110,7 +110,7 @@ private:
    * coefficients of this Submatrix and the coefficients of a dense matrix a.
    */
   template <typename Derived, typename Op>
-  Submatrix& update(const Eigen::MatrixBase<Derived>& input, Op op) {
+  SubMatrix& update(const Eigen::MatrixBase<Derived>& input, Op op) {
     assert(rows() == input.rows());
     assert(cols() == input.cols());
     size_t j = 0;
@@ -127,7 +127,6 @@ private:
       }
       j += c.length;
     }
-  }
     return *this;
   }
 
@@ -143,10 +142,10 @@ private:
 
 /**
  * Creates a view of a matrix for spans of rows and columns.
- * \relates Submatrix
+ * \relates SubMatrix
  */
 template <typename Matrix>
-inline Submatrix<Matrix> sub(Matrix& a, const Spans& rows, const Spans& cols) {
+inline SubMatrix<Matrix> sub(Matrix& a, const Spans& rows, const Spans& cols) {
   return { a, rows, cols };
 }
 
@@ -156,7 +155,7 @@ inline Submatrix<Matrix> sub(Matrix& a, const Spans& rows, const Spans& cols) {
 namespace Eigen::internal {
 
 template <typename Matrix>
-struct traits<libgm::Submatrix<Matrix> > {
+struct traits<libgm::SubMatrix<Matrix> > {
   typedef std::remove_const_t<Matrix> ReturnType;
 };
 

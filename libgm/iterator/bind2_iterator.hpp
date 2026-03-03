@@ -1,6 +1,6 @@
 #pragma once
 
-#include <boost/iterator/iterator_facade.hpp>
+#include <boost/stl_interfaces/iterator_interface.hpp>
 
 namespace libgm {
 
@@ -8,37 +8,33 @@ namespace libgm {
  * An iterator that constructs a binary object, consisting of a fixed key
  * and elements of a range defined by another iterator.
  */
-template <typename It, typename Result, typename Second = std::iterator_traits<It>::value_type>
-class Bind2Iterator :
-  : public boost::iterator_facade<
-      Bind2Iterator
-      Result,
+template <typename IT,
+          typename RESULT,
+          typename SECOND = typename std::iterator_traits<IT>::value_type>
+class Bind2Iterator
+  : public boost::stl_interfaces::proxy_iterator_interface<
+      Bind2Iterator<IT, RESULT, SECOND>,
       std::forward_iterator_tag,
-      Result
+      RESULT
     > {
 public:
   Bind2Iterator() = default;
 
-  Bind2Iterator(It it, Second second)
+  Bind2Iterator(IT it, SECOND second)
     : it_(it), second_(second) { }
 
-private:
-  friend class boost::iterator_core_access;
-
-  void increment() {
-    ++it_;
-  }
-
-  bool equal(const Bind2Iterator& other) const {
-    return it_ == other.it_;
-  }
-
-  Result dereference() const {
+  RESULT operator*() const {
     return { *it_, second_ };
   }
 
-  It it_;
-  Second second_;
+private:
+  friend boost::stl_interfaces::access;
+
+  IT& base_reference() noexcept { return it_; }
+  const IT& base_reference() const noexcept { return it_; }
+
+  IT it_;
+  SECOND second_;
 
 }; // class Bind2Iterator
 

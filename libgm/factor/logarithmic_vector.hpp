@@ -1,7 +1,7 @@
-#ifndef LIBGM_LOGARITHMIC_VECTOR_HPP
-#define LIBGM_LOGARITHMIC_VECTOR_HPP
+#pragma once
 
 #include <libgm/argument/shape.hpp>
+#include <libgm/assignment/discrete_values.hpp>
 #include <libgm/factor/implements.hpp>
 #include <libgm/factor/interfaces.hpp>
 #include <libgm/math/eigen/dense.hpp>
@@ -11,11 +11,11 @@
 
 #include <initializer_list>
 
+namespace libgm {
+
 // Forward declarations
 template <typename T> class LogarithmicTable;
 template <typename T> class ProbabilityVector;
-
-namespace libgm {
 
 /**
   * A factor of a categorical logarithmic distribution whose domain
@@ -33,68 +33,68 @@ namespace libgm {
   */
 template <typename T>
 class LogarithmicVector
-  : Implements<
+  : public Object,
+    public Implements<
       // Direct operations
-      Multiply<LogarithmicVector, Exp<T>>,
-      Multiply<LogarithmicVector, LogarithmicVector>,
-      MultiplyIn<LogarithmicVector, Exp<T>>,
-      MultiplyIn<LogarithmicVector, LogarithmicVector>,
-      Divide<LogarithmicVector, Exp<T>>,
-      Divide<LogarithmicVector, LogarithmicVector>,
-      DivideIn<LogarithmicVector, Exp<T>>,
-      DivideIn<LogarithmicVector, LogarithmicVector>,
+      Multiply<LogarithmicVector<T>, Exp<T>>,
+      Multiply<LogarithmicVector<T>, LogarithmicVector<T>>,
+      MultiplyIn<LogarithmicVector<T>, Exp<T>>,
+      MultiplyIn<LogarithmicVector<T>, LogarithmicVector<T>>,
+      Divide<LogarithmicVector<T>, Exp<T>>,
+      Divide<LogarithmicVector<T>, LogarithmicVector<T>>,
+      DivideIn<LogarithmicVector<T>, Exp<T>>,
+      DivideIn<LogarithmicVector<T>, LogarithmicVector<T>>,
 
       // Arithmetic
-      Power<LogarithmicVector, T>,
-      WeightedUpdate<LogarithmicVector, T>,
+      Power<LogarithmicVector<T>, T>,
+      WeightedUpdate<LogarithmicVector<T>, T>,
 
       // Aggregates
-      Marginal<LogarithmicVector, Exp<T>>,
-      Maximum<LogarithmicVector, Exp<T>>,
-      Minimum<LogarithmicVector, Exp<T>>,
-
-      // Normalization
-      Normalize<LogarithmicVector>,
+      Maximum<LogarithmicVector<T>, Exp<T>, DiscreteValues>,
+      Minimum<LogarithmicVector<T>, Exp<T>, DiscreteValues>,
 
       // Entropy and divergences
-      Entropy<LogarithmicVector, T>,
-      CrossEntropy<LogarithmicVector, T>,
-      KlDivergence<LogarithmicVector, T>,
-      SumDifference<LogarithmicVector, T>,
-      MaxDifference<LogarithmicVector, T>
+      Entropy<LogarithmicVector<T>, T>,
+      CrossEntropy<LogarithmicVector<T>, T>,
+      KlDivergence<LogarithmicVector<T>, T>,
+      SumDifference<LogarithmicVector<T>, T>,
+      MaxDifference<LogarithmicVector<T>, T>
     > {
 public:
-  // Public types
-  //--------------------------------------------------------------------------
-  using real_type = T;
-  using result_type = logarithmic<T>;
-  using ll_type = LogarithmicVectorLL<T>;
+  /// The result of applying this factor to an index.
+  using result_type = Exp<T>;
+
+  /// Implementation class.
+  struct Impl;
+
+  /// Functino table
+  static const typename LogarithmicVector::VTable vtable;
 
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
-public:
+
   /// Default constructor. Creates an empty factor.
   LogarithmicVector() = default;
 
-  /// Constructs a factor with given length and uninitialized parameters.
-  explicit LogarithmicVector(size_t length);
-
   /// Constructs a factor with the given length and constant value.
-  LogarithmicVector(size_t length, Exp<T> x);
+  explicit LogarithmicVector(size_t length, Exp<T> x = Exp<T>(0));
 
-  /// Constructs a factor with the given parameters.
-  LogarithmicVector(DenseVector<T> param);
+  /// Constructs a factor with the given shape and constant value.
+  explicit LogarithmicVector(const Shape& shape, Exp<T> x = Exp<T>(0));
 
   /// Constructs a factor with the given parameters.
   LogarithmicVector(std::initializer_list<T> params);
+
+  /// Constructs a factor with the given parameters.
+  template <typename DERIVED>
+  LogarithmicVector(const Eigen::DenseBase<DERIVED>& base) {
+    param() = base;
+  }
 
   /// Swaps the content of two LogarithmicVector factors.
   friend void swap(LogarithmicVector& f, LogarithmicVector& g) {
     std::swap(f.impl_, g.impl_);
   }
-
-  /// Resets the content of this factor to the given arguments.
-  void reset(size_t length);
 
   // Accessors
   //--------------------------------------------------------------------------
@@ -108,10 +108,10 @@ public:
   size_t size() const;
 
   /// Provides mutable access to the parameter array of this factor.
-  DenseVector<T>& param();
+  Eigen::Array<T, Eigen::Dynamic, 1>& param();
 
   /// Returns the parameter array of this factor.
-  const DenseVector<T>& param() const;
+  const Eigen::Array<T, Eigen::Dynamic, 1>& param() const;
 
   /// Returns the value of the factor for the given row.
   Exp<T> operator()(size_t row) const {
@@ -119,7 +119,7 @@ public:
   }
 
   /// Returns the value of the factor for the given assignment.
-  Exp<T> operator()(const Values& values) const {
+  Exp<T> operator()(const DiscreteValues& values) const {
     return Exp<T>(log(values));
   }
 
@@ -127,7 +127,7 @@ public:
   T log(size_t row) const;
 
   /// Returns the log-value of the factor for the given index.
-  T log(const Values& values) const;
+  T log(const DiscreteValues& values) const;
 
   /// Converts this vector of log-probabilities to a vector of probabilities.
   ProbabilityVector<T> probability() const;
@@ -135,8 +135,10 @@ public:
   /// Converts this vector to a table.
   LogarithmicTable<T> table() const;
 
+private:
+  Impl& impl();
+  const Impl& impl() const;
+
 }; // class LogarithmicVector
 
 } // namespace libgm
-
-#endif

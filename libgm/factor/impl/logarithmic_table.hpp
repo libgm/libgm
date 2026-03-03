@@ -2,6 +2,7 @@
 
 #include "../logarithmic_table.hpp"
 
+#include <libgm/datastructure/table_operations.hpp>
 #include <libgm/factor/logarithmic_vector.hpp>
 #include <libgm/factor/logarithmic_matrix.hpp>
 #include <libgm/factor/probability_table.hpp>
@@ -17,351 +18,272 @@
 namespace libgm {
 
 template <typename T>
-struct LogarithmicTable<T>::Impl {
+struct LogarithmicTable<T>::Impl : Object::Impl {
   Table<T> param;
+
+  template <typename ARCHIVE>
+  void serialize(ARCHIVE& ar) {
+    ar(param);
+  }
+
+  // Constructors
+  //--------------------------------------------------------------------------
+
+  Impl() = default;
+
+  explicit Impl(Shape shape)
+    : param(std::move(shape)) {}
+
+  explicit Impl(Table<T> param)
+    : param(std::move(param)) {}
+
+  const T* begin() const {
+    return param.begin();
+  }
+
+  const T* end() const {
+    return param.end();
+  }
 
   // Object operations
   //--------------------------------------------------------------------------
 
-  void equals(const Object& other) const override {
-    return param == impl(other).param;
+  Impl* clone() const override {
+    return new Impl(*this);
   }
 
   void print(std::ostream& out) const override {
     out << param;
   }
 
-  void save(oarchive& ar) const {
-    ar << param;
-  }
-
-  void load(iarchive& ar) {
-    ar >> param;
-  }
-
   // Assignment
   //--------------------------------------------------------------------------
 
   void assign(const Exp<T>& x) {
-    param.reset({}, x.lv);
+    param.reset({});
+    param[0] = x.lv;
   }
 
   // Direct operations
   //--------------------------------------------------------------------------
 
-  ImplPtr multiply(const Exp<T>& x) const {
-    return std::make_unique<Impl>(transform(param, IncrementedBy<T>(x.lv)));
+  void multiply(const Exp<T>& x, LogarithmicTable& result) const {
+    transform(param, IncrementedBy<T>(x.lv), result.param());
   }
 
-  ImplPtr divide(const Exp<T>& x) const {
-    return std::make_unique<Impl>(transform(param, DecrementedBy<T>(x.lv));)
+  void divide(const Exp<T>& x, LogarithmicTable& result) const {
+    transform(param, DecrementedBy<T>(x.lv), result.param());
   }
 
-  ImplPtr divide_inverse(const Exp<T>& x) const {
-    return std::make_unique<Impl>(transform(param, SubtractedFrom<T>(x.lv)));
+  void divide_inverse(const Exp<T>& x, LogarithmicTable& result) const {
+    transform(param, SubtractedFrom<T>(x.lv), result.param());
   }
 
-  ImplPtr multiply(const Object& other) const {
-    return std::make_unique<Impl>(transform(param, impl(other).param, std::plus<T>()));
+  void multiply(const LogarithmicTable& other, LogarithmicTable& result) const {
+    transform(param, other.param(), std::plus<T>(), result.param());
   }
 
-  ImplPtr divide(const Object& other) const {
-    return std::make_unique<Impl>(transform(param, impl(other).param, std::minus<T>()));
+  void divide(const LogarithmicTable& other, LogarithmicTable& result) const {
+    transform(param, other.param(), std::minus<T>(), result.param());
   }
 
   void multiply_in(const Exp<T>& x) {
-    param.transform(IncrementedBy<T>(x.lv));
+    transform_in(param, IncrementedBy<T>(x.lv));
   }
 
   void divide_in(const Exp<T>& x) {
-    param.transform(DecrementedBy<T>(x.lv));
+    transform_in(param, DecrementedBy<T>(x.lv));
   }
 
-  void multiply_in(const Object& other) {
-    param.transform(impl(other).param, std::plus<T>());
+  void multiply_in(const LogarithmicTable& other) {
+    transform_in(param, other.param(), std::plus<T>());
   }
 
-  void divide_in(const Object& other) {
-    param.transform(impl(other).param, std::minus<T>());
+  void divide_in(const LogarithmicTable& other) {
+    transform_in(param, other.param(), std::minus<T>());
   }
 
   // Join operations
   //--------------------------------------------------------------------------
 
-  template <typename Op>
-  ImplPtr join_front(const Object& other, Op op) const {
-    return std::make_unique<Impl>(libgm::join_front(param, impl(other).param, op));
+  void multiply_front(const LogarithmicTable& other, LogarithmicTable& result) const {
+    join_front(param, other.param(), std::plus<T>(), result.param());
   }
 
-  template <typename Op>
-  ImplPtr join_back(const Object& other, Op op) const {
-    return std::make_unique<Impl>(libgm::join_back(param, impl(other).param, op));
+  void multiply_back(const LogarithmicTable& other, LogarithmicTable& result) const {
+    join_back(param, other.param(), std::plus<T>(), result.param());
   }
 
-  template <typename Op>
-  ImplPtr join(const Object& other, const Dims& i, const Dims& j, Op op) const {
-    return std::make_unique<Impl>(join(param, impl(other).param, i, j, std::plus<T>()));
+  void multiply_dims(const LogarithmicTable& other, const Dims& i, const Dims& j, LogarithmicTable& result) const {
+    join(param, other.param(), i, j, std::plus<T>(), result.param());
   }
 
-  ImplPtr multiply_front(const Object& other) const {
-    return join_front(other, std::plus<T>());
+  void divide_front(const LogarithmicTable& other, LogarithmicTable& result) const {
+    join_front(param, other.param(), std::minus<T>(), result.param());
   }
 
-  ImplPtr multiply_back(const Object& other) const {
-    return join_back(other, std::plus<T>());
+  void divide_back(const LogarithmicTable& other, LogarithmicTable& result) const {
+    join_back(param, other.param(), std::minus<T>(), result.param());
   }
 
-  ImplPtr multiply(const Object& other, const Dims& i, const Dims& j) const {
-    return join(other, i, j, std::plus<T>());
+  void divide_dims(const LogarithmicTable& other, const Dims& i, const Dims& j, LogarithmicTable& result) const {
+    join(param, other.param(), i, j, std::minus<T>(), result.param());
   }
 
-  ImplPtr divide_front(const Object& other) const {
-    return join_front(other, std::minus<T>());
+  void multiply_in_front(const LogarithmicTable& other) {
+    join_in_front(param, other.param(), std::plus<T>());
   }
 
-  ImplPtr divide_back(const Object& other) const {
-    return join_back(other, std::minus<T>());
+  void multiply_in_back(const LogarithmicTable& other) {
+    join_in_back(param, other.param(), std::plus<T>());
   }
 
-  ImplPtr divide(const Object& other, const Dims& i, const Dims& j) const {
-    return join(other, i, j, std::minus<T>());
+  void multiply_in_dims(const LogarithmicTable& other, const Dims& dims) {
+    join_in(param, other.param(), dims, std::plus<T>());
   }
 
-  void multiply_in_front(const Object& other) {
-    param.join_front(impl(other).param, std::plus<T>());
+  void divide_in_front(const LogarithmicTable& other) {
+    join_in_front(param, other.param(), std::minus<T>());
   }
 
-  void multiply_in_back(const Object& other) {
-    param.join_back(impl(other).param, std::plus<T>());
+  void divide_in_back(const LogarithmicTable& other) {
+    join_in_back(param, other.param(), std::minus<T>());
   }
 
-  void multiply_in(const Object& other, const Dims& dims) {
-    param.join(impl(other).param, dims, std::plus<T>());
-  }
-
-  void divide_in_front(const Object& other) {
-    param.join_front(impl(other).param, std::minus<T>());
-  }
-
-  void divide_in_back(const Object& other) {
-    param.join_back(impl(other).param, std::minus<T>());
-  }
-
-  void divide_in(const Object& other, const Dims& dims) {
-    param.join(impl(other).param, dims, std::minus<T>());
+  void divide_in_dims(const LogarithmicTable& other, const Dims& dims) {
+    join_in(param, other.param(), dims, std::minus<T>());
   }
 
   // Arithmetic operations
   //--------------------------------------------------------------------------
 
-  ImplPtr pow(T x) const {
-    return std::make_unique<Impl>(transform(param, MultipliedBy<T>(x)));
+  void power(T x, LogarithmicTable& result) const {
+    transform(param, MultipliedBy<T>(x), result.param());
   }
 
-  ImplPtr weighted_update(const Object& other, T x) const {
-    return std::make_unique<Impl>(transform(param, impl(other).param, WeightedPlus<T>(1 - x, x)));
+  void weighted_update(const LogarithmicTable& other, T x, LogarithmicTable& result) const {
+    transform(param, other.param(), WeightedPlus<T>(1 - x, x), result.param());
   }
 
   // Aggregates
   //--------------------------------------------------------------------------
 
-  Exp<T> marginal() const {
-    T offset = maximum().lv;
-    T sum = param.accumulate(T(0), PlusExponent<T>(-offset));
-    return Exp<T>(std::log(sum) + offset);
-  }
-
-  Exp<T> maximum(Values* values) const {
-    auto it = std::max_element(param.begin(), param.end());
+  Exp<T> maximum(DiscreteValues* values) const {
+    auto it = std::max_element(begin(), end());
     if (values) {
-      param.offset().vector(it - param.begin(), values->resize<size_t>(param.arity()));
+      *values = param.shape().index(it - begin());
     }
     return Exp<T>(*it);
   }
 
-  Exp<T> minimum(Values* values) const {
-    auto it = std::min_element(param.begin(), param.end());
+  Exp<T> minimum(DiscreteValues* values) const {
+    auto it = std::min_element(begin(), end());
     if (values) {
-      param.offset().vector(it - param.begin(), values->resize<size_t>(param.arity()));
+      *values = param.shape().index(it - begin());
     }
     return Exp<T>(*it);
   }
 
-  template <typename Op>
-  ImplPtr aggregate_front(Op op, T init, unsigned n) const {
-    return std::make_unique<Impl>(param.aggregate_front(op, init, n));
+  void maximum_front(unsigned n, LogarithmicTable& result) const {
+    aggregate_front(param, n, -inf<T>(), MaximumOp<T>(), result.param());
   }
 
-  template <typename Op>
-  ImplPtr aggregate_back(Op op, T init, unsigned n) const {
-    return std::make_unique<Impl>(param.aggregate_back(op, init, n));
+  void maximum_back(unsigned n, LogarithmicTable& result) const {
+    aggregate_back(param, n, -inf<T>(), MaximumOp<T>(), result.param());
   }
 
-  template <typename Op>
-  ImplPtr aggregate(Op op, T init, const Dims& retain) const {
-    return std::make_unique<Impl>(param.aggregate(op, init, retain));
+  void maximum_dims(const Dims& retain, LogarithmicTable& result) const {
+    aggregate(param, retain, -inf<T>(), MaximumOp<T>(), result.param());
   }
 
-  ImplPtr marginal_front(unsigned n) const {
-    return aggregate_front(LogPlusExp<T>(), -inf<T>(), n);
+  void minimum_front(unsigned n, LogarithmicTable& result) const {
+    aggregate_front(param, n, inf<T>(), MinimumOp<T>(), result.param());
   }
 
-  ImplPtr marginal_back(unsigned n) const {
-    return aggregate_back(LogPlusExp<T>(), -inf<T>(), n);
+  void minimum_back(unsigned n, LogarithmicTable& result) const {
+    aggregate_back(param, n, inf<T>(), MinimumOp<T>(), result.param());
   }
 
-  ImplPtr marginal(const Dims& retain) const {
-    return aggregate(LogPlusExp<T>(), -inf<T>(), retain);
-  }
-
-  ImplPtr maximum_front(unsigned n) const {
-    return aggregate_front(Maximum<T>(), -inf<T>(), n);
-  }
-
-  ImplPtr maximum_back(unsigned n) const {
-    return aggregate_back(Maximum<T>(), -inf<T>(), n);
-  }
-
-  ImplPtr maximum(const Dims& retain) const {
-    return aggregate(Maximum<T>(), -inf<T>(), retain);
-  }
-
-  ImplPtr minimum_front(unsigned n) const {
-    return aggregate_front(Minimum<T>(), inf<T>(), n);
-  }
-
-  ImplPtr minimum_back(unsigned n) const {
-    return aggregate_back(Minimum<T>(), inf<T>(), n);
-  }
-
-  ImplPtr minimum(const Dims& retain) const {
-    return aggregate(Minimum<T>(), inf<T>(), retain);
-  }
-
-  // Normalization
-  //--------------------------------------------------------------------------
-
-  void normalize() {
-    divide_in(marginal());
-  }
-
-  ImplPtr conditional(size_t nhead) const {
-    // return make_table_function_noalias<log_tag>(
-    //   [nhead](const Derived& f, paramtype& result) {
-    //     f.param().join_aggregated([](const T* b, const T* e) {
-    //         return log_sum_exp(b, e);
-    //       }, std::minus<T>(), nhead, result);
-    //   }, derived().arity(), derived()
-    // );
+  void minimum_dims(const Dims& retain, LogarithmicTable& result) const {
+    aggregate(param, retain, inf<T>(), MinimumOp<T>(), result.param());
   }
 
   // Restrictions
   //--------------------------------------------------------------------------
 
-  ImplPtr restrict_head(const Values& values) const {
-    return std::make_unique<Impl>(param.restrict_front(values.size(), values.ptr<size_t>()));
+  void restrict_front(const DiscreteValues& values, LogarithmicTable& result) const {
+    libgm::restrict_front(param, values.vec(), result.param());
   }
 
-  ImplPtr restrict_tail(const Values& values) const {
-    return std::make_unique<Impl>(param.restrict_back(values.size(), values.ptr<size_t>()));
+  void restrict_back(const DiscreteValues& values, LogarithmicTable& result) const {
+    libgm::restrict_back(param, values.vec(), result.param());
   }
 
-  ImplPtr restrict_dims(const Dims& dims, const Values& values) const {
-    assert(dims.count() == values.size());
-    return std::make_unique<Impl>(param.restrict(dims, values.ptr<size_t>()));
+  void restrict_dims(const Dims& dims, const DiscreteValues& values, LogarithmicTable& result) const {
+    libgm::restrict(param, dims, values.vec(), result.param());
   }
 
   // Entropy and divergences
   //--------------------------------------------------------------------------
 
   T entropy() const {
-    return transform_accumulate(param, EntropyLogOp<T>(), std::plus<T>(), T(0));
+    return std::accumulate(begin(), end(), T(0), [](T accu, T val) {
+      return accu + EntropyLogOp<T>()(val);
+    });
   }
 
-  T cross_entropy(const Object& other) const {
-    return transform_accumulate(param, impl(other).param, EntropyLogOp<T>(), std::plus<T>(), T(0));
+  template <typename AccuOp, typename TransOp>
+  T transform_accumulate(const LogarithmicTable& other, AccuOp accu, TransOp trans) const {
+    assert(param.shape() == other.shape());
+    return std::inner_product(begin(), end(), other.impl().begin(), T(0), accu, trans);
   }
 
-  T kl_divergence(const Object& other) const {
-    return transform_accumulate(param, impl(other).param, KldLogOp<T>(), std::plus<T>(), T(0));
+  T cross_entropy(const LogarithmicTable& other) const {
+    return transform_accumulate(other, std::plus<T>(), EntropyLogOp<T>());
   }
 
-  T sum_diff(const Object& other) const {
-    return transform_accumulate(param, impl(other).param, AbsDifference<T>(), std::plus<T>(), T(0));
+  T kl_divergence(const LogarithmicTable& other) const {
+    return transform_accumulate(param, std::plus<T>(), KldLogOp<T>());
   }
 
-  T max_diff(const Object& other) const {
-    return transform_accumulate(param, impl(other).param, AbsDifference<T>(), Maximum<T>(), T(0));
+  T sum_difference(const LogarithmicTable& other) const {
+    return transform_accumulate(param, std::plus<T>(), AbsDifference<T>());
   }
 
-#if 0
-  // Sampling
-  //--------------------------------------------------------------------------
-
-  MultivariateCategoricalDistribution<T> distribution() const {
-    return { param, log_tag() };
+  T max_difference(const LogarithmicTable& other) const {
+    return transform_accumulate(param, MaximumOp<T>(), AbsDifference<T>());
   }
-
-  /**
-    * Draws a random sample from a marginal distribution represented by this
-    * expression.
-    *
-    * \throw std::out_of_range
-    *        may be thrown if the distribution is not normalized
-    */
-  template <typename Generator>
-  uint_vector sample(Generator& rng) const {
-    uint_vector result; sample(rng, result); return result;
-  }
-
-  /**
-    * Draws a random sample from a marginal distribution represented by this
-    * expression, storing the result in an output vector.
-    *
-    * \throw std::out_of_range
-    *        may be thrown if the distribution is not normalized
-    */
-  template <typename Generator>
-  void sample(Generator& rng, uint_vector& result) const {
-    T p = std::uniform_real_distribution<T>()(rng);
-    param.find_if(compose(PartialSumGreaterThan<T>(p), Exponent<T>()), result);
-  }
-#endif
 
 }; // class LogarithmicTable<T>::Impl
 
 template <typename T>
-LogarithmicTable<T>::LogarithmicTable(Exp<T> value) {
-  reset({});
+LogarithmicTable<T>::LogarithmicTable(Exp<T> value)
+  : Object(std::make_unique<Impl>()) {
   param()[0] = value.lv;
 }
 
 template <typename T>
-LogarithmicTable<T>::LogarithmicTable(const Shape& shape, Exp<T> value) {
-  reset(shape);
+LogarithmicTable<T>::LogarithmicTable(Shape shape, Exp<T> value)
+  : Object(std::make_unique<Impl>(std::move(shape))) {
   param().fill(value.lv);
 }
 
 template <typename T>
-LogarithmicTable<T>::LogarithmicTable(const Shape& shape, std::initializer_list<T> values) {
-  reset(shape);
-  assert(values.size() == param().size());
+LogarithmicTable<T>::LogarithmicTable(Shape shape, std::initializer_list<T> values)
+  : Object(std::make_unique<Impl>(std::move(shape))) {
+  assert(values.size() == size());
   std::copy(values.begin(), values.end(), param().begin());
 }
 
 template <typename T>
-LogarithmicTable<T>::LogarithmicTable(Table<T> param) {
-  impl_.reset(new Impl(std::move(param)));
+LogarithmicTable<T>::LogarithmicTable(Shape shape, const T* values)
+  : Object(std::make_unique<Impl>(std::move(shape))) {
+  std::copy(values, values + size(), param().begin());
 }
 
 template <typename T>
-void LogarithmicTable<T>::reset(const Shape& shape) {
-  if (!impl_) {
-    impl_.reset(new Impl(shape));
-  } else if (param().shape() != shape) {
-    param().reset(shape);
-  }
-}
+LogarithmicTable<T>::LogarithmicTable(Table<T> param)
+  : Object(std::make_unique<Impl>(std::move(param))) {}
 
 template <typename T>
 size_t LogarithmicTable<T>::arity() const {
@@ -380,6 +302,9 @@ const Shape& LogarithmicTable<T>::shape() const {
 
 template <typename T>
 Table<T>& LogarithmicTable<T>::param() {
+  if (!impl_) {
+    impl_.reset(new Impl);
+  }
   return impl().param;
 }
 
@@ -389,28 +314,76 @@ const Table<T>& LogarithmicTable<T>::param() const {
 }
 
 template <typename T>
-const Exp<T>& LogarithmicTable<T>::operator()(const Assignment& a) const {
-  return Exp<T>(param()(a.ptr<size_t>()));
+Exp<T> LogarithmicTable<T>::operator()(const DiscreteValues& values) const {
+  return Exp<T>(param()(values.vec()));
 }
 
 template <typename T>
-T LogarithmicTable<T>::log(const Assignment& a) const {
-  return param()(a.ptr<size_t>())
+T LogarithmicTable<T>::log(const DiscreteValues& values) const {
+  return param()(values.vec());
 }
 
 template <typename T>
 ProbabilityTable<T> LogarithmicTable<T>::probability() const {
-  return ProbabilityTable<T>(transform(param(), Exponent<T>()));
+  ProbabilityTable<T> result;
+  transform(param(), ExponentOp<T>(), result.param());
+  return result;
 }
 
 template <typename T>
 LogarithmicVector<T> LogarithmicTable<T>::vector() const {
-  // TODO: use Eigen::Map
+  assert(arity() == 1);
+  return Eigen::Map<const Eigen::Array<T, Eigen::Dynamic, 1>>(param().data(), size());
 }
 
 template <typename T>
 LogarithmicMatrix<T> LogarithmicTable<T>::matrix() const {
-  // TODO: use Eigen::Map
+  assert(arity() == 2);
+  using Array = Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic>;
+  return Eigen::Map<const Array>(param().data(), param().size(0), param().size(1));
 }
+
+template <typename T>
+const typename LogarithmicTable<T>::VTable LogarithmicTable<T>::vtable{
+  &LogarithmicTable<T>::Impl::multiply,
+  &LogarithmicTable<T>::Impl::multiply,
+  &LogarithmicTable<T>::Impl::multiply_in,
+  &LogarithmicTable<T>::Impl::multiply_in,
+  &LogarithmicTable<T>::Impl::divide,
+  &LogarithmicTable<T>::Impl::divide_inverse,
+  &LogarithmicTable<T>::Impl::divide,
+  &LogarithmicTable<T>::Impl::divide_in,
+  &LogarithmicTable<T>::Impl::divide_in,
+  &LogarithmicTable<T>::Impl::multiply_front,
+  &LogarithmicTable<T>::Impl::multiply_back,
+  &LogarithmicTable<T>::Impl::multiply_dims,
+  &LogarithmicTable<T>::Impl::multiply_in_front,
+  &LogarithmicTable<T>::Impl::multiply_in_back,
+  &LogarithmicTable<T>::Impl::multiply_in_dims,
+  &LogarithmicTable<T>::Impl::divide_front,
+  &LogarithmicTable<T>::Impl::divide_back,
+  &LogarithmicTable<T>::Impl::divide_dims,
+  &LogarithmicTable<T>::Impl::divide_in_front,
+  &LogarithmicTable<T>::Impl::divide_in_back,
+  &LogarithmicTable<T>::Impl::divide_in_dims,
+  &LogarithmicTable<T>::Impl::power,
+  &LogarithmicTable<T>::Impl::weighted_update,
+  &LogarithmicTable<T>::Impl::maximum,
+  &LogarithmicTable<T>::Impl::minimum,
+  &LogarithmicTable<T>::Impl::maximum_front,
+  &LogarithmicTable<T>::Impl::maximum_back,
+  &LogarithmicTable<T>::Impl::maximum_dims,
+  &LogarithmicTable<T>::Impl::minimum_front,
+  &LogarithmicTable<T>::Impl::minimum_back,
+  &LogarithmicTable<T>::Impl::minimum_dims,
+  &LogarithmicTable<T>::Impl::restrict_front,
+  &LogarithmicTable<T>::Impl::restrict_back,
+  &LogarithmicTable<T>::Impl::restrict_dims,
+  &LogarithmicTable<T>::Impl::entropy,
+  &LogarithmicTable<T>::Impl::cross_entropy,
+  &LogarithmicTable<T>::Impl::kl_divergence,
+  &LogarithmicTable<T>::Impl::sum_difference,
+  &LogarithmicTable<T>::Impl::max_difference,
+};
 
 } // namespace libgm

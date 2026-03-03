@@ -1,4 +1,4 @@
-#pragma once
+#include "decomposable.hpp"
 
 #include <functional>
 #include <vector>
@@ -49,9 +49,9 @@ const Potential& potential(Edge* e) const {
   return operator[](e).cast<Potential>();
 }
 
-Potential Decomposable::marginal(const Domain& domain) const {
+std::unique_ptr<Potential> Decomposable::marginal(const Domain& domain) const {
   if (domain.empty()) {
-    return Potential::one({});
+    return one({});
   }
 
   // Look for a separator that covers the arguments.
@@ -67,13 +67,13 @@ Potential Decomposable::marginal(const Domain& domain) const {
   }
 
   // Otherwise, compute the factors whose product represents the marginal...
-  FactorGraphT<Potential> fg;
+  FactorGraphT<std::unique_ptr<Potential>> fg;
   marginal(domain, fg);
 
   // ... and combine them all
-  Potential result(domain.shape(shape_map));
+  std::unique_ptr<Potential> result = ones(domain.shape(shape_map));
   for (FactorGraph::Factor* f : fg.factors()) {
-    result.multiply_in(fg[f], domain.dims(fg.arguments(f)));
+    result->multiply_in(fg[f], domain.dims(fg.arguments(f)));
   }
 
   return result;

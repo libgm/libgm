@@ -1,56 +1,53 @@
-#ifndef LIBGM_COUNTING_OUTPUT_ITERATOR_HPP
-#define LIBGM_COUNTING_OUTPUT_ITERATOR_HPP
+#pragma once
 
 #include <iterator>
 
 namespace libgm {
 
-  /**
-   * An output iterator that counts how many times a value has been stored.
-   * Similarly to insert iterators in STL, operator* returns itself, so that
-   * operator= can increase the counter.
-   * \ingroup iterator
-   */
-  class counting_output_iterator
-    : public std::iterator<std::output_iterator_tag, void, void, void, void> {
+/**
+ * An output iterator that counts how many times a value has been stored.
+ * Similarly to insert iterators in STL, operator* returns itself, so that
+ * operator= can increase the counter.
+ * \ingroup iterator
+ */
+class CountingOutputIterator
+  : public std::iterator<std::output_iterator_tag, void, void, void, void> {
 
-  public:
-    //! Constructor.
-    counting_output_iterator() : counter_() {}
+public:
+  /// Constructor.
+  CountingOutputIterator() : counter_() {}
 
-    //! Increment the counter.
-    template <typename T>
-    counting_output_iterator& operator=(const T&) {
-      ++counter_;
-      return *this;
-    }
+  /// Increment the counter.
+  template <typename T>
+  CountingOutputIterator& operator=(const T&) {
+    ++counter_;
+    return *this;
+  }
 
-    //! Dereferences to en empty target object that can absorb any assignment.
-    counting_output_iterator& operator*() {
-      return *this;
-    }
+  /// Dereferences to en empty target object that can absorb any assignment.
+  CountingOutputIterator& operator*() {
+    return *this;
+  }
 
-    //! Returns *this with no side-effects.
-    counting_output_iterator& operator++() {
-      return *this;
-    }
+  /// Returns *this with no side-effects.
+  CountingOutputIterator& operator++() {
+    return *this;
+  }
 
-    //! Returns *this with no side-effects.
-    counting_output_iterator& operator++(int) {
-      return *this;
-    }
+  /// Returns *this with no side-effects.
+  CountingOutputIterator& operator++(int) {
+    return *this;
+  }
 
-    //! Returns the number of positions that have been assigned.
-    std::size_t count() const {
-      return counter_;
-    }
+  /// Returns the number of positions that have been assigned.
+  size_t count() const {
+    return counter_;
+  }
 
-  private:
-    //! The counter.
-    std::size_t counter_;
+private:
+  /// The counter.
+  size_t counter_;
 
-  }; // class counting_output_iterator
+}; // class CountingOutputIteraotr
 
 } // namespace libgm
-
-#endif

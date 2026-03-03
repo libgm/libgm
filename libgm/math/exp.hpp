@@ -1,7 +1,5 @@
 #pragma once
 
-#include <libgm/serialization/serialize.hpp>
-
 #include <cmath>
 #include <iostream>
 #include <limits>
@@ -31,6 +29,11 @@ struct Exp {
 
   /// The log space representation of \f$x\f$, i.e., the value \f$\log x\f$.
   T lv;
+
+  template <typename ARCHIVE>
+  void serialize(ARCHIVE& ar) {
+    ar(lv);
+  }
 
   // Constructors
   //======================================================================
@@ -67,20 +70,6 @@ struct Exp {
     return std::exp(lv);
   }
 
-  /**
-   * Serializes the logarithmic to an archive.
-   */
-  void save(oarchive& ar) const {
-    ar << lv;
-  }
-
-  /**
-   * Deserialize the logarithmic from an archive.
-   */
-  void load(iarchive& ar) {
-    ar >> lv;
-  }
-
   // Arithmetic operations
   //======================================================================
 
@@ -93,7 +82,7 @@ struct Exp {
    *          where this object represents \f$x\f$ in log-space
    */
   Exp operator*(const Exp& a) const {
-    return Exp(lv + a.lv, log_tag());
+    return Exp(lv + a.lv);
   }
 
   /**
@@ -105,7 +94,7 @@ struct Exp {
    *          represents \f$x\f$ in log-space
    */
   Exp operator/(const Exp& a) const {
-    return Exp(lv - a.lv, log_tag());
+    return Exp(lv - a.lv);
   }
 
   /**

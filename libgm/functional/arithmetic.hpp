@@ -219,9 +219,9 @@ struct Dividing {
  * A unary operator that computes the value raised to a fixed exponent.
  */
 template <typename T>
-struct Power {
+struct PowerOp {
   T a;
-  Power(T a) : a(a) { }
+  PowerOp(T a) : a(a) { }
 
   template <typename X>
   auto operator()(X&& x) const {
@@ -234,7 +234,7 @@ struct Power {
  * A unary operator that computes the log of its argument.
  */
 template <typename T = void>
-struct Logarithm {
+struct LogarithmOp {
   T operator()(const T& x) const { return std::log(x); }
 };
 
@@ -242,7 +242,7 @@ struct Logarithm {
  * Specialization of the logarithm class to custom types.
  */
 template <>
-struct Logarithm<void> {
+struct LogarithmOp<void> {
   template <typename X>
   auto operator()(X&& x) const {
     return log(x);
@@ -253,7 +253,7 @@ struct Logarithm<void> {
  * A unary operator that computes the exponent of its argument.
  */
 template <typename T = void>
-struct Exponent {
+struct ExponentOp {
   T operator()(const T& x) const { return std::exp(x); }
 };
 
@@ -261,7 +261,7 @@ struct Exponent {
  * Specialization of the exponent class to custom types.
  */
 template <>
-struct Exponent<void> {
+struct ExponentOp<void> {
   template <typename X>
   auto operator()(X&& x) const {
     return exp(x);

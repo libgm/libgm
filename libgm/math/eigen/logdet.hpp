@@ -1,7 +1,5 @@
 #pragma once
 
-#include <libgm/math/numerical_error.hpp>
-
 #include <Eigen/Cholesky>
 #include <Eigen/LU>
 
@@ -10,7 +8,7 @@ namespace libgm {
 template <typename Matrix>
 typename Matrix::Scalar logdet(const Eigen::LLT<Matrix>& chol) {
   if (chol.info() != Eigen::Success) {
-    throw numerical_error("logdet: Cholesky decomposition failed");
+    throw std::runtime_error("logdet: Cholesky decomposition failed");
   }
   return 2 * chol.matrixLLT().diagonal().array().log().sum();
 }

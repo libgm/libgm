@@ -1,6 +1,9 @@
 #pragma once
 
 #include <libgm/object.hpp>
+#include <libgm/vtable.hpp>
+
+#include <tuple>
 
 namespace libgm {
 
@@ -10,12 +13,8 @@ namespace libgm {
  * \tparam I The interfaces implemented by a factor.
  */
 template <typename... I>
-struct Implements : Object, I... {
-  using VTable = std::tuple<I::VTable...> {};
-
-  Implements(const VTable* vt, ImplPtr impl) : Object(vt, std::move(impl)) {}
-
-  template <typename Interface,
+struct Implements : I... {
+  struct VTable : InterfaceVTable<I>... {};
 };
 
 } // namespace libgm

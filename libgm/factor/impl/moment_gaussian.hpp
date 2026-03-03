@@ -471,3 +471,40 @@ void canonical() {
     lm = mg.lm - (m * std::log(two_pi<T>()) + logdet(chol)
                   + eta.segment(0, m).dot(mg.mean())) / T(2);
   }
+
+
+  T log_multiplier() const {
+    return param_.lm;
+  }
+
+  /// Returns the mean vector.
+  const Vector<T>& mean() const {
+    return param_.mean;
+  }
+
+  /// Returns the covariance matrix.
+  const Matrix<T>& covariance() const {
+    return param_.cov;
+  }
+
+  /// Returns the coefficient matrix.
+  const Matrix<T>& coefficients() const {
+    return param_.coef;
+  }
+
+  /// Evaluates the factor for a vector.
+  Exp<T> operator()(const RealValues<T>& v) const {
+    return Exp<T>(log(v));
+  }
+
+  /// Returns the log-value of the factor for a vector.
+  T log(const RealValues<T>& v) const {
+    return param_(v);
+  }
+
+  /// Normalizes this factor in-place.
+  void normalize() {
+    param_.lm = RealType(0);
+  }
+
+}; // class MomentGaussian

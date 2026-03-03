@@ -1,6 +1,7 @@
 #pragma once
 
 #include <libgm/argument/shape.hpp>
+#include <libgm/assignment/discrete_values.hpp>
 #include <libgm/factor/implements.hpp>
 #include <libgm/factor/interfaces.hpp>
 #include <libgm/math/eigen/dense.hpp>
@@ -25,96 +26,91 @@ template <typename T> class LogarithmicMatrix;
  * e.g. in a pairwise Markov network, there are no constraints on the
  * normalization of f.
  *
- * \tparam RealType a real type representing each parameter
+ * \tparam T a real type representing each parameter
  *
  * \ingroup factor_types
  * \see Factor
  */
 template <typename T>
-class ProbablityMatrix
-  : Implements<
+class ProbabilityMatrix
+  : public Object,
+    public Implements<
       // Direct operations
-      Multiply<ProbabilityMatrix, T>,
-      Multiply<ProbabilityMatrix, ProbabilityMatrix>,
-      MultiplyIn<ProbabilityMatrix, T>,
-      MultiplyIn<ProbabilityMatrix, ProbabilityMatrix>,
-      Divide<ProbabilityMatrix, T>,
-      Divide<ProbabilityMatrix, ProbabilityMatrix>,
-      DivideIn<ProbabilityMatrix, T>,
-      DivideIn<ProbabilityMatrix, ProbabilityMatrix>,
+      Multiply<ProbabilityMatrix<T>, T>,
+      Multiply<ProbabilityMatrix<T>, ProbabilityMatrix<T>>,
+      MultiplyIn<ProbabilityMatrix<T>, T>,
+      MultiplyIn<ProbabilityMatrix<T>, ProbabilityMatrix<T>>,
+      Divide<ProbabilityMatrix<T>, T>,
+      Divide<ProbabilityMatrix<T>, ProbabilityMatrix<T>>,
+      DivideIn<ProbabilityMatrix<T>, T>,
+      DivideIn<ProbabilityMatrix<T>, ProbabilityMatrix<T>>,
 
       // Join operations
-      MultiplySpan<ProbabilityMatrix, ProbabilityVector<T>>,
-      MultiplySpanIn<ProbabilityMatrix, ProbabilityVector<T>>,
-      DivideSpan<ProbabilityMatrix, ProbabilityVector<T>>,
-      DivideSpanIn<ProbabilityMatrix, ProbabilityVector<T>>,
+      MultiplySpan<ProbabilityMatrix<T>, ProbabilityVector<T>>,
+      MultiplyInSpan<ProbabilityMatrix<T>, ProbabilityVector<T>>,
+      DivideSpan<ProbabilityMatrix<T>, ProbabilityVector<T>>,
+      DivideInSpan<ProbabilityMatrix<T>, ProbabilityVector<T>>,
 
       // Arithmetic
-      Power<ProbabilityMatrix, T>,
-      WeightedUpdate<ProbabilityMatrix, T>,
+      Power<ProbabilityMatrix<T>, T>,
+      WeightedUpdate<ProbabilityMatrix<T>, T>,
 
       // Aggregates
-      Marginal<ProbabilityMatrix, T>,
-      Maximum<ProbabilityMatrix, T>,
-      Minimum<ProbabilityMatrix, T>,
-      MarginalSpan<ProbabilityMatrix, ProbabilityVector<T>>,
-      MaximumSpan<ProbabilityMatrix, ProbabilityVector<T>>,
-      MinimumSpan<ProbabilityMatrix, ProbabilityVector<T>>,
+      Marginal<ProbabilityMatrix<T>, T>,
+      Maximum<ProbabilityMatrix<T>, T, DiscreteValues>,
+      Minimum<ProbabilityMatrix<T>, T, DiscreteValues>,
+      MarginalSpan<ProbabilityMatrix<T>, ProbabilityVector<T>>,
+      MaximumSpan<ProbabilityMatrix<T>, ProbabilityVector<T>>,
+      MinimumSpan<ProbabilityMatrix<T>, ProbabilityVector<T>>,
 
       // Normalization
-      Normalize<ProbabilityMatrix>,
-      NormalizeHead<ProbabilityMatrix>,
+      Normalize<ProbabilityMatrix<T>>,
+      NormalizeHead<ProbabilityMatrix<T>>,
 
       // Restriction
-      RestrictSpan<ProbabilityMatrix, ProbabilityVector<T>>,
+      RestrictSpan<ProbabilityMatrix<T>, DiscreteValues, ProbabilityVector<T>>,
 
       // Reshaping
-      Transpose<ProbabilityMatrix>,
+      Transpose<ProbabilityMatrix<T>>,
 
       // Entropy and divergences
-      Entropy<ProbabilityMatrix, T>,
-      CrossEntropy<ProbabilityMatrix, T>,
-      KlDivergence<ProbabilityMatrix, T>,
-      SumDifference<ProbabilityMatrix, T>,
-      MaxDifference<ProbabilityMatrix, T>
+      Entropy<ProbabilityMatrix<T>, T>,
+      CrossEntropy<ProbabilityMatrix<T>, T>,
+      KlDivergence<ProbabilityMatrix<T>, T>,
+      SumDifference<ProbabilityMatrix<T>, T>,
+      MaxDifference<ProbabilityMatrix<T>, T>
     > {
 public:
-  // Public types
-  //--------------------------------------------------------------------------
+  using result_type = T;
 
-  using ll_type = ProbablityMatrixLL<T>;
+  /// Implementation class.
+  struct Impl;
 
-  // Constructors and conversion operators
-  //--------------------------------------------------------------------------
-public:
+  /// Function table.
+  static const typename ProbabilityMatrix::VTable vtable;
+
   /// Default constructor. Creates an empty factor.
-  ProbablityMatrix() = default;
-
-  /// Constructs a factor with the given shape and uninitialized parameters.
-  ProbablityMatrix(size_t rows, size_t cols);
-
-  /// Constructs a factor with the given shape and uninitialized parameters.
-  explicit ProbablityMatrix(const ShapeVec& shape);
+  ProbabilityMatrix() = default;
 
   /// Constructs a factor with the given shape and constant value.
-  ProbablityMatrix(size_t rows, size_t cols, T x);
+  explicit ProbabilityMatrix(size_t rows, size_t cols, T x = T(1));
 
   /// Constructs a factor with the given shape and constant value.
-  ProbablityMatrix(const ShapeVec& shape, T x);
-
-  /// Constructs a factor with the given parameters.
-  ProbablityMatrix(DenseMatrix<T> param);
+  explicit ProbabilityMatrix(const Shape& shape, T x = T(1));
 
   /// Constructs a factor with the given shape and parameters.
-  ProbablityMatrix(size_t rows, size_t cols, std::initializer_list<T> values);
+  ProbabilityMatrix(size_t rows, size_t cols, std::initializer_list<T> values);
 
-  /// Swaps the content of two ProbablityMatrix factors.
-  friend void swap(ProbablityMatrix& f, ProbablityMatrix& g) {
-    std::swap(f.impl_, g.impl_);
+  /// Constructs a factor with the given parameters.
+  template <typename DERIVED>
+  ProbabilityMatrix(const Eigen::DenseBase<DERIVED>& base) {
+    param() = base;
   }
 
-  /// Resets the content of this factor to the given shape.
-  void reset(size_t rows, size_t cols);
+  /// Swaps the content of two ProbabilityMatrix factors.
+  friend void swap(ProbabilityMatrix& f, ProbabilityMatrix& g) {
+    std::swap(f.impl_, g.impl_);
+  }
 
   // Accessors
   //--------------------------------------------------------------------------
@@ -132,36 +128,34 @@ public:
   size_t size() const;
 
   /// Provides access to the parameter array of this factor.
-  DenseMatrix<T>& param();
-  const DenseMatrix<T>& param() const;
+  Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic>& param();
+  const Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic>& param() const;
 
   /// Returns the value of the factor for the given row and column.
-  T operator()(size_t row, size_t col) const {
-    return T(log(row, col));
-  }
+  T operator()(size_t row, size_t col) const;
 
   /// Returns the value of the factor for the given index.
-  T operator()(const Values& values) const {
-    return T(log(values));
-  }
+  T operator()(const DiscreteValues& values) const;
 
   /// Returns the log-value of the factor for the given row and column.
-  RealType log(size_t row, size_t col) const;
+  T log(size_t row, size_t col) const;
 
   /// Returns the log-value of the factor for the given index.
-  RealType log(const Values& values) const;
+  T log(const DiscreteValues& values) const;
 
   // Conversions
   //--------------------------------------------------------------------------
 
   /// Converts this matrix of probabilities to a matrix of log-probabilities.
-  ProbabilityMatrix<T> logarithmic();
+  LogarithmicMatrix<T> logarithmic() const;
 
   /// Converts this matrix of probabiliteis to a table.
-  ProbablityTable<T> table() const;
+  ProbabilityTable<T> table() const;
 
-}; // class ProbablityMatrix
+private:
+  Impl& impl();
+  const Impl& impl() const;
+
+}; // class ProbabilityMatrix
 
 } // namespace libgm
-
-#endif

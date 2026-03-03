@@ -1,38 +1,26 @@
 #pragma once
 
+#include <libgm/factor/vtables/normalize.hpp>
+
 namespace libgm {
-
-namespace vtables {
-
-/// A virtual table for normalizing the entire factor (function).
-struct Normalize {
-  void (Object::Impl::*op)();
-};
-
-/// A virtual table for normalizing the given number of head dimensions.
-struct NormalizeHead {
-  void (Object::Impl::*op)(unsigned);
-};
-
-} // namepace vtables
 
 /// An interface for normalizing the entire factor.
 template <typename DERIVED>
 struct Normalize {
-  using VTable = vtables::Normalize;
+  using VTable = vtables::Normalize<DERIVED>;
 
   void normalize() {
-    DERIVED::call(&VTable::op, *this);
+    vtable_cast<Normalize>(DERIVED::vtable).op(*this);
   }
 };
 
 /// An interface for normalizing the given number of head dimensions.
 template <typename DERIVED>
 struct NormalizeHead {
-  using VTable = vtables::NormalizeHead;
+  using VTable = vtables::NormalizeHead<DERIVED>;
 
   void normalize_head(unsigned nhead) const {
-    DERIVED::call(&VTable::op, *this, nhead);
+    vtable_cast<NormalizeHead>(DERIVED::vtable).op(*this, nhead);
   }
 };
 

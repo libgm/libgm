@@ -1,6 +1,6 @@
 #pragma once
 
-#include <boost/iterator/iterator_facade.hpp>
+#include <boost/stl_interfaces/iterator_interface.hpp>
 
 namespace libgm {
 
@@ -8,37 +8,33 @@ namespace libgm {
  * An iterator that constructs a binary object, consisting of a fixed key
  * and elements of a range defined by another iterator.
  */
-template <typename It, typename Result, typename First = std::iterator_traits<It>::value_type>
+template <typename IT,
+          typename RESULT,
+          typename FIRST = typename std::iterator_traits<IT>::value_type>
 class Bind1Iterator
-  : public boost::iterator_facade<
-      Bind1Iterator
-      Result,
+  : public boost::stl_interfaces::proxy_iterator_interface<
+      Bind1Iterator<IT, RESULT, FIRST>,
       std::forward_iterator_tag,
-      Result
+      RESULT
     > {
 public:
   Bind1Iterator() = default;
 
-  Bind1Iterator(It it, First first)
+  Bind1Iterator(IT it, FIRST first)
     : it_(it), first_(first) { }
 
-private:
-  friend class boost::iterator_core_access;
-
-  void increment() {
-    ++it_;
-  }
-
-  bool equal(const Bind1Iterator& other) const {
-    return it_ == other.it_;
-  }
-
-  Result dereference() const {
+  RESULT operator*() const {
     return { first_, *it_ };
   }
 
-  It it_;
-  First first_;
+private:
+  friend boost::stl_interfaces::access;
+
+  IT& base_reference() noexcept { return it_; }
+  const IT& base_reference() const noexcept { return it_; }
+
+  IT it_;
+  FIRST first_;
 
 }; // class Bind1Iterator
 

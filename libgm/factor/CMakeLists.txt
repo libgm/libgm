@@ -1,0 +1,11 @@
+target_sources(
+  libgm
+  PRIVATE
+  canonical_gaussian.cpp
+  logarithmic_matrix.cpp
+  logarithmic_table.cpp
+  logarithmic_vector.cpp
+  probability_matrix.cpp
+  probability_table.cpp
+  probability_vector.cpp
+)

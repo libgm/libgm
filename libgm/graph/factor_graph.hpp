@@ -1,12 +1,14 @@
 #pragma once
 
-#include <libgm/iterator/bind1_iterator.hpp>
-#include <libgm/iterator/bind2_iterator.hpp>
+#include <libgm/object.hpp>
+#include <libgm/argument/domain.hpp>
+#include <libgm/datastructure/intrusive_list.hpp>
+#include <libgm/datastructure/subrange.hpp>
+#include <libgm/factor/utility/commutative_semiring.hpp>
+#include <libgm/graph/markov_network.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
-#include <libgm/serialization/iarchive.hpp>
-#include <libgm/serialization/oarchive.hpp>
 
-#include <unordered_map>
+#include <ankerl/unordered_dense.h>
 
 namespace libgm {
 
@@ -20,23 +22,20 @@ namespace libgm {
  *
  * \ingroup graph_types
  */
-class FactorGraph {
+class FactorGraph : public Object {
 protected:
   struct Argument;
-  struct Factor;
-
   using ArgumentMap = ankerl::unordered_dense::map<Arg, Argument*>;
-  using FactorList = boost::intrusive::list<VertexBase>
 
   // Public types
   //--------------------------------------------------------------------------
 public:
-  // A set of factors.
-  using FactorSet = ankerl::unordered_dense::set<Factor*>;
+  /// Factor class (Factor* is the handle).
+  struct Factor;
 
   // Iterators (the exact types are implementation detail).
   using argument_iterator = MapKeyIterator<ArgumentMap>;
-  using factor_iterator = MemberIterator<FactorList::const_iterator, &VertexBase::cast<Factor>>;
+  using factor_iterator = IntrusiveList<Factor>::iterator;
 
   // Constructors, destructors, and related functions
   //--------------------------------------------------------------------------
@@ -51,16 +50,16 @@ public:
   //--------------------------------------------------------------------------
 public:
   /// Returns the range of all arguments.
-  boost::iterator_range<argument_iterator> arguments() const;
+  SubRange<argument_iterator> arguments() const;
 
   /// Returns the range of all factors.
-  boost::iterator_range<factor_iterator> factors() const;
+  SubRange<factor_iterator> factors() const;
 
   /// Returns the arguments associated with a factor.
   const Domain& arguments(Factor* u) const;
 
   /// Returns the factors containing an argument.
-  const FactorSet& factors(Arg u) const;
+  const IntrusiveList<Factor>& factors(Arg u) const;
 
   /// Returns true if the graph contains the given argument.
   bool contains(Arg u) const;
@@ -104,7 +103,7 @@ public:
   // Queries
   //--------------------------------------------------------------------------
   /// Returns the Markov graph capturing the cliques in this factor graph.
-  MarkovGraphT<> markov_graph() const;
+  MarkovNetworkT<> markov_network() const;
 
   // Modifications
   //--------------------------------------------------------------------------
@@ -137,20 +136,20 @@ public:
   /// Removes all vertices and edges from the graph.
   void clear();
 
-  /// Saves the graph to an archive.
-  void save(oarchive& ar) const;
-
-  /// Loads the graph from an archive.
-  void load(iarchive& ar);
-
   // Eliminates all variables other than the specified ones.
-  void eliminate(const Domain& retain, EliminationStrategy strategy);
+  void eliminate(const Domain& retain, const CommutativeSemiring& csr, const ShapeMap& shape_map,
+                 const EliminationStrategy& strategy);
 
   // Private members
   //--------------------------------------------------------------------------
 private:
-  const Argument& argument(Arg u) const;
+  struct Impl;
+
+  Impl& impl();
+  const Impl& impl() const;
+
   Argument& argument(Arg u);
+  const Argument& argument(Arg u) const;
 
 }; // class FactorGraph
 

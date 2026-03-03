@@ -1,7 +1,6 @@
 #pragma once
 
-#include <libgm/serialization/iarchive.hpp>
-#include <libgm/serialization/oarchive.hpp>
+#include <cereal/access.hpp>
 
 #include <iostream>
 #include <memory>
@@ -28,16 +27,13 @@ public:
 
     /// Prints this object ot an output stream.
     virtual void print(std::ostream& out) const = 0;
-
-    /// Saves this object to an output archive.
-    virtual void save(oarchive& ar) const = 0;
-
-    /// Load this object from an input archive.
-    virtual void load(iarchive& ar) = 0;
   };
 
   /// Default constructor. Constructs an empty object.
   Object() = default;
+
+  /// Constructs an empty object.
+  Object(std::nullptr_t) {}
 
   /// Constructs an object with the given implementation.
   explicit Object(std::unique_ptr<Impl> impl) : impl_(std::move(impl)) {}
@@ -57,21 +53,22 @@ public:
   /// Returns true if the object contains data (its impl is not null).
   explicit operator bool() const { return bool(impl_); }
 
-  /// Saves the object to an output archive.
-  void save(oarchive& ar) const;
-
-  /// Load the object from an input archive.
-  void load(iarchive& ar);
-
   /// Prints the object to an output stream. Delegates to Impl::print.
   friend std::ostream& operator<<(std::ostream& out, const Object& object);
 
 protected:
   std::unique_ptr<Impl> impl_;
 
-}; // class Object
+  template <typename DERIVED, typename FN>
+  friend class ImplFunction;
 
-/// A unique pointer to the (weakly typed) implementation of an object.
-using ImplPtr = std::unique_ptr<Object::Impl>;
+private:
+  friend class cereal::access;
+
+  template <typename ARCHIVE>
+  void serialize(ARCHIVE& ar) {
+    ar(impl_);
+  }
+}; // class Object
 
 } // namespace libgm

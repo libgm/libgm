@@ -1,11 +1,10 @@
-#ifndef LIBGM_FACTOR_MOMENT_GAUSSIAN_HPP
-#define LIBGM_FACTOR_MOMENT_GAUSSIAN_HPP
+#pragma once
 
+#include <libgm/math/exp.hpp>
 #include <libgm/math/eigen/dense.hpp>
-#include <libgm/math/logarithmic.hpp>
-#include <libgm/math/likelihood/moment_gaussian_ll.hpp>
-#include <libgm/math/likelihood/moment_gaussian_mle.hpp>
-#include <libgm/math/random/multivariate_normal_distribution.hpp>
+// #include <libgm/math/likelihood/moment_gaussian_ll.hpp>
+// #include <libgm/math/likelihood/moment_gaussian_mle.hpp>
+// #include <libgm/math/random/multivariate_normal_distribution.hpp>
 
 namespace libgm {
 
@@ -28,22 +27,38 @@ namespace libgm {
  */
 template <typename T>
 class MomentGaussian
-  : Implements<
-      Assign<MomentGaussian<T>, Exp<T>>,
+  : public Object,
+    public Implements<
+      // Direct operations
       Multiply<MomentGaussian<T>, Exp<T>>,
       Multiply<MomentGaussian<T>, MomentGaussian<T>>,
       MultiplyIn<MomentGaussian<T>, Exp<T>>,
-      MultiplyJoin<MomentGaussian<T>>,
       Divide<MomentGaussian<T>, Exp<T>>,
       DivideIn<MomentGaussian<T>, Exp<T>>,
-      Marginal<MomentGaussian<T>>,
-      Maximum<MomentGaussian<T>>,
+
+      // Joins
+      MultiplyDims<MomentGaussian<T>, MomentGaussian<T>>,
+
+      // Aggreates
+      Marginal<MomentGaussian<T>, Exp<T>>,
+      Maximum<MomentGaussian<T>, Exp<T>, RealValues<T>>,
+
+      // Normalization
+      Normalize<MomentGaussian<T>>,
+      NormalizeHead<MomentGaussian<T>>,
+
+      // Restriction
+      RestrictSpan<MomentGaussian<T>, RealValues<T>>,
+      RestrictDims<MomentGaussian<T>, RealValues<T>>,
+
+      // Divergences
       Entropy<MomentGaussian<T>, T>,
-      KlDivergence<MomentGaussian<T>, T>> {
+      KlDivergence<MomentGaussian<T>, T>
+    > {
 public:
   using result_type = Exp<T>;
-  using mle_type = MomentGaussianMLE<T>;
-  using ll_type = MomentGaussianLL<T>;
+  // using mle_type = MomentGaussianMLE<T>;
+  // using ll_type = MomentGaussianLL<T>;
 
   /// Constructs an empty moment Gaussian.
   MomentGaussian() = default;
@@ -56,52 +71,33 @@ public:
 
   /// Constructs a factor representing a marginal moment_gaussian
   /// with the specified mean vector and covariance matrix.
-  MomentGaussian(VectorType mean, MatrixType cov, T lm = 0);
+  MomentGaussian(const Shape& shape_head, Vector<T> mean, Matrix<T> cov, T lm = 0);
 
   /// Constructs a factor representing a conditional moment_gaussian
   /// with the specified mean vector, covariance matrix, and coefficients.
-  MomentGaussian(VectorType mean, MatrixType cov, MatrixType coef, T lm = 0);
+  MomentGaussian(const Shape& shape_head, const Shape& shape_tail, Vector<T> mean, Matrix<T> cov, Matrix<T> coef, T lm = 0);
 
   // Accessors (these need to be cleaned up)
   //--------------------------------------------------------------------------
 
   /// Returns the log multiplier.
-  RealType log_multiplier() const {
-    return param_.lm;
-  }
+  T log_multiplier() const;
 
   /// Returns the mean vector.
-  const dense_vector<RealType>& mean() const {
-    return param_.mean;
-  }
+  const Vector<T>& mean() const;
 
   /// Returns the covariance matrix.
-  const dense_matrix<RealType>& covariance() const {
-    return param_.cov;
-  }
+  const Matrix<T>& covariance() const;
 
   /// Returns the coefficient matrix.
-  const dense_matrix<RealType>& coefficients() const {
-    return param_.coef;
-  }
+  const Matrix<T>& coefficients() const;
 
   /// Evaluates the factor for a vector.
-  logarithmic<T> operator()(const VectorType& v) const {
-    return { log(v), log_tag() };
-  }
+  Exp<T> operator()(const RealValues<T>& v) const;
 
   /// Returns the log-value of the factor for a vector.
-  T log(const VectorType& v) const {
-    return param_(v);
-  }
-
-  /// Normalizes this factor in-place.
-  void normalize() {
-    param_.lm = RealType(0);
-  }
+  T log(const RealValues<T>& v) const;
 
 }; // class MomentGaussian
 
 } // namespace libgm
-
-#endif

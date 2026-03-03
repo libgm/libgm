@@ -1,8 +1,5 @@
 #pragma once
 
-#include <libgm/iterator/counting_iterator.hpp>
-#include <libgm/range/iterator_range.hpp>
-
 #include <vector>
 
 namespace libgm {

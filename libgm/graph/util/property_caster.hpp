@@ -2,35 +2,56 @@
 
 namespace libgm {
 
-template <typename Graph, typename VertexProperty, typename EdgeProperty>
-class PropertyCaster : public Graph {
+template <typename GRAPH, typename VP, typename EP>
+struct PropertyCaster : GRAPH {
+  using GRAPH::GRAPH;
+
   /// Returns the strongly-typed property associated with a vertex.
-  std::add_lvalue_reference_t<VertexProperty> operator[](vertex_descriptor u) {
-    if constexpr (!std::is_same_v<VertexProperty, void>) {
-      return static_cast<VertexProperty&>(Graph::operator[](u));
+  std::add_lvalue_reference_t<VP> operator[](typename GRAPH::vertex_descriptor u) {
+    if constexpr (!std::is_same_v<VP, void>) {
+      return static_cast<VP&>(GRAPH::operator[](u));
     }
   }
 
   /// Returns the strongly-typed property associated with a vertex.
-  std::add_lvalue_reference_t<const VertexProperty> operator[](vertex_descriptor u) const {
-    if constexpr (!std::is_same_v<VertexProperty, void>) {
-      return static_cast<const VertexProperty&>(Graph::operator[](u));
+  std::add_lvalue_reference_t<const VP> operator[](typename GRAPH::vertex_descriptor u) const {
+    if constexpr (!std::is_same_v<VP, void>) {
+      return static_cast<const VP&>(GRAPH::operator[](u));
     }
   }
 
   /// Returns the strongly-typed property associated with an edge.
-  std::add_lvalue_reference_t<EdgeProperty> operator[](edge_descriptor e) {
-    if constexpr (!std::is_same_v<EdgeProperty, void>) {
-      return static_cast<EdgeProperty&>(Graph::operator[](e));
+  std::add_lvalue_reference_t<EP> operator[](typename GRAPH::edge_descriptor e) {
+    if constexpr (!std::is_same_v<EP, void>) {
+      return static_cast<EP&>(GRAPH::operator[](e));
     }
   }
 
   /// Returns the strongly-typed property associated with an edge.
-  std::add_lvalue_reference_t<const EdgeProperty> operator[](edge_descriptor e) const {
-    if constexpr (!std::is_same_v<EdgeProperty, void>) {
-      return static_cast<const EdgeProperty&>(Graph::operator[](e));
+  std::add_lvalue_reference_t<const EP> operator[](typename GRAPH::edge_descriptor e) const {
+    if constexpr (!std::is_same_v<EP, void>) {
+      return static_cast<const EP&>(GRAPH::operator[](e));
     }
   }
-};
+}; // struct PropertyCaster
+
+template <typename GRAPH, typename VP>
+struct VertexPropertyCaster : GRAPH {
+  using GRAPH::GRAPH;
+
+  /// Returns the strongly-typed property associated with a vertex.
+  std::add_lvalue_reference_t<VP> operator[](typename GRAPH::vertex_descriptor u) {
+    if constexpr (!std::is_same_v<VP, void>) {
+      return static_cast<VP&>(GRAPH::operator[](u));
+    }
+  }
+
+  /// Returns the strongly-typed property associated with a vertex.
+  std::add_lvalue_reference_t<const VP> operator[](typename GRAPH::vertex_descriptor u) const {
+    if constexpr (!std::is_same_v<VP, void>) {
+      return static_cast<const VP&>(GRAPH::operator[](u));
+    }
+  }
+}; // struct VertexPropertyCaster
 
 }  // namespace libgm

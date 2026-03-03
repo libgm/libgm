@@ -1,6 +1,7 @@
 #pragma once
 
 #include <libgm/argument/shape.hpp>
+#include <libgm/assignment/discrete_values.hpp>
 #include <libgm/datastructure/table.hpp>
 #include <libgm/factor/implements.hpp>
 #include <libgm/factor/interfaces.hpp>
@@ -25,99 +26,100 @@ template <typename T> class ProbabilityVector;
  * e.g. in a Markov network, there are no constraints on the normalization
  * of f.
  *
- * \tparam RealType a real type representing each parameter
+ * \tparam T a real type representing each parameter
  *
  * \ingroup factor_types
  * \see Factor
  */
 template <typename T>
-class ProbablityTable
-  : Implements<
+class ProbabilityTable
+  : public Object,
+    public Implements<
       // Direct operations
-      Multiply<ProbabilityTable, T>,
-      Multiply<ProbabilityTable, ProbabilityTable>,
-      MultiplyIn<ProbabilityTable, T>,
-      MultiplyIn<ProbabilityTable, ProbabilityTable>,
-      Divide<ProbabilityTable, T>,
-      Divide<ProbabilityTable, ProbabilityTable>,
-      DivideIn<ProbabilityTable, T>,
-      DivideIn<ProbabilityTable, ProbabilityTable>,
+      Multiply<ProbabilityTable<T>, T>,
+      Multiply<ProbabilityTable<T>, ProbabilityTable<T>>,
+      MultiplyIn<ProbabilityTable<T>, T>,
+      MultiplyIn<ProbabilityTable<T>, ProbabilityTable<T>>,
+      Divide<ProbabilityTable<T>, T>,
+      Divide<ProbabilityTable<T>, ProbabilityTable<T>>,
+      DivideIn<ProbabilityTable<T>, T>,
+      DivideIn<ProbabilityTable<T>, ProbabilityTable<T>>,
 
       // Join operations
-      MultiplySpan<ProbabilityTable, ProbabilityTable>,
-      MultiplySpanIn<ProbabilityTable, ProbabilityTable>,
-      MultiplyDims<ProbabilityTable, ProbabilityTable>,
-      MultiplyDimsIn<ProbabilityTable, ProbabilityTable>,
-      DivideSpan<ProbabilityTable, ProbabilityTable>,
-      DivideSpanIn<ProbabilityTable, ProbabilityTable>,
-      DivideDims<ProbabilityTable, ProbabilityTable>,
-      DivideDimsIn<ProbabilityTable, ProbabilityTable>,
+      MultiplySpan<ProbabilityTable<T>, ProbabilityTable<T>>,
+      MultiplyDims<ProbabilityTable<T>, ProbabilityTable<T>>,
+      MultiplyInSpan<ProbabilityTable<T>, ProbabilityTable<T>>,
+      MultiplyInDims<ProbabilityTable<T>, ProbabilityTable<T>>,
+      DivideSpan<ProbabilityTable<T>, ProbabilityTable<T>>,
+      DivideDims<ProbabilityTable<T>, ProbabilityTable<T>>,
+      DivideInSpan<ProbabilityTable<T>, ProbabilityTable<T>>,
+      DivideInDims<ProbabilityTable<T>, ProbabilityTable<T>>,
 
       // Arithmetic
-      Power<ProbabilityTable, T>,
-      WeightedUpdate<ProbabilityTable, T>,
+      Power<ProbabilityTable<T>, T>,
+      WeightedUpdate<ProbabilityTable<T>, T>,
 
       // Aggregates
-      Marginal<ProbabilityTable, T>,
-      Maximum<ProbabilityTable, T>,
-      Minimum<ProbabilityTable, T>,
-      MarginalSpan<ProbabilityTable>,
-      MarginalDims<ProbabilityTable>,
-      MaximumSpan<ProbabilityTable>,
-      MaximumDims<ProbabilityTable>,
-      MinimumSpan<ProbabilityTable>,
-      MinimumDims<ProbabilityTable>,
+      Marginal<ProbabilityTable<T>, T>,
+      Maximum<ProbabilityTable<T>, T, DiscreteValues>,
+      Minimum<ProbabilityTable<T>, T, DiscreteValues>,
+      MarginalSpan<ProbabilityTable<T>>,
+      MarginalDims<ProbabilityTable<T>>,
+      MaximumSpan<ProbabilityTable<T>>,
+      MaximumDims<ProbabilityTable<T>>,
+      MinimumSpan<ProbabilityTable<T>>,
+      MinimumDims<ProbabilityTable<T>>,
 
       // Normalization
-      Normalize<ProbabilityTable>,
-      NormalizeHead<ProbabilityTable>,
+      Normalize<ProbabilityTable<T>>,
+      NormalizeHead<ProbabilityTable<T>>,
 
       // Restriction
-      RestrictSpan<ProbabilityTable>,
-      RestrictDims<ProbabilityTable>,
+      RestrictSpan<ProbabilityTable<T>, DiscreteValues>,
+      RestrictDims<ProbabilityTable<T>, DiscreteValues>,
 
       // Entropy and divergences
-      Entropy<ProbabilityTable, T>,
-      CrossEntropy<ProbabilityTable, T>,
-      KlDivergence<ProbabilityTable, T>,
-      SumDifference<ProbabilityTable, T>,
-      MaxDifference<ProbabilityTable, T>
+      Entropy<ProbabilityTable<T>, T>,
+      CrossEntropy<ProbabilityTable<T>, T>,
+      KlDivergence<ProbabilityTable<T>, T>,
+      SumDifference<ProbabilityTable<T>, T>,
+      MaxDifference<ProbabilityTable<T>, T>
     > {
-
 public:
-  // Public types
-  //--------------------------------------------------------------------------
+  /// Result of evaluating this table on a vector.
+  using result_type = T;
 
-  using ll_type = CanonicalTableLL<T>;
+  /// Implementation class
+  struct Impl;
+
+  /// Function table.
+  static const typename ProbabilityTable::VTable vtable;
 
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
 
   /// Default constructor. Creates an empty factor.
-  ProbablityTable() = default;
+  ProbabilityTable() = default;
 
   /// Constructs a factor equivalent to a constant.
-  explicit ProbablityTable(T value);
+  explicit ProbabilityTable(T value);
 
   /// Constructs a factor with the given shape and constant value.
-  explicit ProbablityTable(const Shape& shape, T value = T(1));
+  explicit ProbabilityTable(Shape shape, T value = T(1));
 
   /// Creates a factor with the specified shape and parameters.
-  ProbablityTable(const Shape& shape, std::initializer_list<t> values);
+  ProbabilityTable(Shape shape, std::initializer_list<T> values);
+
+  /// Creates a factor with the specified shape and parameters.
+  ProbabilityTable(Shape shape, const T* values);
 
   /// Creates a factor with the specified parameters.
-  ProbablityTable(Table<T> param);
+  ProbabilityTable(Table<T> param);
 
   /// Exchanges the content of two factors.
-  friend void swap(ProbablityTable& f, ProbablityTable& g) {
+  friend void swap(ProbabilityTable& f, ProbabilityTable& g) {
     std::swap(f.impl_, g.impl_);
   }
-
-  /**
-   * Resets the content of this factor to the given shape.
-   * If the table size changes, the table elements become invalidated.
-   */
-  void reset(const std::vector<size_t>& shape);
 
   // Accessors
   //--------------------------------------------------------------------------
@@ -138,10 +140,10 @@ public:
   const Table<T>& param() const;
 
   /// Returns the value of the expression for the given index.
-  T operator()(const Values& values) const;
+  T operator()(const DiscreteValues& values) const;
 
   /// Returns the log-value of the expression for the given index.
-  T log(const Values& values) const;
+  T log(const DiscreteValues& values) const;
 
   // Conversions
   //--------------------------------------------------------------------------
@@ -155,6 +157,10 @@ public:
   /// Converts this table to a matrix. The table must be binary.
   ProbabilityMatrix<T> matrix() const;
 
-}; // class ProbablityTable
+private:
+  Impl& impl();
+  const Impl& impl() const;
+
+}; // class ProbabilityTable
 
 } // namespace libgm

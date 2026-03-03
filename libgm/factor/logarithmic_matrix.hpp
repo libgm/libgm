@@ -1,8 +1,8 @@
 #pragma once
 
 #include <libgm/argument/shape.hpp>
-#include <libgm/datastructure/table.hpp>
-#include <libgm/factorimplements.hpp>
+#include <libgm/assignment/discrete_assignment.hpp>
+#include <libgm/factor/implements.hpp>
 #include <libgm/factor/interfaces.hpp>
 #include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/exp.hpp>
@@ -27,96 +27,89 @@ template <typename T> class ProbabilityMatrix;
   * e.g. in a pairwise Markov network, there are no constraints on the
   * normalization of f.
   *
-  * \tparam RealType a type of values stored in the factor
+  * \tparam T a type of values stored in the factor
   *
   * \ingroup factor_types
   * \see Factor
   */
 template <typename T>
 class LogarithmicMatrix
-  : public Implements<
+  : public Object,
+    public Implements<
       // Direct operations
-      Multiply<LogarithmicMatrix, Exp<T>>,
-      Multiply<LogarithmicMatrix, LogarithmicMatrix>,
-      MultiplyIn<LogarithmicMatrix, Exp<T>>,
-      MultiplyIn<LogarithmicMatrix, LogarithmicMatrix>,
-      Divide<LogarithmicMatrix, Exp<T>>,
-      Divide<LogarithmicMatrix, LogarithmicMatrix>,
-      DivideIn<LogarithmicMatrix, Exp<T>>,
-      DivideIn<LogarithmicMatrix, LogarithmicMatrix>,
+      Multiply<LogarithmicMatrix<T>, Exp<T>>,
+      Multiply<LogarithmicMatrix<T>, LogarithmicMatrix<T>>,
+      MultiplyIn<LogarithmicMatrix<T>, Exp<T>>,
+      MultiplyIn<LogarithmicMatrix<T>, LogarithmicMatrix<T>>,
+      Divide<LogarithmicMatrix<T>, Exp<T>>,
+      Divide<LogarithmicMatrix<T>, LogarithmicMatrix<T>>,
+      DivideIn<LogarithmicMatrix<T>, Exp<T>>,
+      DivideIn<LogarithmicMatrix<T>, LogarithmicMatrix<T>>,
 
       // Join operations
-      MultiplySpan<LogarithmicMatrix, LogarithmicVector<T>>,
-      MultiplySpanIn<LogarithmicMatrix, LogarithmicVector<T>>,
-      DivideSpan<LogarithmicMatrix, LogarithmicVector<T>>,
-      DivideSpanIn<LogarithmicMatrix, LogarithmicVector<T>>,
+      MultiplySpan<LogarithmicMatrix<T>, LogarithmicVector<T>>,
+      MultiplyInSpan<LogarithmicMatrix<T>, LogarithmicVector<T>>,
+      DivideSpan<LogarithmicMatrix<T>, LogarithmicVector<T>>,
+      DivideInSpan<LogarithmicMatrix<T>, LogarithmicVector<T>>,
 
       // Arithmetic
-      Power<LogarithmicMatrix, T>,
-      WeightedUpdate<LogarithmicMatrix, T>,
+      Power<LogarithmicMatrix<T>, T>,
+      WeightedUpdate<LogarithmicMatrix<T>, T>,
 
       // Aggregates
-      Marginal<LogarithmicMatrix, Exp<T>>,
-      Maximum<LogarithmicMatrix, Exp<T>>,
-      Minimum<LogarithmicMatrix, Exp<T>>,
-      MarginalSpan<LogarithmicMatrix, LogarithmicVector<T>>,
-      MaximumSpan<LogarithmicMatrix, LogarithmicVector<T>>,
-      MinimumSpan<LogarithmicMatrix, LogarithmicVector<T>>,
-
-      // Normalization
-      Normalize<LogarithmicMatrix>,
-      NormalizeHead<LogarithmicMatrix>,
+      Maximum<LogarithmicMatrix<T>, Exp<T>, DiscreteValues>,
+      Minimum<LogarithmicMatrix<T>, Exp<T>, DiscreteValues>,
+      MaximumSpan<LogarithmicMatrix<T>, LogarithmicVector<T>>,
+      MinimumSpan<LogarithmicMatrix<T>, LogarithmicVector<T>>,
 
       // Restriction
-      RestrictSpan<LogarithmicMatrix, LogarithmicVector<T>>,
+      RestrictSpan<LogarithmicMatrix<T>, DiscreteValues, LogarithmicVector<T>>,
 
       // Reshaping
-      Transpose<LogarithmicMatrix>,
+      Transpose<LogarithmicMatrix<T>>,
 
       // Entropy and divergences
-      Entropy<LogarithmicMatrix, T>,
-      CrossEntropy<LogarithmicMatrix, T>,
-      KlDivergence<LogarithmicMatrix, T>,
-      SumDifference<LogarithmicMatrix, T>,
-      MaxDifference<LogarithmicMatrix, T>
+      Entropy<LogarithmicMatrix<T>, T>,
+      CrossEntropy<LogarithmicMatrix<T>, T>,
+      KlDivergence<LogarithmicMatrix<T>, T>,
+      SumDifference<LogarithmicMatrix<T>, T>,
+      MaxDifference<LogarithmicMatrix<T>, T>
     > {
 public:
-  // Public types
-  //--------------------------------------------------------------------------
+  /// The result of applying this factor to an index.
+  using result_type = Exp<T>;
 
-  // using ll_type = LogarithmicMatrixLL<T>;
+  /// Implementation class.
+  struct Impl;
+
+  /// Function table.
+  static const typename LogarithmicMatrix::VTable vtable;
 
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
-public:
+
   /// Default constructor. Creates an empty factor.
   LogarithmicMatrix() = default;
 
-  /// Constructs a factor with the given shape and uninitialized parameters.
-  LogarithmicMatrix(size_t rows, size_t cols);
-
-  /// Constructs a factor with the given shape and uninitialized parameters.
-  explicit LogarithmicMatrix(const Shape& shape);
+  /// Constructs a factor with the given shape and constant value.
+  LogarithmicMatrix(size_t rows, size_t cols, Exp<T> x = Exp<T>(0));
 
   /// Constructs a factor with the given shape and constant value.
-  LogarithmicMatrix(size_t rows, size_t cols, Exp<T> x);
-
-  /// Constructs a factor with the given shape and constant value.
-  LogarithmicMatrix(const Shape& shape, Exp<T> x);
-
-  /// Constructs a factor with the given parameters.
-  LogarithmicMatrix(DenseMatrix<T> param);
+  LogarithmicMatrix(const Shape& shape, Exp<T> x = Exp<T>(0));
 
   /// Constructs a factor with the given shape and parameters.
   LogarithmicMatrix(size_t rows, size_t cols, std::initializer_list<T> values);
+
+  /// Constructs a factor with given parameters.
+  template <typename DERIVED>
+  LogarithmicMatrix(const Eigen::DenseBase<DERIVED>& base) {
+    param() = base;
+  }
 
   /// Swaps the content of two LogarithmicMatrix factors.
   friend void swap(LogarithmicMatrix& f, LogarithmicMatrix& g) {
     std::swap(f.impl_, g.impl_);
   }
-
-  /// Resets the content of this factor to the given shape.
-  void reset(size_t rows, size_t cols);
 
   // Accessors
   //--------------------------------------------------------------------------
@@ -134,8 +127,8 @@ public:
   size_t size() const;
 
   /// Provides access to the parameter array of this factor.
-  DenseMatrix<T>& param();
-  const DenseMatrix<T>& param() const;
+  Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic>& param();
+  const Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic>& param() const;
 
   /// Returns the value of the factor for the given row and column.
   Exp<T> operator()(size_t row, size_t col) const {
@@ -143,15 +136,15 @@ public:
   }
 
   /// Returns the value of the factor for the given index.
-  Exp<T> operator()(const Values& values) const {
+  Exp<T> operator()(const DiscreteValues& values) const {
     return Exp<T>(log(values));
   }
 
   /// Returns the log-value of the factor for the given row and column.
-  RealType log(size_t row, size_t col) const;
+  T log(size_t row, size_t col) const;
 
   /// Returns the log-value of the factor for the given index.
-  RealType log(const Values& values) const;
+  T log(const DiscreteValues& values) const;
 
   // Conversions
   //--------------------------------------------------------------------------
@@ -161,6 +154,10 @@ public:
 
   /// Converts this matrix to a table of log-probabilities.
   LogarithmicTable<T> table() const;
+
+private:
+  Impl& impl();
+  const Impl& impl() const;
 
 }; // class LogarithmicMatrix
 

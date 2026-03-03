@@ -13,17 +13,9 @@ class BeliefUpdateCalibrate {
   // Public type declarations
   //--------------------------------------------------------------------------
 public:
-  /// Potential traits.
-  template <typename F>
-  using PotentialTraits = Implements<
-    MultiplyDimsIn<F, F>,
-    DivideDimsIn<F, F>,
-    Normalize<F>,
-    RestrictDims<F>
-  >;
-
-  /// A generic potential.
-  struct Potential : PotentialTraits<Potential> {};
+  struct PotentialCref : Implements<...> { void* ref; };
+  struct PotentialRef : PotentialCref, Implements<...> { PotentialRef& operator=(...); };
+  struct Potential : PotentialRef { std::unique_ptr<char[]> data; };
 
   // Graph types
   using vertex_descriptor = ClusterGraph::vertex_descriptor;
@@ -36,12 +28,6 @@ public:
    * Default constructor. Constructs a belief update algorithm with no model.
    */
   BeliefUpdateCalibrate() = default;
-
-  /**
-   * Constructs a belief update algorithm to a junction tree whose ratio
-   * of clique and separator potentials defines a probability distribution.
-   */
-  explicit BeliefUpdateCalibrate(const ClusterGraph& jt);
 
   /**
    * Initializes the algorithm to the given network.
@@ -83,13 +69,13 @@ public:
   }
 
   /// Returns the belief associated with a vertex.
-  const Potential& belief(vertex_descriptor v) const {
-    return jt_[v];
+  PotentialCref belief(vertex_descriptor v) const {
+    return {jt_[v], vtable};
   }
 
   /// Returns the belief associated with an edge.
-  const Potential& belief(edge_descriptor e) const {
-    return jt_[e];
+  PotentialCref belief(edge_descriptor e) const {
+    return {jt_[e], vtable};
   }
 
   /**
@@ -100,16 +86,10 @@ public:
    */
   Potential belief(const Domain& domain) const;
 
-  // Data members
-  //--------------------------------------------------------------------------
-private:
-  /// The underlying junction tree.
-  ClusterGraphT<Potential, Potential> jt_;
-
 protected:
-  /// The virtual table for potentials.
-  Potential::VTable vt_;
+  std::unique_ptr<Potential> one(const Shape& shape) const = 0;
 
+  Potential::VTable vtable;
 }; // class BeliefUpdateCalibrate
 
 )
@@ -121,13 +101,21 @@ protected:
  */
 template <typename F>
 class BeliefUpdateCalibrateT : public BeliefUpdateCalibrate {
+protected:
+  /// The underlying junction tree.
+  ClusterGraphT<F, F> jt_;
+
+  Potential one(const Shape& shape) const override {
+    return F(shape);
+  }
+
 public:
   BeliefUpdateCalibrateT() {
-    vt_ = F::vtable.copy<PotentialTraits<F>>();
+    vtable = F::vtable.generic(); // exposiiton only
   }
 
   void multiply_in(const Domain& args, const F& factor) {
-    BeliefUpdateCalibrate::multiply_in(args, factor.cast<Factor>(vt_));
+    BeliefUpdateCalibrate::multiply_in(args, PotentialCref(&factor));
   }
 
   const F& belief(vertex_descriptor v) const {

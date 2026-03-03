@@ -2,6 +2,7 @@
 
 #include <libgm/argument/domain.hpp>
 #include <libgm/argument/assignment.hpp>
+#include <libgm/datastructure/subrange.hpp>
 #include <libgm/factor/implements.hpp>
 #include <libgm/factor/interfaces.hpp>
 #include <libgm/graph/cluster_graph.hpp>
@@ -15,23 +16,20 @@ namespace libgm {
  * The distribution is equal to to the product of clique marginals,
  * divided by the product of separator marginals.
  *
- * \tparam R the real type (typically float or double)
- *
  * \ingroup model
  */
-template <typename R>
 class Decomposable : public ClusterGraph {
   // Public type declarations
   //--------------------------------------------------------------------------
 public:
   // Factor interface.
-  struct Potential : Factor<
-    One<Potential>,
-    MultiplyJoinIn<Potential, Potential>,
-    DivideJoinIn<Potential, Potential>,
-    Normalize<Potential>,
-    Restrict<Potential, Vector>,
-  > {};
+  struct Potential {
+    virtual void multiply_in(const Potential& other, const Dims& dims) = 0;
+    virtual void divide_in(const Potential& other, const Dims& dims) = 0;
+    virtual void normalize() = 0;
+    virtual std::unique_ptr<Potential> marginal(const Dims& dims) const = 0;
+    virtual std::unique_ptr<Potential> restrict(const Dims& dims, const Assignment& a) const = 0;
+  };
 
   // Constructors and destructors
   //--------------------------------------------------------------------------
@@ -63,7 +61,7 @@ public:
    * Computes a marginal over an arbitrary subset of arguments.
    * The arguments must be all present in this decomposble model.
    */
-  Potential marginal(const Domain& dom) const;
+  std::unique_ptr<Potential> marginal(const Domain& dom) const;
 
   /**
    * Computes factors whose product represents a marginal over a subset of arguments.
@@ -79,7 +77,7 @@ public:
   /**
    * Compute the maximum probability and stores the corresponding assignment to a.
    */
-  Potential maximum(Assignment& a) const;
+  std::unique_ptr<Potential> maximum(Assignment& a) const;
 
   // Restructuring operations
   //--------------------------------------------------------------------------
@@ -101,7 +99,7 @@ public:
   /**
    * Initializes the decomposable model to a single marginal.
    */
-  void reset(Domain dom, Potential marginal);
+  void reset(Domain dom, std::unique_ptr<Potential> marginal);
 
   /**
    * Initializes the decomposable model to the given markov network,

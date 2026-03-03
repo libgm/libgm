@@ -1,38 +1,30 @@
 #pragma once
 
+#include <libgm/factor/vtables/arithmetic.hpp>
+
 namespace libgm {
-
-namespace vtables {
-
-template <typename T>
-struct Scalar {
-  ImplPtr (Object::Impl::*op)(T) const;
-};
-
-template <typename T>
-struct FactorAndScalar {
-  ImplPtr (Object::Impl::*op)(const Object&, T) const;
-};
-
-} // namespace vtables
 
 /// An interface for raising the factor to the given power.
 template <typename DERIVED, typename T>
 struct Power {
-  using VTable = vtables::Scalar<T>;
+  using VTable = vtables::Scalar<DERIVED, T>;
 
-  friend DERIVED pow(const Power& a, T val) const {
-    return DERIVED::call(&VTable::op, a, val);
+  friend DERIVED pow(const Power& a, T val) {
+    DERIVED result;
+    vtable_cast<Power>(DERIVED::vtable).op(a, val, result);
+    return result;
   }
 };
 
 /// An interface for a weighted combination of two factors.
 template <typename DERIVED, typename T>
 struct WeightedUpdate {
-  using VTable = vtables::FactorAndScalar<T>;
+  using VTable = vtables::FactorAndScalar<DERIVED, T>;
 
   friend DERIVED weighted_update(const WeightedUpdate& a, const DERIVED& b, T alpha) {
-    return DERIVED::call(&VTable::op, a, b, alpha);
+    DERIVED result;
+    vtable_cast<WeightedUpdate>(DERIVED::vtable).op(a, b, alpha, result);
+    return result;
   }
 };
 

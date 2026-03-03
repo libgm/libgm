@@ -1,6 +1,6 @@
 #pragma once
 
-#include <boost/iterator/iterator_facade.hpp>
+#include <boost/stl_interfaces/iterator_interface.hpp>
 
 namespace libgm {
 
@@ -8,35 +8,32 @@ namespace libgm {
  * This iterator is used to iterate over the key in an associative container.
  * \ingroup iterator
  */
-template <class Map>
+template <class MAP>
 class MapKeyIterator
-  : public boost::iterator_facade<
-      MapKeyIterator,
-      const typename Map::key_type,
-      std::forward_iterator_tag
+  : public boost::stl_interfaces::proxy_iterator_interface<
+      MapKeyIterator<MAP>,
+      typename std::iterator_traits<typename MAP::const_iterator>::iterator_category,
+      const typename MAP::key_type
     > {
 public:
+  using base_iterator = typename MAP::const_iterator;
+
   MapKeyIterator() = default;
 
-  MapKeyIterator(typename Map::const_iterator it)
+  MapKeyIterator(typename MAP::const_iterator it)
     : it_(it) { }
 
-private:
-  friend class boost::iterator_core_access;
-
-  void increment() {
-    ++it_;
-  }
-
-  bool equal(const MapKeyIterator& other) const {
-    return it_ == other.it_;
-  }
-
-  const typename Map::key_type& dereference() const {
+  const typename MAP::key_type& operator*() const {
     return it_->first;
   }
 
-  typename Map::const_iterator it_;
+private:
+  friend boost::stl_interfaces::access;
+
+  base_iterator& base_reference() noexcept { return it_; }
+  const base_iterator& base_reference() const noexcept { return it_; }
+
+  base_iterator it_;
 }; // class MapKeyIterator
 
 } // namespace libgm

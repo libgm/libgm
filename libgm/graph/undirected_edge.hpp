@@ -1,7 +1,8 @@
 #pragma once
 
-#include <libgm/functional/hash.hpp>
-#include <libgm/graph/vertex_traits.hpp>
+#include <libgm/object.hpp>
+
+#include <boost/functional/hash.hpp>
 
 #include <algorithm>
 #include <iosfwd>
@@ -22,7 +23,7 @@ namespace libgm {
  *
  * \ingroup graph_types
  */
-template <typename Vertex, typename Property>
+template <typename Vertex>
 class UndirectedEdge {
 public:
   /// Constructs an empty edge with null source and target.
@@ -34,7 +35,7 @@ public:
     : source_(), target_(target), property_() { }
 
   /// Constructor setting the source and the edge property
-  UndirectedEdge(Vertex source, Vertex target, Property* property = nullptr)
+  UndirectedEdge(Vertex source, Vertex target, void* property = nullptr)
     : source_(source), target_(target), property_(property) { }
 
   /// Conversion to bool indicating if this edge is empty.
@@ -52,7 +53,7 @@ public:
     return target_;
   }
 
-  Property* operator->() const {
+  void* property() const {
     return property_;
   }
 
@@ -110,7 +111,6 @@ public:
   }
 
 private:
-
   /// Vertex from which the edge originates
   Vertex source_;
 
@@ -122,7 +122,7 @@ private:
    * pointer to the associated property, which permits a constant-time
    * lookup of edge properties.
    */
-  Property* property_;
+  void* property_;
 
 }; // class UndirectedEdge
 
@@ -131,9 +131,15 @@ private:
 
 namespace std {
 
-  /// \relates UndirectedEdge
-  template <typename Vertex>
-  struct hash<libgm::UndirectedEdge<Vertex>>
-    : libgm::hash_pair<libgm::UndirectedEdge<Vertex>> { };
+/// \relates DirectedEdge
+template <typename Vertex>
+struct hash<libgm::UndirectedEdge<Vertex>> {
+  size_t operator()(const libgm::UndirectedEdge<Vertex>& e) {
+    size_t seed = 0;
+    boost::hash_combine(seed, e.source());
+    boost::hash_combine(seed, e.target());
+    return seed;
+  }
+};
 
 } // namespace std

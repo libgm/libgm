@@ -1,43 +1,36 @@
 #pragma once
 
+#include <libgm/factor/vtables/restrict.hpp>
+
 namespace libgm {
 
-namespace vtables {
-
-/// A virtual table for restricting the factor over a span of dimensions.
-struct RestrictSpan {
-  ImplPtr (Object::Impl::*op_head)(const Values&) const;
-  ImplPtr (Object::Impl::*op_tail)(const Values&) const;
-};
-
-/// A virtual table for restricting the factor over a subset of dimensions.
-struct RestrictDims {
-  ImplPtr (Object::Impl::*op_dims)(const Dims&, const Values&) const;
-};
-
-} // namepace vtables
-
 /// An interface for restricting the factor over a span of dimensions.
-template <typename DERIVED, typename RESULT = DERIVED>
+template <typename DERIVED, typename VALUES, typename RESULT = DERIVED>
 struct RestrictSpan {
-  using VTable = vtables::RestrictSpan;
+  using VTable = vtables::RestrictSpan<DERIVED, VALUES, RESULT>;
 
-  RESULT restrict_head(const Values& values) const {
-    return DERIVED::call(&VTable::op_head, *this, values);
+  RESULT restrict_front(const VALUES& values) const {
+    RESULT result;
+    vtable_cast<RestrictSpan>(DERIVED::vtable).op_front(*this, values, result);
+    return result;
   }
 
-  RESULT restrict_tail(const Values& values) const {
-    return DERIVED::call(&VTable::op_tail, *this, values);
+  RESULT restrict_back(const VALUES& values) const {
+    RESULT result;
+    vtable_cast<RestrictSpan>(DERIVED::vtable).op_back(*this, values, result);
+    return result;
   }
 };
 
 /// An interface for restricting the factor over a set of dimensions.
-template <typename DERIVED>
+template <typename DERIVED, typename VALUES>
 struct RestrictDims {
-  using VTable = vtables::RestrictDims;
+  using VTable = vtables::RestrictDims<DERIVED, VALUES>;
 
-  DERIVED restrict_dims(const Dims& dims, const Values& values) const {
-    return DERIVED::call(&VTable::op_dims, *this, dims, values);
+  DERIVED restrict_dims(const Dims& dims, const VALUES& values) const {
+    DERIVED result;
+    vtable_cast<RestrictDims>(DERIVED::vtable).op(*this, dims, values, result);
+    return result;
   }
 };
 

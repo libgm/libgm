@@ -13,7 +13,7 @@ void SumProductCalibrate::reset(const ClusterGraph& cg) {
   // initialize the cliques and edges
   ankerl::unordered_dense::map<vertex_descriptor, vertex_descriptor> map;
   for (vertex_descriptor v : cg.vertices()) {
-    map.emplace(v, jt_.add_vertex(cg.cluster(v), cg[v].cast<Factor>(vtable)));
+    map.emplace(v, jt_.add_vertex(cg.cluster(v), cg[v]));
   }
   for (edge_descriptor e : cg.edges()) {
     edge_descriptor f = jt_.add_edge(map.at(e.source()), map.at(e.target()));

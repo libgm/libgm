@@ -1,33 +1,64 @@
 
 #include "bayesian_network.hpp"
 
+#include <libgm/archives.hpp>
+
 namespace libgm {
 
-struct BayesianNetwork::Vertex {
+struct BayesianNetwork::VertexData {
   Object property;
   Domain parents;
   AdjacencySet children;
 
-  bool equals(const Vertex& other) const {
+  template <typename ARCHIVE>
+  void serialize(ARCHIVE& ar) {
+    ar(property, parents);
+  }
+
+#if 0
+  bool equals(const VertexData& other) const {
     return parents == other.parents && property == other.property;
     // Intentionally omitting children
   }
+#endif
 };
 
 struct BayesianNetwork::Impl : Object::Impl {
   VertexDataMap data;
-  size_t num_edges;
+  size_t num_edges = 0;
 
+  template <typename ARCHIVE>
+  void save(ARCHIVE& ar) const {
+    ar(data);
+  }
+
+  template <typename ARCHIVE>
+  void load(ARCHIVE& ar) {
+    ar(data);
+
+    // recreate the out-edges, and recompute the edge count
+    for (auto [v, ptr] : data) {
+      num_edges += ptr->parents.size();
+      for (Arg u : ptr->parents) {
+        assert(u != v);
+        data.at(u)->children.insert(v);
+      }
+    }
+  }
+
+  Impl() = default;
   Impl(size_t count) : data(count), num_edges(0) {}
   ~Impl() { clear(); }
 
   Impl* clone() const override {
     Impl* result = new Impl(*this);
     for (auto& [_, ptr] : result->data) {
-      ptr = new Vertex(*ptr);
+      ptr = new VertexData(*ptr);
     }
+    return result;
   }
 
+#if 0
   bool equals(const Object::Impl& other) const override {
     const Impl& impl = static_cast<const Impl&>(other);
     if (data.size() != impl.data.size()) return false;
@@ -39,42 +70,20 @@ struct BayesianNetwork::Impl : Object::Impl {
     }
     return true;
   }
-
-  void save(oarchive& ar) const override {
-    ar << data.size() << num_edges;
-    for (const auto [u, ptr] : impl().data) {
-      ar << u << ptr->parents << ptr->property;
-    }
-  }
-
-  void load(iarchive& ar) override {
-    clear();
-    size_t num_vertices;
-    Arg u;
-    ar >> num_vertices;
-    ar >> num_edges;
-    while (num_vertices-- > 0) {
-      ar >> v;
-      auto [it, inserted] = data.insert(v, new VertexData);
-      assert(inserted);
-      ar >> it->second->parents >> it->second->property;
-      for (Arg u : it->second->parents) {
-        assert(u != v);
-        data[u].children.insert(v);
-      }
-    }
-  }
+#endif
 
   void print(std::ostream& out) const override {
-    for (auto [u, ptr] : sorted(data)) {
+    std::vector<std::pair<Arg, VertexData*>> values = data.values();
+    std::sort(values.begin(), values.end());
+    for (auto [u, ptr] : values) {
       out << u << ": " << ptr->parents << " " << ptr->property << std::endl;
     }
   }
 
-  void remove_in_edges(VertexDataMap::iterator it) {
+  void remove_in_edges(VertexDataMap::const_iterator it) {
     num_edges -= it->second->parents.size();
     for (Arg u : it->second->parents) {
-      data.at(u).children.erase(it->first);
+      data.at(u)->children.erase(it->first);
     }
     it->second->parents.clear();
   }
@@ -86,6 +95,11 @@ struct BayesianNetwork::Impl : Object::Impl {
     data.clear();
     num_edges = 0;
   }
+
+  std::pair<VertexDataMap::const_iterator, bool> find(Arg arg) const {
+    auto it = data.find(arg);
+    return {it, it != data.end()};
+  }
 };
 
 BayesianNetwork::Impl& BayesianNetwork::impl() {
@@ -96,46 +110,35 @@ const BayesianNetwork::Impl& BayesianNetwork::impl() const {
   return static_cast<Impl&>(*impl_);
 }
 
-BayesianNetwork::Vertex& BayesianNetwork::data(Arg arg) {
-  return *impl().data.arg(arg);
+BayesianNetwork::VertexData& BayesianNetwork::data(Arg arg) {
+  return *impl().data.at(arg);
 }
 
-const BayesianNetwork::Vertex& BayesianNetwork::data(Arg arg) const {
-  return *impl().data.arg(arg);
-}
-
-const BayesianNetwork::Impl& BayesianNetwork::impl() const {
-  return static_cast<Impl&>(*impl_);
+const BayesianNetwork::VertexData& BayesianNetwork::data(Arg arg) const {
+  return *impl().data.at(arg);
 }
 
 BayesianNetwork::BayesianNetwork(size_t count)
-  : Object(new Impl(count)) {}
+  : Object(std::make_unique<Impl>(count)) {}
 
-boost::iterator_range<BayesianNetwork::vertex_iterator> BayesianNetwork::vertices() const {
-  return { impl().data.begin(), impl().data_.end() };
+SubRange<BayesianNetwork::out_edge_iterator> BayesianNetwork::out_edges(Arg u) const {
+  const AdjacencySet& children = data(u).children;
+  return { out_edge_iterator(children.begin(), u), out_edge_iterator(children.end(), u) };
 }
 
-boost::iterator_range<BayesianNetwork::edge_iterator> BayesianNetwork::edges() const {
-  return { { data_.begin(), data_.end(), &VertexDataMap::children },
-            { data_.end(), data_.end(), &VertexDataMap::children } };
-}
-
-/// Returns the edges incoming to a vertex.
-boost::iterator_range<BayesianNetwork::in_edge_iterator> BayesianNetwork::in_edges(Arg u) const {
+SubRange<BayesianNetwork::in_edge_iterator> BayesianNetwork::in_edges(Arg u) const {
   const Domain& parents = data(u).parents;
-  return { { parents.begin(), u }, { parents.end(), u } };
+  return { in_edge_iterator(parents.begin(), u), in_edge_iterator(parents.end(), u) };
 }
 
-/// Returns the outgoing edges from a vertex.
-boost::iterator_range<BayesianNetwork::out_edge_iterator> BayesianNetwork::out_edges(Arg u) const {
-  const ArgSet& children = data(u).children;
-  return { { children.begin(), u }, { children.end(), u } };
-}
-
-boost::iterator_range<BayesianNetwork::adjacency_iterator>
+SubRange<BayesianNetwork::adjacency_iterator>
 BayesianNetwork::adjacent_vertices(Arg u) const {
-  const ArgSet& children = data(u).children;
+  const AdjacencySet& children = data(u).children;
   return { children.begin(), children.end() };
+}
+
+SubRange<BayesianNetwork::vertex_iterator> BayesianNetwork::vertices() const {
+  return { impl().data.begin(), impl().data.end() };
 }
 
 bool BayesianNetwork::contains(Arg u) const {
@@ -196,25 +199,24 @@ const Object& BayesianNetwork::operator[](Arg u) const {
   return data(u).property;
 }
 
-MarkovNetwork<void, void> BayesianNetwork::markov_network() const {
-  MarkovNetwork<void, void> mn(data_.size());
-  for (Arg u :vertices()) {
+MarkovNetworkT<> BayesianNetwork::markov_network() const {
+  MarkovNetworkT<> mn(num_vertices());
+  for (auto [u, ptr] : impl().data) {
     mn.add_vertex(u);
-  }
-  for (Arg u : vertices()) {
-    mn.make_clique(u, parents(u));
+    mn.add_clique(ptr->parents);
+    mn.add_edges(u, ptr->parents);
   }
   return mn;
 }
 
-bool BayesianNetwork::add_vertex(Arg v, Domain parents, Object object = Object()) {
-  auto [it, found] = find(v);
+bool BayesianNetwork::add_vertex(Arg v, Domain parents, Object object) {
+  auto [it, found] = impl().find(v);
 
   // Insert new vertex data or clear in-edges of the old one
   if (found) {
     impl().remove_in_edges(it);
   } else {
-    it = impl().data.emplace(u, new VertexData).first;
+    it = impl().data.emplace(v, new VertexData).first;
   }
 
   // Update the edge count
@@ -233,15 +235,15 @@ bool BayesianNetwork::add_vertex(Arg v, Domain parents, Object object = Object()
 }
 
 void BayesianNetwork::remove_vertex(Arg u) {
-  auto [it, found] = find(u);
-  assert(found && it->children.empty());
+  auto [it, found] = impl().find(u);
+  assert(found && it->second->children.empty());
   impl().remove_in_edges(it);
   delete it->second;
   impl().data.erase(it);
 }
 
 void BayesianNetwork::remove_in_edges(Arg u) {
-  auto [it, found]= find(u);
+  auto [it, found]= impl().find(u);
   assert(found);
   impl().remove_in_edges(it);
 }
@@ -251,3 +253,6 @@ void BayesianNetwork::clear() {
 }
 
 } // namespace libgm
+
+CEREAL_REGISTER_TYPE(libgm::BayesianNetwork::Impl);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(libgm::Object::Impl, libgm::BayesianNetwork::Impl);

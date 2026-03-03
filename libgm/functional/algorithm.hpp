@@ -8,7 +8,7 @@ namespace libgm {
  * A binary operator that computes the maximum of two values.
  */
 template <typename T>
-struct Maximum {
+struct MaximumOp {
   T operator()(const T& x, const T& y) const {
     return std::max<T>(x, y);
   }
@@ -18,7 +18,7 @@ struct Maximum {
  * A binary operator that computes the minimum of two values.
  */
 template <typename T>
-struct Minimum {
+struct MinimumOp {
   T operator()(const T& x, const T& y) const {
     return std::min<T>(x, y);
   }
@@ -27,7 +27,7 @@ struct Minimum {
 /**
  * An identity operator. Simply returns what is passed to it.
  */
-struct Identity {
+struct IdentityOp {
   template <typename T>
   decltype(auto) operator()(T&& t) const {
     return std::forward<T>(t);

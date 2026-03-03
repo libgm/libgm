@@ -18,12 +18,12 @@ class SumProductCalibrate {
   //--------------------------------------------------------------------------
 public:
   /// Factor traits.
-  template <typename F, typename R>
+  template <typename F>
   using FactorTraits = Implements<
     Multiply<F, F>,
     MultiplyInDims<F, F>,
     MarginalDims<F>
-  > {};
+  >;
 
   /// A generic factor.
   struct Factor : FactorTraits<Factor> {};
@@ -52,7 +52,7 @@ public:
   /**
    * Initializes the algorithm to the cliques obtained by eliminating given collection of factors.
    */
-  void reset(MarkovNetworkT<>& mn, const EliminationStreategy& strategy, const ShapeMap& shape_map);
+  void reset(MarkovNetworkT<>& mn, const EliminationStrategy& strategy, const ShapeMap& shape_map);
 
   /**
    * Multiplies in a factor.

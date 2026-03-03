@@ -1,6 +1,7 @@
 #pragma once
 
 #include <libgm/argument/shape.hpp>
+#include <libgm/assignment/discrete_values.hpp>
 #include <libgm/datastructure/table.hpp>
 #include <libgm/factor/implements.hpp>
 #include <libgm/factor/interfaces.hpp>
@@ -24,68 +25,66 @@ template <typename T> class ProbabilityTable;
  * e.g. in a Bayesian network, this factor also represents a probability
  * distribution in the log-space.
  *
- * \tparam RealType a real type representing each parameter
+ * \tparam T a real type representing each parameter
  *
  * \ingroup factor_types
  */
 template <typename T>
 class LogarithmicTable
-  : Implements<
+  : public Object,
+    public Implements<
       // Direct operations
-      Multiply<LogarithmicTable, Exp<T>>,
-      Multiply<LogarithmicTable, LogarithmicTable>,
-      MultiplyIn<LogarithmicTable, Exp<T>>,
-      MultiplyIn<LogarithmicTable, LogarithmicTable>,
-      Divide<LogarithmicTable, Exp<T>>,
-      Divide<LogarithmicTable, LogarithmicTable>,
-      DivideIn<LogarithmicTable, Exp<T>>,
-      DivideIn<LogarithmicTable, LogarithmicTable>,
+      Multiply<LogarithmicTable<T>, Exp<T>>,
+      Multiply<LogarithmicTable<T>, LogarithmicTable<T>>,
+      MultiplyIn<LogarithmicTable<T>, Exp<T>>,
+      MultiplyIn<LogarithmicTable<T>, LogarithmicTable<T>>,
+      Divide<LogarithmicTable<T>, Exp<T>>,
+      Divide<LogarithmicTable<T>, LogarithmicTable<T>>,
+      DivideIn<LogarithmicTable<T>, Exp<T>>,
+      DivideIn<LogarithmicTable<T>, LogarithmicTable<T>>,
 
       // Join operations
-      MultiplySpan<LogarithmicTable, LogarithmicTable>,
-      MultiplySpanIn<LogarithmicTable, LogarithmicTable>,
-      MultiplyDims<LogarithmicTable, LogarithmicTable>,
-      MultiplyDimsIn<LogarithmicTable, LogarithmicTable>,
-      DivideSpan<LogarithmicTable, LogarithmicTable>,
-      DivideSpanIn<LogarithmicTable, LogarithmicTable>,
-      DivideDims<LogarithmicTable, LogarithmicTable>,
-      DivideDimsIn<LogarithmicTable, LogarithmicTable>,
+      MultiplySpan<LogarithmicTable<T>, LogarithmicTable<T>>,
+      MultiplyDims<LogarithmicTable<T>, LogarithmicTable<T>>,
+      MultiplyInSpan<LogarithmicTable<T>, LogarithmicTable<T>>,
+      MultiplyInDims<LogarithmicTable<T>, LogarithmicTable<T>>,
+      DivideSpan<LogarithmicTable<T>, LogarithmicTable<T>>,
+      DivideDims<LogarithmicTable<T>, LogarithmicTable<T>>,
+      DivideInSpan<LogarithmicTable<T>, LogarithmicTable<T>>,
+      DivideInDims<LogarithmicTable<T>, LogarithmicTable<T>>,
 
       // Arithmetic operations
-      Power<LogarithmicTable, T>,
-      WeightedUpdate<LogarithmicTable, T>,
+      Power<LogarithmicTable<T>, T>,
+      WeightedUpdate<LogarithmicTable<T>, T>,
 
       // Aggregates
-      Marginal<LogarithmicTable, Exp<T>>,
-      Maximum<LogarithmicTable, Exp<T>>,
-      Minimum<LogarithmicTable, Exp<T>>,
-      MarginalSpan<LogarithmicTable>,
-      MarginalDims<LogarithmicTable>,
-      MaximumSpan<LogarithmicTable>,
-      MaximumDims<LogarithmicTable>,
-      MinimumSpan<LogarithmicTable>,
-      MinimumDims<LogarithmicTable>,
-
-      // Normalization
-      Normalize<LogarithmicTable>,
-      NormalizeHead<LogarithmicTable>,
+      Maximum<LogarithmicTable<T>, Exp<T>, DiscreteValues>,
+      Minimum<LogarithmicTable<T>, Exp<T>, DiscreteValues>,
+      MaximumSpan<LogarithmicTable<T>>,
+      MaximumDims<LogarithmicTable<T>>,
+      MinimumSpan<LogarithmicTable<T>>,
+      MinimumDims<LogarithmicTable<T>>,
 
       // Restriction
-      RestrictSpan<LogarithmicTable>,
-      RestrictDims<LogarithmicTable>,
+      RestrictSpan<LogarithmicTable<T>, DiscreteValues>,
+      RestrictDims<LogarithmicTable<T>, DiscreteValues>,
 
       // Entropy and divergences
-      Entropy<LogarithmicTable, T>,
-      CrossEntropy<LogarithmicTable, T>,
-      KlDivergence<LogarithmicTable, T>,
-      SumDifference<LogarithmicTable, T>,
-      MaxDifference<LogarithmicTable, T>
+      Entropy<LogarithmicTable<T>, T>,
+      CrossEntropy<LogarithmicTable<T>, T>,
+      KlDivergence<LogarithmicTable<T>, T>,
+      SumDifference<LogarithmicTable<T>, T>,
+      MaxDifference<LogarithmicTable<T>, T>
     > {
 public:
-  // Public types
-  //--------------------------------------------------------------------------
+  /// The result of applying this factor to an index.
+  using result_type = Exp<T>;
 
-  // using ll_type = CanonicalTableLL<T>;
+  /// Implementation class.
+  struct Impl;
+
+  /// Function table.
+  static const typename LogarithmicTable::VTable vtable;
 
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
@@ -97,10 +96,13 @@ public:
   explicit LogarithmicTable(Exp<T> value);
 
   /// Constructs a factor with the given shape and constant value.
-  explicit LogarithmicTable(const Shape& shape, Exp<T> value = Exp<T>(0));
+  explicit LogarithmicTable(Shape shape, Exp<T> value = Exp<T>(0));
 
   /// Creates a factor with the specified shape and parameters.
-  LogarithmicTable(const Shape& shape, std::initializer_list<t> values);
+  LogarithmicTable(Shape shape, std::initializer_list<T> values);
+
+  /// Creates a factor with the specified shape and parameters.
+  LogarithmicTable(Shape shape, const T* values);
 
   /// Creates a factor with the specified parameters.
   LogarithmicTable(Table<T> param);
@@ -109,12 +111,6 @@ public:
   friend void swap(LogarithmicTable& f, LogarithmicTable& g) {
     std::swap(f.impl_, g.impl_);
   }
-
-  /**
-   * Resets the content of this factor to the given shape.
-   * If the table size changes, the table elements become invalidated.
-   */
-  void reset(const Shape& shape);
 
   // Accessors
   //--------------------------------------------------------------------------
@@ -135,10 +131,10 @@ public:
   const Table<T>& param() const;
 
   /// Returns the value of the expression for the given index.
-  Exp<T> operator()(const Values& values) const;
+  Exp<T> operator()(const DiscreteValues& values) const;
 
   /// Returns the log-value of the expression for the given index.
-  T log(const Values& values) const;
+  T log(const DiscreteValues& values) const;
 
   // Conversions
   //--------------------------------------------------------------------------
@@ -151,6 +147,10 @@ public:
 
   /// Converts this table to a matrix. The table must be binary.
   LogarithmicMatrix<T> matrix() const;
+
+private:
+  Impl& impl();
+  const Impl& impl() const;
 
 }; // class LogarithmicTable
 

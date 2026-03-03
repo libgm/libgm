@@ -1,13 +1,17 @@
 #pragma once
 
+#include <libgm/object.hpp>
+#include <libgm/argument/argument.hpp>
 #include <libgm/argument/domain.hpp>
-#include <libgm/graph/algorithm/graph_traversal.hpp>
-#include <libgm/graph/directed_graph.hpp>
-#include <libgm/graph/UndirectedGraph.hpp>
-#include <libgm/math/logarithmic.hpp>
-
-#include <iterator>
-#include <unordered_map>
+#include <libgm/datastructure/subrange.hpp>
+#include <libgm/datastructure/unordered_dense.hpp>
+#include <libgm/graph/directed_edge.hpp>
+#include <libgm/graph/markov_network.hpp>
+#include <libgm/graph/util/nullable.hpp>
+#include <libgm/graph/util/property_caster.hpp>
+#include <libgm/iterator/bind1_iterator.hpp>
+#include <libgm/iterator/bind2_iterator.hpp>
+#include <libgm/iterator/map_key_iterator.hpp>
 
 namespace libgm {
 
@@ -29,33 +33,32 @@ private:
    * stores the property associated with the vertex as well all edges from/to
    * parent and child vertices (along with the edge properties).
    */
-  struct Vertex;
+  struct VertexData;
 
   /// The map type used to associate neighbors and edge data with each vertex.
   using AdjacencySet = ankerl::unordered_dense::set<Arg>;
 
-  /// The map types that associates all the vertices with their VertexData.
-  using VertexDataMap = ankerl::unordered_dense::map<Arg, Vertex*>;
+  /// The map types that associate all the vertices with their VertexData.
+  using VertexDataMap = ankerl::unordered_dense::map<Arg, VertexData*>;
 
-  /// The implementation object.
+public:
+  /// The implementation class.
   struct Impl;
 
   Impl& impl();
   const Impl& impl() const;
 
-  Vertex& data(Arg arg);
-  const Vertex& data(Arg arg) const;
+  VertexData& data(Arg arg);
+  const VertexData& data(Arg arg) const;
 
-  //--------------------------------------------------------------------------
-public:
   // Descriptors
   using vertex_descriptor = Arg;
   using edge_descriptor   = DirectedEdge<Arg>;
 
   // Iterators (the exact types are implementation detail)
-  using out_edge_iterator  = Bind1Iterator<NeighborSet::const_iterator, edge_descriptor>;
+  using out_edge_iterator  = Bind1Iterator<AdjacencySet::const_iterator, edge_descriptor>;
   using in_edge_iterator   = Bind2Iterator<Domain::const_iterator, edge_descriptor>;
-  using adjacency_iterator = NeighborSet::const_iterator;
+  using adjacency_iterator = AdjacencySet::const_iterator;
   using vertex_iterator    = MapKeyIterator<VertexDataMap>;
 
   // Constructors
@@ -68,16 +71,16 @@ public:
   //--------------------------------------------------------------------------
 
   /// Returns the outgoing edges from a vertex.
-  boost::iterator_range<out_edge_iterator> out_edges(Arg u) const;
+  SubRange<out_edge_iterator> out_edges(Arg u) const;
 
   /// Returns the edges incoming to a vertex.
-  boost::iterator_range<in_edge_iterator> in_edges(Arg u) const;
+  SubRange<in_edge_iterator> in_edges(Arg u) const;
 
   /// Returns the children of u.
-  boost::iterator_range<adjacency_iterator> adjacent_vertices(Arg u) const;
+  SubRange<adjacency_iterator> adjacent_vertices(Arg u) const;
 
   /// Returns the range of all vertices.
-  boost::iterator_range<vertex_iterator> vertices() const;
+  SubRange<vertex_iterator> vertices() const;
 
   /// Returns true if the graph contains the given vertex.
   bool contains(Arg u) const;
@@ -124,7 +127,7 @@ public:
   /**
    * Computes a minimal Markov graph capturing dependencies in this model.
    */
-  MarkovNetworkT<void, void> markov_network() const;
+  MarkovNetworkT<> markov_network() const;
 
   // Modifications
   //--------------------------------------------------------------------------
@@ -147,5 +150,17 @@ public:
   void clear();
 
 }; // class BayesianNetwork
+
+/**
+ * Bayesian network with strongly-typed vertices.
+ */
+template <typename VP = void>
+struct BayesianNetworkT : VertexPropertyCaster<BayesianNetwork, VP> {
+  using VertexPropertyCaster<BayesianNetwork, VP>::VertexPropertyCaster;
+
+  bool add_vertex(Arg u, Domain parents, Nullable<VP> vp = Nullable<VP>()) {
+    return BayesianNetwork::add_vertex(u, std::move(parents), std::move(vp));
+  }
+}; // struct BayesianNetworkT
 
 } // namespace libgm

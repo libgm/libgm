@@ -1,22 +1,17 @@
 #pragma once
 
+#include <libgm/factor/vtables/reshape.hpp>
+
 namespace libgm {
-
-namespace vtables {
-
-/// A virtual table for transposing the factor.
-struct Transpose {
-  ImplPtr (Object::Impl::*op)() const;
-};
-
-} // namespace vtables
 
 template <typename DERIVED>
 struct Transpose {
-  using VTable = vtables::Transpose;
+  using VTable = vtables::Transpose<DERIVED>;
 
   DERIVED transpose() const {
-    return DERIVED::call(&VTable::op, *this);
+    DERIVED result;
+    vtable_cast<Transpose>(DERIVED::vtable).op(*this, result);
+    return result;
   }
 };
 

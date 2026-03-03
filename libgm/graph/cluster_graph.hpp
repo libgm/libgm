@@ -1,8 +1,23 @@
 #pragma once
 
+#include <libgm/object.hpp>
 #include <libgm/argument/domain.hpp>
+#include <libgm/datastructure/domain_index.hpp>
+#include <libgm/datastructure/intrusive_list.hpp>
+#include <libgm/datastructure/subrange.hpp>
+#include <libgm/graph/intrusive_edge.hpp>
+#include <libgm/graph/markov_network.hpp>
+#include <libgm/graph/util/bgl.hpp>
 #include <libgm/graph/util/nullable.hpp>
 #include <libgm/graph/util/property_caster.hpp>
+#include <libgm/iterator/casting_iterator.hpp>
+#include <libgm/iterator/member_iterator.hpp>
+
+#include <ankerl/unordered_dense.h>
+
+#include <boost/graph/graph_traits.hpp>
+#include <boost/graph/properties.hpp>
+
 
 namespace libgm {
 
@@ -16,7 +31,12 @@ namespace libgm {
  * \ingroup graph_types
  */
 class ClusterGraph : public Object {
-protected:
+public:
+  // The implementation types
+  struct Impl;
+  Impl& impl();
+  const Impl& impl() const;
+
   // The types of data stored in each vertex and edge.
   struct Vertex;
   struct Edge;
@@ -24,17 +44,12 @@ protected:
   // Vertex I/O
   friend std::ostream& operator<<(std::ostream& out, Vertex* v);
 
-  // Vertex / edge containers.
-  using OutEdgeSet = ankerl::unordered_dense::set<EdgeReference<Vertex, Edge>>;
-  using VertexList = boost::intrusive::list<VertexBase>;
-  using EdgeList = boost::intrusive::list<EdgeBase>;
-
   // Public type declarations
   //--------------------------------------------------------------------------
 public:
   // Descriptors
   using vertex_descriptor = Vertex*;
-  using edge_descriptor = EdgeReference<Vertex, Edge>;
+  using edge_descriptor = IntrusiveEdge<Vertex, Edge>;
 
   // Graph categories
   using directed_category = boost::directed_tag;
@@ -51,12 +66,28 @@ public:
   using degree_size_type = size_t;
 
   // Iterators (the exact types are implementation detail)
-  using out_edge_iterator  = OutEdgeSet::const_iterator;
-  using in_edge_iterator   = MemberIterator<OutEdgeSet::const_iterator, &edge_descriptor::reverse>;
-  using adjacency_iterator = MemberIterator<OutEdgeSet::const_iterator, &edge_descriptor::target>;
-  using vertex_iterator    = MemberIterator<VertexList::const_iterator, &VertexBase::cast<Vertex>>;
-  using edge_iterator      = MemberIterator<EdgeList::const_iterator, &EdgeBase::ref<Vertex, Edge>>;
-  using argument_iterator  = DomainIndex::argument_iterator;
+  using out_edge_iterator  = CastingIterator<IntrusiveList<Edge>::entry_iterator, edge_descriptor>;
+  using in_edge_iterator   = MemberIterator<out_edge_iterator, &edge_descriptor::reverse>;
+  using adjacency_iterator = MemberIterator<out_edge_iterator, &edge_descriptor::target>;
+  using vertex_iterator    = IntrusiveList<Vertex>::iterator;
+  using edge_iterator      = IntrusiveList<Edge>::iterator;
+  using argument_iterator  = DomainIndex<Vertex>::argument_iterator;
+
+  // Color map for vertices
+  struct VertexColorMap {
+    using value_type = boost::default_color_type;
+    using reference = boost::default_color_type;
+    using key_type = Vertex*;
+    using category = boost::read_write_property_map_tag;
+  };
+
+  // Index map for vertices
+  struct VertexIndexMap {
+    using value_type = size_t;
+    using reference = size_t;
+    using key_type = Vertex*;
+    using category = boost::readable_property_map_tag;
+  };
 
   // Visitors
   using VertexVisitor = std::function<void(vertex_descriptor)>;
@@ -69,31 +100,31 @@ public:
   ClusterGraph() = default;
 
   /// Swaps two cluster graphs in constant time.
-  friend void swap(ClusterGraph& a, ClusterGraph& b) {
-    std::swap(a.impl_, b.impl_);
-  }
+  friend void swap(ClusterGraph& a, ClusterGraph& b) { std::swap(a.impl_, b.impl_); }
 
-  static Vertex* null_vertex() {
-    return nullptr;
-  }
+  static Vertex* null_vertex() { return nullptr; }
+
+  VertexColorMap vertex_color_map() { return {}; }
+
+  VertexIndexMap vertex_index_map() { return {}; }
 
   // Graph accessors
   //--------------------------------------------------------------------------
 
   /// Returns the outgoing edges from a vertex.
-  boost::iterator_range<out_edge_iterator> out_edges(Vertex* u) const;
+  SubRange<out_edge_iterator> out_edges(Vertex* u) const;
 
   /// Returns the edges incoming to a vertex.
-  boost::iterator_range<in_edge_iterator> in_edges(Vertex* u) const;
+  SubRange<in_edge_iterator> in_edges(Vertex* u) const;
 
   /// Returns the vertices adjacent to u.
-  boost::iterator_range<adjacency_iterator> adjacent_vertices(Vertex* u) const;
+  SubRange<adjacency_iterator> adjacent_vertices(Vertex* u) const;
 
   /// Returns the range of all vertices.
-  boost::iterator_range<vertex_iterator> vertices() const;
+  SubRange<vertex_iterator> vertices() const;
 
   /// Returns the range of all vertices.
-  boost::iterator_range<edge_iterator> edges() const;
+  SubRange<edge_iterator> edges() const;
 
   /// Returns true if the graph has no vertices.
   bool empty() const;
@@ -120,10 +151,7 @@ public:
   bool contains(Vertex* u, Vertex* v) const;
 
   /// Returns true if the graph contains an undirected edge.
-  bool contains(Edge* e) const;
-
-  /// Returns an undirected edge (u, v). The edge must exist.
-  edge_descriptor edge(Vertex* u, Vertex* v);
+  bool contains(edge_descriptor e) const;
 
   /// Returns the first vertex or the null vertex if the graph is empty.
   Vertex* root() const;
@@ -135,10 +163,10 @@ public:
   const Object& operator[](Vertex* u) const;
 
   /// Returns the property associated with an edge.
-  Object& operator[](Edge* e);
+  Object& operator[](edge_descriptor e);
 
   /// Returns the property associated with an edge
-  const Object& operator[](Edge* e) const;
+  const Object& operator[](edge_descriptor e) const;
 
   /// Returns true if two cluster graphs are identical.
   bool operator==(const ClusterGraph& other) const;
@@ -156,25 +184,25 @@ public:
   size_t count(Arg x) const;
 
   /// Returns the union of all the clusters in this graph.
-  boost::iterator_range<argument_iterator> arguments() const;
+  SubRange<argument_iterator> arguments() const;
 
   /// The cluster associated with a vertex.
   const Domain& cluster(Vertex* v) const;
 
   /// The seprator associated with an edge.
-  const Domain& separator(Edge* e) const;
+  const Domain& separator(edge_descriptor e) const;
 
   /// Returns the shape of the arguments at a vertex.
-  ShapeVec shape(Vertex* v, const ShapeMap& map) const;
+  Shape shape(Vertex* v, const ShapeMap& map) const;
 
   /// Returns the shape of the arguments at an edge.
-  ShapeVec shape(Edge* e, const ShapeMap& map) const;
+  Shape shape(edge_descriptor e, const ShapeMap& map) const;
 
   /// Returns the index mapping from a domain to the cluster at a vertex.
   Dims dims(Vertex* v, const Domain& dom) const;
 
   /// Returns the index mapping from a domain to the separator at an edge.
-  Dims dims(Edge* e, const Domain& dom) const;
+  Dims dims(edge_descriptor e, const Domain& dom) const;
 
   /// Returns the index mapping from the separator to the source cluster.
   Dims source_dims(edge_descriptor e) const;
@@ -193,12 +221,12 @@ public:
   /**
    * Returns true if the graph is connected.
    */
-  bool is_connected() const;
+  bool is_connected();
 
   /**
    * Returns true if the cluster graph is a tree.
    */
-  bool is_tree() const;
+  bool is_tree();
 
   /**
    * Returns true if the cluster graph satisfies the running intersection
@@ -206,13 +234,13 @@ public:
    * if, for each value, the clusters and separators containing that value
    * form a subtree.
    */
-  bool has_running_intersection() const;
+  bool has_running_intersection();
 
   /**
    * Returns true if the cluster graph represents a triangulated model,
    * i.e., is a tree and satisfies the running intersection property.
    */
-  bool is_triangulated() const;
+  bool is_triangulated();
 
   /**
    * Returns the maximum clique size minus one.
@@ -233,7 +261,7 @@ public:
    * If there are multiple such edges, one with the smallest separator
    * is returned. If there is no such edge, returns a null edge.
    */
-  Edge* find_separator_cover(const Domain& dom) const;
+  edge_descriptor find_separator_cover(const Domain& dom) const;
 
   /**
    * Returns a vertex whose clique cover meets (intersects) the supplied
@@ -247,7 +275,7 @@ public:
    * domain. The returned edge is the one that has the smallest separator
    * that has maximal intersection with the supplied domain.
    */
-  Edge* find_separator_meets(const Domain& dom) const;
+  edge_descriptor find_separator_meets(const Domain& dom) const;
 
   /**
    * Visits the vertices whose clusters overlap the supplied domain.
@@ -312,7 +340,7 @@ public:
    *        If the graph is disconnected, then this visitor is applied
    *        only to edges directed away from the root vertex.
    */
-  void pre_order_traversal(Arg* start, EdgeVisitor visitor) const;
+  void pre_order_traversal(Vertex* start, EdgeVisitor visitor);
 
   /**
    * Performs a post-order traversal of a tree, starting at the given root.
@@ -327,7 +355,7 @@ public:
    *        If the graph is disconnected, then this visitor is applied
    *        only to edges directed toward the start vertex.
    */
-  void post_order_traversal(Arg* start, EdgeVisitor visitor) const;
+  void post_order_traversal(Vertex* start, EdgeVisitor visitor);
 
   /**
    * Visits each (directed) edge of the cluster graph once in a traversal
@@ -344,7 +372,7 @@ public:
    *        If the graph is disconnected, then this visitor is applied
    *        only to edges directed towards / from the start vertex.
    */
-  void mpp_traversal(Vertex* root, EdgeVisitor visitor) const;
+  void mpp_traversal(Vertex* root, EdgeVisitor visitor);
 
   // Mutating operations
   //--------------------------------------------------------------------------
@@ -360,8 +388,7 @@ public:
    * at these vertices. If the edge already exists, does not perform anything.
    * \return the edge and bool indicating whether the insertion took place
    */
-  std::pair<edge_descriptor, bool>
-  add_edge(Vertex* u, Vertex* v, Domain separator, Object ep = Object());
+  edge_descriptor add_edge(Vertex* u, Vertex* v, Domain separator, Object ep = Object());
 
   /**
    * Adds an edge {u, v} to the graph, setting the separator to the
@@ -369,7 +396,7 @@ public:
    * If the edge already exists, does not perform anything.
    * \return the edge and bool indicating whether the insertion took place
    */
-  std::pair<edge_descriptor, bool> add_edge(Vertex* u, Vertex* v);
+  edge_descriptor add_edge(Vertex* u, Vertex* v, Object ep = Object());
 
   /**
    * Updates the cluster associated with an existing vertex.
@@ -379,7 +406,7 @@ public:
   /**
    * Updates the separator associated with an edge.
    */
-  void update_separator(Edge* e, const Domain& separator);
+  void update_separator(edge_descriptor e, const Domain& separator);
 
   /**
    * Merges two adjacent vertices and their clusters. The edge (u,v) and
@@ -392,7 +419,7 @@ public:
    *
    * \return the retained vertex
    */
-  Vertex* merge(Edge* e);
+  Vertex* merge(edge_descriptor e);
 
   /// Removes a vertex and the associated cluster and property.
   void remove_vertex(Vertex* v);
@@ -401,7 +428,7 @@ public:
   void remove_edge(Vertex* u, Vertex* v);
 
   /// Removes an undirected edge and the associated data.
-  void remove_edge(Edge* e);
+  void remove_edge(edge_descriptor e);
 
   /// Removes all edges incindent to a vertex
   void clear_vertex(Vertex* u);
@@ -426,7 +453,7 @@ public:
    *               variables stored in Domain.
    * \tparam Strategy a type that models the EliminationStrategy concept
    */
-  void triangulated(MarkovNetwork& mn, Strategy& strategy);
+  void triangulated(MarkovNetwork& mn, const EliminationStrategy& strategy);
 
   /**
    * Initializes the cluster graph to a junction tree with the given
@@ -452,6 +479,9 @@ boost::default_color_type get(const ClusterGraph::VertexColorMap&, ClusterGraph:
 /// Sets the color associated with a vertex.
 void put(const ClusterGraph::VertexColorMap&, ClusterGraph::Vertex* v, boost::default_color_type c);
 
+/// Returns the index associated with a vertex.
+size_t get(const ClusterGraph::VertexIndexMap&, ClusterGraph::Vertex* v);
+
 /**
  * A cluster graph with strongly typed vertex and edge properties.
  *
@@ -462,6 +492,9 @@ void put(const ClusterGraph::VertexColorMap&, ClusterGraph::Vertex* v, boost::de
  */
 template <typename VP = void, typename EP = void>
 struct ClusterGraphT : PropertyCaster<ClusterGraph, VP, EP> {
+  using Vertex = ClusterGraph::Vertex;
+  using edge_descriptor = ClusterGraph::edge_descriptor;
+
   Vertex* add_vertex(Domain cluster, Nullable<VP> vp = Nullable<VP>()) {
     return ClusterGraph::add_vertex(std::move(cluster), std::move(vp));
   };

@@ -1,10 +1,17 @@
-project(LibGM)
+cmake_minimum_required(VERSION 3.30.0)
 
-cmake_minimum_required(VERSION 2.8.3)
+project(
+  LibGM
+  VERSION 0.1.0
+  DESCRIPTION "A C++17 library for probabilistic graphical models"
+  LANGUAGES CXX
+)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 enable_testing()
-
-subdirs(test timing tools)
 
 if (MSVC)
   add_definitions(-D_SCL_SECURE_NO_WARNINGS) # disable checked_iterator warnings
@@ -23,31 +30,20 @@ else(MSVC)
   set(Boost_USE_MULTITHREADED ON)
 endif(MSVC)
 
-find_package(Boost 1.40 COMPONENTS
-             chrono
-             filesystem
-             program_options
-	     system
-             unit_test_framework
-             REQUIRED)
-
-# Hacky Eigen3 configuration until there is a find module
-include_directories(
-  $ENV{EIGEN3_INCLUDE_DIR}
-  /usr/local/include/eigen3
-  /usr/include/eigen3
+find_package(
+  Boost 1.70 REQUIRED COMPONENTS
+  program_options
+  unit_test_framework
 )
+
+find_package(Eigen3 5.0 REQUIRED)
+# add_executable(example example.cpp)
+link_libraries(Eigen3::Eigen)
+find_package(unordered_dense CONFIG REQUIRED)
 
 include_directories(${LibGM_SOURCE_DIR} ${Boost_INCLUDE_DIR})
 link_directories(${Boost_LIBRARY_DIRS})
-link_libraries(${Boost_LIBRARIES})
+link_libraries(${Boost_LIBRARIES} unordered_dense::unordered_dense)
 
-# Flags for the debug and release mode
-if(CMAKE_COMPILER_IS_GNUCXX)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
-  link_libraries(pthread)
-elseif(MSVC)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /bigobj")
-else()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
-endif()
+subdirs(libgm)
+add_library(libgm)

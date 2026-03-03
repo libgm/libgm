@@ -1,20 +1,23 @@
 #pragma once
 
+#include <libgm/argument/argument.hpp>
+#include <libgm/argument/domain.hpp>
+#include <libgm/datastructure/subrange.hpp>
+#include <libgm/graph/elimination_strategy.hpp>
 #include <libgm/graph/undirected_edge.hpp>
-#include <libgm/graph/util/vertex_edge_property_iterator.hpp>
-#include <libgm/graph/util/void.hpp>
+#include <libgm/graph/util/nullable.hpp>
+#include <libgm/graph/util/property_caster.hpp>
 #include <libgm/iterator/map_bind1_iterator.hpp>
 #include <libgm/iterator/map_bind2_iterator.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
-#include <libgm/range/boost::iterator_range.hpp>
-#include <libgm/serialization/iarchive.hpp>
-#include <libgm/serialization/oarchive.hpp>
+
+#include <ankerl/unordered_dense.h>
 
 #include <boost/graph/graph_traits.hpp>
 
 #include <iterator>
 #include <iosfwd>
-#include <unordered_map>
+#include <vector>
 
 namespace libgm {
 
@@ -27,19 +30,29 @@ namespace libgm {
  */
 class MarkovNetwork : public Object {
 private:
-  struct Vertex;
+  /// The data associated with a vertex.
+  struct VertexData;
+
+  /// The implementation class.
+  struct Impl;
+
+  Impl& impl();
+  const Impl& impl() const;
+
+  VertexData& data(Arg arg);
+  const VertexData& data(Arg arg) const;
 
   /// The map type used to associate neighbors and edge data with each vertex.
   using AdjacencyMap = ankerl::unordered_dense::map<Arg, Object*>;
 
   /// The map types that associates all the vertices with their VertexData.
-  using VertexDataMap = ankerl::unordered_dense::map<Arg, Vertex*>;
+  using VertexDataMap = ankerl::unordered_dense::map<Arg, VertexData*>;
 
   // Graph concept typedefs
   //--------------------------------------------------------------------------
 public:
   // Descriptors
-  using vertex_descirptor = Arg;
+  using vertex_descriptor = Arg;
   using edge_descriptor   = UndirectedEdge<Arg>;
 
   // Iterators (the exact types are implementation detail)
@@ -64,17 +77,17 @@ public:
   using degree_size_type = size_t;
 
   /// Visitor
-  using VertexVisitor = std::function<void(Arg);
+  using VertexVisitor = std::function<void(Arg)>;
 
   // Constructors and destructors
   //--------------------------------------------------------------------------
 public:
   /// Create an empty graph.
-  MarkovNetwork();
+  explicit MarkovNetwork(size_t count = 0);
 
   /// Copy and move constructors.
   MarkovNetwork(const MarkovNetwork& g) = default;
-  MarkovNetwork(MarkovNetwor&& g) = default;
+  MarkovNetwork(MarkovNetwork&& g) = default;
 
   /// Assignment operators.
   MarkovNetwork& operator=(const MarkovNetwork& g) = default;
@@ -87,19 +100,19 @@ public:
   static Arg null_vertex() { return Arg(); }
 
   /// Returns the edges outgoing from a vertex.
-  boost::iterator_range<out_edge_iterator> out_edges(Arg u) const;
+  SubRange<out_edge_iterator> out_edges(Arg u) const;
 
   /// Returns the edges incoming to a vertex.
-  boost::iterator_range<in_edge_iterator> in_edges(Arg u) const;
+  SubRange<in_edge_iterator> in_edges(Arg u) const;
 
   /// Returns the vertices adjacent to u.
-  boost::iterator_range<adjacency_iterator> adjacent_vertices(Arg u) const;
+  SubRange<adjacency_iterator> adjacent_vertices(Arg u) const;
 
   /// Returns the range of all vertices.
-  boost::iterator_range<vertex_iterator> vertices() const;
+  SubRange<vertex_iterator> vertices() const;
 
-  /// Returns the range of all edges in the graph.
-  boost::iterator_range<edge_iterator> edges() const;
+  // /// Returns the range of all edges in the graph.
+  // SubRange<edge_iterator> edges() const;
 
   /// Returns true if the graph contains the given vertex.
   bool contains(Arg u) const;
@@ -111,7 +124,7 @@ public:
   bool contains(const UndirectedEdge<Arg>& e) const;
 
   /// Returns an undirected edge (u, v). The edge must exist.
-  UndirectedEdge<Arg, Object> edge(Arg u,  Arg v) const;
+  UndirectedEdge<Arg> edge(Arg u,  Arg v) const;
 
   /// Returns the number of edges adjacent to a vertex.
   size_t out_degree(Arg u) const;
@@ -160,8 +173,11 @@ public:
    */
   std::pair<edge_descriptor, bool> add_edge(Arg u, Arg v, Object object = Object());
 
+  /// Adds edges from given source vertex to all specified target vertices.
+  void add_edges(Arg u, const std::vector<Arg>& vs);
+
   /// Adds edges among all given vertices.
-  void add_clique(const std::vector<Arg>& vertices);
+  void add_clique(const Domain& vertices);
 
   /// Removes a vertex from the graph and all its incident edges.
   void remove_vertex(Arg u);
@@ -178,11 +194,6 @@ public:
   /// Removes all vertices and edges from the graph.
   void clear();
 
-  struct EliminationStrategy {
-    virtual ptrdiff_t priority(Arg u, const MarkovNetwork& g) const = 0;
-    virtual void update(Arg u, const MarkovNetwork& g, std::vector<Arg>& output) const = 0;
-  };
-
   /**
    * Runs the vertex elimination algorithm on a graph. The algorithm eliminates
    * each node from the graph; eliminating a node involves connecting the node's
@@ -190,15 +201,16 @@ public:
    * The nodes are eliminated greedily in the order specified by the elimination
    * strategy.
    */
-  void eliminate(EliminationStrategy& strategy, VertexVisitor visitor);
+  void eliminate(const EliminationStrategy& strategy, VertexVisitor visitor);
 
+#if 0
   // Implementation of edge iterator
   //--------------------------------------------------------------------------
 public:
   class edge_iterator
     : public std::iterator<std::forward_iterator_tag, edge_type> {
   public:
-    using reference = edge_type;
+    using reference = edge_descriptor;
     using outer_iterator = typename VertexDataMap::const_iterator;
     using inner_iterator = typename neighbor_map::const_iterator;
 
@@ -209,8 +221,8 @@ public:
       find_next();
     }
 
-    edge_type operator*() const {
-      return edge_type(it1_->first, it2_->first, it2_->second);
+    edge_descriptor operator*() const {
+      return edge_descriptor(it1_->first, it2_->first, it2_->second);
     }
 
     edge_iterator& operator++() {
@@ -263,6 +275,7 @@ public:
     inner_iterator it2_;  ///< the iterator to the current neighbor
 
   }; // class edge_iterator
+#endif
 
 }; // class MarkovNetwork
 
@@ -278,11 +291,13 @@ public:
  */
 template <typename VP = void, typename EP = void>
 struct MarkovNetworkT : PropertyCaster<MarkovNetwork, VP, EP> {
+  using PropertyCaster<MarkovNetwork, VP, EP>::PropertyCaster;
+
   bool add_vertex(Arg u, Nullable<VP> vp = Nullable<VP>()) {
     return MarkovNetwork::add_vertex(u, std::move(vp));
   }
 
-  std::pair<edge_descriptor, bool> add_edge(Arg u, Arg v, Nullable<EP> ep = Nullable<EP>()) {
+  std::pair<UndirectedEdge<Arg>, bool> add_edge(Arg u, Arg v, Nullable<EP> ep = Nullable<EP>()) {
     return MarkovNetwork::add_edge(u, v, std::move(ep));
   }
 };
