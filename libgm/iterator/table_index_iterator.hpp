@@ -21,9 +21,13 @@ namespace libgm {
  *
  * \ingroup datastructure
  */
-class TableIndexIterator
-  : public std::iterator<std::forward_iterator_tag, const std::vector<size_t>> {
+class TableIndexIterator {
 public:
+  using iterator_category = std::forward_iterator_tag;
+  using value_type = std::vector<size_t>;
+  using difference_type = std::ptrdiff_t;
+  using pointer = const value_type*;
+  using reference = const value_type&;
 
   /// End iterator constructor for the given number of dimensions
   explicit TableIndexIterator(size_t n = 0)
@@ -53,12 +57,12 @@ public:
   }
 
   /// Returns a const reference to the current index
-  const std::vector<size_t>& operator*() const {
+  reference operator*() const {
     return index_;
   }
 
   /// Returns a const pointer to the current index
-  const std::vector<size_t>* operator->() const {
+  pointer operator->() const {
     return &index_;
   }
 
