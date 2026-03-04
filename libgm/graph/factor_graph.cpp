@@ -1,11 +1,11 @@
 #include "factor_graph.hpp"
 
+#include <cassert>
+#include <stdexcept>
+
 namespace libgm {
 
 struct FactorGraph::Argument {
-  /// The property associated with the argument.
-  Object property;
-
   /// The list of factors, whose domain contains this argument.
   IntrusiveList<Factor> factors;
 
@@ -14,19 +14,15 @@ struct FactorGraph::Argument {
 
   template <typename ARCHIVE>
   void serialize(ARCHIVE& ar) {
-    ar(CEREAL_NVP(property));
+    (void)ar;
   }
 
-  Argument(Object property)
-    : property(std::move(property)) {}
+  Argument() = default;
 };
 
 struct FactorGraph::Factor {
   /// The arguments associated with the factor.
   Domain arguments;
-
-  /// The property associated with the factor
-  Object property;
 
   /// The object owning this factor.
   Impl* impl;
@@ -39,7 +35,7 @@ struct FactorGraph::Factor {
 
   template <typename ARCHIVE>
   void serialize(ARCHIVE& ar) {
-    ar(CEREAL_NVP(arguments), CEREAL_NVP(property));
+    ar(CEREAL_NVP(arguments));
     if constexpr (ARCHIVE::is_loading::value) {
       adjacency_hooks.reset(arguments.size());
     }
@@ -48,9 +44,8 @@ struct FactorGraph::Factor {
   Factor(Impl* impl)
     : impl(impl) {}
 
-  Factor(Domain arguments, Object property, Impl* impl)
+  Factor(Domain arguments, Impl* impl)
     : arguments(std::move(arguments)),
-      property(std::move(property)),
       impl(impl),
       adjacency_hooks(this->arguments.size()) {}
 };
@@ -65,10 +60,82 @@ struct FactorGraph::Impl : Object::Impl {
   /// The total number of factors.
   size_t num_factors = 0;
 
+  PropertyLayout argument_property_layout;
+  PropertyLayout factor_property_layout;
+  size_t argument_property_offset = sizeof(Argument);
+  size_t argument_allocation_size = sizeof(Argument);
+  size_t factor_property_offset = sizeof(Factor);
+  size_t factor_allocation_size = sizeof(Factor);
+
   Impl() = default;
+  Impl(PropertyLayout argument_layout, PropertyLayout factor_layout)
+    : argument_property_layout(argument_layout),
+      factor_property_layout(factor_layout) {
+    argument_property_offset = argument_property_layout.align_up(sizeof(Argument));
+    argument_allocation_size = argument_property_offset + argument_property_layout.size;
+    factor_property_offset = factor_property_layout.align_up(sizeof(Factor));
+    factor_allocation_size = factor_property_offset + factor_property_layout.size;
+  }
+
+  void* argument_property(Argument* argument) const {
+    return reinterpret_cast<char*>(argument) + argument_property_offset;
+  }
+
+  const void* argument_property(const Argument* argument) const {
+    return reinterpret_cast<const char*>(argument) + argument_property_offset;
+  }
+
+  void* factor_property(Factor* factor) const {
+    return reinterpret_cast<char*>(factor) + factor_property_offset;
+  }
+
+  const void* factor_property(const Factor* factor) const {
+    return reinterpret_cast<const char*>(factor) + factor_property_offset;
+  }
+
+  Argument* allocate_argument() const {
+    void* buffer = ::operator new(argument_allocation_size);
+    Argument* argument = new (buffer) Argument();
+    if (argument_property_layout.size != 0) {
+      assert(argument_property_layout.default_constructor);
+      argument_property_layout.default_constructor(argument_property(argument));
+    }
+    return argument;
+  }
+
+  Factor* allocate_factor(Domain arguments, Impl* impl) const {
+    void* buffer = ::operator new(factor_allocation_size);
+    Factor* factor = new (buffer) Factor(std::move(arguments), impl);
+    if (factor_property_layout.size != 0) {
+      assert(factor_property_layout.default_constructor);
+      factor_property_layout.default_constructor(factor_property(factor));
+    }
+    return factor;
+  }
+
+  void free_argument(Argument* argument) const {
+    if (argument_property_layout.size != 0) {
+      assert(argument_property_layout.deleter);
+      argument_property_layout.deleter(argument_property(argument));
+    }
+    argument->~Argument();
+    ::operator delete(argument);
+  }
+
+  void free_factor(Factor* factor) const {
+    if (factor_property_layout.size != 0) {
+      assert(factor_property_layout.deleter);
+      factor_property_layout.deleter(factor_property(factor));
+    }
+    factor->~Factor();
+    ::operator delete(factor);
+  }
 
   template <typename ARCHIVE>
   void save(ARCHIVE& ar) const  {
+    if (argument_property_layout.size != 0 || factor_property_layout.size != 0) {
+      throw std::logic_error("Serializing FactorGraph properties is unsupported.");
+    }
     ar(CEREAL_NVP(arguments));
 
     // Save the factors as an array
@@ -80,6 +147,9 @@ struct FactorGraph::Impl : Object::Impl {
 
   template <typename ARCHIVE>
   void load(ARCHIVE& ar) {
+    if (argument_property_layout.size != 0 || factor_property_layout.size != 0) {
+      throw std::logic_error("Deserializing FactorGraph properties is unsupported.");
+    }
     ar(CEREAL_NVP(arguments));
 
     // Load the factors
@@ -98,6 +168,28 @@ struct FactorGraph::Impl : Object::Impl {
     }
   }
 };
+
+FactorGraph::FactorGraph()
+  : Object(std::make_unique<Impl>()) {}
+
+FactorGraph::FactorGraph(PropertyLayout argument_layout, PropertyLayout factor_layout)
+  : Object(std::make_unique<Impl>(argument_layout, factor_layout)) {}
+
+FactorGraph::Impl& FactorGraph::impl() {
+  return static_cast<Impl&>(*impl_);
+}
+
+const FactorGraph::Impl& FactorGraph::impl() const {
+  return static_cast<const Impl&>(*impl_);
+}
+
+FactorGraph::Argument& FactorGraph::argument(Arg u) {
+  return *impl().arguments.at(u);
+}
+
+const FactorGraph::Argument& FactorGraph::argument(Arg u) const {
+  return *impl().arguments.at(u);
+}
 
 void swap(FactorGraph& a, FactorGraph& b) {
   swap(a.impl_, b.impl_);
@@ -151,31 +243,31 @@ size_t FactorGraph::num_factors() const {
   return impl().num_factors;
 }
 
-const Object& FactorGraph::operator[](Arg u) const {
-  return argument(u).property;
+void* FactorGraph::property(Arg u) {
+  return impl().argument_property(impl().arguments.at(u));
 }
 
-const Object& FactorGraph::operator[](Factor* u) const {
-  return u->property;
+const void* FactorGraph::property(Arg u) const {
+  return impl().argument_property(impl().arguments.at(u));
 }
 
-Object& FactorGraph::operator[](Arg u) {
-  return argument(u).property;
+void* FactorGraph::property(Factor* u) {
+  return impl().factor_property(u);
 }
 
-Object& FactorGraph::operator[](Factor* u) {
-  return u->property;
+const void* FactorGraph::property(Factor* u) const {
+  return impl().factor_property(u);
 }
 
 std::ostream& operator<<(std::ostream& out, const FactorGraph& g) {
   out << "Arguments" << std::endl;
   for (Arg arg : g.arguments()) {
-    out << arg << ": " << g[arg] << std::endl;
+    out << arg << std::endl;
   }
   out << "Factors" << std::endl;
   size_t i = 0;
   for (FactorGraph::Factor* f : g.factors()) {
-    out << i++ << ": " << f->arguments << " " << g[f] << std::endl;
+    out << i++ << ": " << f->arguments << std::endl;
   }
   return out;
 }
@@ -188,25 +280,25 @@ MarkovNetworkT<> FactorGraph::markov_network() const {
   return mn;
 }
 
-bool FactorGraph::add_argument(Arg u, Object property) {
+bool FactorGraph::add_argument(Arg u) {
   assert(u != Arg());
   if (contains(u)) {
     return false;
   } else {
-    impl().arguments.emplace(u, new Argument(std::move(property)));
+    impl().arguments.emplace(u, impl().allocate_argument());
     return true;
   }
 }
 
-FactorGraph::Factor* FactorGraph::add_factor(Domain arguments, Object property) {
+FactorGraph::Factor* FactorGraph::add_factor(Domain arguments) {
   // Insert the new factor
-  Factor* factor = new Factor(std::move(arguments), std::move(property), &impl());
+  Factor* factor = impl().allocate_factor(std::move(arguments), &impl());
   impl().factors.push_back(factor, factor->hook);
   ++impl().num_factors;
 
   // Connect arguments to the new factor
   for (size_t i = 0; i < factor->arguments.size(); ++i) {
-    Argument& a = this->argument(arguments[i]);
+    Argument& a = this->argument(factor->arguments[i]);
     a.factors.push_back(factor, factor->adjacency_hooks[i]);
     ++a.degree;
   }
@@ -218,7 +310,7 @@ void FactorGraph::remove_argument(Arg u) {
   auto it = impl().arguments.find(u);
   Argument* argument = it->second;
   assert(argument->factors.empty());
-  delete argument;
+  impl().free_argument(argument);
   impl().arguments.erase(it);
 }
 
@@ -227,7 +319,7 @@ void FactorGraph::remove_factor(Factor* u) {
     --argument(arg).degree;
   }
   --impl().num_factors;
-  delete u;
+  impl().free_factor(u);
 }
 
 void FactorGraph::eliminate(const Domain& retain,
@@ -247,7 +339,9 @@ void FactorGraph::eliminate(const Domain& retain,
       // Combine all factors that have this variable as an argument
       Object combination = csr.init(domain.shape(shape_map));
       for (Factor* f : factors(arg)) {
-        csr.combine_in(combination, f->property, domain.dims(f->arguments));
+        csr.combine_in(combination,
+                       *static_cast<Object*>(property(f)),
+                       domain.dims(f->arguments));
       }
 
       // Delete the eliminated argument and the associated factors.

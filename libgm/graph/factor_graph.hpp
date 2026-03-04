@@ -6,9 +6,14 @@
 #include <libgm/datastructure/subrange.hpp>
 #include <libgm/factor/utility/commutative_semiring.hpp>
 #include <libgm/graph/markov_network.hpp>
+#include <libgm/graph/util/property_layout.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
 
 #include <ankerl/unordered_dense.h>
+
+#include <new>
+#include <type_traits>
+#include <utility>
 
 namespace libgm {
 
@@ -42,6 +47,9 @@ public:
 public:
   /// Creates an empty graph.
   FactorGraph();
+
+protected:
+  FactorGraph(PropertyLayout argument_layout, PropertyLayout factor_layout);
 
   /// Swap with another graph in constant time
   friend void swap(FactorGraph& a, FactorGraph& b);
@@ -85,17 +93,17 @@ public:
   /// Returns the number of factors.
   size_t num_factors() const;
 
-  /// Returns the property associated with an argument.
-  const Object& operator[](Arg u) const;
+  /// Returns the raw pointer to the property associated with an argument.
+  void* property(Arg u);
 
-  /// Returns the property associated with a factor.
-  const Object& operator[](Factor* u) const;
+  /// Returns the raw pointer to the property associated with an argument.
+  const void* property(Arg u) const;
 
-  /// Returns the property associated with an argument.
-  Object& operator[](Arg u);
+  /// Returns the raw pointer to the property associated with a factor.
+  void* property(Factor* u);
 
-  /// Returns the property associated with a factor.
-  Object& operator[](Factor* u);
+  /// Returns the raw pointer to the property associated with a factor.
+  const void* property(Factor* u) const;
 
   /// Prints the graph to an output stream.
   friend std::ostream& operator<<(std::ostream& out, const FactorGraph& g);
@@ -108,18 +116,11 @@ public:
   // Modifications
   //--------------------------------------------------------------------------
 
-  /**
-   * Adds an argument to this graph and associates a property with it.
-   * If the vertex is already present, its property is not overwritten.
-   * \return true if the insertion took place (i.e., vertex was not present).
-   */
-  bool add_argument(Arg u, Object property = Object());
+  /// Adds an argument to this graph.
+  bool add_argument(Arg u);
 
-  /**
-   * Adds a factor to this graph and associates a property with it.
-   * \return The descriptor of the newly added vertex.
-   */
-  Factor* add_factor(Domain args, Object property = Object());
+  /// Adds a factor to this graph.
+  Factor* add_factor(Domain args);
 
   /**
    * Removes an argument from the graph.
@@ -163,42 +164,47 @@ private:
  */
 template <typename AP, typename FP>
 struct FactorGraphT : FactorGraph {
-  /// Returns the strongly-typed property associated with an argument.
-  std::add_lvalue_reference_t<AP> operator[](Arg u) {
-    if constexpr (!std::is_same_v<AP, void>) {
-      return static_cast<AP&>(FactorGraph::operator[](u));
-    }
+  static_assert(!std::is_void_v<AP>, "AP must be a non-void property type.");
+  static_assert(!std::is_void_v<FP>, "FP must be a non-void property type.");
+
+  using FactorGraph::add_argument;
+  using FactorGraph::add_factor;
+
+  FactorGraphT()
+    : FactorGraph(property_layout<AP>(), property_layout<FP>()) {}
+
+  AP& operator[](Arg u) {
+    return *static_cast<AP*>(FactorGraph::property(u));
   }
 
-  /// Returns the strongly-typed property associated with an argument.
-  std::add_lvalue_reference_t<const AP> operator[](Arg u) const {
-    if constexpr (!std::is_same_v<AP, void>) {
-      return static_cast<const AP&>(FactorGraph::operator[](u));
-    }
+  const AP& operator[](Arg u) const {
+    return *static_cast<const AP*>(FactorGraph::property(u));
   }
 
-  /// Returns the strongly-typed property associated with a factor.
-  std::add_lvalue_reference_t<FP> operator[](Factor* f) {
-    if constexpr (!std::is_same_v<FP, void>) {
-      return static_cast<FP&>(FactorGraph::operator[](f));
-    }
+  FP& operator[](Factor* f) {
+    return *static_cast<FP*>(FactorGraph::property(f));
   }
 
-  /// Returns the strongly-typed property associated with an edge.
-  std::add_lvalue_reference_t<const FP> operator[](Factor* f) const {
-    if constexpr (!std::is_same_v<FP, void>) {
-      return static_cast<const FP&>(FactorGraph::operator[](f));
-    }
+  const FP& operator[](Factor* f) const {
+    return *static_cast<const FP*>(FactorGraph::property(f));
   }
 
   /// Adds an argument and associates it with a strongly-typed property.
-  bool add_argument(Arg u, Nullable<AP> property = Nullable<AP>()) {
-    return FactorGraph::add_argument(u, std::move(property));
+  bool add_argument(Arg u, AP property) {
+    bool inserted = FactorGraph::add_argument(u);
+    if (inserted) {
+      static_cast<AP*>(FactorGraph::property(u))->~AP();
+      new (FactorGraph::property(u)) AP(std::move(property));
+    }
+    return inserted;
   }
 
   /// Adds a factor and associates it with a strongly-typed property.
-  Factor* add_factor(Domain args, Nullable<FP> property = Nullable<FP>()) {
-    return FactorGraph::add_factor(std::move(args), std::move(property));
+  Factor* add_factor(Domain args, FP property) {
+    Factor* factor = FactorGraph::add_factor(std::move(args));
+    static_cast<FP*>(FactorGraph::property(factor))->~FP();
+    new (FactorGraph::property(factor)) FP(std::move(property));
+    return factor;
   }
 };
 
