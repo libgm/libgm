@@ -1,7 +1,9 @@
 #pragma once
 
+#include <ankerl/unordered_dense.h>
+
+#include <libgm/argument/domain.hpp>
 #include <vector>
-#include <libgm/assignment/interfaces/assignment.hpp>
 
 namespace libgm {
 
@@ -12,12 +14,24 @@ namespace libgm {
  * So the assignment can be efficiently represented as a map from Arg to size_t.
  */
 class DiscreteAssignment
-  : public Object,
-    public AssignmentInterface<DiscreteAssignment, std::vector<size_t>> {
+  : public ankerl::unordered_dense::map<Arg, size_t> {
 public:
-  struct Impl;
+  using value_list = std::vector<size_t>;
+  using Base = ankerl::unordered_dense::map<Arg, size_t>;
+  using Base::Base;
+  using Base::operator[];
 
-  static const VTable vtable;
+  Domain keys() const;
+
+  std::vector<size_t> values(Arg arg) const;
+
+  std::vector<size_t> values(const Domain& domain) const;
+
+  void set(Arg arg, const std::vector<size_t>& values);
+
+  void set(const Domain& domain, const std::vector<size_t>& values);
+
+  void partition(const Domain& domain, Domain& present, Domain& absent) const;
 };
 
 } // namepsace libgm
