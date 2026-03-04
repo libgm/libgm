@@ -170,7 +170,7 @@ struct ProbabilityTable<T>::Impl : Object::Impl {
     return std::accumulate(begin(), end(), T(0), std::plus<T>());
   }
 
-  T maximum(DiscreteValues* values) const {
+  T maximum(std::vector<size_t>* values) const {
     auto it = std::max_element(begin(), end());
     if (values) {
       *values = param.shape().index(it - begin());
@@ -178,7 +178,7 @@ struct ProbabilityTable<T>::Impl : Object::Impl {
     return *it;
   }
 
-  T minimum(DiscreteValues* values) const {
+  T minimum(std::vector<size_t>* values) const {
     auto it = std::min_element(begin(), end());
     if (values) {
       *values = param.shape().index(it - begin());
@@ -242,16 +242,16 @@ struct ProbabilityTable<T>::Impl : Object::Impl {
   // Restrictions
   //--------------------------------------------------------------------------
 
-  void restrict_front(const DiscreteValues& values, ProbabilityTable& result) const {
-    libgm::restrict_front(param, values.vec(), result.param());
+  void restrict_front(const std::vector<size_t>& values, ProbabilityTable& result) const {
+    libgm::restrict_front(param, values, result.param());
   }
 
-  void restrict_back(const DiscreteValues& values, ProbabilityTable& result) const {
-    libgm::restrict_back(param, values.vec(), result.param());
+  void restrict_back(const std::vector<size_t>& values, ProbabilityTable& result) const {
+    libgm::restrict_back(param, values, result.param());
   }
 
-  void restrict_dims(const Dims& dims, const DiscreteValues& values, ProbabilityTable& result) const {
-    libgm::restrict(param, dims, values.vec(), result.param());
+  void restrict_dims(const Dims& dims, const std::vector<size_t>& values, ProbabilityTable& result) const {
+    libgm::restrict(param, dims, values, result.param());
   }
 
   // Entropy and divergences
@@ -345,13 +345,13 @@ const Table<T>& ProbabilityTable<T>::param() const {
 }
 
 template <typename T>
-T ProbabilityTable<T>::operator()(const DiscreteValues& values) const {
-  return param()(values.vec());
+T ProbabilityTable<T>::operator()(const std::vector<size_t>& values) const {
+  return param()(values);
 }
 
 template <typename T>
-T ProbabilityTable<T>::log(const DiscreteValues& values) const {
-  return std::log(param()(values.vec()));
+T ProbabilityTable<T>::log(const std::vector<size_t>& values) const {
+  return std::log(param()(values));
 }
 
 template <typename T>
@@ -511,12 +511,12 @@ T ProbabilityTable<T>::marginal() const {
 }
 
 template <typename T>
-T ProbabilityTable<T>::maximum(DiscreteValues* values) const {
+T ProbabilityTable<T>::maximum(std::vector<size_t>* values) const {
   return impl().maximum(values);
 }
 
 template <typename T>
-T ProbabilityTable<T>::minimum(DiscreteValues* values) const {
+T ProbabilityTable<T>::minimum(std::vector<size_t>* values) const {
   return impl().minimum(values);
 }
 
@@ -594,21 +594,21 @@ void ProbabilityTable<T>::normalize_head(unsigned nhead) {
 }
 
 template <typename T>
-ProbabilityTable<T> ProbabilityTable<T>::restrict_front(const DiscreteValues& values) const {
+ProbabilityTable<T> ProbabilityTable<T>::restrict_front(const std::vector<size_t>& values) const {
   ProbabilityTable result;
   impl().restrict_front(values, result);
   return result;
 }
 
 template <typename T>
-ProbabilityTable<T> ProbabilityTable<T>::restrict_back(const DiscreteValues& values) const {
+ProbabilityTable<T> ProbabilityTable<T>::restrict_back(const std::vector<size_t>& values) const {
   ProbabilityTable result;
   impl().restrict_back(values, result);
   return result;
 }
 
 template <typename T>
-ProbabilityTable<T> ProbabilityTable<T>::restrict_dims(const Dims& dims, const DiscreteValues& values) const {
+ProbabilityTable<T> ProbabilityTable<T>::restrict_dims(const Dims& dims, const std::vector<size_t>& values) const {
   ProbabilityTable result;
   impl().restrict_dims(dims, values, result);
   return result;

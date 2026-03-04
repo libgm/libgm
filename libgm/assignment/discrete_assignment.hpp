@@ -1,6 +1,6 @@
 #pragma once
 
-#include <libgm/assignment/discrete_values.hpp>
+#include <vector>
 #include <libgm/assignment/interfaces/assignment.hpp>
 
 namespace libgm {
@@ -13,7 +13,7 @@ namespace libgm {
  */
 class DiscreteAssignment
   : public Object,
-    public AssignmentInterface<DiscreteAssignment, DiscreteValues> {
+    public AssignmentInterface<DiscreteAssignment, std::vector<size_t>> {
 public:
   struct Impl;
 

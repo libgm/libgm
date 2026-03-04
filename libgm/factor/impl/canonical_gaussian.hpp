@@ -276,7 +276,7 @@ struct CanonicalGaussian<T>::Impl : Object::Impl {
     return Exp<T>(lv);
   }
 
-  Exp<T> maximum(RealValues<T>* values) const {
+  Exp<T> maximum(Vector<T>* values) const {
     CholeskyType chol;
     chol.compute(lambda);
     check(chol, "maximum");
@@ -341,15 +341,15 @@ struct CanonicalGaussian<T>::Impl : Object::Impl {
   // Restrictions
   //--------------------------------------------------------------------------
 
-  void restrict_front(const RealValues<T>& values, CanonicalGaussian& result) const {
+  void restrict_front(const Vector<T>& values, CanonicalGaussian& result) const {
     reduce_front(values.size()).restrict(values, result);
   }
 
-  void restrict_back(const RealValues<T>& values, CanonicalGaussian& result) const {
+  void restrict_back(const Vector<T>& values, CanonicalGaussian& result) const {
     reduce_back(values.size()).restrict(values, result);
   }
 
-  void restrict_dims(const Dims& dims, const RealValues<T>& values, CanonicalGaussian& result) const {
+  void restrict_dims(const Dims& dims, const Vector<T>& values, CanonicalGaussian& result) const {
     reduce(dims).restrict(values, result);
   }
 
@@ -435,8 +435,8 @@ struct CanonicalGaussian<T>::Impl : Object::Impl {
       collapse(result, /*adjust_lm=*/false);
     }
 
-    void restrict(const RealValues<T>& values, CanonicalGaussian& result) {
-      const Vector<T>& vec = values.vec();
+    void restrict(const Vector<T>& values, CanonicalGaussian& result) {
+      const Vector<T>& vec = values;
       Impl& impl = result.impl();
       impl.shape = std::move(shape);
       impl.eta = std::move(eta_x);
@@ -501,8 +501,8 @@ struct CanonicalGaussian<T>::Impl : Object::Impl {
 
   // Evaluation
   //--------------------------------------------------------------------------
-  T log(const RealValues<T>& values) const {
-    const Vector<T>& x = values.vec();
+  T log(const Vector<T>& values) const {
+    const Vector<T>& x = values;
     return -T(0.5) * x.transpose() * lambda * x + eta.dot(x) + lm;
   }
 
@@ -556,12 +556,12 @@ const Matrix<T>& CanonicalGaussian<T>::inf_matrix() const {
 }
 
 template <typename T>
-Exp<T> CanonicalGaussian<T>::operator()(const RealValues<T>& values) const {
+Exp<T> CanonicalGaussian<T>::operator()(const Vector<T>& values) const {
   return Exp<T>(log(values));
 }
 
 template <typename T>
-T CanonicalGaussian<T>::log(const RealValues<T>& values) const {
+T CanonicalGaussian<T>::log(const Vector<T>& values) const {
   return impl().log(values);
 }
 
@@ -722,7 +722,7 @@ Exp<T> CanonicalGaussian<T>::marginal() const {
 }
 
 template <typename T>
-Exp<T> CanonicalGaussian<T>::maximum(RealValues<T>* values) const {
+Exp<T> CanonicalGaussian<T>::maximum(Vector<T>* values) const {
   return impl().maximum(values);
 }
 
@@ -779,21 +779,21 @@ void CanonicalGaussian<T>::normalize_head(unsigned nhead) {
 }
 
 template <typename T>
-CanonicalGaussian<T> CanonicalGaussian<T>::restrict_front(const RealValues<T>& values) const {
+CanonicalGaussian<T> CanonicalGaussian<T>::restrict_front(const Vector<T>& values) const {
   CanonicalGaussian result;
   impl().restrict_front(values, result);
   return result;
 }
 
 template <typename T>
-CanonicalGaussian<T> CanonicalGaussian<T>::restrict_back(const RealValues<T>& values) const {
+CanonicalGaussian<T> CanonicalGaussian<T>::restrict_back(const Vector<T>& values) const {
   CanonicalGaussian result;
   impl().restrict_back(values, result);
   return result;
 }
 
 template <typename T>
-CanonicalGaussian<T> CanonicalGaussian<T>::restrict_dims(const Dims& dims, const RealValues<T>& values) const {
+CanonicalGaussian<T> CanonicalGaussian<T>::restrict_dims(const Dims& dims, const Vector<T>& values) const {
   CanonicalGaussian result;
   impl().restrict_dims(dims, values, result);
   return result;

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <libgm/argument/shape.hpp>
-#include <libgm/assignment/real_values.hpp>
+#include <libgm/math/eigen/dense.hpp>
 #include <libgm/object.hpp>
 #include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/exp.hpp>
@@ -34,7 +34,7 @@ template <typename T>
 class MomentGaussian : public Object {
 public:
   using value_type = T;
-  using value_list = RealValues<T>;
+  using value_list = Vector<T>;
   using result_type = Exp<T>;
   // using mle_type = MomentGaussianMLE<T>;
   // using ll_type = MomentGaussianLL<T>;
@@ -74,10 +74,10 @@ public:
   const Matrix<T>& coefficients() const;
 
   /// Evaluates the factor for a vector.
-  Exp<T> operator()(const RealValues<T>& values) const;
+  Exp<T> operator()(const Vector<T>& values) const;
 
   /// Returns the log-value of the factor for a vector.
-  T log(const RealValues<T>& values) const;
+  T log(const Vector<T>& values) const;
 
   // Direct operations
   //--------------------------------------------------------------------------
@@ -110,7 +110,7 @@ public:
   //--------------------------------------------------------------------------
 
   Exp<T> marginal() const;
-  Exp<T> maximum(RealValues<T>* values = nullptr) const;
+  Exp<T> maximum(Vector<T>* values = nullptr) const;
 
   // Normalization
   //--------------------------------------------------------------------------
@@ -121,9 +121,9 @@ public:
   // Restriction
   //--------------------------------------------------------------------------
 
-  MomentGaussian restrict_front(const RealValues<T>& values) const;
-  MomentGaussian restrict_back(const RealValues<T>& values) const;
-  MomentGaussian restrict_dims(const Dims& dims, const RealValues<T>& values) const;
+  MomentGaussian restrict_front(const Vector<T>& values) const;
+  MomentGaussian restrict_back(const Vector<T>& values) const;
+  MomentGaussian restrict_dims(const Dims& dims, const Vector<T>& values) const;
 
   // Divergences
   //--------------------------------------------------------------------------

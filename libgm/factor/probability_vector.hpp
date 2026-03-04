@@ -1,7 +1,7 @@
 #pragma once
 
 #include <libgm/argument/shape.hpp>
-#include <libgm/assignment/discrete_values.hpp>
+#include <vector>
 #include <libgm/object.hpp>
 #include <libgm/math/eigen/dense.hpp>
 
@@ -30,7 +30,7 @@ class ProbabilityVector : public Object {
 public:
   // The result of applying a vector to an index.
   using value_type = T;
-  using value_list = DiscreteValues;
+  using value_list = std::vector<size_t>;
   using result_type = T;
 
   // Implementation class
@@ -83,13 +83,13 @@ public:
   T operator()(size_t row) const;
 
   /// Returns the value of the factor for the given assignment.
-  T operator()(const DiscreteValues& values) const;
+  T operator()(const std::vector<size_t>& values) const;
 
   /// Returns the log-value of the factor for the given row.
   T log(size_t row) const;
 
   /// Returns the log-value of the factor for the given index.
-  T log(const DiscreteValues& values) const;
+  T log(const std::vector<size_t>& values) const;
 
   // Direct operations
   //--------------------------------------------------------------------------
@@ -130,8 +130,8 @@ public:
   //--------------------------------------------------------------------------
 
   T marginal() const;
-  T maximum(DiscreteValues* values = nullptr) const;
-  T minimum(DiscreteValues* values = nullptr) const;
+  T maximum(std::vector<size_t>* values = nullptr) const;
+  T minimum(std::vector<size_t>* values = nullptr) const;
 
   // Normalization
   //--------------------------------------------------------------------------

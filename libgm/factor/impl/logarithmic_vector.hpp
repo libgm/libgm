@@ -117,12 +117,12 @@ struct LogarithmicVector<T>::Impl : Object::Impl {
   // Aggregates
   //--------------------------------------------------------------------------
 
-  Exp<T> maximum(DiscreteValues* values) const {
-    return Exp<T>(values ? param.maxCoeff(values->resize(1)) : param.maxCoeff());
+  Exp<T> maximum(std::vector<size_t>* values) const {
+    return Exp<T>(values ? param.maxCoeff((values->resize(1), values->data())) : param.maxCoeff());
   }
 
-  Exp<T> minimum(DiscreteValues* values) const {
-    return Exp<T>(values ? param.minCoeff(values->resize(1)) : param.minCoeff());
+  Exp<T> minimum(std::vector<size_t>* values) const {
+    return Exp<T>(values ? param.minCoeff((values->resize(1), values->data())) : param.minCoeff());
   }
 
   // Entropy and divergences
@@ -200,8 +200,8 @@ T LogarithmicVector<T>::log(size_t row) const {
 }
 
 template <typename T>
-T LogarithmicVector<T>::log(const DiscreteValues& values) const {
-  return impl().param[values()];
+T LogarithmicVector<T>::log(const std::vector<size_t>& values) const {
+  return impl().param[values[0]];
 }
 
 template <typename T>
@@ -278,12 +278,12 @@ LogarithmicVector<T> LogarithmicVector<T>::weighted_update(const LogarithmicVect
 }
 
 template <typename T>
-Exp<T> LogarithmicVector<T>::maximum(DiscreteValues* values) const {
+Exp<T> LogarithmicVector<T>::maximum(std::vector<size_t>* values) const {
   return impl().maximum(values);
 }
 
 template <typename T>
-Exp<T> LogarithmicVector<T>::minimum(DiscreteValues* values) const {
+Exp<T> LogarithmicVector<T>::minimum(std::vector<size_t>* values) const {
   return impl().minimum(values);
 }
 

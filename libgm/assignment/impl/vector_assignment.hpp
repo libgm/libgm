@@ -44,11 +44,11 @@ struct VectorAssignment<T>::Impl : Object::Impl {
     return result;
   }
 
-  RealValues<T> values(Arg arg) const {
-    return {map.at(arg)};
+  Vector<T> values(Arg arg) const {
+    return map.at(arg);
   }
 
-  RealValues<T> values(const Domain& domain) const {
+  Vector<T> values(const Domain& domain) const {
     // Compute the size of the vector.
     size_t size = 0;
     for (Arg arg : domain) {
@@ -64,14 +64,14 @@ struct VectorAssignment<T>::Impl : Object::Impl {
       i += vec.size();
     }
 
-    return std::move(result);
+    return result;
   }
 
-  void set(Arg arg, const RealValues<T>& values) {
-    map[arg] = values.vec();
+  void set(Arg arg, const Vector<T>& values) {
+    map[arg] = values;
   }
 
-  void set(const Domain& domain, const RealValues<T>& values) {
+  void set(const Domain& domain, const Vector<T>& values) {
     // TODO: finish
   }
 
@@ -90,12 +90,12 @@ template <typename T>
 using Impl = typename VectorAssignment<T>::Impl;
 
 template <typename T>
-const typename vtables::Assignment<VectorAssignment<T>, RealValues<T>> VectorAssignment<T>::vtable{
+const typename vtables::Assignment<VectorAssignment<T>, Vector<T>> VectorAssignment<T>::vtable{
   &VectorAssignment<T>::Impl::keys,
-  &VectorAssignment<T>::Impl::values,
-  &VectorAssignment<T>::Impl::values,
-  &VectorAssignment<T>::Impl::set,
-  &VectorAssignment<T>::Impl::set,
+  static_cast<Vector<T> (VectorAssignment<T>::Impl::*)(Arg) const>(&VectorAssignment<T>::Impl::values),
+  static_cast<Vector<T> (VectorAssignment<T>::Impl::*)(const Domain&) const>(&VectorAssignment<T>::Impl::values),
+  static_cast<void (VectorAssignment<T>::Impl::*)(Arg, const Vector<T>&)>(&VectorAssignment<T>::Impl::set),
+  static_cast<void (VectorAssignment<T>::Impl::*)(const Domain&, const Vector<T>&)>(&VectorAssignment<T>::Impl::set),
   &VectorAssignment<T>::Impl::partition,
 };
 

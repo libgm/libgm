@@ -151,18 +151,20 @@ struct LogarithmicMatrix<T>::Impl : Object::Impl {
   // Aggregates
   //--------------------------------------------------------------------------
 
-  Exp<T> maximum(DiscreteValues* values) const {
+  Exp<T> maximum(std::vector<size_t>* values) const {
     if (values) {
-      size_t* data = values->resize(2);
+      values->resize(2);
+      size_t* data = values->data();
       return Exp<T>(param.maxCoeff(data, data + 1));
     } else {
       return Exp<T>(param.maxCoeff());
     }
   }
 
-  Exp<T> minimum(DiscreteValues* values) const {
+  Exp<T> minimum(std::vector<size_t>* values) const {
     if (values) {
-      size_t* data = values->resize(2);
+      values->resize(2);
+      size_t* data = values->data();
       return Exp<T>(param.minCoeff(data, data + 1));
     } else {
       return Exp<T>(param.minCoeff());
@@ -192,12 +194,12 @@ struct LogarithmicMatrix<T>::Impl : Object::Impl {
   // Restrictions
   //--------------------------------------------------------------------------
 
-  void restrict_front(const DiscreteValues& values, LogarithmicVector<T>& result) const {
-    result.param() = param.row(values()).transpose();
+  void restrict_front(const std::vector<size_t>& values, LogarithmicVector<T>& result) const {
+    result.param() = param.row(values[0]).transpose();
   }
 
-  void restrict_back(const DiscreteValues& values, LogarithmicVector<T>& result) const {
-    result.param() = param.col(values());
+  void restrict_back(const std::vector<size_t>& values, LogarithmicVector<T>& result) const {
+    result.param() = param.col(values[0]);
   }
 
   // Reshaping
@@ -333,7 +335,7 @@ T LogarithmicMatrix<T>::log(size_t row, size_t col) const {
 }
 
 template <typename T>
-T LogarithmicMatrix<T>::log(const DiscreteValues& values) const {
+T LogarithmicMatrix<T>::log(const std::vector<size_t>& values) const {
   assert(values.size() == 2);
   return impl().param(values[0], values[1]);
 }
@@ -464,12 +466,12 @@ LogarithmicMatrix<T> LogarithmicMatrix<T>::weighted_update(const LogarithmicMatr
 }
 
 template <typename T>
-Exp<T> LogarithmicMatrix<T>::maximum(DiscreteValues* values) const {
+Exp<T> LogarithmicMatrix<T>::maximum(std::vector<size_t>* values) const {
   return impl().maximum(values);
 }
 
 template <typename T>
-Exp<T> LogarithmicMatrix<T>::minimum(DiscreteValues* values) const {
+Exp<T> LogarithmicMatrix<T>::minimum(std::vector<size_t>* values) const {
   return impl().minimum(values);
 }
 
@@ -502,14 +504,14 @@ LogarithmicVector<T> LogarithmicMatrix<T>::minimum_back(unsigned n) const {
 }
 
 template <typename T>
-LogarithmicVector<T> LogarithmicMatrix<T>::restrict_front(const DiscreteValues& values) const {
+LogarithmicVector<T> LogarithmicMatrix<T>::restrict_front(const std::vector<size_t>& values) const {
   LogarithmicVector<T> result;
   impl().restrict_front(values, result);
   return result;
 }
 
 template <typename T>
-LogarithmicVector<T> LogarithmicMatrix<T>::restrict_back(const DiscreteValues& values) const {
+LogarithmicVector<T> LogarithmicMatrix<T>::restrict_back(const std::vector<size_t>& values) const {
   LogarithmicVector<T> result;
   impl().restrict_back(values, result);
   return result;

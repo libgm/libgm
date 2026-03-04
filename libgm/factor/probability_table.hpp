@@ -1,7 +1,7 @@
 #pragma once
 
 #include <libgm/argument/shape.hpp>
-#include <libgm/assignment/discrete_values.hpp>
+#include <vector>
 #include <libgm/datastructure/table.hpp>
 #include <libgm/object.hpp>
 // #include <libgm/math/likelihood/canonical_table_ll.hpp>
@@ -35,7 +35,7 @@ class ProbabilityTable : public Object {
 public:
   /// Result of evaluating this table on a vector.
   using value_type = T;
-  using value_list = DiscreteValues;
+  using value_list = std::vector<size_t>;
   using result_type = T;
 
   /// Implementation class
@@ -86,10 +86,10 @@ public:
   const Table<T>& param() const;
 
   /// Returns the value of the expression for the given index.
-  T operator()(const DiscreteValues& values) const;
+  T operator()(const std::vector<size_t>& values) const;
 
   /// Returns the log-value of the expression for the given index.
-  T log(const DiscreteValues& values) const;
+  T log(const std::vector<size_t>& values) const;
 
   // Direct operations
   //--------------------------------------------------------------------------
@@ -155,8 +155,8 @@ public:
   //--------------------------------------------------------------------------
 
   T marginal() const;
-  T maximum(DiscreteValues* values = nullptr) const;
-  T minimum(DiscreteValues* values = nullptr) const;
+  T maximum(std::vector<size_t>* values = nullptr) const;
+  T minimum(std::vector<size_t>* values = nullptr) const;
   ProbabilityTable marginal_front(unsigned n) const;
   ProbabilityTable marginal_back(unsigned n) const;
   ProbabilityTable marginal_dims(const Dims& retain) const;
@@ -176,9 +176,9 @@ public:
   // Restriction
   //--------------------------------------------------------------------------
 
-  ProbabilityTable restrict_front(const DiscreteValues& values) const;
-  ProbabilityTable restrict_back(const DiscreteValues& values) const;
-  ProbabilityTable restrict_dims(const Dims& dims, const DiscreteValues& values) const;
+  ProbabilityTable restrict_front(const std::vector<size_t>& values) const;
+  ProbabilityTable restrict_back(const std::vector<size_t>& values) const;
+  ProbabilityTable restrict_dims(const Dims& dims, const std::vector<size_t>& values) const;
 
   // Entropy and divergences
   //--------------------------------------------------------------------------

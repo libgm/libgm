@@ -42,11 +42,11 @@ struct DiscreteAssignment::Impl : Object::Impl {
     return result;
   }
 
-  DiscreteValues values(Arg arg) const {
+  std::vector<size_t> values(Arg arg) const {
     return {map.at(arg)};
   }
 
-  DiscreteValues values(const Domain& domain) const {
+  std::vector<size_t> values(const Domain& domain) const {
     std::vector<size_t> result(domain.size());
     for (size_t i = 0; i < domain.size(); ++i) {
       result[i] = map.at(domain[i]);
@@ -54,12 +54,12 @@ struct DiscreteAssignment::Impl : Object::Impl {
     return std::move(result);
   }
 
-  void set(Arg arg, const DiscreteValues& values) {
+  void set(Arg arg, const std::vector<size_t>& values) {
     assert(values.size() == 1);
     map[arg] = values[0];
   }
 
-  void set(const Domain& domain, const DiscreteValues& values) {
+  void set(const Domain& domain, const std::vector<size_t>& values) {
     assert(values.size() == domain.size());
     for (size_t i = 0; i < domain.size(); ++i) {
       map[domain[i]] = values[i];

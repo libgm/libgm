@@ -476,11 +476,11 @@ struct MomentGaussian<T>::Impl {
 //   return param_.coef;
 // }
 //
-// Exp<T> operator()(const RealValues<T>& v) const {
+// Exp<T> operator()(const Vector<T>& v) const {
 //   return Exp<T>(log(v));
 // }
 //
-// T log(const RealValues<T>& v) const {
+// T log(const Vector<T>& v) const {
 //   return param_(v);
 // }
 //

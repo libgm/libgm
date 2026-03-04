@@ -36,7 +36,7 @@ class LogarithmicMatrix : public Object {
 public:
   /// The result of applying this factor to an index.
   using value_type = T;
-  using value_list = DiscreteValues;
+  using value_list = std::vector<size_t>;
   using result_type = Exp<T>;
 
   /// Implementation class.
@@ -93,7 +93,7 @@ public:
   }
 
   /// Returns the value of the factor for the given index.
-  Exp<T> operator()(const DiscreteValues& values) const {
+  Exp<T> operator()(const std::vector<size_t>& values) const {
     return Exp<T>(log(values));
   }
 
@@ -101,7 +101,7 @@ public:
   T log(size_t row, size_t col) const;
 
   /// Returns the log-value of the factor for the given index.
-  T log(const DiscreteValues& values) const;
+  T log(const std::vector<size_t>& values) const;
 
   // Direct operations
   //--------------------------------------------------------------------------
@@ -153,8 +153,8 @@ public:
   // Aggregates
   //--------------------------------------------------------------------------
 
-  Exp<T> maximum(DiscreteValues* values = nullptr) const;
-  Exp<T> minimum(DiscreteValues* values = nullptr) const;
+  Exp<T> maximum(std::vector<size_t>* values = nullptr) const;
+  Exp<T> minimum(std::vector<size_t>* values = nullptr) const;
   LogarithmicVector<T> maximum_front(unsigned n) const;
   LogarithmicVector<T> maximum_back(unsigned n) const;
   LogarithmicVector<T> minimum_front(unsigned n) const;
@@ -163,8 +163,8 @@ public:
   // Restriction
   //--------------------------------------------------------------------------
 
-  LogarithmicVector<T> restrict_front(const DiscreteValues& values) const;
-  LogarithmicVector<T> restrict_back(const DiscreteValues& values) const;
+  LogarithmicVector<T> restrict_front(const std::vector<size_t>& values) const;
+  LogarithmicVector<T> restrict_back(const std::vector<size_t>& values) const;
 
   // Reshaping
   //--------------------------------------------------------------------------

@@ -119,12 +119,12 @@ struct ProbabilityVector<T>::Impl : Object::Impl {
     return param.sum();
   }
 
-  T maximum(DiscreteValues* values) const {
-    return values ? param.maxCoeff(values->resize(1)) : param.maxCoeff();
+  T maximum(std::vector<size_t>* values) const {
+    return values ? param.maxCoeff((values->resize(1), values->data())) : param.maxCoeff();
   }
 
-  T minimum(DiscreteValues* values) const {
-    return values ? param.minCoeff(values->resize(1)) : param.minCoeff();
+  T minimum(std::vector<size_t>* values) const {
+    return values ? param.minCoeff((values->resize(1), values->data())) : param.minCoeff();
   }
 
   // Normalization
@@ -209,8 +209,8 @@ T ProbabilityVector<T>::operator()(size_t row) const {
 }
 
 template <typename T>
-T ProbabilityVector<T>::operator()(const DiscreteValues& values) const {
-  return impl().param[values()];
+T ProbabilityVector<T>::operator()(const std::vector<size_t>& values) const {
+  return impl().param[values[0]];
 }
 
 template <typename T>
@@ -219,8 +219,8 @@ T ProbabilityVector<T>::log(size_t row) const {
 }
 
 template <typename T>
-T ProbabilityVector<T>::log(const DiscreteValues& values) const {
-  return std::log(impl().param[values()]);
+T ProbabilityVector<T>::log(const std::vector<size_t>& values) const {
+  return std::log(impl().param[values[0]]);
 }
 
 template <typename T>
@@ -302,12 +302,12 @@ T ProbabilityVector<T>::marginal() const {
 }
 
 template <typename T>
-T ProbabilityVector<T>::maximum(DiscreteValues* values) const {
+T ProbabilityVector<T>::maximum(std::vector<size_t>* values) const {
   return impl().maximum(values);
 }
 
 template <typename T>
-T ProbabilityVector<T>::minimum(DiscreteValues* values) const {
+T ProbabilityVector<T>::minimum(std::vector<size_t>* values) const {
   return impl().minimum(values);
 }
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <libgm/argument/shape.hpp>
-#include <libgm/assignment/real_values.hpp>
+#include <libgm/math/eigen/dense.hpp>
 #include <libgm/object.hpp>
 #include <libgm/math/exp.hpp>
 #include <libgm/math/eigen/dense.hpp>
@@ -25,7 +25,7 @@ class CanonicalGaussian : public Object {
 public:
   // Factor member types
   using value_type = T;
-  using value_list = RealValues<T>;
+  using value_list = Vector<T>;
   using result_type = Exp<T>;
 
   // Implementation class.
@@ -73,10 +73,10 @@ public:
   const Matrix<T>& inf_matrix() const;
 
   /// Evaluates the factor for the given vector.
-  Exp<T> operator()(const RealValues<T>& values) const;
+  Exp<T> operator()(const Vector<T>& values) const;
 
   /// Returns the log-value of the factor for the given vector.
-  T log(const RealValues<T>& values) const;
+  T log(const Vector<T>& values) const;
 
   // Direct operations
   //--------------------------------------------------------------------------
@@ -142,7 +142,7 @@ public:
   //--------------------------------------------------------------------------
 
   Exp<T> marginal() const;
-  Exp<T> maximum(RealValues<T>* values = nullptr) const;
+  Exp<T> maximum(Vector<T>* values = nullptr) const;
   CanonicalGaussian marginal_front(unsigned n) const;
   CanonicalGaussian marginal_back(unsigned n) const;
   CanonicalGaussian marginal_dims(const Dims& dims) const;
@@ -159,9 +159,9 @@ public:
   // Restriction
   //--------------------------------------------------------------------------
 
-  CanonicalGaussian restrict_front(const RealValues<T>& values) const;
-  CanonicalGaussian restrict_back(const RealValues<T>& values) const;
-  CanonicalGaussian restrict_dims(const Dims& dims, const RealValues<T>& values) const;
+  CanonicalGaussian restrict_front(const Vector<T>& values) const;
+  CanonicalGaussian restrict_back(const Vector<T>& values) const;
+  CanonicalGaussian restrict_dims(const Dims& dims, const Vector<T>& values) const;
 
   // Entropy and divergences
   //--------------------------------------------------------------------------

@@ -168,7 +168,7 @@ struct LogarithmicTable<T>::Impl : Object::Impl {
   // Aggregates
   //--------------------------------------------------------------------------
 
-  Exp<T> maximum(DiscreteValues* values) const {
+  Exp<T> maximum(std::vector<size_t>* values) const {
     auto it = std::max_element(begin(), end());
     if (values) {
       *values = param.shape().index(it - begin());
@@ -176,7 +176,7 @@ struct LogarithmicTable<T>::Impl : Object::Impl {
     return Exp<T>(*it);
   }
 
-  Exp<T> minimum(DiscreteValues* values) const {
+  Exp<T> minimum(std::vector<size_t>* values) const {
     auto it = std::min_element(begin(), end());
     if (values) {
       *values = param.shape().index(it - begin());
@@ -211,16 +211,16 @@ struct LogarithmicTable<T>::Impl : Object::Impl {
   // Restrictions
   //--------------------------------------------------------------------------
 
-  void restrict_front(const DiscreteValues& values, LogarithmicTable& result) const {
-    libgm::restrict_front(param, values.vec(), result.param());
+  void restrict_front(const std::vector<size_t>& values, LogarithmicTable& result) const {
+    libgm::restrict_front(param, values, result.param());
   }
 
-  void restrict_back(const DiscreteValues& values, LogarithmicTable& result) const {
-    libgm::restrict_back(param, values.vec(), result.param());
+  void restrict_back(const std::vector<size_t>& values, LogarithmicTable& result) const {
+    libgm::restrict_back(param, values, result.param());
   }
 
-  void restrict_dims(const Dims& dims, const DiscreteValues& values, LogarithmicTable& result) const {
-    libgm::restrict(param, dims, values.vec(), result.param());
+  void restrict_dims(const Dims& dims, const std::vector<size_t>& values, LogarithmicTable& result) const {
+    libgm::restrict(param, dims, values, result.param());
   }
 
   // Entropy and divergences
@@ -314,13 +314,13 @@ const Table<T>& LogarithmicTable<T>::param() const {
 }
 
 template <typename T>
-Exp<T> LogarithmicTable<T>::operator()(const DiscreteValues& values) const {
-  return Exp<T>(param()(values.vec()));
+Exp<T> LogarithmicTable<T>::operator()(const std::vector<size_t>& values) const {
+  return Exp<T>(param()(values));
 }
 
 template <typename T>
-T LogarithmicTable<T>::log(const DiscreteValues& values) const {
-  return param()(values.vec());
+T LogarithmicTable<T>::log(const std::vector<size_t>& values) const {
+  return param()(values);
 }
 
 template <typename T>
@@ -475,12 +475,12 @@ LogarithmicTable<T> LogarithmicTable<T>::weighted_update(const LogarithmicTable&
 }
 
 template <typename T>
-Exp<T> LogarithmicTable<T>::maximum(DiscreteValues* values) const {
+Exp<T> LogarithmicTable<T>::maximum(std::vector<size_t>* values) const {
   return impl().maximum(values);
 }
 
 template <typename T>
-Exp<T> LogarithmicTable<T>::minimum(DiscreteValues* values) const {
+Exp<T> LogarithmicTable<T>::minimum(std::vector<size_t>* values) const {
   return impl().minimum(values);
 }
 
@@ -527,21 +527,21 @@ LogarithmicTable<T> LogarithmicTable<T>::minimum_dims(const Dims& dims) const {
 }
 
 template <typename T>
-LogarithmicTable<T> LogarithmicTable<T>::restrict_front(const DiscreteValues& values) const {
+LogarithmicTable<T> LogarithmicTable<T>::restrict_front(const std::vector<size_t>& values) const {
   LogarithmicTable result;
   impl().restrict_front(values, result);
   return result;
 }
 
 template <typename T>
-LogarithmicTable<T> LogarithmicTable<T>::restrict_back(const DiscreteValues& values) const {
+LogarithmicTable<T> LogarithmicTable<T>::restrict_back(const std::vector<size_t>& values) const {
   LogarithmicTable result;
   impl().restrict_back(values, result);
   return result;
 }
 
 template <typename T>
-LogarithmicTable<T> LogarithmicTable<T>::restrict_dims(const Dims& dims, const DiscreteValues& values) const {
+LogarithmicTable<T> LogarithmicTable<T>::restrict_dims(const Dims& dims, const std::vector<size_t>& values) const {
   LogarithmicTable result;
   impl().restrict_dims(dims, values, result);
   return result;

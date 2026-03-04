@@ -1,6 +1,6 @@
 #pragma once
 
-#include <libgm/assignment/real_values.hpp>
+#include <libgm/math/eigen/dense.hpp>
 #include <libgm/assignment/interfaces/assignment.hpp>
 
 namespace libgm {
@@ -14,11 +14,11 @@ namespace libgm {
 template <typename T>
 class VectorAssignment
   : public Object,
-    public AssignmentInterface<VectorAssignment<T>, RealValues<T>> {
+    public AssignmentInterface<VectorAssignment<T>, Vector<T>> {
 public:
   struct Impl;
 
-  static const vtables::Assignment<VectorAssignment<T>, RealValues<T>> vtable;
+  static const vtables::Assignment<VectorAssignment<T>, Vector<T>> vtable;
 };
 
 } // namepsace libgm

@@ -156,18 +156,20 @@ struct ProbabilityMatrix<T>::Impl : Object::Impl {
     return param.sum();
   }
 
-  T maximum(DiscreteValues* values) const {
+  T maximum(std::vector<size_t>* values) const {
     if (values) {
-      size_t* data = values->resize(2);
+      values->resize(2);
+      size_t* data = values->data();
       return param.maxCoeff(data, data + 1);
     } else {
       return param.maxCoeff();
     }
   }
 
-  T minimum(DiscreteValues* values) const {
+  T minimum(std::vector<size_t>* values) const {
     if (values) {
-      size_t* data = values->resize(2);
+      values->resize(2);
+      size_t* data = values->data();
       return param.minCoeff(data, data + 1);
     } else {
       return param.minCoeff();
@@ -219,12 +221,12 @@ struct ProbabilityMatrix<T>::Impl : Object::Impl {
   // Restrictions
   //--------------------------------------------------------------------------
 
-  void restrict_front(const DiscreteValues& values, ProbabilityVector<T>& result) const {
-    result.param() = param.row(values()).transpose();
+  void restrict_front(const std::vector<size_t>& values, ProbabilityVector<T>& result) const {
+    result.param() = param.row(values[0]).transpose();
   }
 
-  void restrict_back(const DiscreteValues& values, ProbabilityVector<T>& result) const {
-    result.param() = param.col(values());
+  void restrict_back(const std::vector<size_t>& values, ProbabilityVector<T>& result) const {
+    result.param() = param.col(values[0]);
   }
 
   // Reshaping
@@ -359,7 +361,7 @@ T ProbabilityMatrix<T>::operator()(size_t row, size_t col) const {
 }
 
 template <typename T>
-T ProbabilityMatrix<T>::operator()(const DiscreteValues& values) const {
+T ProbabilityMatrix<T>::operator()(const std::vector<size_t>& values) const {
   assert(values.size() == 2);
   return impl().param(values[0], values[1]);
 }
@@ -370,7 +372,7 @@ T ProbabilityMatrix<T>::log(size_t row, size_t col) const {
 }
 
 template <typename T>
-T ProbabilityMatrix<T>::log(const DiscreteValues& values) const {
+T ProbabilityMatrix<T>::log(const std::vector<size_t>& values) const {
   return std::log(impl().param(values[0], values[1]));
 }
 
@@ -505,12 +507,12 @@ T ProbabilityMatrix<T>::marginal() const {
 }
 
 template <typename T>
-T ProbabilityMatrix<T>::maximum(DiscreteValues* values) const {
+T ProbabilityMatrix<T>::maximum(std::vector<size_t>* values) const {
   return impl().maximum(values);
 }
 
 template <typename T>
-T ProbabilityMatrix<T>::minimum(DiscreteValues* values) const {
+T ProbabilityMatrix<T>::minimum(std::vector<size_t>* values) const {
   return impl().minimum(values);
 }
 
@@ -567,14 +569,14 @@ void ProbabilityMatrix<T>::normalize_head(unsigned nhead) {
 }
 
 template <typename T>
-ProbabilityVector<T> ProbabilityMatrix<T>::restrict_front(const DiscreteValues& values) const {
+ProbabilityVector<T> ProbabilityMatrix<T>::restrict_front(const std::vector<size_t>& values) const {
   ProbabilityVector<T> result;
   impl().restrict_front(values, result);
   return result;
 }
 
 template <typename T>
-ProbabilityVector<T> ProbabilityMatrix<T>::restrict_back(const DiscreteValues& values) const {
+ProbabilityVector<T> ProbabilityMatrix<T>::restrict_back(const std::vector<size_t>& values) const {
   ProbabilityVector<T> result;
   impl().restrict_back(values, result);
   return result;

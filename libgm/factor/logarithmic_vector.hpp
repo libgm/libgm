@@ -1,7 +1,7 @@
 #pragma once
 
 #include <libgm/argument/shape.hpp>
-#include <libgm/assignment/discrete_values.hpp>
+#include <vector>
 #include <libgm/object.hpp>
 #include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/exp.hpp>
@@ -35,7 +35,7 @@ class LogarithmicVector : public Object {
 public:
   /// The result of applying this factor to an index.
   using value_type = T;
-  using value_list = DiscreteValues;
+  using value_list = std::vector<size_t>;
   using result_type = Exp<T>;
 
   /// Implementation class.
@@ -90,7 +90,7 @@ public:
   }
 
   /// Returns the value of the factor for the given assignment.
-  Exp<T> operator()(const DiscreteValues& values) const {
+  Exp<T> operator()(const std::vector<size_t>& values) const {
     return Exp<T>(log(values));
   }
 
@@ -98,7 +98,7 @@ public:
   T log(size_t row) const;
 
   /// Returns the log-value of the factor for the given index.
-  T log(const DiscreteValues& values) const;
+  T log(const std::vector<size_t>& values) const;
 
   // Direct operations
   //--------------------------------------------------------------------------
@@ -138,8 +138,8 @@ public:
   // Aggregates
   //--------------------------------------------------------------------------
 
-  Exp<T> maximum(DiscreteValues* values = nullptr) const;
-  Exp<T> minimum(DiscreteValues* values = nullptr) const;
+  Exp<T> maximum(std::vector<size_t>* values = nullptr) const;
+  Exp<T> minimum(std::vector<size_t>* values = nullptr) const;
 
   // Entropy and divergences
   //--------------------------------------------------------------------------
