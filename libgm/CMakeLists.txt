@@ -3,7 +3,7 @@ subdirs(
   assignment
   datastructure
   factor
-  graph
+#  graph
 )
 
 target_sources(

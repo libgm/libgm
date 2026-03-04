@@ -7,11 +7,15 @@
 #include <libgm/datastructure/unordered_dense.hpp>
 #include <libgm/graph/directed_edge.hpp>
 #include <libgm/graph/markov_network.hpp>
-#include <libgm/graph/util/nullable.hpp>
-#include <libgm/graph/util/property_caster.hpp>
+#include <libgm/graph/util/property_layout.hpp>
 #include <libgm/iterator/bind1_iterator.hpp>
 #include <libgm/iterator/bind2_iterator.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
+
+#include <cstddef>
+#include <new>
+#include <type_traits>
+#include <utility>
 
 namespace libgm {
 
@@ -67,6 +71,11 @@ public:
   /// Default constructor. Creates an empty Bayesian network.
   explicit BayesianNetwork(size_t count = 0);
 
+protected:
+  BayesianNetwork(size_t count, PropertyLayout layout);
+
+public:
+
   // Accessors
   //--------------------------------------------------------------------------
 
@@ -115,11 +124,11 @@ public:
   /// Returns the arguments of a factor.
   const Domain& parents(Arg u) const;
 
-  /// Returns the property associated with a vertex.
-  Object& operator[](Arg u);
+  /// Returns the raw pointer to the property associated with a vertex.
+  void* property(Arg u);
 
-  /// Returns the property associated with a vertex.
-  const Object& operator[](Arg u) const;
+  /// Returns the raw pointer to the property associated with a vertex.
+  const void* property(Arg u) const;
 
   // Queries
   //--------------------------------------------------------------------------
@@ -132,14 +141,10 @@ public:
   // Modifications
   //--------------------------------------------------------------------------
 
-  /**
-   * Adds an argument to the graph with the given domain and associates a property with
-   * that vertex. If the vertex is already present, its property and edges are overwritten.
-   *
-   * \returns true if the vertex was newly inserted
-   */
-  bool add_vertex(Arg u, Domain parents, Object object = Object());
+  /// Adds an argument with the given parent domain.
+  bool add_vertex(Arg u, Domain parents);
 
+public:
   /// Removes a vertex from the graph, provided that it has no outgoing edges.
   void remove_vertex(Arg u);
 
@@ -154,12 +159,28 @@ public:
 /**
  * Bayesian network with strongly-typed vertices.
  */
-template <typename VP = void>
-struct BayesianNetworkT : VertexPropertyCaster<BayesianNetwork, VP> {
-  using VertexPropertyCaster<BayesianNetwork, VP>::VertexPropertyCaster;
+template <typename VP>
+struct BayesianNetworkT : BayesianNetwork {
+  static_assert(!std::is_void_v<VP>, "VP must be a non-void property type.");
 
-  bool add_vertex(Arg u, Domain parents, Nullable<VP> vp = Nullable<VP>()) {
-    return BayesianNetwork::add_vertex(u, std::move(parents), std::move(vp));
+  using BayesianNetwork::add_vertex;
+
+  explicit BayesianNetworkT(size_t count = 0)
+    : BayesianNetwork(count, property_layout<VP>()) {}
+
+  VP& operator[](Arg u) {
+    return *static_cast<VP*>(BayesianNetwork::property(u));
+  }
+
+  const VP& operator[](Arg u) const {
+    return *static_cast<const VP*>(BayesianNetwork::property(u));
+  }
+
+  bool add_vertex(Arg u, Domain parents, VP vp) {
+    bool inserted = BayesianNetwork::add_vertex(u, std::move(parents));
+    static_cast<VP*>(property(u))->~VP();
+    new (property(u)) VP(std::move(vp));
+    return inserted;
   }
 }; // struct BayesianNetworkT
 

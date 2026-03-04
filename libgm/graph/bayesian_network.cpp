@@ -3,16 +3,21 @@
 
 #include <libgm/archives.hpp>
 
+#include <algorithm>
+#include <cassert>
+#include <new>
+#include <stdexcept>
+#include <vector>
+
 namespace libgm {
 
 struct BayesianNetwork::VertexData {
-  Object property;
   Domain parents;
   AdjacencySet children;
 
   template <typename ARCHIVE>
   void serialize(ARCHIVE& ar) {
-    ar(property, parents);
+    ar(parents);
   }
 
 #if 0
@@ -26,17 +31,78 @@ struct BayesianNetwork::VertexData {
 struct BayesianNetwork::Impl : Object::Impl {
   VertexDataMap data;
   size_t num_edges = 0;
+  PropertyLayout property_layout;
+  size_t property_offset = sizeof(VertexData);
+  size_t vertex_allocation_size = sizeof(VertexData);
+
+  void initialize_layout() {
+    property_offset = property_layout.align_up(sizeof(VertexData));
+    vertex_allocation_size = property_offset + property_layout.size;
+  }
+
+  void* property(VertexData* ptr) const {
+    return reinterpret_cast<char*>(ptr) + property_offset;
+  }
+
+  const void* property(const VertexData* ptr) const {
+    return reinterpret_cast<const char*>(ptr) + property_offset;
+  }
+
+  VertexData* allocate_vertex() const {
+    void* buffer = ::operator new(vertex_allocation_size);
+    VertexData* vertex_data = new (buffer) VertexData;
+    if (property_layout.size != 0) {
+      assert(property_layout.default_constructor);
+      property_layout.default_constructor(property(vertex_data));
+    }
+    return vertex_data;
+  }
+
+  void destroy_property(VertexData* ptr) const {
+    if (property_layout.size != 0) {
+      assert(property_layout.deleter);
+      property_layout.deleter(property(ptr));
+    }
+  }
+
+  void free_vertex(VertexData* ptr) const {
+    destroy_property(ptr);
+    ptr->~VertexData();
+    ::operator delete(ptr);
+  }
 
   template <typename ARCHIVE>
   void save(ARCHIVE& ar) const {
-    ar(data);
+    if (property_layout.size != 0) {
+      throw std::logic_error("Serializing BayesianNetwork properties is unsupported.");
+    }
+    ar(cereal::make_size_tag(data.size()));
+    for (auto [u, ptr] : data) {
+      ar(CEREAL_NVP(u), cereal::make_nvp("parents", ptr->parents));
+    }
   }
 
   template <typename ARCHIVE>
   void load(ARCHIVE& ar) {
-    ar(data);
+    if (property_layout.size != 0) {
+      throw std::logic_error("Deserializing BayesianNetwork properties is unsupported.");
+    }
+    clear();
 
-    // recreate the out-edges, and recompute the edge count
+    cereal::size_type n;
+    ar(cereal::make_size_tag(n));
+    for (size_t i = 0; i < n; ++i) {
+      Arg u;
+      Domain parents;
+      ar(CEREAL_NVP(u), cereal::make_nvp("parents", parents));
+
+      VertexData* ptr = allocate_vertex();
+      ptr->parents = std::move(parents);
+      data.emplace(u, ptr);
+    }
+
+    // Recreate the out-edges, and recompute the edge count.
+    num_edges = 0;
     for (auto [v, ptr] : data) {
       num_edges += ptr->parents.size();
       for (Arg u : ptr->parents) {
@@ -47,13 +113,29 @@ struct BayesianNetwork::Impl : Object::Impl {
   }
 
   Impl() = default;
-  Impl(size_t count) : data(count), num_edges(0) {}
+  explicit Impl(size_t count, PropertyLayout layout = {})
+    : data(count),
+      num_edges(0),
+      property_layout(layout) {
+    initialize_layout();
+  }
+
   ~Impl() { clear(); }
 
   Impl* clone() const override {
-    Impl* result = new Impl(*this);
-    for (auto& [_, ptr] : result->data) {
-      ptr = new VertexData(*ptr);
+    Impl* result = new Impl(data.size(),
+                            property_layout);
+    result->num_edges = num_edges;
+    for (auto [u, src] : data) {
+      VertexData* dst = result->allocate_vertex();
+      dst->parents = src->parents;
+      dst->children = src->children;
+      if (property_layout.size != 0) {
+        assert(property_layout.copy_constructor);
+        result->destroy_property(dst);
+        property_layout.copy_constructor(result->property(dst), property(src));
+      }
+      result->data.emplace(u, dst);
     }
     return result;
   }
@@ -76,7 +158,7 @@ struct BayesianNetwork::Impl : Object::Impl {
     std::vector<std::pair<Arg, VertexData*>> values = data.values();
     std::sort(values.begin(), values.end());
     for (auto [u, ptr] : values) {
-      out << u << ": " << ptr->parents << " " << ptr->property << std::endl;
+      out << u << ": " << ptr->parents << std::endl;
     }
   }
 
@@ -90,7 +172,7 @@ struct BayesianNetwork::Impl : Object::Impl {
 
   void clear() {
     for (auto [u, ptr] : data) {
-      delete ptr;
+      free_vertex(ptr);
     }
     data.clear();
     num_edges = 0;
@@ -120,6 +202,9 @@ const BayesianNetwork::VertexData& BayesianNetwork::data(Arg arg) const {
 
 BayesianNetwork::BayesianNetwork(size_t count)
   : Object(std::make_unique<Impl>(count)) {}
+
+BayesianNetwork::BayesianNetwork(size_t count, PropertyLayout layout)
+  : Object(std::make_unique<Impl>(count, layout)) {}
 
 SubRange<BayesianNetwork::out_edge_iterator> BayesianNetwork::out_edges(Arg u) const {
   const AdjacencySet& children = data(u).children;
@@ -191,12 +276,12 @@ const Domain& BayesianNetwork::parents(Arg u) const {
   return data(u).parents;
 }
 
-Object& BayesianNetwork::operator[](Arg u) {
-  return data(u).property;
+void* BayesianNetwork::property(Arg u) {
+  return impl().property(impl().data.at(u));
 }
 
-const Object& BayesianNetwork::operator[](Arg u) const {
-  return data(u).property;
+const void* BayesianNetwork::property(Arg u) const {
+  return impl().property(impl().data.at(u));
 }
 
 MarkovNetworkT<> BayesianNetwork::markov_network() const {
@@ -209,14 +294,14 @@ MarkovNetworkT<> BayesianNetwork::markov_network() const {
   return mn;
 }
 
-bool BayesianNetwork::add_vertex(Arg v, Domain parents, Object object) {
+bool BayesianNetwork::add_vertex(Arg v, Domain parents) {
   auto [it, found] = impl().find(v);
 
-  // Insert new vertex data or clear in-edges of the old one
+  // Insert new vertex data or clear in-edges of the old one.
   if (found) {
     impl().remove_in_edges(it);
   } else {
-    it = impl().data.emplace(v, new VertexData).first;
+    it = impl().data.emplace(v, impl().allocate_vertex()).first;
   }
 
   // Update the edge count
@@ -229,8 +314,6 @@ bool BayesianNetwork::add_vertex(Arg v, Domain parents, Object object) {
 
   // Update the vertex data
   it->second->parents = std::move(parents);
-  it->second->property = std::move(object);
-
   return !found;
 }
 
@@ -238,7 +321,7 @@ void BayesianNetwork::remove_vertex(Arg u) {
   auto [it, found] = impl().find(u);
   assert(found && it->second->children.empty());
   impl().remove_in_edges(it);
-  delete it->second;
+  impl().free_vertex(it->second);
   impl().data.erase(it);
 }
 
