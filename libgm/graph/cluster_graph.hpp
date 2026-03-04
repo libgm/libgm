@@ -221,7 +221,7 @@ protected:
   /**
    * Computes the Markov graph capturing the dependencies in this model.
    */
-  MarkovNetworkT<> markov_network() const;
+  MarkovNetwork markov_network() const;
 
   /**
    * Returns true if the graph is connected.

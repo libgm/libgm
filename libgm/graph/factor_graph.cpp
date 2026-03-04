@@ -272,8 +272,8 @@ std::ostream& operator<<(std::ostream& out, const FactorGraph& g) {
   return out;
 }
 
-MarkovNetworkT<> FactorGraph::markov_network() const {
-  MarkovNetworkT<> mn;
+MarkovNetwork FactorGraph::markov_network() const {
+  MarkovNetwork mn;
   for (Factor* f : factors()) {
     mn.add_clique(f->arguments);
   }
@@ -326,7 +326,7 @@ void FactorGraph::eliminate(const Domain& retain,
                             const CommutativeSemiring& csr,
                             const ShapeMap& shape_map,
                             const EliminationStrategy& strategy) {
-  MarkovNetworkT<> mn = markov_network();
+  MarkovNetwork mn = markov_network();
   mn.eliminate(strategy, [&](Arg arg) {
     if (!retain.contains(arg)) {
       // Determine the union of all adjacent factor domains.

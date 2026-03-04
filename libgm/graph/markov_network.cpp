@@ -4,16 +4,18 @@
 
 #include <boost/heap/fibonacci_heap.hpp>
 
+#include <algorithm>
+#include <cassert>
+#include <stdexcept>
+#include <vector>
+
 namespace libgm {
 
 struct MarkovNetwork::VertexData {
-  Object property;
   AdjacencyMap neighbors;
 
   template <typename ARCHIVE>
   void save(ARCHIVE& ar) {
-    ar(CEREAL_NVP(property));
-
     // serialize the keys
     ar(cereal::make_size_tag(neighbors.size()));
     for (auto [v, _] : neighbors) {
@@ -23,9 +25,7 @@ struct MarkovNetwork::VertexData {
 
   template <typename ARCHIVE>
   void load(ARCHIVE& ar) {
-    ar(CEREAL_NVP(property));
-
-    // deerialize the keys
+    // deserialize the keys
     cereal::size_type degree;
     ar(cereal::make_size_tag(degree));
     for (size_t i = 0; i < degree; ++i) {
@@ -39,53 +39,139 @@ struct MarkovNetwork::VertexData {
 struct MarkovNetwork::Impl : Object::Impl {
   VertexDataMap data;
   size_t num_edges = 0;
+  PropertyLayout vertex_property_layout;
+  PropertyLayout edge_property_layout;
+  size_t vertex_property_offset = sizeof(VertexData);
+  size_t vertex_allocation_size = sizeof(VertexData);
+
+  void initialize_layout() {
+    vertex_property_offset = vertex_property_layout.align_up(sizeof(VertexData));
+    vertex_allocation_size = vertex_property_offset + vertex_property_layout.size;
+  }
+
+  void* vertex_property(VertexData* vertex) const {
+    return reinterpret_cast<char*>(vertex) + vertex_property_offset;
+  }
+
+  const void* vertex_property(const VertexData* vertex) const {
+    return reinterpret_cast<const char*>(vertex) + vertex_property_offset;
+  }
+
+  VertexData* allocate_vertex() const {
+    void* buffer = ::operator new(vertex_allocation_size);
+    VertexData* vertex = new (buffer) VertexData;
+    if (vertex_property_layout.size != 0) {
+      assert(vertex_property_layout.default_constructor);
+      vertex_property_layout.default_constructor(vertex_property(vertex));
+    }
+    return vertex;
+  }
+
+  void free_vertex(VertexData* vertex) const {
+    if (vertex_property_layout.size != 0) {
+      assert(vertex_property_layout.deleter);
+      vertex_property_layout.deleter(vertex_property(vertex));
+    }
+    vertex->~VertexData();
+    ::operator delete(vertex);
+  }
+
+  void* allocate_edge_property() const {
+    if (edge_property_layout.size == 0) return nullptr;
+    assert(edge_property_layout.default_constructor);
+    void* ptr = ::operator new(edge_property_layout.size);
+    edge_property_layout.default_constructor(ptr);
+    return ptr;
+  }
+
+  void* copy_edge_property(const void* src) const {
+    if (edge_property_layout.size == 0) return nullptr;
+    assert(src);
+    assert(edge_property_layout.copy_constructor);
+    void* dst = ::operator new(edge_property_layout.size);
+    edge_property_layout.copy_constructor(dst, src);
+    return dst;
+  }
+
+  void free_edge_property(void* ptr) const {
+    if (edge_property_layout.size == 0) {
+      assert(ptr == nullptr);
+      return;
+    }
+    assert(ptr);
+    assert(edge_property_layout.deleter);
+    edge_property_layout.deleter(ptr);
+    ::operator delete(ptr);
+  }
 
   template <typename ARCHIVE>
   void save(ARCHIVE& ar) const {
-    // Serialize the adjacency
-    ar(data);
-
-    // Serialize the edge properties
-    ar(cereal::make_size_tag(num_edges));
-    for (auto [u, vertex] : data) {
-      for (auto [v, property] : vertex->neighbors) {
-        ar(CEREAL_NVP(u), CEREAL_NVP(v), cereal::make_nvp("property", *property));
-      }
+    if (vertex_property_layout.size != 0 || edge_property_layout.size != 0) {
+      throw std::logic_error("Serializing MarkovNetwork properties is unsupported.");
     }
+    ar(data);
   }
 
   template <typename ARCHIVE>
   void load(ARCHIVE& ar) {
-    // Deserialize the adjacency
+    if (vertex_property_layout.size != 0 || edge_property_layout.size != 0) {
+      throw std::logic_error("Deserializing MarkovNetwork properties is unsupported.");
+    }
+    free_edge_data();
+    free_vertex_data();
     ar(data);
-
-    // Deserialize the edge properties
-    cereal::size_type m;
-    ar(cereal::make_size_tag(m));
-    num_edges = m;
-    for (size_t i = 0; i < num_edges; ++i) {
-      Arg u, v;
-      Object* property = new Object;
-      ar(CEREAL_NVP(u), CEREAL_NVP(v), cereal::make_nvp("property", *property));
-      data[u]->neighbors[v] = property;
-      data[v]->neighbors[u] = property;
+    num_edges = 0;
+    for (auto [u, vertex] : data) {
+      for (auto& [v, property] : vertex->neighbors) {
+        property = nullptr;
+        if (u <= v) ++num_edges;
+      }
     }
   }
 
   Impl() = default;
 
-  explicit Impl(size_t count) : data(count) {}
+  explicit Impl(size_t count, PropertyLayout vertex_layout = {}, PropertyLayout edge_layout = {})
+    : data(count),
+      vertex_property_layout(vertex_layout),
+      edge_property_layout(edge_layout) {
+    initialize_layout();
+  }
+
+  ~Impl() {
+    free_edge_data();
+    free_vertex_data();
+  }
 
   Impl* clone() const override {
-    Impl* result = new Impl(*this);
-    for (auto& [_, vertex] : result->data) {
-      vertex = new VertexData(*vertex);
+    Impl* result = new Impl(data.size(), vertex_property_layout, edge_property_layout);
+    result->num_edges = num_edges;
+
+    for (auto [u, vertex] : data) {
+      VertexData* dst = result->allocate_vertex();
+      if (vertex_property_layout.size != 0) {
+        assert(vertex_property_layout.copy_constructor);
+        assert(vertex_property_layout.deleter);
+        result->vertex_property_layout.deleter(result->vertex_property(dst));
+        vertex_property_layout.copy_constructor(result->vertex_property(dst), vertex_property(vertex));
+      }
+      result->data.emplace(u, dst);
     }
-    for (auto& [u, vertex] : result->data) {
-      for (auto& [v, property] : vertex->neighbors) {
+
+    for (auto [u, vertex] : data) {
+      for (auto [v, _] : vertex->neighbors) {
+        result->data.at(u)->neighbors.emplace(v, nullptr);
+      }
+    }
+
+    for (auto [u, vertex] : data) {
+      for (auto [v, property] : vertex->neighbors) {
         if (u <= v) {
-          property = new Object(*property);
-          if (u != v) data.at(v)->neighbors[u] = property;
+          void* copied = result->copy_edge_property(property);
+          result->data.at(u)->neighbors.at(v) = copied;
+          if (u != v) {
+            result->data.at(v)->neighbors.at(u) = copied;
+          }
         }
       }
     }
@@ -120,7 +206,7 @@ struct MarkovNetwork::Impl : Object::Impl {
       Domain neighbors;
       for (auto [v, property] : vertex->neighbors) neighbors.push_back(v);
       neighbors.sort();
-      out << u << ": " << vertex->property << " -- " << neighbors << std::endl;
+      out << u << ": " << neighbors << std::endl;
     }
   }
 
@@ -132,15 +218,41 @@ struct MarkovNetwork::Impl : Object::Impl {
   void free_edge_data() {
     for (auto [u, vertex] : data) {
       for (auto [v, object] : vertex->neighbors) {
-        if (u <= v) delete object;
+        if (u <= v) free_edge_property(object);
       }
     }
     num_edges = 0;
+  }
+
+  void free_vertex_data() {
+    for (auto [_, vertex] : data) {
+      free_vertex(vertex);
+    }
+    data.clear();
   }
 };
 
 MarkovNetwork::MarkovNetwork(size_t count)
   : Object(std::make_unique<Impl>(count)) {}
+
+MarkovNetwork::MarkovNetwork(size_t count, PropertyLayout vertex_layout, PropertyLayout edge_layout)
+  : Object(std::make_unique<Impl>(count, vertex_layout, edge_layout)) {}
+
+MarkovNetwork::Impl& MarkovNetwork::impl() {
+  return static_cast<Impl&>(*impl_);
+}
+
+const MarkovNetwork::Impl& MarkovNetwork::impl() const {
+  return static_cast<const Impl&>(*impl_);
+}
+
+MarkovNetwork::VertexData& MarkovNetwork::data(Arg arg) {
+  return *impl().data.at(arg);
+}
+
+const MarkovNetwork::VertexData& MarkovNetwork::data(Arg arg) const {
+  return *impl().data.at(arg);
+}
 
 SubRange<MarkovNetwork::out_edge_iterator> MarkovNetwork::out_edges(Arg u) const {
   const AdjacencyMap& neighbors = data(u).neighbors;
@@ -207,33 +319,33 @@ size_t MarkovNetwork::num_edges() const {
   return impl().num_edges;
 }
 
-Object& MarkovNetwork::operator[](Arg u) {
-  return data(u).property;
+void* MarkovNetwork::property(Arg u) {
+  return impl().vertex_property(impl().data.at(u));
 }
 
-const Object& MarkovNetwork::operator[](Arg u) const {
-  return data(u).property;
+const void* MarkovNetwork::property(Arg u) const {
+  return impl().vertex_property(impl().data.at(u));
 }
 
-Object& MarkovNetwork::operator[](const UndirectedEdge<Arg>& e) {
-  return *static_cast<Object*>(e.property());
+void* MarkovNetwork::property(const UndirectedEdge<Arg>& e) {
+  return e.property();
 }
 
-const Object& MarkovNetwork::operator[](const UndirectedEdge<Arg>& e) const {
-  return *static_cast<Object*>(e.property());
+const void* MarkovNetwork::property(const UndirectedEdge<Arg>& e) const {
+  return e.property();
 }
 
-bool MarkovNetwork::add_vertex(Arg u, Object object) {
+bool MarkovNetwork::add_vertex(Arg u) {
   assert(u != Arg());
   if (contains(u)) {
     return false;
   } else {
-    impl().data[u]->property = std::move(object);
+    impl().data.emplace(u, impl().allocate_vertex());
     return true;
   }
 }
 
-std::pair<UndirectedEdge<Arg>, bool> MarkovNetwork::add_edge(Arg u, Arg v, Object object) {
+std::pair<UndirectedEdge<Arg>, bool> MarkovNetwork::add_edge(Arg u, Arg v) {
   auto [uit, ufound] = impl().find(u);
   auto [vit, vfound] = impl().find(v);
   assert(ufound && vfound);
@@ -242,7 +354,7 @@ std::pair<UndirectedEdge<Arg>, bool> MarkovNetwork::add_edge(Arg u, Arg v, Objec
     return { {u, v, nbr->second}, false };
   }
 
-  Object* ptr = new Object(std::move(object));
+  void* ptr = impl().allocate_edge_property();
   uit->second->neighbors[v] = ptr;
   vit->second->neighbors[u] = ptr;
   ++impl().num_edges;
@@ -267,6 +379,7 @@ void MarkovNetwork::add_clique(const Domain& vertices) {
 
 void MarkovNetwork::remove_vertex(Arg u) {
   remove_edges(u);
+  impl().free_vertex(impl().data.at(u));
   impl().data.erase(u);
 }
 
@@ -279,7 +392,9 @@ void MarkovNetwork::remove_edge(Arg u, Arg v) {
   assert(it != neighbors_u.end());
 
   // delete the edge data and the edge itself
-  delete it->second;
+  if (u <= v) {
+    impl().free_edge_property(it->second);
+  }
   neighbors_u.erase(it);
   neighbors_v.erase(u);
   --impl().num_edges;
@@ -291,8 +406,10 @@ void MarkovNetwork::remove_edges(Arg u) {
 
   // Delete the edge data and mirror edges
   for (auto [v, object] : neighbors) {
+    if (u <= v) {
+      impl().free_edge_property(object);
+    }
     if(u != v) impl().data[v]->neighbors.erase(u);
-    delete object;
   }
 
   // Clear the neighbors
@@ -309,7 +426,7 @@ void MarkovNetwork::remove_edges() {
 
 void MarkovNetwork::clear() {
   impl().free_edge_data();
-  impl().data.clear();
+  impl().free_vertex_data();
 }
 
 void MarkovNetwork::eliminate(const EliminationStrategy& strategy, VertexVisitor visitor) {

@@ -111,7 +111,7 @@ public:
   // Queries
   //--------------------------------------------------------------------------
   /// Returns the Markov graph capturing the cliques in this factor graph.
-  MarkovNetworkT<> markov_network() const;
+  MarkovNetwork markov_network() const;
 
   // Modifications
   //--------------------------------------------------------------------------

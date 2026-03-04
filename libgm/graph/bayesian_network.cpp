@@ -284,8 +284,8 @@ const void* BayesianNetwork::property(Arg u) const {
   return impl().property(impl().data.at(u));
 }
 
-MarkovNetworkT<> BayesianNetwork::markov_network() const {
-  MarkovNetworkT<> mn(num_vertices());
+MarkovNetwork BayesianNetwork::markov_network() const {
+  MarkovNetwork mn(num_vertices());
   for (auto [u, ptr] : impl().data) {
     mn.add_vertex(u);
     mn.add_clique(ptr->parents);

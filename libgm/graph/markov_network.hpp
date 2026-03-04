@@ -5,8 +5,7 @@
 #include <libgm/datastructure/subrange.hpp>
 #include <libgm/graph/elimination_strategy.hpp>
 #include <libgm/graph/undirected_edge.hpp>
-#include <libgm/graph/util/nullable.hpp>
-#include <libgm/graph/util/property_caster.hpp>
+#include <libgm/graph/util/property_layout.hpp>
 #include <libgm/iterator/map_bind1_iterator.hpp>
 #include <libgm/iterator/map_bind2_iterator.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
@@ -17,6 +16,9 @@
 
 #include <iterator>
 #include <iosfwd>
+#include <new>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace libgm {
@@ -43,7 +45,7 @@ private:
   const VertexData& data(Arg arg) const;
 
   /// The map type used to associate neighbors and edge data with each vertex.
-  using AdjacencyMap = ankerl::unordered_dense::map<Arg, Object*>;
+  using AdjacencyMap = ankerl::unordered_dense::map<Arg, void*>;
 
   /// The map types that associates all the vertices with their VertexData.
   using VertexDataMap = ankerl::unordered_dense::map<Arg, VertexData*>;
@@ -93,6 +95,10 @@ public:
   MarkovNetwork& operator=(const MarkovNetwork& g) = default;
   MarkovNetwork& operator=(MarkovNetwork&& g) = default;
 
+protected:
+  MarkovNetwork(size_t count, PropertyLayout vertex_layout, PropertyLayout edge_layout);
+
+public:
   // Accessors
   //--------------------------------------------------------------------------
 
@@ -144,34 +150,33 @@ public:
   /// Returns the number of edges.
   size_t num_edges() const;
 
-  /// Returns the property associated with a vertex.
-  Object& operator[](Arg u);
+  /// Returns the raw pointer to the property associated with a vertex.
+  void* property(Arg u);
 
-  /// Returns the property associated with a vertex,
-  const Object& operator[](Arg u) const;
+  /// Returns the raw pointer to the property associated with a vertex.
+  const void* property(Arg u) const;
 
-  /// Returns the property associated with an edge.
-  Object& operator[](const UndirectedEdge<Arg>& e);
+  /// Returns the raw pointer to the property associated with an edge.
+  void* property(const UndirectedEdge<Arg>& e);
 
-  /// Returns the property associated with an edge.
-  const Object& operator[](const UndirectedEdge<Arg>& e) const;
+  /// Returns the raw pointer to the property associated with an edge.
+  const void* property(const UndirectedEdge<Arg>& e) const;
 
   // Modifications
   //--------------------------------------------------------------------------
 
   /**
-   * Adds a vertex to a graph and associate the property with that vertex.
-   * If the vertex is already present, its property is not overwritten.
+   * Adds a vertex to a graph.
    * \returns true if the insertion took place (i.e., vertex was not present).
    */
-  bool add_vertex(Arg u, Object object = Object());
+  bool add_vertex(Arg u);
 
   /**
-   * Adds an edge {u,v} to the graph. If the edge already exists, its
-   * property is not overwritten. If u and v are not present, they are added.
+   * Adds an edge {u,v} to the graph. If the edge already exists, the existing
+   * edge is returned. If u and v are not present, they are added.
    * \return the edge and bool indicating whether the edge was newly added.
    */
-  std::pair<edge_descriptor, bool> add_edge(Arg u, Arg v, Object object = Object());
+  std::pair<edge_descriptor, bool> add_edge(Arg u, Arg v);
 
   /// Adds edges from given source vertex to all specified target vertices.
   void add_edges(Arg u, const std::vector<Arg>& vs);
@@ -283,22 +288,55 @@ public:
  * A class that represents a Markov network with strongly typed vertex and edge properties.
  *
  * \tparam VP
- *         The type of data associated with vertices. Must be void or a subclass of Object.
+ *         The type of data associated with vertices.
  * \tparam EP
- *         The type of data associated with edges. Must be void or a subclass of Object.
+ *         The type of data associated with edges.
  *
  * \ingroup graph_types
  */
-template <typename VP = void, typename EP = void>
-struct MarkovNetworkT : PropertyCaster<MarkovNetwork, VP, EP> {
-  using PropertyCaster<MarkovNetwork, VP, EP>::PropertyCaster;
+template <typename VP, typename EP = VP>
+struct MarkovNetworkT : MarkovNetwork {
+  static_assert(!std::is_void_v<VP>, "VP must be a non-void property type.");
+  static_assert(!std::is_void_v<EP>, "EP must be a non-void property type.");
 
-  bool add_vertex(Arg u, Nullable<VP> vp = Nullable<VP>()) {
-    return MarkovNetwork::add_vertex(u, std::move(vp));
+  using MarkovNetwork::add_vertex;
+  using MarkovNetwork::add_edge;
+
+  MarkovNetworkT(size_t count = 0)
+    : MarkovNetwork(count, property_layout<VP>(), property_layout<EP>()) {}
+
+  VP& operator[](Arg u) {
+    return *static_cast<VP*>(MarkovNetwork::property(u));
   }
 
-  std::pair<UndirectedEdge<Arg>, bool> add_edge(Arg u, Arg v, Nullable<EP> ep = Nullable<EP>()) {
-    return MarkovNetwork::add_edge(u, v, std::move(ep));
+  const VP& operator[](Arg u) const {
+    return *static_cast<const VP*>(MarkovNetwork::property(u));
+  }
+
+  EP& operator[](const UndirectedEdge<Arg>& e) {
+    return *static_cast<EP*>(MarkovNetwork::property(e));
+  }
+
+  const EP& operator[](const UndirectedEdge<Arg>& e) const {
+    return *static_cast<const EP*>(MarkovNetwork::property(e));
+  }
+
+  bool add_vertex(Arg u, VP vp) {
+    bool inserted = MarkovNetwork::add_vertex(u);
+    if (inserted) {
+      static_cast<VP*>(MarkovNetwork::property(u))->~VP();
+      new (MarkovNetwork::property(u)) VP(std::move(vp));
+    }
+    return inserted;
+  }
+
+  std::pair<UndirectedEdge<Arg>, bool> add_edge(Arg u, Arg v, EP ep) {
+    auto result = MarkovNetwork::add_edge(u, v);
+    if (result.second) {
+      static_cast<EP*>(MarkovNetwork::property(result.first))->~EP();
+      new (MarkovNetwork::property(result.first)) EP(std::move(ep));
+    }
+    return result;
   }
 };
 

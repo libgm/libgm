@@ -52,7 +52,7 @@ public:
   /**
    * Initializes the algorithm to the cliques obtained by eliminating given collection of factors.
    */
-  void reset(MarkovNetworkT<>& mn, const EliminationStrategy& strategy, const ShapeMap& shape_map);
+  void reset(MarkovNetwork& mn, const EliminationStrategy& strategy, const ShapeMap& shape_map);
 
   /**
    * Multiplies in a factor.

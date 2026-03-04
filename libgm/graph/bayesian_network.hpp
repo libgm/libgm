@@ -136,7 +136,7 @@ public:
   /**
    * Computes a minimal Markov graph capturing dependencies in this model.
    */
-  MarkovNetworkT<> markov_network() const;
+  MarkovNetwork markov_network() const;
 
   // Modifications
   //--------------------------------------------------------------------------

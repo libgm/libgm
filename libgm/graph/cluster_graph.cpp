@@ -432,8 +432,8 @@ Dims ClusterGraph::target_dims(edge_descriptor e) const {
   return e.target()->cluster.dims(e->separator);
 }
 
-MarkovNetworkT<> ClusterGraph::markov_network() const {
-  MarkovNetworkT<> mn;
+MarkovNetwork ClusterGraph::markov_network() const {
+  MarkovNetwork mn;
   for (Vertex* v : vertices()) {
     mn.add_clique(v->cluster);
   }

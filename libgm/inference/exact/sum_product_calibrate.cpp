@@ -21,7 +21,7 @@ void SumProductCalibrate::reset(const ClusterGraph& cg) {
 }
 
 void SumProductCalibrate::reset(
-    MarkovNetworkT<>& mn, const EliminationStrategy& strategy, const ShapeMap& shape_map) {
+    MarkovNetwork& mn, const EliminationStrategy& strategy, const ShapeMap& shape_map) {
   calibrated_ = false;
 
   // initialize the junction tree
