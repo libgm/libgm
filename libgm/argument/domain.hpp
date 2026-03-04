@@ -23,7 +23,7 @@ public:
   // Bring in constructors.
   using std::vector<Arg>::vector;
 
-  // Bring in th eshadowed operation.
+  // Bring in the shadowed operation.
   using std::vector<Arg>::erase;
 
   /**

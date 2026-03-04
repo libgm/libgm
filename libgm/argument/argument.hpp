@@ -3,82 +3,85 @@
 #include <ankerl/unordered_dense.h>
 
 #include <boost/operators.hpp>
+#include <cereal/cereal.hpp>
+#include <cereal/types/memory.hpp>
 
-#include <cereal/access.hpp>
-
+#include <cassert>
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <string>
+#include <typeinfo>
 
 namespace libgm {
 
-struct Arg : boost::less_than_comparable<Arg>, boost::equality_comparable<Arg>{
-  char label : 8;
-  uint32_t id : 24;
-  uint32_t index : 32;
+struct Argument : public std::enable_shared_from_this<Argument> {
+  virtual ~Argument() = default;
+  virtual bool less(const Argument& other) const = 0;
+  virtual void print(std::ostream& out) const = 0;
+};
 
-  // Constructs a null argument.
+class Arg
+  : public boost::less_than_comparable<Arg>
+  , public boost::equality_comparable<Arg> {
+public:
+  using type = const Argument;
+
   Arg()
-    : label(0), id(0), index(0) {}
+    : ptr_(nullptr) {}
 
-  // Constructs an argument with given parameters.
-  Arg(char label, uint32_t id, uint32_t index)
-    : label(label), id(id), index(index) {}
+  Arg(std::nullptr_t)
+    : ptr_(nullptr) {}
 
-  /**
-   * Sets the global ordering of arguments by their label.
-   */
-  static void set_ordering(const std::string& ordering);
+  Arg(const Argument& arg)
+    : ptr_(&arg) {}
 
-  /**
-   * Resets the global ordering of labels to the alphabetical ordering.
-   */
-  static void reset_ordering();
+  Arg(const Argument* arg)
+    : ptr_(arg) {}
+
+  explicit operator bool() const {
+    return ptr_ != nullptr;
+  }
+
+  const Argument& get() const {
+    assert(ptr_ != nullptr);
+    return *ptr_;
+  }
+
+  const Argument* ptr() const {
+    return ptr_;
+  }
+
+  template <typename Archive>
+  void save(Archive& ar) const {
+    std::shared_ptr<const Argument> owner;
+    if (ptr_) {
+      owner = ptr_->shared_from_this();
+    }
+    ar(owner);
+  }
+
+  template <typename Archive>
+  void load(Archive& ar) {
+    std::shared_ptr<Argument> owner;
+    ar(owner);
+    ptr_ = owner.get();
+  }
 
 private:
-  friend class cereal::access;
-
-  /// Serialize the argument.
-  template <typename ARCHIVE>
-  void save(ARCHIVE& archive) const {
-    archive(label, id, index);
-  }
-
-  /// Deserialize the argument.
-  template <typename ARCHIVE>
-  void load(ARCHIVE& archive) {
-    char label;
-    uint32_t id, index;
-    archive(label, id, index);
-    this->label = label;
-    this->id = id;
-    this->index = index;
-  }
-
-  /// The global priority
-  static std::unique_ptr<int[]> priority;
-
-  friend bool operator<(const Arg, const Arg);
+  const Argument* ptr_;
 };
 
 std::ostream& operator<<(std::ostream& out, Arg arg);
 
-inline bool operator==(Arg a, Arg b) {
-  return reinterpret_cast<uint64_t&>(a) == reinterpret_cast<uint64_t&>(b);
-}
+bool operator<(Arg a, Arg b);
 
-inline bool operator<(const Arg a, const Arg b) {
-  if (a.label == b.label) {
-    // priorities are always unique, delegate to the remaining fields
-    return std::make_pair(a.id, a.index) < std::make_pair(b.id, b.index);
-  } else {
-    // use priorities if present, otherwise compare alphabetically
-    return Arg::priority ? Arg::priority[a.label] < Arg::priority[b.label] : a.label < b.label;
-  }
+inline bool operator==(Arg a, Arg b) {
+  return a.ptr() == b.ptr();
 }
 
 /**
- * An unordered set of argumetns.
+ * An unordered set of arguments.
  */
 using ArgSet = ankerl::unordered_dense::set<Arg>;
 
@@ -89,7 +92,7 @@ namespace std {
 template <>
 struct hash<libgm::Arg> {
   size_t operator()(libgm::Arg arg) const noexcept {
-    return hash<uint64_t>()(reinterpret_cast<const uint64_t&>(arg));
+    return std::hash<const libgm::Argument*>()(arg.ptr());
   }
 };
 

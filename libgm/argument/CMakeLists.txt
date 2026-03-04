@@ -2,6 +2,7 @@ target_sources(
   libgm
   PRIVATE
   argument.cpp
+        named_argument.cpp
   domain.cpp
   shape.cpp
   span.cpp
