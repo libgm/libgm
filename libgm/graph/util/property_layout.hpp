@@ -3,10 +3,12 @@
 #include <cassert>
 #include <cstddef>
 #include <new>
+#include <typeinfo>
 
 namespace libgm {
 
 struct PropertyLayout {
+  const std::type_info& type_info = typeid(void);
   size_t size = 0;
   size_t alignment = 0;
   void (*default_constructor)(void*) = nullptr;
@@ -60,6 +62,7 @@ struct PropertyLayout {
 template <typename T>
 PropertyLayout property_layout() {
   return {
+    typeid(T),
     sizeof(T),
     alignof(T),
     [](void* ptr) { new (ptr) T(); },

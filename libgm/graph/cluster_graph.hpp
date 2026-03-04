@@ -23,6 +23,7 @@
 #include <cassert>
 #include <memory>
 #include <new>
+#include <typeinfo>
 #include <type_traits>
 #include <utility>
 
@@ -182,6 +183,36 @@ public:
 
   /// Returns the raw pointer to the property associated with an edge.
   const void* property(edge_descriptor e) const;
+
+  /// Returns the runtime type information for vertex property type.
+  const std::type_info& vertex_property_type_info() const;
+
+  /// Returns the runtime type information for edge property type.
+  const std::type_info& edge_property_type_info() const;
+
+  template <typename P>
+  P& property_cast(Vertex* u) {
+    assert(vertex_property_type_info() == typeid(P));
+    return *static_cast<P*>(property(u));
+  }
+
+  template <typename P>
+  const P& property_cast(Vertex* u) const {
+    assert(vertex_property_type_info() == typeid(P));
+    return *static_cast<const P*>(property(u));
+  }
+
+  template <typename P>
+  P& property_cast(edge_descriptor e) {
+    assert(edge_property_type_info() == typeid(P));
+    return *static_cast<P*>(property(e));
+  }
+
+  template <typename P>
+  const P& property_cast(edge_descriptor e) const {
+    assert(edge_property_type_info() == typeid(P));
+    return *static_cast<const P*>(property(e));
+  }
 
   /// Returns true if two cluster graphs are identical.
   bool operator==(const ClusterGraph& other) const;
@@ -527,19 +558,19 @@ struct ClusterGraphT : ClusterGraph {
     : ClusterGraph(property_layout<VP>(), property_layout<EP>()) {}
 
   VP& operator[](Vertex* u) {
-    return *static_cast<VP*>(ClusterGraph::property(u));
+    return property_cast<VP>(u);
   }
 
   const VP& operator[](Vertex* u) const {
-    return *static_cast<const VP*>(ClusterGraph::property(u));
+    return property_cast<VP>(u);
   }
 
   EP& operator[](edge_descriptor e) {
-    return *static_cast<EP*>(ClusterGraph::property(e));
+    return property_cast<EP>(e);
   }
 
   const EP& operator[](edge_descriptor e) const {
-    return *static_cast<const EP*>(ClusterGraph::property(e));
+    return property_cast<EP>(e);
   }
 
   Vertex* add_vertex(Domain cluster, VP vp) {

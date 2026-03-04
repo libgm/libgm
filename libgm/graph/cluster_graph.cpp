@@ -465,6 +465,14 @@ const void* ClusterGraph::property(edge_descriptor e) const {
   return impl().edge_property(e.get());
 }
 
+const std::type_info& ClusterGraph::vertex_property_type_info() const {
+  return impl().vertex_property_layout.type_info;
+}
+
+const std::type_info& ClusterGraph::edge_property_type_info() const {
+  return impl().edge_property_layout.type_info;
+}
+
 SubRange<ClusterGraph::argument_iterator> ClusterGraph::arguments() const {
   return impl().cluster_index.arguments();
 }

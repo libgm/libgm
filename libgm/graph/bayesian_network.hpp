@@ -19,6 +19,7 @@
 #include <cstddef>
 #include <memory>
 #include <new>
+#include <typeinfo>
 #include <type_traits>
 #include <utility>
 
@@ -141,6 +142,21 @@ public:
   /// Returns the raw pointer to the property associated with a vertex.
   const void* property(Arg u) const;
 
+  /// Returns the runtime type information for the vertex property type.
+  const std::type_info& property_type_info() const;
+
+  template <typename P>
+  P& property_cast(Arg u) {
+    assert(property_type_info() == typeid(P));
+    return *static_cast<P*>(property(u));
+  }
+
+  template <typename P>
+  const P& property_cast(Arg u) const {
+    assert(property_type_info() == typeid(P));
+    return *static_cast<const P*>(property(u));
+  }
+
   // Queries
   //--------------------------------------------------------------------------
 
@@ -190,11 +206,11 @@ struct BayesianNetworkT : BayesianNetwork {
     : BayesianNetwork(count, property_layout<VP>()) {}
 
   VP& operator[](Arg u) {
-    return *static_cast<VP*>(BayesianNetwork::property(u));
+    return property_cast<VP>(u);
   }
 
   const VP& operator[](Arg u) const {
-    return *static_cast<const VP*>(BayesianNetwork::property(u));
+    return property_cast<VP>(u);
   }
 
   bool add_vertex(Arg u, Domain parents, VP vp) {

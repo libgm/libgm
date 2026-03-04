@@ -24,6 +24,7 @@
 #include <iosfwd>
 #include <memory>
 #include <new>
+#include <typeinfo>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -163,6 +164,36 @@ public:
   /// Returns the raw pointer to the property associated with an edge.
   const void* property(const UndirectedEdge<Arg>& e) const;
 
+  /// Returns the runtime type information for vertex property type.
+  const std::type_info& vertex_property_type_info() const;
+
+  /// Returns the runtime type information for edge property type.
+  const std::type_info& edge_property_type_info() const;
+
+  template <typename P>
+  P& property_cast(Arg u) {
+    assert(vertex_property_type_info() == typeid(P));
+    return *static_cast<P*>(property(u));
+  }
+
+  template <typename P>
+  const P& property_cast(Arg u) const {
+    assert(vertex_property_type_info() == typeid(P));
+    return *static_cast<const P*>(property(u));
+  }
+
+  template <typename P>
+  P& property_cast(const UndirectedEdge<Arg>& e) {
+    assert(edge_property_type_info() == typeid(P));
+    return *static_cast<P*>(property(e));
+  }
+
+  template <typename P>
+  const P& property_cast(const UndirectedEdge<Arg>& e) const {
+    assert(edge_property_type_info() == typeid(P));
+    return *static_cast<const P*>(property(e));
+  }
+
   // Modifications
   //--------------------------------------------------------------------------
 
@@ -243,19 +274,19 @@ struct MarkovNetworkT : MarkovNetwork {
     : MarkovNetwork(count, property_layout<VP>(), property_layout<EP>()) {}
 
   VP& operator[](Arg u) {
-    return *static_cast<VP*>(property(u));
+    return property_cast<VP>(u);
   }
 
   const VP& operator[](Arg u) const {
-    return *static_cast<const VP*>(property(u));
+    return property_cast<VP>(u);
   }
 
   EP& operator[](const UndirectedEdge<Arg>& e) {
-    return *static_cast<EP*>(property(e));
+    return property_cast<EP>(e);
   }
 
   const EP& operator[](const UndirectedEdge<Arg>& e) const {
-    return *static_cast<const EP*>(property(e));
+    return property_cast<EP>(e);
   }
 
   bool add_vertex(Arg u, VP vp) {

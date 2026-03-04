@@ -329,6 +329,14 @@ const void* FactorGraph::property(Factor* u) const {
   return impl().factor_property(u);
 }
 
+const std::type_info& FactorGraph::argument_property_type_info() const {
+  return impl().argument_property_layout.type_info;
+}
+
+const std::type_info& FactorGraph::factor_property_type_info() const {
+  return impl().factor_property_layout.type_info;
+}
+
 std::ostream& operator<<(std::ostream& out, const FactorGraph& g) {
   out << "Arguments" << std::endl;
   for (Arg arg : g.arguments()) {

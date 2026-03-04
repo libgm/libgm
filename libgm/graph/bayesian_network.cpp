@@ -277,6 +277,10 @@ const void* BayesianNetwork::property(Arg u) const {
   return impl().property(impl().data.at(u));
 }
 
+const std::type_info& BayesianNetwork::property_type_info() const {
+  return impl().property_layout.type_info;
+}
+
 MarkovNetwork BayesianNetwork::markov_network() const {
   MarkovNetwork mn(num_vertices());
   for (auto [u, ptr] : impl().data) {

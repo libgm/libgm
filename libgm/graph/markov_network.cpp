@@ -315,6 +315,14 @@ const void* MarkovNetwork::property(const UndirectedEdge<Arg>& e) const {
   return e.property();
 }
 
+const std::type_info& MarkovNetwork::vertex_property_type_info() const {
+  return impl().vertex_property_layout.type_info;
+}
+
+const std::type_info& MarkovNetwork::edge_property_type_info() const {
+  return impl().edge_property_layout.type_info;
+}
+
 bool MarkovNetwork::add_vertex(Arg u) {
   assert(u != Arg());
   if (contains(u)) {

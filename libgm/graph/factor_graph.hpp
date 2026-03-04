@@ -17,6 +17,7 @@
 #include <cassert>
 #include <memory>
 #include <new>
+#include <typeinfo>
 #include <type_traits>
 #include <utility>
 
@@ -115,6 +116,36 @@ public:
   /// Returns the raw pointer to the property associated with a factor.
   const void* property(Factor* u) const;
 
+  /// Returns the runtime type information for argument property type.
+  const std::type_info& argument_property_type_info() const;
+
+  /// Returns the runtime type information for factor property type.
+  const std::type_info& factor_property_type_info() const;
+
+  template <typename P>
+  P& property_cast(Arg u) {
+    assert(argument_property_type_info() == typeid(P));
+    return *static_cast<P*>(property(u));
+  }
+
+  template <typename P>
+  const P& property_cast(Arg u) const {
+    assert(argument_property_type_info() == typeid(P));
+    return *static_cast<const P*>(property(u));
+  }
+
+  template <typename P>
+  P& property_cast(Factor* u) {
+    assert(factor_property_type_info() == typeid(P));
+    return *static_cast<P*>(property(u));
+  }
+
+  template <typename P>
+  const P& property_cast(Factor* u) const {
+    assert(factor_property_type_info() == typeid(P));
+    return *static_cast<const P*>(property(u));
+  }
+
   /// Prints the graph to an output stream.
   friend std::ostream& operator<<(std::ostream& out, const FactorGraph& g);
 
@@ -195,19 +226,19 @@ struct FactorGraphT : FactorGraph {
     : FactorGraph(property_layout<AP>(), property_layout<FP>()) {}
 
   AP& operator[](Arg u) {
-    return *static_cast<AP*>(FactorGraph::property(u));
+    return property_cast<AP>(u);
   }
 
   const AP& operator[](Arg u) const {
-    return *static_cast<const AP*>(FactorGraph::property(u));
+    return property_cast<AP>(u);
   }
 
   FP& operator[](Factor* f) {
-    return *static_cast<FP*>(FactorGraph::property(f));
+    return property_cast<FP>(f);
   }
 
   const FP& operator[](Factor* f) const {
-    return *static_cast<const FP*>(FactorGraph::property(f));
+    return property_cast<FP>(f);
   }
 
   /// Adds an argument and associates it with a strongly-typed property.
