@@ -3,12 +3,15 @@
 #include <libgm/argument/shape.hpp>
 #include <vector>
 #include <libgm/datastructure/table.hpp>
-#include <libgm/object.hpp>
 #include <libgm/math/exp.hpp>
 // #include <libgm/math/likelihood/canonical_table_ll.hpp>
 // #include <libgm/math/random/multivariate_categorical_distribution.hpp>
 
+#include <cereal/access.hpp>
+#include <cereal/types/memory.hpp>
+
 #include <initializer_list>
+#include <memory>
 
 namespace libgm {
 
@@ -29,7 +32,7 @@ template <typename T> class ProbabilityTable;
  * \ingroup factor_types
  */
 template <typename T>
-class LogarithmicTable : public Object {
+class LogarithmicTable {
 public:
   /// The result of applying this factor to an index.
   using value_type = T;
@@ -43,7 +46,12 @@ public:
   //--------------------------------------------------------------------------
 
   /// Default constructor. Creates an empty factor.
-  LogarithmicTable() = default;
+  LogarithmicTable();
+  LogarithmicTable(const LogarithmicTable& other);
+  LogarithmicTable(LogarithmicTable&& other) noexcept;
+  LogarithmicTable& operator=(const LogarithmicTable& other);
+  LogarithmicTable& operator=(LogarithmicTable&& other) noexcept;
+  ~LogarithmicTable();
 
   /// Constructs a factor equivalent to a constant.
   explicit LogarithmicTable(Exp<T> value);
@@ -201,6 +209,14 @@ private:
   LogarithmicTable divide_inverse(const Exp<T>& x) const;
   Impl& impl();
   const Impl& impl() const;
+  std::unique_ptr<Impl> impl_;
+
+  friend class cereal::access;
+
+  template <typename Archive>
+  void serialize(Archive& ar) {
+    ar(impl_);
+  }
 
 }; // class LogarithmicTable
 

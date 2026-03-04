@@ -8,8 +8,3 @@ template class CanonicalGaussian<float>;
 template class CanonicalGaussian<double>;
 
 }
-
-CEREAL_REGISTER_TYPE(libgm::CanonicalGaussian<float>::Impl);
-CEREAL_REGISTER_TYPE(libgm::CanonicalGaussian<double>::Impl);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(libgm::Object::Impl, libgm::CanonicalGaussian<float>::Impl);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(libgm::Object::Impl, libgm::CanonicalGaussian<double>::Impl);

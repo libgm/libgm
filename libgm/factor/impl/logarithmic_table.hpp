@@ -18,7 +18,7 @@
 namespace libgm {
 
 template <typename T>
-struct LogarithmicTable<T>::Impl : Object::Impl {
+struct LogarithmicTable<T>::Impl {
   Table<T> param;
 
   template <typename ARCHIVE>
@@ -48,11 +48,11 @@ struct LogarithmicTable<T>::Impl : Object::Impl {
   // Object operations
   //--------------------------------------------------------------------------
 
-  Impl* clone() const override {
-    return new Impl(*this);
+  std::unique_ptr<Impl> clone() const {
+    return std::make_unique<Impl>(*this);
   }
 
-  void print(std::ostream& out) const override {
+  void print(std::ostream& out) const {
     out << param;
   }
 
@@ -257,33 +257,57 @@ struct LogarithmicTable<T>::Impl : Object::Impl {
 }; // class LogarithmicTable<T>::Impl
 
 template <typename T>
+LogarithmicTable<T>::LogarithmicTable() = default;
+
+template <typename T>
 LogarithmicTable<T>::LogarithmicTable(Exp<T> value)
-  : Object(std::make_unique<Impl>()) {
+  : impl_(std::make_unique<Impl>()) {
   param()[0] = value.lv;
 }
 
 template <typename T>
 LogarithmicTable<T>::LogarithmicTable(Shape shape, Exp<T> value)
-  : Object(std::make_unique<Impl>(std::move(shape))) {
+  : impl_(std::make_unique<Impl>(std::move(shape))) {
   param().fill(value.lv);
 }
 
 template <typename T>
 LogarithmicTable<T>::LogarithmicTable(Shape shape, std::initializer_list<T> values)
-  : Object(std::make_unique<Impl>(std::move(shape))) {
+  : impl_(std::make_unique<Impl>(std::move(shape))) {
   assert(values.size() == size());
   std::copy(values.begin(), values.end(), param().begin());
 }
 
 template <typename T>
 LogarithmicTable<T>::LogarithmicTable(Shape shape, const T* values)
-  : Object(std::make_unique<Impl>(std::move(shape))) {
+  : impl_(std::make_unique<Impl>(std::move(shape))) {
   std::copy(values, values + size(), param().begin());
 }
 
 template <typename T>
 LogarithmicTable<T>::LogarithmicTable(Table<T> param)
-  : Object(std::make_unique<Impl>(std::move(param))) {}
+  : impl_(std::make_unique<Impl>(std::move(param))) {}
+
+template <typename T>
+LogarithmicTable<T>::LogarithmicTable(const LogarithmicTable& other)
+  : impl_(other.impl_ ? other.impl_->clone() : nullptr) {}
+
+template <typename T>
+LogarithmicTable<T>::LogarithmicTable(LogarithmicTable&& other) noexcept = default;
+
+template <typename T>
+LogarithmicTable<T>& LogarithmicTable<T>::operator=(const LogarithmicTable& other) {
+  if (this != &other) {
+    impl_ = other.impl_ ? other.impl_->clone() : nullptr;
+  }
+  return *this;
+}
+
+template <typename T>
+LogarithmicTable<T>& LogarithmicTable<T>::operator=(LogarithmicTable&& other) noexcept = default;
+
+template <typename T>
+LogarithmicTable<T>::~LogarithmicTable() = default;
 
 template <typename T>
 size_t LogarithmicTable<T>::arity() const {
@@ -597,13 +621,13 @@ typename LogarithmicTable<T>::Impl& LogarithmicTable<T>::impl() {
   if (!impl_) {
     impl_ = std::make_unique<Impl>();
   }
-  return *static_cast<Impl*>(impl_.get());
+  return *impl_;
 }
 
 template <typename T>
 const typename LogarithmicTable<T>::Impl& LogarithmicTable<T>::impl() const {
   assert(impl_);
-  return *static_cast<const Impl*>(impl_.get());
+  return *impl_;
 }
 
 } // namespace libgm

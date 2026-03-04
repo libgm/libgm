@@ -15,7 +15,7 @@
 namespace libgm {
 
 template <typename T>
-struct LogarithmicMatrix<T>::Impl : Object::Impl {
+struct LogarithmicMatrix<T>::Impl {
 
   /// The parameters of the factor, i.e., a matrix of log-probabilities.
   Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic> param;
@@ -55,11 +55,11 @@ struct LogarithmicMatrix<T>::Impl : Object::Impl {
   // Object functions
   //--------------------------------------------------------------------------
 
-  Impl* clone() const override {
-    return new Impl(*this);
+  std::unique_ptr<Impl> clone() const {
+    return std::make_unique<Impl>(*this);
   }
 
-  void print(std::ostream& out) const override {
+  void print(std::ostream& out) const {
     out << param;
   }
 
@@ -283,23 +283,47 @@ struct LogarithmicMatrix<T>::Impl : Object::Impl {
 }; // Impl
 
 template <typename T>
+LogarithmicMatrix<T>::LogarithmicMatrix() = default;
+
+template <typename T>
 LogarithmicMatrix<T>::LogarithmicMatrix(size_t rows, size_t cols, Exp<T> x)
-  : Object(std::make_unique<Impl>(rows, cols)) {
+  : impl_(std::make_unique<Impl>(rows, cols)) {
   impl().param.fill(x.lv);
 }
 
 template <typename T>
 LogarithmicMatrix<T>::LogarithmicMatrix(const Shape& shape, Exp<T> x)
-  : Object(std::make_unique<Impl>(shape)) {
+  : impl_(std::make_unique<Impl>(shape)) {
   impl().param.fill(x.lv);
 }
 
 template <typename T>
 LogarithmicMatrix<T>::LogarithmicMatrix(size_t rows, size_t cols, std::initializer_list<T> values)
-  : Object(std::make_unique<Impl>(rows, cols)) {
+  : impl_(std::make_unique<Impl>(rows, cols)) {
   assert(values.size() == rows * cols);
   std::copy(values.begin(), values.end(), impl().param.data());
 }
+
+template <typename T>
+LogarithmicMatrix<T>::LogarithmicMatrix(const LogarithmicMatrix& other)
+  : impl_(other.impl_ ? other.impl_->clone() : nullptr) {}
+
+template <typename T>
+LogarithmicMatrix<T>::LogarithmicMatrix(LogarithmicMatrix&& other) noexcept = default;
+
+template <typename T>
+LogarithmicMatrix<T>& LogarithmicMatrix<T>::operator=(const LogarithmicMatrix& other) {
+  if (this != &other) {
+    impl_ = other.impl_ ? other.impl_->clone() : nullptr;
+  }
+  return *this;
+}
+
+template <typename T>
+LogarithmicMatrix<T>& LogarithmicMatrix<T>::operator=(LogarithmicMatrix&& other) noexcept = default;
+
+template <typename T>
+LogarithmicMatrix<T>::~LogarithmicMatrix() = default;
 
 template <typename T>
 size_t LogarithmicMatrix<T>::rows() const {
@@ -551,7 +575,7 @@ T LogarithmicMatrix<T>::max_diff(const LogarithmicMatrix& other) const {
 
 template <typename T>
 ProbabilityMatrix<T> LogarithmicMatrix<T>::probability() const {
-  return impl().param.exp();
+  return param().exp();
 }
 
 template <typename T>
@@ -564,13 +588,13 @@ typename LogarithmicMatrix<T>::Impl& LogarithmicMatrix<T>::impl() {
   if (!impl_) {
     impl_ = std::make_unique<Impl>();
   }
-  return *static_cast<Impl*>(impl_.get());
+  return *impl_;
 }
 
 template <typename T>
 const typename LogarithmicMatrix<T>::Impl& LogarithmicMatrix<T>::impl() const {
   assert(impl_);
-  return *static_cast<const Impl*>(impl_.get());
+  return *impl_;
 }
 
 } // namespace libgm

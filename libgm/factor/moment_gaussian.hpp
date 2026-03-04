@@ -2,12 +2,16 @@
 
 #include <libgm/argument/shape.hpp>
 #include <libgm/math/eigen/dense.hpp>
-#include <libgm/object.hpp>
 #include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/exp.hpp>
 // #include <libgm/math/likelihood/moment_gaussian_ll.hpp>
 // #include <libgm/math/likelihood/moment_gaussian_mle.hpp>
 // #include <libgm/math/random/multivariate_normal_distribution.hpp>
+
+#include <cereal/access.hpp>
+#include <cereal/types/memory.hpp>
+
+#include <memory>
 
 namespace libgm {
 
@@ -31,7 +35,7 @@ template <typename T> class CanonicalGaussian;
  * \see Factor
  */
 template <typename T>
-class MomentGaussian : public Object {
+class MomentGaussian {
 public:
   using value_type = T;
   using value_list = Vector<T>;
@@ -43,6 +47,12 @@ public:
 
   /// Constructs an empty moment Gaussian.
   MomentGaussian() = default;
+
+  MomentGaussian(const MomentGaussian& other);
+  MomentGaussian(MomentGaussian&& other) noexcept;
+  MomentGaussian& operator=(const MomentGaussian& other);
+  MomentGaussian& operator=(MomentGaussian&& other) noexcept;
+  ~MomentGaussian();
 
   /// Constructs a factor equivalent to a constant.
   explicit MomentGaussian(Exp<T> value);
@@ -135,6 +145,15 @@ private:
   MomentGaussian divide_inverse(const Exp<T>& x) const;
   Impl& impl();
   const Impl& impl() const;
+
+  std::unique_ptr<Impl> impl_;
+
+  friend class cereal::access;
+
+  template <typename Archive>
+  void serialize(Archive& ar) {
+    ar(impl_);
+  }
 };
 
 } // namespace libgm

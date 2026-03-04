@@ -16,7 +16,7 @@
 namespace libgm {
 
 template <typename T>
-struct ProbabilityMatrix<T>::Impl : Object::Impl {
+struct ProbabilityMatrix<T>::Impl {
 
   /// The parameters of the factor, i.e., a matrix of log-probabilities.
   Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic> param;
@@ -56,11 +56,11 @@ struct ProbabilityMatrix<T>::Impl : Object::Impl {
   // Object functions
   //--------------------------------------------------------------------------
 
-  Impl* clone() const override {
-    return new Impl(*this);
+  std::unique_ptr<Impl> clone() const {
+    return std::make_unique<Impl>(*this);
   }
 
-  void print(std::ostream& out) const override {
+  void print(std::ostream& out) const {
     out << param;
   }
 
@@ -312,23 +312,47 @@ struct ProbabilityMatrix<T>::Impl : Object::Impl {
 }; // class Impl
 
 template <typename T>
+ProbabilityMatrix<T>::ProbabilityMatrix() = default;
+
+template <typename T>
 ProbabilityMatrix<T>::ProbabilityMatrix(size_t rows, size_t cols, T x)
-  : Object(std::make_unique<Impl>(rows, cols)) {
+  : impl_(std::make_unique<Impl>(rows, cols)) {
   impl().param.fill(x);
 }
 
 template <typename T>
 ProbabilityMatrix<T>::ProbabilityMatrix(const Shape& shape, T x)
-  : Object(std::make_unique<Impl>(shape)) {
+  : impl_(std::make_unique<Impl>(shape)) {
   impl().param.fill(x);
 }
 
 template <typename T>
 ProbabilityMatrix<T>::ProbabilityMatrix(size_t rows, size_t cols, std::initializer_list<T> values)
-  : Object(std::make_unique<Impl>(rows, cols)) {
+  : impl_(std::make_unique<Impl>(rows, cols)) {
   assert(values.size() == rows * cols);
   std::copy(values.begin(), values.end(), impl().param.data());
 }
+
+template <typename T>
+ProbabilityMatrix<T>::ProbabilityMatrix(const ProbabilityMatrix& other)
+  : impl_(other.impl_ ? other.impl_->clone() : nullptr) {}
+
+template <typename T>
+ProbabilityMatrix<T>::ProbabilityMatrix(ProbabilityMatrix&& other) noexcept = default;
+
+template <typename T>
+ProbabilityMatrix<T>& ProbabilityMatrix<T>::operator=(const ProbabilityMatrix& other) {
+  if (this != &other) {
+    impl_ = other.impl_ ? other.impl_->clone() : nullptr;
+  }
+  return *this;
+}
+
+template <typename T>
+ProbabilityMatrix<T>& ProbabilityMatrix<T>::operator=(ProbabilityMatrix&& other) noexcept = default;
+
+template <typename T>
+ProbabilityMatrix<T>::~ProbabilityMatrix() = default;
 
 template <typename T>
 size_t ProbabilityMatrix<T>::rows() const {
@@ -629,13 +653,13 @@ typename ProbabilityMatrix<T>::Impl& ProbabilityMatrix<T>::impl() {
   if (!impl_) {
     impl_ = std::make_unique<Impl>();
   }
-  return *static_cast<Impl*>(impl_.get());
+  return *impl_;
 }
 
 template <typename T>
 const typename ProbabilityMatrix<T>::Impl& ProbabilityMatrix<T>::impl() const {
   assert(impl_);
-  return *static_cast<const Impl*>(impl_.get());
+  return *impl_;
 }
 
 } // namespace libgm

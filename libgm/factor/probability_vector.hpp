@@ -2,8 +2,12 @@
 
 #include <libgm/argument/shape.hpp>
 #include <vector>
-#include <libgm/object.hpp>
 #include <libgm/math/eigen/dense.hpp>
+
+#include <cereal/access.hpp>
+#include <cereal/types/memory.hpp>
+
+#include <memory>
 
 namespace libgm {
 
@@ -26,7 +30,7 @@ template <typename T> class ProbabilityTable;
  * \see Factor
  */
 template <typename T>
-class ProbabilityVector : public Object {
+class ProbabilityVector {
 public:
   // The result of applying a vector to an index.
   using value_type = T;
@@ -40,7 +44,12 @@ public:
   //--------------------------------------------------------------------------
 public:
   /// Default constructor. Creates an empty factor.
-  ProbabilityVector() = default;
+  ProbabilityVector();
+  ProbabilityVector(const ProbabilityVector& other);
+  ProbabilityVector(ProbabilityVector&& other) noexcept;
+  ProbabilityVector& operator=(const ProbabilityVector& other);
+  ProbabilityVector& operator=(ProbabilityVector&& other) noexcept;
+  ~ProbabilityVector();
 
   /// Constructs a factor with the given length and constant value.
   explicit ProbabilityVector(size_t length, T x = T(1));
@@ -53,7 +62,7 @@ public:
 
   /// Constructs a factor with the given parameters.
   template <typename DERIVED>
-  ProbabilityVector(const Eigen::DenseBase<DERIVED>& base) {
+  ProbabilityVector(const Eigen::DenseBase<DERIVED>& base) : ProbabilityVector() {
     param() = base;
   }
 
@@ -168,6 +177,14 @@ private:
   ProbabilityVector divide_inverse(T x) const;
   Impl& impl();
   const Impl& impl() const;
+  std::unique_ptr<Impl> impl_;
+
+  friend class cereal::access;
+
+  template <typename Archive>
+  void serialize(Archive& ar) {
+    ar(impl_);
+  }
 
 }; // class ProbabilityVector
 

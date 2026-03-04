@@ -13,7 +13,7 @@
 namespace libgm {
 
 template <typename T>
-struct ProbabilityVector<T>::Impl : Object::Impl {
+struct ProbabilityVector<T>::Impl {
 
   /// The parameters of the factor, i.e., a vector of log-probabilities.
   Eigen::Array<T, Eigen::Dynamic, 1> param;
@@ -54,11 +54,11 @@ struct ProbabilityVector<T>::Impl : Object::Impl {
   // Object functions
   //--------------------------------------------------------------------------
 
-  Impl* clone() const override {
-    return new Impl(*this);
+  std::unique_ptr<Impl> clone() const {
+    return std::make_unique<Impl>(*this);
   }
 
-  void print(std::ostream& out) const override {
+  void print(std::ostream& out) const {
     out << param;
   }
 
@@ -168,22 +168,46 @@ struct ProbabilityVector<T>::Impl : Object::Impl {
 }; // struct Impl
 
 template <typename T>
+ProbabilityVector<T>::ProbabilityVector() = default;
+
+template <typename T>
 ProbabilityVector<T>::ProbabilityVector(size_t length, T x)
-  : Object(std::make_unique<Impl>(length)) {
+  : impl_(std::make_unique<Impl>(length)) {
   impl().param.fill(x);
 }
 
 template <typename T>
 ProbabilityVector<T>::ProbabilityVector(const Shape& shape, T x)
-  : Object(std::make_unique<Impl>(shape)) {
+  : impl_(std::make_unique<Impl>(shape)) {
   impl().param.fill(x);
 }
 
 template <typename T>
 ProbabilityVector<T>::ProbabilityVector(std::initializer_list<T> values)
-  : Object(std::make_unique<Impl>(values.size())) {
+  : impl_(std::make_unique<Impl>(values.size())) {
   std::copy(values.begin(), values.end(), impl().param.data());
 }
+
+template <typename T>
+ProbabilityVector<T>::ProbabilityVector(const ProbabilityVector& other)
+  : impl_(other.impl_ ? other.impl_->clone() : nullptr) {}
+
+template <typename T>
+ProbabilityVector<T>::ProbabilityVector(ProbabilityVector&& other) noexcept = default;
+
+template <typename T>
+ProbabilityVector<T>& ProbabilityVector<T>::operator=(const ProbabilityVector& other) {
+  if (this != &other) {
+    impl_ = other.impl_ ? other.impl_->clone() : nullptr;
+  }
+  return *this;
+}
+
+template <typename T>
+ProbabilityVector<T>& ProbabilityVector<T>::operator=(ProbabilityVector&& other) noexcept = default;
+
+template <typename T>
+ProbabilityVector<T>::~ProbabilityVector() = default;
 
 template <typename T>
 size_t ProbabilityVector<T>::size() const {
@@ -356,13 +380,13 @@ typename ProbabilityVector<T>::Impl& ProbabilityVector<T>::impl() {
   if (!impl_) {
     impl_ = std::make_unique<Impl>();
   }
-  return *static_cast<Impl*>(impl_.get());
+  return *impl_;
 }
 
 template <typename T>
 const typename ProbabilityVector<T>::Impl& ProbabilityVector<T>::impl() const {
   assert(impl_);
-  return *static_cast<const Impl*>(impl_.get());
+  return *impl_;
 }
 
 } // namespace libgm

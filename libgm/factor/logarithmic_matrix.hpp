@@ -2,13 +2,16 @@
 
 #include <libgm/argument/shape.hpp>
 #include <libgm/assignment/discrete_assignment.hpp>
-#include <libgm/object.hpp>
 #include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/exp.hpp>
 // #include <libgm/math/likelihood/logarithmic_matrix_ll.hpp>
 // #include <libgm/math/random/bivariate_categorical_distribution.hpp>
 
+#include <cereal/access.hpp>
+#include <cereal/types/memory.hpp>
+
 #include <initializer_list>
+#include <memory>
 
 namespace libgm {
 
@@ -32,7 +35,7 @@ template <typename T> class ProbabilityMatrix;
   * \see Factor
   */
 template <typename T>
-class LogarithmicMatrix : public Object {
+class LogarithmicMatrix {
 public:
   /// The result of applying this factor to an index.
   using value_type = T;
@@ -46,7 +49,12 @@ public:
   //--------------------------------------------------------------------------
 
   /// Default constructor. Creates an empty factor.
-  LogarithmicMatrix() = default;
+  LogarithmicMatrix();
+  LogarithmicMatrix(const LogarithmicMatrix& other);
+  LogarithmicMatrix(LogarithmicMatrix&& other) noexcept;
+  LogarithmicMatrix& operator=(const LogarithmicMatrix& other);
+  LogarithmicMatrix& operator=(LogarithmicMatrix&& other) noexcept;
+  ~LogarithmicMatrix();
 
   /// Constructs a factor with the given shape and constant value.
   LogarithmicMatrix(size_t rows, size_t cols, Exp<T> x = Exp<T>(0));
@@ -59,7 +67,7 @@ public:
 
   /// Constructs a factor with given parameters.
   template <typename DERIVED>
-  LogarithmicMatrix(const Eigen::DenseBase<DERIVED>& base) {
+  LogarithmicMatrix(const Eigen::DenseBase<DERIVED>& base) : LogarithmicMatrix() {
     param() = base;
   }
 
@@ -201,6 +209,14 @@ private:
   LogarithmicMatrix divide_inverse(const Exp<T>& x) const;
   Impl& impl();
   const Impl& impl() const;
+  std::unique_ptr<Impl> impl_;
+
+  friend class cereal::access;
+
+  template <typename Archive>
+  void serialize(Archive& ar) {
+    ar(impl_);
+  }
 
 }; // class LogarithmicMatrix
 

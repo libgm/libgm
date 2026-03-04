@@ -12,7 +12,7 @@
 namespace libgm {
 
 template <typename T>
-struct CanonicalGaussian<T>::Impl : Object::Impl {
+struct CanonicalGaussian<T>::Impl {
   /// Helper types
   using CholeskyType = Eigen::LLT<Matrix<T>>;
   using SegmentType = decltype(std::declval<const Vector<T>>().head(size_t(0)));
@@ -79,11 +79,11 @@ struct CanonicalGaussian<T>::Impl : Object::Impl {
   // Object operations
   //--------------------------------------------------------------------------
 
-  Impl* clone() const override {
-    return new Impl(*this);
+  std::unique_ptr<Impl> clone() const {
+    return std::make_unique<Impl>(*this);
   }
 
-  void print(std::ostream& out) const override {
+  void print(std::ostream& out) const {
     out << shape << std::endl << eta << std::endl << lambda << std::endl << lm;
   }
 
@@ -510,15 +510,27 @@ struct CanonicalGaussian<T>::Impl : Object::Impl {
 
 template <typename T>
 CanonicalGaussian<T>::CanonicalGaussian(Exp<T> value)
-  : Object(std::make_unique<Impl>(value)) {}
+  : impl_(std::make_unique<Impl>(value)) {}
 
 template <typename T>
 CanonicalGaussian<T>::CanonicalGaussian(Shape shape, Exp<T> value)
-  : Object(std::make_unique<Impl>(std::move(shape), value)) {}
+  : impl_(std::make_unique<Impl>(std::move(shape), value)) {}
 
 template <typename T>
 CanonicalGaussian<T>::CanonicalGaussian(Shape shape, Vector<T> eta, Matrix<T> lambda, T lv)
-  : Object(std::make_unique<Impl>(std::move(shape), std::move(eta), std::move(lambda), lv)) {}
+  : impl_(std::make_unique<Impl>(std::move(shape), std::move(eta), std::move(lambda), lv)) {}
+
+template <typename T>
+CanonicalGaussian<T>::CanonicalGaussian(const CanonicalGaussian& other)
+  : impl_(other.impl_ ? other.impl_->clone() : nullptr) {}
+
+template <typename T>
+CanonicalGaussian<T>& CanonicalGaussian<T>::operator=(const CanonicalGaussian& other) {
+  if (this != &other) {
+    impl_ = other.impl_ ? other.impl_->clone() : nullptr;
+  }
+  return *this;
+}
 
 template <typename T>
 unsigned CanonicalGaussian<T>::arity() const {
@@ -533,6 +545,11 @@ void CanonicalGaussian<T>::reset(Shape shape) {
 template <typename T>
 void CanonicalGaussian<T>::reset(Impl* impl) {
   impl_.reset(impl);
+}
+
+template <typename T>
+void CanonicalGaussian<T>::reset(std::unique_ptr<Impl> impl) {
+  impl_ = std::move(impl);
 }
 
 template <typename T>
@@ -824,13 +841,13 @@ typename CanonicalGaussian<T>::Impl& CanonicalGaussian<T>::impl() {
   if (!impl_) {
     impl_ = std::make_unique<Impl>();
   }
-  return *static_cast<Impl*>(impl_.get());
+  return *impl_;
 }
 
 template <typename T>
 const typename CanonicalGaussian<T>::Impl& CanonicalGaussian<T>::impl() const {
   assert(impl_);
-  return *static_cast<const Impl*>(impl_.get());
+  return *impl_;
 }
 
 template <typename T>

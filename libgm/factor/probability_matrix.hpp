@@ -2,12 +2,15 @@
 
 #include <libgm/argument/shape.hpp>
 #include <vector>
-#include <libgm/object.hpp>
 #include <libgm/math/eigen/dense.hpp>
 // #include <libgm/math/likelihood/logarithmic_matrix_ll.hpp>
 // #include <libgm/math/random/bivariate_categorical_distribution.hpp>
 
+#include <cereal/access.hpp>
+#include <cereal/types/memory.hpp>
+
 #include <initializer_list>
+#include <memory>
 
 namespace libgm {
 
@@ -31,7 +34,7 @@ template <typename T> class LogarithmicMatrix;
  * \see Factor
  */
 template <typename T>
-class ProbabilityMatrix : public Object {
+class ProbabilityMatrix {
 public:
   using value_type = T;
   using value_list = std::vector<size_t>;
@@ -41,7 +44,12 @@ public:
   struct Impl;
 
   /// Default constructor. Creates an empty factor.
-  ProbabilityMatrix() = default;
+  ProbabilityMatrix();
+  ProbabilityMatrix(const ProbabilityMatrix& other);
+  ProbabilityMatrix(ProbabilityMatrix&& other) noexcept;
+  ProbabilityMatrix& operator=(const ProbabilityMatrix& other);
+  ProbabilityMatrix& operator=(ProbabilityMatrix&& other) noexcept;
+  ~ProbabilityMatrix();
 
   /// Constructs a factor with the given shape and constant value.
   explicit ProbabilityMatrix(size_t rows, size_t cols, T x = T(1));
@@ -54,7 +62,7 @@ public:
 
   /// Constructs a factor with the given parameters.
   template <typename DERIVED>
-  ProbabilityMatrix(const Eigen::DenseBase<DERIVED>& base) {
+  ProbabilityMatrix(const Eigen::DenseBase<DERIVED>& base) : ProbabilityMatrix() {
     param() = base;
   }
 
@@ -201,6 +209,14 @@ private:
   ProbabilityMatrix divide_inverse(T x) const;
   Impl& impl();
   const Impl& impl() const;
+  std::unique_ptr<Impl> impl_;
+
+  friend class cereal::access;
+
+  template <typename Archive>
+  void serialize(Archive& ar) {
+    ar(impl_);
+  }
 
 }; // class ProbabilityMatrix
 

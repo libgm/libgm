@@ -38,13 +38,13 @@ struct MomentGaussian<T>::Impl {
   // Object operations
   //--------------------------------------------------------------------------
 
-  bool equals(const Object& other) const {
+  bool equals(const MomentGaussian& other) const {
     const Impl& x = other.impl();
     return head_shape == x.head_shape && tail_shape == x.tail_shape &&
       lm == x.lm && mean == x.mean && cov == x.cov && coef == x.coef;
   }
 
-  void print(std::ostream& out) const override {
+  void print(std::ostream& out) const {
    out << head_shape << " " << tail_shape << std::endl
        << mean << std::endl
        << cov << std::endl
@@ -52,11 +52,11 @@ struct MomentGaussian<T>::Impl {
        << lm;
   }
 
-  void save(oarchive& ar) const override {
+  void save(oarchive& ar) const {
     ar << head_shape << tail_shape << mean << cov << coef << lm;
   }
 
-  void load(iarchive& ar) override {
+  void load(iarchive& ar) {
     ar >> head_shape >> tail_shape >> mean >> cov >> coef >> lm;
   }
 
@@ -83,11 +83,11 @@ struct MomentGaussian<T>::Impl {
   //--------------------------------------------------------------------------
   // Commented out for future work.
 #if 0
-  ImplPtr multiply_head(const Object& other) const {
+  ImplPtr multiply_head(const MomentGaussian& other) const {
     assert(0);
   }
 
-  ImplPtr multiply_tail(const Object& other) const {
+  ImplPtr multiply_tail(const MomentGaussian& other) const {
     const Impl& x = impl(other);
     assert(tail_shape == x.head_shape + y.tail_shape);
     return {
@@ -278,9 +278,9 @@ struct MomentGaussian<T>::Impl {
     return (size() * (log_two_pi + T(1)) + logdet(chol)) / T(2);
   }
 
-  T kl_divergence(const Object& other) const {
+  T kl_divergence(const MomentGaussian& other) const {
     const Impl& p = *this;
-    const Impl& q = impl(other);
+    const Impl& q = other.impl();
     assert(p.is_marginal() && q.is_marginal());
     assert(p.head_shape == q.head_shape);
     unsigned m = p.head_size();
@@ -393,6 +393,41 @@ struct MomentGaussian<T>::Impl {
 
   }
 };
+
+template <typename T>
+MomentGaussian<T>::MomentGaussian(const MomentGaussian& other)
+  : impl_(other.impl_ ? std::make_unique<Impl>(*other.impl_) : nullptr) {}
+
+template <typename T>
+MomentGaussian<T>::MomentGaussian(MomentGaussian&& other) noexcept = default;
+
+template <typename T>
+MomentGaussian<T>& MomentGaussian<T>::operator=(const MomentGaussian& other) {
+  if (this != &other) {
+    impl_ = other.impl_ ? std::make_unique<Impl>(*other.impl_) : nullptr;
+  }
+  return *this;
+}
+
+template <typename T>
+MomentGaussian<T>& MomentGaussian<T>::operator=(MomentGaussian&& other) noexcept = default;
+
+template <typename T>
+MomentGaussian<T>::~MomentGaussian() = default;
+
+template <typename T>
+typename MomentGaussian<T>::Impl& MomentGaussian<T>::impl() {
+  if (!impl_) {
+    impl_ = std::make_unique<Impl>();
+  }
+  return *impl_;
+}
+
+template <typename T>
+const typename MomentGaussian<T>::Impl& MomentGaussian<T>::impl() const {
+  assert(impl_);
+  return *impl_;
+}
 
 // TODO: Integrate the following functions into the Impl class.
 //

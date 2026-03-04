@@ -2,13 +2,16 @@
 
 #include <libgm/argument/shape.hpp>
 #include <vector>
-#include <libgm/object.hpp>
 #include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/exp.hpp>
 // #include <libgm/math/likelihood/logarithmic_vector_ll.hpp>
 // #include <libgm/math/random/categorical_distribution.hpp>
 
+#include <cereal/access.hpp>
+#include <cereal/types/memory.hpp>
+
 #include <initializer_list>
+#include <memory>
 
 namespace libgm {
 
@@ -31,7 +34,7 @@ template <typename T> class ProbabilityVector;
   * \see Factor
   */
 template <typename T>
-class LogarithmicVector : public Object {
+class LogarithmicVector {
 public:
   /// The result of applying this factor to an index.
   using value_type = T;
@@ -45,7 +48,12 @@ public:
   //--------------------------------------------------------------------------
 
   /// Default constructor. Creates an empty factor.
-  LogarithmicVector() = default;
+  LogarithmicVector();
+  LogarithmicVector(const LogarithmicVector& other);
+  LogarithmicVector(LogarithmicVector&& other) noexcept;
+  LogarithmicVector& operator=(const LogarithmicVector& other);
+  LogarithmicVector& operator=(LogarithmicVector&& other) noexcept;
+  ~LogarithmicVector();
 
   /// Constructs a factor with the given length and constant value.
   explicit LogarithmicVector(size_t length, Exp<T> x = Exp<T>(0));
@@ -58,7 +66,7 @@ public:
 
   /// Constructs a factor with the given parameters.
   template <typename DERIVED>
-  LogarithmicVector(const Eigen::DenseBase<DERIVED>& base) {
+  LogarithmicVector(const Eigen::DenseBase<DERIVED>& base) : LogarithmicVector() {
     param() = base;
   }
 
@@ -168,6 +176,14 @@ private:
   LogarithmicVector divide_inverse(const Exp<T>& x) const;
   Impl& impl();
   const Impl& impl() const;
+  std::unique_ptr<Impl> impl_;
+
+  friend class cereal::access;
+
+  template <typename Archive>
+  void serialize(Archive& ar) {
+    ar(impl_);
+  }
 
 }; // class LogarithmicVector
 

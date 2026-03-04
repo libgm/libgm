@@ -9,7 +9,3 @@ template class ProbabilityVector<double>;
 
 }
 
-CEREAL_REGISTER_TYPE(libgm::ProbabilityVector<float>::Impl);
-CEREAL_REGISTER_TYPE(libgm::ProbabilityVector<double>::Impl);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(libgm::Object::Impl, libgm::ProbabilityVector<float>::Impl);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(libgm::Object::Impl, libgm::ProbabilityVector<double>::Impl);

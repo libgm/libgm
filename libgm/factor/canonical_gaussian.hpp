@@ -2,9 +2,13 @@
 
 #include <libgm/argument/shape.hpp>
 #include <libgm/math/eigen/dense.hpp>
-#include <libgm/object.hpp>
 #include <libgm/math/exp.hpp>
 #include <libgm/math/eigen/dense.hpp>
+
+#include <cereal/access.hpp>
+#include <cereal/types/memory.hpp>
+
+#include <memory>
 
 namespace libgm {
 
@@ -21,7 +25,7 @@ template <typename T> class MomentGaussian;
  * \ingroup factor_types
  */
 template <typename T>
-class CanonicalGaussian : public Object {
+class CanonicalGaussian {
 public:
   // Factor member types
   using value_type = T;
@@ -33,6 +37,12 @@ public:
 
   /// Constructs an empty factor.
   CanonicalGaussian() = default;
+
+  CanonicalGaussian(const CanonicalGaussian& other);
+  CanonicalGaussian(CanonicalGaussian&& other) noexcept = default;
+  CanonicalGaussian& operator=(const CanonicalGaussian& other);
+  CanonicalGaussian& operator=(CanonicalGaussian&& other) noexcept = default;
+  ~CanonicalGaussian() = default;
 
   /// Constructs a canonical Gaussian factor equivalent to a constant.
   explicit CanonicalGaussian(Exp<T> value);
@@ -53,6 +63,9 @@ public:
 
   /// Initializes this factor to the given implementation object, to be owned by this.
   void reset(Impl* impl);
+
+  /// Initializes this factor to the given implementation object, to be owned by this.
+  void reset(std::unique_ptr<Impl> impl);
 
   // Accessors
   //--------------------------------------------------------------------------
@@ -183,6 +196,15 @@ private:
   CanonicalGaussian divide_inverse(const Exp<T>& x) const;
   Impl& impl();
   const Impl& impl() const;
+
+  std::unique_ptr<Impl> impl_;
+
+  friend class cereal::access;
+
+  template <typename Archive>
+  void serialize(Archive& ar) {
+    ar(impl_);
+  }
 
 }; // class CanonicalGaussian
 

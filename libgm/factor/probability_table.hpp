@@ -3,11 +3,14 @@
 #include <libgm/argument/shape.hpp>
 #include <vector>
 #include <libgm/datastructure/table.hpp>
-#include <libgm/object.hpp>
 // #include <libgm/math/likelihood/canonical_table_ll.hpp>
 // #include <libgm/math/random/multivariate_categorical_distribution.hpp>
 
+#include <cereal/access.hpp>
+#include <cereal/types/memory.hpp>
+
 #include <initializer_list>
+#include <memory>
 
 namespace libgm {
 
@@ -31,7 +34,7 @@ template <typename T> class ProbabilityVector;
  * \see Factor
  */
 template <typename T>
-class ProbabilityTable : public Object {
+class ProbabilityTable {
 public:
   /// Result of evaluating this table on a vector.
   using value_type = T;
@@ -45,7 +48,12 @@ public:
   //--------------------------------------------------------------------------
 
   /// Default constructor. Creates an empty factor.
-  ProbabilityTable() = default;
+  ProbabilityTable();
+  ProbabilityTable(const ProbabilityTable& other);
+  ProbabilityTable(ProbabilityTable&& other) noexcept;
+  ProbabilityTable& operator=(const ProbabilityTable& other);
+  ProbabilityTable& operator=(ProbabilityTable&& other) noexcept;
+  ~ProbabilityTable();
 
   /// Constructs a factor equivalent to a constant.
   explicit ProbabilityTable(T value);
@@ -213,6 +221,14 @@ private:
   ProbabilityTable divide_inverse(T x) const;
   Impl& impl();
   const Impl& impl() const;
+  std::unique_ptr<Impl> impl_;
+
+  friend class cereal::access;
+
+  template <typename Archive>
+  void serialize(Archive& ar) {
+    ar(impl_);
+  }
 
 }; // class ProbabilityTable
 

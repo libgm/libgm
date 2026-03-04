@@ -16,7 +16,7 @@
 namespace libgm {
 
 template <typename T>
-struct ProbabilityTable<T>::Impl : Object::Impl {
+struct ProbabilityTable<T>::Impl {
   Table<T> param;
 
   template <typename ARCHIVE>
@@ -46,11 +46,11 @@ struct ProbabilityTable<T>::Impl : Object::Impl {
 
   // Object operations
   //--------------------------------------------------------------------------
-  Impl* clone() const override {
-    return new Impl(*this);
+  std::unique_ptr<Impl> clone() const {
+    return std::make_unique<Impl>(*this);
   }
 
-  void print(std::ostream& out) const override {
+  void print(std::ostream& out) const {
     out << param;
   }
 
@@ -288,33 +288,57 @@ struct ProbabilityTable<T>::Impl : Object::Impl {
 }; // class ProbabilityTable<T>::Impl
 
 template <typename T>
+ProbabilityTable<T>::ProbabilityTable() = default;
+
+template <typename T>
 ProbabilityTable<T>::ProbabilityTable(T value)
-  : Object(std::make_unique<Impl>()) {
+  : impl_(std::make_unique<Impl>()) {
   param()[0] = value;
 }
 
 template <typename T>
 ProbabilityTable<T>::ProbabilityTable(Shape shape, T value)
-  : Object(std::make_unique<Impl>(std::move(shape))){
+  : impl_(std::make_unique<Impl>(std::move(shape))){
   param().fill(value);
 }
 
 template <typename T>
 ProbabilityTable<T>::ProbabilityTable(Shape shape, std::initializer_list<T> values)
-  : Object(std::make_unique<Impl>(std::move(shape))) {
+  : impl_(std::make_unique<Impl>(std::move(shape))) {
   assert(values.size() == size());
   std::copy(values.begin(), values.end(), param().begin());
 }
 
 template <typename T>
 ProbabilityTable<T>::ProbabilityTable(Shape shape, const T* values)
-  : Object(std::make_unique<Impl>(std::move(shape))) {
+  : impl_(std::make_unique<Impl>(std::move(shape))) {
   std::copy(values, values + size(), param().begin());
 }
 
 template <typename T>
 ProbabilityTable<T>::ProbabilityTable(Table<T> param)
-  : Object(std::make_unique<Impl>(std::move(param))) {}
+  : impl_(std::make_unique<Impl>(std::move(param))) {}
+
+template <typename T>
+ProbabilityTable<T>::ProbabilityTable(const ProbabilityTable& other)
+  : impl_(other.impl_ ? other.impl_->clone() : nullptr) {}
+
+template <typename T>
+ProbabilityTable<T>::ProbabilityTable(ProbabilityTable&& other) noexcept = default;
+
+template <typename T>
+ProbabilityTable<T>& ProbabilityTable<T>::operator=(const ProbabilityTable& other) {
+  if (this != &other) {
+    impl_ = other.impl_ ? other.impl_->clone() : nullptr;
+  }
+  return *this;
+}
+
+template <typename T>
+ProbabilityTable<T>& ProbabilityTable<T>::operator=(ProbabilityTable&& other) noexcept = default;
+
+template <typename T>
+ProbabilityTable<T>::~ProbabilityTable() = default;
 
 template <typename T>
 size_t ProbabilityTable<T>::arity() const {
@@ -664,13 +688,13 @@ typename ProbabilityTable<T>::Impl& ProbabilityTable<T>::impl() {
   if (!impl_) {
     impl_ = std::make_unique<Impl>();
   }
-  return *static_cast<Impl*>(impl_.get());
+  return *impl_;
 }
 
 template <typename T>
 const typename ProbabilityTable<T>::Impl& ProbabilityTable<T>::impl() const {
   assert(impl_);
-  return *static_cast<const Impl*>(impl_.get());
+  return *impl_;
 }
 
 } // namespace libgm
