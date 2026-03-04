@@ -251,8 +251,7 @@ struct MarkovNetworkT : MarkovNetwork {
   bool add_vertex(Arg u, VP vp) {
     bool inserted = MarkovNetwork::add_vertex(u);
     if (inserted) {
-      static_cast<VP*>(property(u))->~VP();
-      new (property(u)) VP(std::move(vp));
+      (*this)[u] = std::move(vp);
     }
     return inserted;
   }
@@ -260,8 +259,7 @@ struct MarkovNetworkT : MarkovNetwork {
   std::pair<UndirectedEdge<Arg>, bool> add_edge(Arg u, Arg v, EP ep) {
     auto result = MarkovNetwork::add_edge(u, v);
     if (result.second) {
-      static_cast<EP*>(property(result.first))->~EP();
-      new (property(result.first)) EP(std::move(ep));
+      (*this)[result.first] = std::move(ep);
     }
     return result;
   }

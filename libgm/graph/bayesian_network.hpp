@@ -182,8 +182,7 @@ struct BayesianNetworkT : BayesianNetwork {
 
   bool add_vertex(Arg u, Domain parents, VP vp) {
     bool inserted = BayesianNetwork::add_vertex(u, std::move(parents));
-    static_cast<VP*>(property(u))->~VP();
-    new (property(u)) VP(std::move(vp));
+    (*this)[u] = std::move(vp);
     return inserted;
   }
 

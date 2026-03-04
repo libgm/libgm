@@ -528,22 +528,19 @@ struct ClusterGraphT : ClusterGraph {
 
   Vertex* add_vertex(Domain cluster, VP vp) {
     Vertex* v = ClusterGraph::add_vertex(std::move(cluster));
-    static_cast<VP*>(ClusterGraph::property(v))->~VP();
-    new (ClusterGraph::property(v)) VP(std::move(vp));
+    (*this)[v] = std::move(vp);
     return v;
   }
 
   edge_descriptor add_edge(Vertex* u, Vertex* v, Domain separator, EP ep) {
     edge_descriptor e = ClusterGraph::add_edge(u, v, std::move(separator));
-    static_cast<EP*>(ClusterGraph::property(e))->~EP();
-    new (ClusterGraph::property(e)) EP(std::move(ep));
+    (*this)[e] = std::move(ep);
     return e;
   }
 
   edge_descriptor add_edge(Vertex* u, Vertex* v, EP ep) {
     edge_descriptor e = ClusterGraph::add_edge(u, v);
-    static_cast<EP*>(ClusterGraph::property(e))->~EP();
-    new (ClusterGraph::property(e)) EP(std::move(ep));
+    (*this)[e] = std::move(ep);
     return e;
   }
 

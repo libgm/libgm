@@ -197,8 +197,7 @@ struct FactorGraphT : FactorGraph {
   bool add_argument(Arg u, AP property) {
     bool inserted = FactorGraph::add_argument(u);
     if (inserted) {
-      static_cast<AP*>(FactorGraph::property(u))->~AP();
-      new (FactorGraph::property(u)) AP(std::move(property));
+      (*this)[u] = std::move(property);
     }
     return inserted;
   }
@@ -206,8 +205,7 @@ struct FactorGraphT : FactorGraph {
   /// Adds a factor and associates it with a strongly-typed property.
   Factor* add_factor(Domain args, FP property) {
     Factor* factor = FactorGraph::add_factor(std::move(args));
-    static_cast<FP*>(FactorGraph::property(factor))->~FP();
-    new (FactorGraph::property(factor)) FP(std::move(property));
+    (*this)[factor] = std::move(property);
     return factor;
   }
 
