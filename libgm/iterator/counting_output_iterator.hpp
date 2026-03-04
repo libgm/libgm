@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <iterator>
 
 namespace libgm {
@@ -10,10 +11,14 @@ namespace libgm {
  * operator= can increase the counter.
  * \ingroup iterator
  */
-class CountingOutputIterator
-  : public std::iterator<std::output_iterator_tag, void, void, void, void> {
-
+class CountingOutputIterator {
 public:
+  using iterator_category = std::output_iterator_tag;
+  using value_type = void;
+  using difference_type = std::ptrdiff_t;
+  using pointer = void;
+  using reference = void;
+
   /// Constructor.
   CountingOutputIterator() : counter_() {}
 

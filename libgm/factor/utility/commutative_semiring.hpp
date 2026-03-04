@@ -2,35 +2,45 @@
 
 #include <libgm/factor/concepts/aggregates.hpp>
 #include <libgm/factor/concepts/join.hpp>
-#include <libgm/factor/vtables/aggregates.hpp>
-#include <libgm/factor/vtables/join.hpp>
 
 namespace libgm {
+
+struct OpaqueCommutativeSemiring {
+  std::shared_ptr<void> (*init)(const Shape& shape);
+};
 
 /**
  * A base class that represents one of pre-defined commutative semirings
  * on factor types.
  */
+template <typename F>
 class CommutativeSemiring {
 public:
-  CommutativeSemiring(vtables::JoinInDims<Object, Object>,
-                      vtables::AggregateDims<Object>);
+  virtual ~CommutativeSemiring() = default;
 
   /**
    * The initial factor for the dot operation (e.g., 1 in sum-product).
    */
-  Object init(const Shape& shape) const;
+  virtual F init(const Shape& shape) const = 0;
 
   /**
    * Combines a factor with another one in place along give dimensions.
    */
-  void combine_in(Object& result, const Object& other, const Dims& dims) const;
+  virtual void combine_in(F& result, const F& other, const Dims& dims) const = 0;
 
   /**
    * Collapses a factor, retaining a set of indices.
    */
-  Object collapse(const Object& factor, const Dims& retain) const;
+  virtual F collapse(const F& factor, const Dims& retain) const = 0;
 
+  /**
+   * Returns type-erased ring.
+   */
+  OpaqueCommutativeSemiring opaque() {
+    return {
+
+    };
+  }
 }; // class CommutativeSemiring
 
 /**
@@ -39,12 +49,19 @@ public:
  * \relates CommutativeSemiring
  */
 template <typename F>
-CommutativeSemiring sum_product() {
-  return {
-    vtable_cast<MultiplyInDims<F, F>>(F::vtable).generic(),
-    vtable_cast<MarginalDims<F>>(F::vtable).generic(),
-  };
-}
+struct SumProduct : CommutativeSemiring<F> {
+  F init(const Shape& shape) const override {
+    return F(shape);
+  }
+
+  void combine_in(F& result, const F& other, const Dims& dims) const override {
+    result.multiply_in(other, dims);
+  }
+
+  F collapse(const F& factor, const Dims& dims) const override {
+    return factor.marginal_dims(dims);
+  }
+};
 
 /**
  * An object representing the max product commutative semiring
@@ -52,11 +69,18 @@ CommutativeSemiring sum_product() {
  * \relates commutative_semiring
  */
 template <typename F>
-CommutativeSemiring max_product() {
-  return {
-    vtable_cast<MultiplyInDims<F, F>>(F::vtable).generic(),
-    vtable_cast<MaximumDims<F>>(F::vtable).generic(),
-  };
-}
+struct MaxProduct : CommutativeSemiring<F> {
+  F init(const Shape& shape) const override {
+    return F(shape);
+  }
+
+  void combine_in(F& result, const F& other, const Dims& dims) const override {
+    result.multiply_in(other, dims);
+  }
+
+  F collapse(const F& factor, const Dims& dims) const override {
+    return factor.maximum_dims(dims);
+  }
+};
 
 } // namespace libgm

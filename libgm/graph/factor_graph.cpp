@@ -49,7 +49,7 @@ struct FactorGraph::Factor {
       adjacency_hooks(this->arguments.size()) {}
 };
 
-struct FactorGraph::Impl : Object::Impl {
+struct FactorGraph::Impl {
   /// The properties and neighbors of arguments.
   ArgumentMap arguments;
 
@@ -102,6 +102,15 @@ struct FactorGraph::Impl : Object::Impl {
     return argument;
   }
 
+  Argument* add_argument(Arg u) {
+    auto [it, inserted] = arguments.emplace(u, nullptr);
+    if (!inserted) {
+      return nullptr;
+    }
+    it->second = allocate_argument();
+    return it->second;
+  }
+
   Factor* allocate_factor(Domain arguments, Impl* impl) const {
     void* buffer = ::operator new(factor_allocation_size);
     Factor* factor = new (buffer) Factor(std::move(arguments), impl);
@@ -148,7 +157,6 @@ struct FactorGraph::Impl : Object::Impl {
     for (auto it = factors.begin(); it != factors.end();) {
       free_factor(*it++);
     }
-    factors.clear();
     num_factors = 0;
 
     for (auto [_, argument] : arguments) {
@@ -159,6 +167,25 @@ struct FactorGraph::Impl : Object::Impl {
 
   ~Impl() {
     clear();
+  }
+
+  std::unique_ptr<Impl> clone() const {
+    auto result = std::make_unique<Impl>(argument_property_layout, factor_property_layout);
+
+    for (auto [u, src] : arguments) {
+      Argument* dst = result->add_argument(u);
+      assert(dst);
+      argument_property_layout.destroy_and_copy_construct(result->argument_property(dst),
+                                                         argument_property(src));
+    }
+
+    for (Factor* src : factors) {
+      Factor* dst = result->add_factor(src->arguments);
+      factor_property_layout.destroy_and_copy_construct(result->factor_property(dst),
+                                                       factor_property(src));
+    }
+
+    return result;
   }
 
   template <typename Archive>
@@ -201,17 +228,29 @@ struct FactorGraph::Impl : Object::Impl {
 };
 
 FactorGraph::FactorGraph()
-  : Object(std::make_unique<Impl>()) {}
+  : impl_(std::make_unique<Impl>()) {}
 
 FactorGraph::FactorGraph(PropertyLayout argument_layout, PropertyLayout factor_layout)
-  : Object(std::make_unique<Impl>(argument_layout, factor_layout)) {}
+  : impl_(std::make_unique<Impl>(argument_layout, factor_layout)) {}
+
+FactorGraph::FactorGraph(const FactorGraph& other)
+  : impl_(other.impl_ ? other.impl_->clone() : nullptr) {}
+
+FactorGraph& FactorGraph::operator=(const FactorGraph& other) {
+  if (this != &other) {
+    impl_ = other.impl_ ? other.impl_->clone() : nullptr;
+  }
+  return *this;
+}
+
+FactorGraph::~FactorGraph() = default;
 
 FactorGraph::Impl& FactorGraph::impl() {
-  return static_cast<Impl&>(*impl_);
+  return *impl_;
 }
 
 const FactorGraph::Impl& FactorGraph::impl() const {
-  return static_cast<const Impl&>(*impl_);
+  return *impl_;
 }
 
 FactorGraph::Argument& FactorGraph::argument(Arg u) {
@@ -223,7 +262,7 @@ const FactorGraph::Argument& FactorGraph::argument(Arg u) const {
 }
 
 void swap(FactorGraph& a, FactorGraph& b) {
-  swap(a.impl_, b.impl_);
+  std::swap(a.impl_, b.impl_);
 }
 
 SubRange<FactorGraph::argument_iterator> FactorGraph::arguments() const {
@@ -313,12 +352,7 @@ MarkovNetwork FactorGraph::markov_network() const {
 
 bool FactorGraph::add_argument(Arg u) {
   assert(u != Arg());
-  if (contains(u)) {
-    return false;
-  } else {
-    impl().arguments.emplace(u, impl().allocate_argument());
-    return true;
-  }
+  return impl().add_argument(u) != nullptr;
 }
 
 FactorGraph::Factor* FactorGraph::add_factor(Domain arguments) {
@@ -345,8 +379,9 @@ void FactorGraph::clear() {
   impl().clear();
 }
 
+#if 0
 void FactorGraph::eliminate(const Domain& retain,
-                            const CommutativeSemiring& csr,
+                            const OpaqeCommutativeSemiring& csr,
                             const ShapeMap& shape_map,
                             const EliminationStrategy& strategy) {
   MarkovNetwork mn = markov_network();
@@ -360,22 +395,21 @@ void FactorGraph::eliminate(const Domain& retain,
       domain.unique();
 
       // Combine all factors that have this variable as an argument
-      Object combination = csr.init(domain.shape(shape_map));
+      std::shared_ptr<void> combination = csr.init(domain.shape(shape_map));
       for (Factor* f : factors(arg)) {
-        csr.combine_in(combination,
-                       *static_cast<Object*>(property(f)),
-                       domain.dims(f->arguments));
+        csr.combine_in(combination.get(), property(f), domain.dims(f->arguments));
       }
 
       // Delete the eliminated argument and the associated factors.
       remove_argument(arg);
 
       // Add the new factor.
-      Object result = csr.collapse(combination, domain.dims_omit(arg));
+      std::shared_ptr<void> result = csr.collapse(combination.get(), domain.dims_omit(arg));
       domain.erase(arg);
       add_factor(std::move(domain), std::move(result));
     }
   });
 }
+#endif
 
 } // namespace libgm

@@ -14,7 +14,7 @@ struct MarkovNetwork::VertexData {
   AdjacencyMap neighbors;
 };
 
-struct MarkovNetwork::Impl : Object::Impl {
+struct MarkovNetwork::Impl {
   VertexDataMap data;
   size_t num_edges = 0;
   PropertyLayout vertex_property_layout;
@@ -52,34 +52,6 @@ struct MarkovNetwork::Impl : Object::Impl {
     }
     vertex->~VertexData();
     ::operator delete(vertex);
-  }
-
-  void* allocate_edge_property() const {
-    if (edge_property_layout.size == 0) return nullptr;
-    assert(edge_property_layout.default_constructor);
-    void* ptr = ::operator new(edge_property_layout.size);
-    edge_property_layout.default_constructor(ptr);
-    return ptr;
-  }
-
-  void* copy_edge_property(const void* src) const {
-    if (edge_property_layout.size == 0) return nullptr;
-    assert(src);
-    assert(edge_property_layout.copy_constructor);
-    void* dst = ::operator new(edge_property_layout.size);
-    edge_property_layout.copy_constructor(dst, src);
-    return dst;
-  }
-
-  void free_edge_property(void* ptr) const {
-    if (edge_property_layout.size == 0) {
-      assert(ptr == nullptr);
-      return;
-    }
-    assert(ptr);
-    assert(edge_property_layout.deleter);
-    edge_property_layout.deleter(ptr);
-    ::operator delete(ptr);
   }
 
   template <typename Archive>
@@ -122,7 +94,7 @@ struct MarkovNetwork::Impl : Object::Impl {
       assert(uit != data.end());
       assert(vit != data.end());
 
-      void* ptr = allocate_edge_property();
+      void* ptr = edge_property_layout.allocate_default_constructed();
       uit->second->neighbors.emplace(v, ptr);
       vit->second->neighbors.emplace(u, ptr);
       ++num_edges;
@@ -144,18 +116,14 @@ struct MarkovNetwork::Impl : Object::Impl {
     free_vertex_data();
   }
 
-  Impl* clone() const override {
-    Impl* result = new Impl(data.size(), vertex_property_layout, edge_property_layout);
+  std::unique_ptr<Impl> clone() const {
+    auto result = std::make_unique<Impl>(data.size(), vertex_property_layout, edge_property_layout);
     result->num_edges = num_edges;
 
     for (auto [u, vertex] : data) {
       VertexData* dst = result->allocate_vertex();
-      if (vertex_property_layout.size != 0) {
-        assert(vertex_property_layout.copy_constructor);
-        assert(vertex_property_layout.deleter);
-        result->vertex_property_layout.deleter(result->vertex_property(dst));
-        vertex_property_layout.copy_constructor(result->vertex_property(dst), vertex_property(vertex));
-      }
+      vertex_property_layout.destroy_and_copy_construct(result->vertex_property(dst),
+                                                       vertex_property(vertex));
       result->data.emplace(u, dst);
     }
 
@@ -168,7 +136,7 @@ struct MarkovNetwork::Impl : Object::Impl {
     for (auto [u, vertex] : data) {
       for (auto [v, property] : vertex->neighbors) {
         if (u <= v) {
-          void* copied = result->copy_edge_property(property);
+          void* copied = edge_property_layout.allocate_copy_constructed(property);
           result->data.at(u)->neighbors.at(v) = copied;
           if (u != v) {
             result->data.at(v)->neighbors.at(u) = copied;
@@ -180,8 +148,7 @@ struct MarkovNetwork::Impl : Object::Impl {
   }
 
 #if 0
-  bool compare(const Object::Impl& other) const override {
-    const Impl& impl = static_cast<const Impl&>(other);
+  bool compare(const Impl& impl) const {
     if (data.size() != impl.data.size()) return false;
     if (num_edges != impl.num_edges) return false;
 
@@ -200,7 +167,7 @@ struct MarkovNetwork::Impl : Object::Impl {
   }
 #endif
 
-  void print(std::ostream& out) const override {
+  void print(std::ostream& out) const {
     std::vector<std::pair<Arg, VertexData*>> values = data.values();
     std::sort(values.begin(), values.end());
     for (auto [u, vertex] : values) {
@@ -219,7 +186,7 @@ struct MarkovNetwork::Impl : Object::Impl {
   void free_edge_data() {
     for (auto [u, vertex] : data) {
       for (auto [v, object] : vertex->neighbors) {
-        if (u <= v) free_edge_property(object);
+        if (u <= v) edge_property_layout.free_allocated(object);
       }
     }
     num_edges = 0;
@@ -234,17 +201,33 @@ struct MarkovNetwork::Impl : Object::Impl {
 };
 
 MarkovNetwork::MarkovNetwork(size_t count)
-  : Object(std::make_unique<Impl>(count)) {}
+  : impl_(std::make_unique<Impl>(count)) {}
 
 MarkovNetwork::MarkovNetwork(size_t count, PropertyLayout vertex_layout, PropertyLayout edge_layout)
-  : Object(std::make_unique<Impl>(count, vertex_layout, edge_layout)) {}
+  : impl_(std::make_unique<Impl>(count, vertex_layout, edge_layout)) {}
+
+MarkovNetwork::MarkovNetwork(const MarkovNetwork& g)
+  : impl_(g.impl_ ? g.impl_->clone() : nullptr) {}
+
+MarkovNetwork::MarkovNetwork(MarkovNetwork&& g) noexcept = default;
+
+MarkovNetwork& MarkovNetwork::operator=(const MarkovNetwork& g) {
+  if (this != &g) {
+    impl_ = g.impl_ ? g.impl_->clone() : nullptr;
+  }
+  return *this;
+}
+
+MarkovNetwork& MarkovNetwork::operator=(MarkovNetwork&& g) noexcept = default;
+
+MarkovNetwork::~MarkovNetwork() = default;
 
 MarkovNetwork::Impl& MarkovNetwork::impl() {
-  return static_cast<Impl&>(*impl_);
+  return *impl_;
 }
 
 const MarkovNetwork::Impl& MarkovNetwork::impl() const {
-  return static_cast<const Impl&>(*impl_);
+  return *impl_;
 }
 
 MarkovNetwork::VertexData& MarkovNetwork::data(Arg arg) {
@@ -351,7 +334,7 @@ std::pair<UndirectedEdge<Arg>, bool> MarkovNetwork::add_edge(Arg u, Arg v) {
     return { {u, v, nbr->second}, false };
   }
 
-  void* ptr = impl().allocate_edge_property();
+  void* ptr = impl().edge_property_layout.allocate_default_constructed();
   uit->second->neighbors[v] = ptr;
   vit->second->neighbors[u] = ptr;
   ++impl().num_edges;
@@ -390,7 +373,7 @@ void MarkovNetwork::remove_edge(Arg u, Arg v) {
 
   // delete the edge data and the edge itself
   if (u <= v) {
-    impl().free_edge_property(it->second);
+    impl().edge_property_layout.free_allocated(it->second);
   }
   neighbors_u.erase(it);
   neighbors_v.erase(u);
@@ -404,7 +387,7 @@ void MarkovNetwork::remove_edges(Arg u) {
   // Delete the edge data and mirror edges
   for (auto [v, object] : neighbors) {
     if (u <= v) {
-      impl().free_edge_property(object);
+      impl().edge_property_layout.free_allocated(object);
     }
     if(u != v) impl().data[v]->neighbors.erase(u);
   }

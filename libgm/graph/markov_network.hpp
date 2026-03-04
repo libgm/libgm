@@ -16,11 +16,13 @@
 
 #include <cereal/cereal.hpp>
 #include <cereal/types/base_class.hpp>
+#include <cereal/types/memory.hpp>
 
 #include <cassert>
 #include <cstddef>
 #include <iterator>
 #include <iosfwd>
+#include <memory>
 #include <new>
 #include <type_traits>
 #include <utility>
@@ -35,7 +37,7 @@ namespace libgm {
  *
  * \ingroup graph_types
  */
-class MarkovNetwork : public Object {
+class MarkovNetwork {
 private:
   /// The data associated with a vertex.
   struct VertexData;
@@ -91,13 +93,11 @@ public:
   /// Create an empty graph.
   explicit MarkovNetwork(size_t count = 0);
 
-  /// Copy and move constructors.
-  MarkovNetwork(const MarkovNetwork& g) = default;
-  MarkovNetwork(MarkovNetwork&& g) = default;
-
-  /// Assignment operators.
-  MarkovNetwork& operator=(const MarkovNetwork& g) = default;
-  MarkovNetwork& operator=(MarkovNetwork&& g) = default;
+  MarkovNetwork(const MarkovNetwork& g);
+  MarkovNetwork(MarkovNetwork&& g) noexcept;
+  MarkovNetwork& operator=(const MarkovNetwork& g);
+  MarkovNetwork& operator=(MarkovNetwork&& g) noexcept;
+  ~MarkovNetwork();
 
 protected:
   MarkovNetwork(size_t count, PropertyLayout vertex_layout, PropertyLayout edge_layout);
@@ -208,6 +208,16 @@ public:
    * strategy.
    */
   void eliminate(const EliminationStrategy& strategy, VertexVisitor visitor);
+
+private:
+  std::unique_ptr<Impl> impl_;
+
+  friend class cereal::access;
+
+  template <typename Archive>
+  void serialize(Archive& ar) {
+    ar(impl_);
+  }
 
 }; // class MarkovNetwork
 

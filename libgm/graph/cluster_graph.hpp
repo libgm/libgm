@@ -1,6 +1,5 @@
 #pragma once
 
-#include <libgm/object.hpp>
 #include <libgm/argument/domain.hpp>
 #include <libgm/datastructure/domain_index.hpp>
 #include <libgm/datastructure/intrusive_list.hpp>
@@ -16,11 +15,13 @@
 
 #include <cereal/cereal.hpp>
 #include <cereal/types/base_class.hpp>
+#include <cereal/types/memory.hpp>
 
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/properties.hpp>
 
 #include <cassert>
+#include <memory>
 #include <new>
 #include <type_traits>
 #include <utility>
@@ -36,7 +37,7 @@ namespace libgm {
  *
  * \ingroup graph_types
  */
-class ClusterGraph : public Object {
+class ClusterGraph {
 public:
   // The implementation types
   struct Impl;
@@ -101,12 +102,17 @@ public:
 
   // Constructors and destructors
   //--------------------------------------------------------------------------
+protected:
+  ClusterGraph(PropertyLayout vertex_layout, PropertyLayout edge_layout);
+
 public:
   /// Constructs an empty cluster graph with no clusters.
   ClusterGraph();
-
-protected:
-  ClusterGraph(PropertyLayout vertex_layout, PropertyLayout edge_layout);
+  ClusterGraph(const ClusterGraph& other);
+  ClusterGraph(ClusterGraph&& other) noexcept = default;
+  ClusterGraph& operator=(const ClusterGraph& other);
+  ClusterGraph& operator=(ClusterGraph&& other) noexcept = default;
+  ~ClusterGraph();
 
   /// Swaps two cluster graphs in constant time.
   friend void swap(ClusterGraph& a, ClusterGraph& b) { std::swap(a.impl_, b.impl_); }
@@ -479,6 +485,16 @@ protected:
    * be a junction tree.
    */
   void mst_edges();
+
+private:
+  std::unique_ptr<Impl> impl_;
+
+  friend class cereal::access;
+
+  template <typename Archive>
+  void serialize(Archive& ar) {
+    ar(impl_);
+  }
 
 }; // class ClusterGraph
 

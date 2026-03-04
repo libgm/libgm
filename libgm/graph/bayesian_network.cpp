@@ -1,8 +1,6 @@
 
 #include "bayesian_network.hpp"
 
-#include <libgm/archives.hpp>
-
 #include <algorithm>
 #include <cassert>
 #include <new>
@@ -14,11 +12,6 @@ struct BayesianNetwork::VertexData {
   Domain parents;
   AdjacencySet children;
 
-  template <typename Archive>
-  void serialize(Archive& ar) {
-    ar(parents);
-  }
-
 #if 0
   bool equals(const VertexData& other) const {
     return parents == other.parents && property == other.property;
@@ -27,7 +20,7 @@ struct BayesianNetwork::VertexData {
 #endif
 };
 
-struct BayesianNetwork::Impl : Object::Impl {
+struct BayesianNetwork::Impl {
   VertexDataMap data;
   size_t num_edges = 0;
   PropertyLayout property_layout;
@@ -115,19 +108,14 @@ struct BayesianNetwork::Impl : Object::Impl {
 
   ~Impl() { clear(); }
 
-  Impl* clone() const override {
-    Impl* result = new Impl(data.size(),
-                            property_layout);
+  std::unique_ptr<Impl> clone() const {
+    auto result = std::make_unique<Impl>(data.size(), property_layout);
     result->num_edges = num_edges;
     for (auto [u, src] : data) {
       VertexData* dst = result->allocate_vertex();
       dst->parents = src->parents;
       dst->children = src->children;
-      if (property_layout.size != 0) {
-        assert(property_layout.copy_constructor);
-        result->destroy_property(dst);
-        property_layout.copy_constructor(result->property(dst), property(src));
-      }
+      property_layout.destroy_and_copy_construct(result->property(dst), property(src));
       result->data.emplace(u, dst);
     }
     return result;
@@ -147,7 +135,7 @@ struct BayesianNetwork::Impl : Object::Impl {
   }
 #endif
 
-  void print(std::ostream& out) const override {
+  void print(std::ostream& out) const {
     std::vector<std::pair<Arg, VertexData*>> values = data.values();
     std::sort(values.begin(), values.end());
     for (auto [u, ptr] : values) {
@@ -178,11 +166,11 @@ struct BayesianNetwork::Impl : Object::Impl {
 };
 
 BayesianNetwork::Impl& BayesianNetwork::impl() {
-  return static_cast<Impl&>(*impl_);
+  return *impl_;
 }
 
 const BayesianNetwork::Impl& BayesianNetwork::impl() const {
-  return static_cast<Impl&>(*impl_);
+  return *impl_;
 }
 
 BayesianNetwork::VertexData& BayesianNetwork::data(Arg arg) {
@@ -194,10 +182,22 @@ const BayesianNetwork::VertexData& BayesianNetwork::data(Arg arg) const {
 }
 
 BayesianNetwork::BayesianNetwork(size_t count)
-  : Object(std::make_unique<Impl>(count)) {}
+  : impl_(std::make_unique<Impl>(count)) {}
 
 BayesianNetwork::BayesianNetwork(size_t count, PropertyLayout layout)
-  : Object(std::make_unique<Impl>(count, layout)) {}
+  : impl_(std::make_unique<Impl>(count, layout)) {}
+
+BayesianNetwork::BayesianNetwork(const BayesianNetwork& other)
+  : impl_(other.impl_ ? other.impl_->clone() : nullptr) {}
+
+BayesianNetwork& BayesianNetwork::operator=(const BayesianNetwork& other) {
+  if (this != &other) {
+    impl_ = other.impl_ ? other.impl_->clone() : nullptr;
+  }
+  return *this;
+}
+
+BayesianNetwork::~BayesianNetwork() = default;
 
 SubRange<BayesianNetwork::out_edge_iterator> BayesianNetwork::out_edges(Arg u) const {
   const AdjacencySet& children = data(u).children;
@@ -329,6 +329,3 @@ void BayesianNetwork::clear() {
 }
 
 } // namespace libgm
-
-CEREAL_REGISTER_TYPE(libgm::BayesianNetwork::Impl);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(libgm::Object::Impl, libgm::BayesianNetwork::Impl);

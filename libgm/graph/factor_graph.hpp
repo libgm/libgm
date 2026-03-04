@@ -1,6 +1,5 @@
 #pragma once
 
-#include <libgm/object.hpp>
 #include <libgm/argument/domain.hpp>
 #include <libgm/datastructure/intrusive_list.hpp>
 #include <libgm/datastructure/subrange.hpp>
@@ -13,8 +12,10 @@
 
 #include <cereal/cereal.hpp>
 #include <cereal/types/base_class.hpp>
+#include <cereal/types/memory.hpp>
 
 #include <cassert>
+#include <memory>
 #include <new>
 #include <type_traits>
 #include <utility>
@@ -31,7 +32,7 @@ namespace libgm {
  *
  * \ingroup graph_types
  */
-class FactorGraph : public Object {
+class FactorGraph {
 protected:
   struct Argument;
   using ArgumentMap = ankerl::unordered_dense::map<Arg, Argument*>;
@@ -51,6 +52,11 @@ public:
 public:
   /// Creates an empty graph.
   FactorGraph();
+  FactorGraph(const FactorGraph& other);
+  FactorGraph(FactorGraph&& other) noexcept = default;
+  FactorGraph& operator=(const FactorGraph& other);
+  FactorGraph& operator=(FactorGraph&& other) noexcept = default;
+  ~FactorGraph();
 
 protected:
   FactorGraph(PropertyLayout argument_layout, PropertyLayout factor_layout);
@@ -141,20 +147,31 @@ public:
   /// Removes all vertices and edges from the graph.
   void clear();
 
+protected:
+#if 0
   // Eliminates all variables other than the specified ones.
   void eliminate(const Domain& retain, const CommutativeSemiring& csr, const ShapeMap& shape_map,
                  const EliminationStrategy& strategy);
+#endif
 
   // Private members
   //--------------------------------------------------------------------------
 private:
   struct Impl;
+  std::unique_ptr<Impl> impl_;
 
   Impl& impl();
   const Impl& impl() const;
 
   Argument& argument(Arg u);
   const Argument& argument(Arg u) const;
+
+  friend class cereal::access;
+
+  template <typename Archive>
+  void serialize(Archive& ar) {
+    ar(impl_);
+  }
 
 }; // class FactorGraph
 

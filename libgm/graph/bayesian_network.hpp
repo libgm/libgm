@@ -1,6 +1,5 @@
 #pragma once
 
-#include <libgm/object.hpp>
 #include <libgm/argument/argument.hpp>
 #include <libgm/argument/domain.hpp>
 #include <libgm/datastructure/subrange.hpp>
@@ -14,9 +13,11 @@
 
 #include <cereal/cereal.hpp>
 #include <cereal/types/base_class.hpp>
+#include <cereal/types/memory.hpp>
 
 #include <cassert>
 #include <cstddef>
+#include <memory>
 #include <new>
 #include <type_traits>
 #include <utility>
@@ -34,7 +35,7 @@ namespace libgm {
  *
  * \ingroup model
  */
-class BayesianNetwork : public Object {
+class BayesianNetwork {
 private:
   /**
    * A struct with the data associated with each vertex. This structure
@@ -74,6 +75,12 @@ public:
 public:
   /// Default constructor. Creates an empty Bayesian network.
   explicit BayesianNetwork(size_t count = 0);
+
+  BayesianNetwork(const BayesianNetwork& other);
+  BayesianNetwork(BayesianNetwork&& other) noexcept = default;
+  BayesianNetwork& operator=(const BayesianNetwork& other);
+  BayesianNetwork& operator=(BayesianNetwork&& other) noexcept = default;
+  ~BayesianNetwork();
 
 protected:
   BayesianNetwork(size_t count, PropertyLayout layout);
@@ -157,6 +164,16 @@ public:
 
   /// Removes all vertices and edges from the graph.
   void clear();
+
+private:
+  std::unique_ptr<Impl> impl_;
+
+  friend class cereal::access;
+
+  template <typename Archive>
+  void serialize(Archive& ar) {
+    ar(impl_);
+  }
 
 }; // class BayesianNetwork
 

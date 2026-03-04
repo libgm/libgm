@@ -20,8 +20,10 @@ bool operator<(Arg a, Arg b) {
     return a.ptr() < b.ptr();
   }
 
-  assert(typeid(a.get()) == typeid(b.get()));
-  return a.get().less(b.get());
+  const Argument* a_ptr = a.ptr();
+  const Argument* b_ptr = b.ptr();
+  assert(typeid(*a_ptr) == typeid(*b_ptr));
+  return a_ptr->less(*b_ptr);
 }
 
 } // namespace libgm
