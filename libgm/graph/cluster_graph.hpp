@@ -8,8 +8,7 @@
 #include <libgm/graph/intrusive_edge.hpp>
 #include <libgm/graph/markov_network.hpp>
 #include <libgm/graph/util/bgl.hpp>
-#include <libgm/graph/util/nullable.hpp>
-#include <libgm/graph/util/property_caster.hpp>
+#include <libgm/graph/util/property_layout.hpp>
 #include <libgm/iterator/casting_iterator.hpp>
 #include <libgm/iterator/member_iterator.hpp>
 
@@ -18,6 +17,9 @@
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/properties.hpp>
 
+#include <new>
+#include <type_traits>
+#include <utility>
 
 namespace libgm {
 
@@ -97,7 +99,10 @@ public:
   //--------------------------------------------------------------------------
 public:
   /// Constructs an empty cluster graph with no clusters.
-  ClusterGraph() = default;
+  ClusterGraph();
+
+protected:
+  ClusterGraph(PropertyLayout vertex_layout, PropertyLayout edge_layout);
 
   /// Swaps two cluster graphs in constant time.
   friend void swap(ClusterGraph& a, ClusterGraph& b) { std::swap(a.impl_, b.impl_); }
@@ -156,17 +161,17 @@ public:
   /// Returns the first vertex or the null vertex if the graph is empty.
   Vertex* root() const;
 
-  /// Returns the property associated with a vertex.
-  Object& operator[](Vertex* u);
+  /// Returns the raw pointer to the property associated with a vertex.
+  void* property(Vertex* u);
 
-  /// Returns the property associated with a vertex.
-  const Object& operator[](Vertex* u) const;
+  /// Returns the raw pointer to the property associated with a vertex.
+  const void* property(Vertex* u) const;
 
-  /// Returns the property associated with an edge.
-  Object& operator[](edge_descriptor e);
+  /// Returns the raw pointer to the property associated with an edge.
+  void* property(edge_descriptor e);
 
-  /// Returns the property associated with an edge
-  const Object& operator[](edge_descriptor e) const;
+  /// Returns the raw pointer to the property associated with an edge.
+  const void* property(edge_descriptor e) const;
 
   /// Returns true if two cluster graphs are identical.
   bool operator==(const ClusterGraph& other) const;
@@ -378,9 +383,9 @@ public:
   //--------------------------------------------------------------------------
 
   /**
-   * Adds a vertex with the given cluster and vertex property.
+   * Adds a vertex with the given cluster.
    */
-  Vertex* add_vertex(Domain cluster, Object vp = Object());
+  Vertex* add_vertex(Domain cluster);
 
   /**
    * Adds an edge {u, v} to the graph with the given separator. The edge
@@ -388,7 +393,7 @@ public:
    * at these vertices. If the edge already exists, does not perform anything.
    * \return the edge and bool indicating whether the insertion took place
    */
-  edge_descriptor add_edge(Vertex* u, Vertex* v, Domain separator, Object ep = Object());
+  edge_descriptor add_edge(Vertex* u, Vertex* v, Domain separator);
 
   /**
    * Adds an edge {u, v} to the graph, setting the separator to the
@@ -396,7 +401,7 @@ public:
    * If the edge already exists, does not perform anything.
    * \return the edge and bool indicating whether the insertion took place
    */
-  edge_descriptor add_edge(Vertex* u, Vertex* v, Object ep = Object());
+  edge_descriptor add_edge(Vertex* u, Vertex* v);
 
   /**
    * Updates the cluster associated with an existing vertex.
@@ -486,23 +491,56 @@ size_t get(const ClusterGraph::VertexIndexMap&, ClusterGraph::Vertex* v);
  * A cluster graph with strongly typed vertex and edge properties.
  *
  * \tparam VP
- *         A type of values stored at each vertex. Must be void or a subclass of Object.
+ *         A type of values stored at each vertex.
  * \tparam EP
- *         A type of values stored at each edge. Must be void or a subclass of Object.
+ *         A type of values stored at each edge.
  */
-template <typename VP = void, typename EP = void>
-struct ClusterGraphT : PropertyCaster<ClusterGraph, VP, EP> {
-  using Vertex = ClusterGraph::Vertex;
-  using edge_descriptor = ClusterGraph::edge_descriptor;
+template <typename VP, typename EP = VP>
+struct ClusterGraphT : ClusterGraph {
+  static_assert(!std::is_void_v<VP>, "VP must be a non-void property type.");
+  static_assert(!std::is_void_v<EP>, "EP must be a non-void property type.");
 
-  Vertex* add_vertex(Domain cluster, Nullable<VP> vp = Nullable<VP>()) {
-    return ClusterGraph::add_vertex(std::move(cluster), std::move(vp));
-  };
+  using ClusterGraph::add_vertex;
+  using ClusterGraph::add_edge;
 
+  ClusterGraphT()
+    : ClusterGraph(property_layout<VP>(), property_layout<EP>()) {}
 
-  std::pair<edge_descriptor, bool>
-  add_edge(Vertex* u, Vertex* v, Domain separator, Nullable<EP> ep = Nullable<EP>()) {
-    return ClusterGraph::add_edge(u, v, std::move(separator), std::move(ep));
+  VP& operator[](Vertex* u) {
+    return *static_cast<VP*>(ClusterGraph::property(u));
+  }
+
+  const VP& operator[](Vertex* u) const {
+    return *static_cast<const VP*>(ClusterGraph::property(u));
+  }
+
+  EP& operator[](edge_descriptor e) {
+    return *static_cast<EP*>(ClusterGraph::property(e));
+  }
+
+  const EP& operator[](edge_descriptor e) const {
+    return *static_cast<const EP*>(ClusterGraph::property(e));
+  }
+
+  Vertex* add_vertex(Domain cluster, VP vp) {
+    Vertex* v = ClusterGraph::add_vertex(std::move(cluster));
+    static_cast<VP*>(ClusterGraph::property(v))->~VP();
+    new (ClusterGraph::property(v)) VP(std::move(vp));
+    return v;
+  }
+
+  edge_descriptor add_edge(Vertex* u, Vertex* v, Domain separator, EP ep) {
+    edge_descriptor e = ClusterGraph::add_edge(u, v, std::move(separator));
+    static_cast<EP*>(ClusterGraph::property(e))->~EP();
+    new (ClusterGraph::property(e)) EP(std::move(ep));
+    return e;
+  }
+
+  edge_descriptor add_edge(Vertex* u, Vertex* v, EP ep) {
+    edge_descriptor e = ClusterGraph::add_edge(u, v);
+    static_cast<EP*>(ClusterGraph::property(e))->~EP();
+    new (ClusterGraph::property(e)) EP(std::move(ep));
+    return e;
   }
 };
 
