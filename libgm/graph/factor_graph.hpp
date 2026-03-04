@@ -11,6 +11,10 @@
 
 #include <ankerl/unordered_dense.h>
 
+#include <cereal/cereal.hpp>
+#include <cereal/types/base_class.hpp>
+
+#include <cassert>
 #include <new>
 #include <type_traits>
 #include <utility>
@@ -205,6 +209,43 @@ struct FactorGraphT : FactorGraph {
     static_cast<FP*>(FactorGraph::property(factor))->~FP();
     new (FactorGraph::property(factor)) FP(std::move(property));
     return factor;
+  }
+
+  template <typename Archive>
+  void save(Archive& ar) const {
+    ar(cereal::base_class<const FactorGraph>(this));
+
+    ar(cereal::make_size_tag(num_arguments()));
+    for (Arg u : arguments()) {
+      ar(CEREAL_NVP(u), cereal::make_nvp("property", operator[](u)));
+    }
+
+    ar(cereal::make_size_tag(num_factors()));
+    for (Factor* f : factors()) {
+      ar(operator[](f));
+    }
+  }
+
+  template <typename Archive>
+  void load(Archive& ar) {
+    ar(cereal::base_class<FactorGraph>(this));
+
+    cereal::size_type argument_count;
+    ar(cereal::make_size_tag(argument_count));
+    assert(argument_count == num_arguments());
+    for (size_t i = 0; i < argument_count; ++i) {
+      Arg u;
+      ar(CEREAL_NVP(u));
+      assert(contains(u));
+      ar(cereal::make_nvp("property", operator[](u)));
+    }
+
+    cereal::size_type factor_count;
+    ar(cereal::make_size_tag(factor_count));
+    assert(factor_count == num_factors());
+    for (Factor* f : factors()) {
+      ar(operator[](f));
+    }
   }
 };
 

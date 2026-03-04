@@ -1,7 +1,6 @@
 #include "factor_graph.hpp"
 
 #include <cassert>
-#include <stdexcept>
 
 namespace libgm {
 
@@ -12,8 +11,8 @@ struct FactorGraph::Argument {
   /// The number of adjacent factors.
   size_t degree = 0;
 
-  template <typename ARCHIVE>
-  void serialize(ARCHIVE& ar) {
+  template <typename Archive>
+  void serialize(Archive& ar) {
     (void)ar;
   }
 
@@ -33,10 +32,10 @@ struct FactorGraph::Factor {
   /// The hooks for the adjacency of arguments.
   IntrusiveList<Factor>::HookArray adjacency_hooks;
 
-  template <typename ARCHIVE>
-  void serialize(ARCHIVE& ar) {
+  template <typename Archive>
+  void serialize(Archive& ar) {
     ar(CEREAL_NVP(arguments));
-    if constexpr (ARCHIVE::is_loading::value) {
+    if constexpr (Archive::is_loading::value) {
       adjacency_hooks.reset(arguments.size());
     }
   }
@@ -131,40 +130,72 @@ struct FactorGraph::Impl : Object::Impl {
     ::operator delete(factor);
   }
 
-  template <typename ARCHIVE>
-  void save(ARCHIVE& ar) const  {
-    if (argument_property_layout.size != 0 || factor_property_layout.size != 0) {
-      throw std::logic_error("Serializing FactorGraph properties is unsupported.");
+  Factor* add_factor(Domain arguments) {
+    Factor* factor = allocate_factor(std::move(arguments), this);
+    factors.push_back(factor, factor->hook);
+    ++num_factors;
+
+    for (size_t i = 0; i < factor->arguments.size(); ++i) {
+      Argument& a = *this->arguments.at(factor->arguments[i]);
+      a.factors.push_back(factor, factor->adjacency_hooks[i]);
+      ++a.degree;
     }
-    ar(CEREAL_NVP(arguments));
+
+    return factor;
+  }
+
+  void clear() {
+    for (auto it = factors.begin(); it != factors.end();) {
+      free_factor(*it++);
+    }
+    factors.clear();
+    num_factors = 0;
+
+    for (auto [_, argument] : arguments) {
+      free_argument(argument);
+    }
+    arguments.clear();
+  }
+
+  ~Impl() {
+    clear();
+  }
+
+  template <typename Archive>
+  void save(Archive& ar) const  {
+    ar(cereal::make_size_tag(arguments.size()));
+    for (auto [u, _] : arguments) {
+      ar(u);
+    }
 
     // Save the factors as an array
     ar(cereal::make_size_tag(num_factors));
     for (Factor* factor : factors) {
-      ar(*factor);
+      ar(factor->arguments);
     }
   }
 
-  template <typename ARCHIVE>
-  void load(ARCHIVE& ar) {
-    if (argument_property_layout.size != 0 || factor_property_layout.size != 0) {
-      throw std::logic_error("Deserializing FactorGraph properties is unsupported.");
+  template <typename Archive>
+  void load(Archive& ar) {
+    clear();
+
+    // Load arguments
+    cereal::size_type argument_count;
+    ar(cereal::make_size_tag(argument_count));
+    for (size_t i = 0; i < argument_count; ++i) {
+      Arg u;
+      ar(u);
+      arguments.emplace(u, allocate_argument());
     }
-    ar(CEREAL_NVP(arguments));
 
     // Load the factors
-    cereal::size_type size;
-    ar(cereal::make_size_tag(size));
-    num_factors = size;
-    for (size_t i = 0; i < num_factors; ++i) {
-      Factor* factor = new Factor(this);
-      ar(*factor);
-      factors.push_back(factor, factor->hook);
-      for (size_t i = 0; i < factor->arguments.size(); ++i) {
-        Argument& a = *arguments.at(factor->arguments[i]);
-        a.factors.push_back(factor, factor->adjacency_hooks[i]);
-        ++a.degree;
-      }
+    cereal::size_type factor_count;
+    ar(cereal::make_size_tag(factor_count));
+    num_factors = 0;
+    for (size_t i = 0; i < factor_count; ++i) {
+      Domain factor_arguments;
+      ar(factor_arguments);
+      add_factor(std::move(factor_arguments));
     }
   }
 };
@@ -291,19 +322,7 @@ bool FactorGraph::add_argument(Arg u) {
 }
 
 FactorGraph::Factor* FactorGraph::add_factor(Domain arguments) {
-  // Insert the new factor
-  Factor* factor = impl().allocate_factor(std::move(arguments), &impl());
-  impl().factors.push_back(factor, factor->hook);
-  ++impl().num_factors;
-
-  // Connect arguments to the new factor
-  for (size_t i = 0; i < factor->arguments.size(); ++i) {
-    Argument& a = this->argument(factor->arguments[i]);
-    a.factors.push_back(factor, factor->adjacency_hooks[i]);
-    ++a.degree;
-  }
-
-  return factor;
+  return impl().add_factor(std::move(arguments));
 }
 
 void FactorGraph::remove_argument(Arg u) {
@@ -320,6 +339,10 @@ void FactorGraph::remove_factor(Factor* u) {
   }
   --impl().num_factors;
   impl().free_factor(u);
+}
+
+void FactorGraph::clear() {
+  impl().clear();
 }
 
 void FactorGraph::eliminate(const Domain& retain,

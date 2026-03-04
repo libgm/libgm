@@ -14,6 +14,11 @@
 
 #include <boost/graph/graph_traits.hpp>
 
+#include <cereal/cereal.hpp>
+#include <cereal/types/base_class.hpp>
+
+#include <cassert>
+#include <cstddef>
 #include <iterator>
 #include <iosfwd>
 #include <new>
@@ -62,7 +67,6 @@ public:
   using in_edge_iterator   = MapBind2Iterator<AdjacencyMap, edge_descriptor>;
   using adjacency_iterator = MapKeyIterator<AdjacencyMap>;
   using vertex_iterator    = MapKeyIterator<VertexDataMap>;
-  class edge_iterator;
 
   // Graph categories
   using directed_category = boost::undirected_tag;
@@ -116,9 +120,6 @@ public:
 
   /// Returns the range of all vertices.
   SubRange<vertex_iterator> vertices() const;
-
-  // /// Returns the range of all edges in the graph.
-  // SubRange<edge_iterator> edges() const;
 
   /// Returns true if the graph contains the given vertex.
   bool contains(Arg u) const;
@@ -208,80 +209,6 @@ public:
    */
   void eliminate(const EliminationStrategy& strategy, VertexVisitor visitor);
 
-#if 0
-  // Implementation of edge iterator
-  //--------------------------------------------------------------------------
-public:
-  class edge_iterator
-    : public std::iterator<std::forward_iterator_tag, edge_type> {
-  public:
-    using reference = edge_descriptor;
-    using outer_iterator = typename VertexDataMap::const_iterator;
-    using inner_iterator = typename neighbor_map::const_iterator;
-
-    edge_iterator() {}
-
-    edge_iterator(outer_iterator it1, outer_iterator end1)
-      : it1_(it1), end1_(end1) {
-      find_next();
-    }
-
-    edge_descriptor operator*() const {
-      return edge_descriptor(it1_->first, it2_->first, it2_->second);
-    }
-
-    edge_iterator& operator++() {
-      do {
-        ++it2_;
-      } while (it2_ != it1_->second.neighbors.end() &&
-                it2_->first < it1_->first);
-      if (it2_ == it1_->second.neighbors.end()) {
-        ++it1_;
-        find_next();
-      }
-      return *this;
-    }
-
-    edge_iterator operator++(int) {
-      edge_iterator copy = *this;
-      operator++();
-      return copy;
-    }
-
-    bool operator==(const edge_iterator& o) const {
-      return
-        (it1_ == end1_ && o.it1_ == o.end1_) ||
-        (it1_ == o.it1_ && it2_ == o.it2_);
-    }
-
-    bool operator!=(const edge_iterator& other) const {
-      return !(operator==(other));
-    }
-
-  private:
-    /// find the next non-empty neighbor map with it1_->firstt <= it2_->first
-    void find_next() {
-      while (it1_ != end1_) {
-        it2_ = it1_->second.neighbors.begin();
-        while (it2_ != it1_->second.neighbors.end() &&
-                it2_->first < it1_->first) {
-          ++it2_;
-        }
-        if (it2_ != it1_->second.neighbors.end()) {
-          break;
-        } else {
-          ++it1_;
-        }
-      }
-    }
-
-    outer_iterator it1_;  ///< the iterator to the vertex data
-    outer_iterator end1_; ///< the iterator past the last vertex data
-    inner_iterator it2_;  ///< the iterator to the current neighbor
-
-  }; // class edge_iterator
-#endif
-
 }; // class MarkovNetwork
 
 /**
@@ -306,26 +233,26 @@ struct MarkovNetworkT : MarkovNetwork {
     : MarkovNetwork(count, property_layout<VP>(), property_layout<EP>()) {}
 
   VP& operator[](Arg u) {
-    return *static_cast<VP*>(MarkovNetwork::property(u));
+    return *static_cast<VP*>(property(u));
   }
 
   const VP& operator[](Arg u) const {
-    return *static_cast<const VP*>(MarkovNetwork::property(u));
+    return *static_cast<const VP*>(property(u));
   }
 
   EP& operator[](const UndirectedEdge<Arg>& e) {
-    return *static_cast<EP*>(MarkovNetwork::property(e));
+    return *static_cast<EP*>(property(e));
   }
 
   const EP& operator[](const UndirectedEdge<Arg>& e) const {
-    return *static_cast<const EP*>(MarkovNetwork::property(e));
+    return *static_cast<const EP*>(property(e));
   }
 
   bool add_vertex(Arg u, VP vp) {
     bool inserted = MarkovNetwork::add_vertex(u);
     if (inserted) {
-      static_cast<VP*>(MarkovNetwork::property(u))->~VP();
-      new (MarkovNetwork::property(u)) VP(std::move(vp));
+      static_cast<VP*>(property(u))->~VP();
+      new (property(u)) VP(std::move(vp));
     }
     return inserted;
   }
@@ -333,10 +260,55 @@ struct MarkovNetworkT : MarkovNetwork {
   std::pair<UndirectedEdge<Arg>, bool> add_edge(Arg u, Arg v, EP ep) {
     auto result = MarkovNetwork::add_edge(u, v);
     if (result.second) {
-      static_cast<EP*>(MarkovNetwork::property(result.first))->~EP();
-      new (MarkovNetwork::property(result.first)) EP(std::move(ep));
+      static_cast<EP*>(property(result.first))->~EP();
+      new (property(result.first)) EP(std::move(ep));
     }
     return result;
+  }
+
+  template <typename Archive>
+  void save(Archive& ar) const {
+    ar(cereal::base_class<const MarkovNetwork>(this));
+
+    ar(cereal::make_size_tag(num_vertices()));
+    for (Arg u : vertices()) {
+      ar(CEREAL_NVP(u), cereal::make_nvp("property", operator[](u)));
+    }
+
+    ar(cereal::make_size_tag(num_edges()));
+    for (Arg u : vertices()) {
+      for (Arg v : adjacent_vertices(u)) {
+        if (u <= v) {
+          ar(CEREAL_NVP(u), CEREAL_NVP(v),
+             cereal::make_nvp("property", operator[](edge(u, v))));
+        }
+      }
+    }
+  }
+
+  template <typename Archive>
+  void load(Archive& ar) {
+    ar(cereal::base_class<MarkovNetwork>(this));
+
+    cereal::size_type vertex_count;
+    ar(cereal::make_size_tag(vertex_count));
+    assert(vertex_count == num_vertices());
+    for (size_t i = 0; i < vertex_count; ++i) {
+      Arg u;
+      ar(CEREAL_NVP(u));
+      assert(contains(u));
+      ar(cereal::make_nvp("property", operator[](u)));
+    }
+
+    cereal::size_type edge_count;
+    ar(cereal::make_size_tag(edge_count));
+    assert(edge_count == num_edges());
+    for (size_t i = 0; i < edge_count; ++i) {
+      Arg u, v;
+      ar(CEREAL_NVP(u), CEREAL_NVP(v));
+      assert(contains(u, v));
+      ar(cereal::make_nvp("property", operator[](edge(u, v))));
+    }
   }
 };
 

@@ -31,7 +31,7 @@ struct ClusterGraph::Vertex {
   /// The cluster graph owning this vertex.
   const Impl* impl;
 
-  /// The index of the vertex (useful for vertex_index map).
+  /// The index of the vertex (used for serialization).
   size_t index = -1;
 
   /// The color associated with a vertex.
@@ -52,10 +52,10 @@ struct ClusterGraph::Vertex {
   /// The hooks for intrusive lists within cluster index.
   IntrusiveList<Vertex>::HookArray index_hooks;
 
-  template <typename ARCHIVE>
-  void serialize(ARCHIVE& ar) {
+  template <typename Archive>
+  void serialize(Archive& ar) {
     ar(CEREAL_NVP(cluster));
-    if constexpr (ARCHIVE::is_loading::value) {
+    if constexpr (Archive::is_loading::value) {
       index_hooks.reset(cluster.size());
     }
   }
@@ -111,20 +111,11 @@ struct ClusterGraph::Edge {
   /// The hook for an intrusive lists within separator index.
   IntrusiveList<Edge>::HookArray index_hooks;
 
-  template <typename ARCHIVE>
-  void save(ARCHIVE& ar) {
+  template <typename Archive>
+  void save(Archive& ar) {
     ar(cereal::make_nvp("u", u()->index));
     ar(cereal::make_nvp("v", v()->index));
     ar(CEREAL_NVP(separator));
-  }
-
-  template <typename ARCHIVE>
-  void load(ARCHIVE& ar) {
-    // FIXME
-    // ar(cereal::make_nvp("u", u.index));
-    // ar(cereal::make_nvp("v", v.index));
-    ar(CEREAL_NVP(separator));
-    index_hooks.reset(separator.size());
   }
 
   Edge(Impl* impl) : impl(impl) {}
@@ -250,11 +241,8 @@ struct ClusterGraph::Impl : Object::Impl {
     ::operator delete(e);
   }
 
-  template <typename ARCHIVE>
-  void save(ARCHIVE& ar) const {
-    if (vertex_property_layout.size != 0 || edge_property_layout.size != 0) {
-      throw std::logic_error("Serializing ClusterGraph properties is unsupported.");
-    }
+  template <typename Archive>
+  void save(Archive& ar) const {
     size_t i = 0;
     ar(cereal::make_size_tag(num_vertices));
     for (Vertex* vertex : vertices) {
@@ -268,18 +256,15 @@ struct ClusterGraph::Impl : Object::Impl {
     }
   }
 
-  template <typename ARCHIVE>
-  void load(ARCHIVE& ar) {
-    if (vertex_property_layout.size != 0 || edge_property_layout.size != 0) {
-      throw std::logic_error("Deserializing ClusterGraph properties is unsupported.");
-    }
+  template <typename Archive>
+  void load(Archive& ar) {
     cereal::size_type size;
 
     // Deserialize the vertices
     ar(cereal::make_size_tag(size));
     num_vertices = size;
     for (size_t i = 0; i < num_vertices; ++i) {
-      Vertex* vertex = new Vertex(this);
+      Vertex* vertex = allocate_vertex({});
       ar(*vertex);
       vertices.push_back(vertex, vertex->hook);
       cluster_index.insert(vertex, vertex->index_hooks);
@@ -290,9 +275,16 @@ struct ClusterGraph::Impl : Object::Impl {
     ar(cereal::make_size_tag(size));
     num_edges = size;
     for (size_t i = 0; i < num_edges; ++i) {
-      // Load the edge
-      Edge* edge = new Edge(this);
-      ar(*edge);
+      size_t u_index, v_index;
+      Domain separator;
+      ar(cereal::make_nvp("u", u_index));
+      ar(cereal::make_nvp("v", v_index));
+      ar(CEREAL_NVP(separator));
+      assert(u_index < indexed_vertices.size());
+      assert(v_index < indexed_vertices.size());
+      Edge* edge = allocate_edge(indexed_vertices[u_index],
+                                 indexed_vertices[v_index],
+                                 std::move(separator));
 
       // Add the edge to the edge and adjacency lists
       edges.push_back(edge, edge->hook);

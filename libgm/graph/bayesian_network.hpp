@@ -12,6 +12,10 @@
 #include <libgm/iterator/bind2_iterator.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
 
+#include <cereal/cereal.hpp>
+#include <cereal/types/base_class.hpp>
+
+#include <cassert>
 #include <cstddef>
 #include <new>
 #include <type_traits>
@@ -181,6 +185,28 @@ struct BayesianNetworkT : BayesianNetwork {
     static_cast<VP*>(property(u))->~VP();
     new (property(u)) VP(std::move(vp));
     return inserted;
+  }
+
+  template <typename Archive>
+  void save(Archive& ar) const {
+    ar(cereal::base_class<const BayesianNetwork>(this));
+    ar(cereal::make_size_tag(num_vertices()));
+    for (Arg u : vertices()) {
+      ar(CEREAL_NVP(u), cereal::make_nvp("property", operator[](u)));
+    }
+  }
+
+  template <typename Archive>
+  void load(Archive& ar) {
+    ar(cereal::base_class<BayesianNetwork>(this));
+    cereal::size_type n;
+    ar(cereal::make_size_tag(n));
+    for (size_t i = 0; i < n; ++i) {
+      Arg u;
+      ar(CEREAL_NVP(u));
+      assert(contains(u));
+      ar(cereal::make_nvp("property", operator[](u)));
+    }
   }
 }; // struct BayesianNetworkT
 

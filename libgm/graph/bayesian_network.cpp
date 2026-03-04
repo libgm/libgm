@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <cassert>
 #include <new>
-#include <stdexcept>
 #include <vector>
 
 namespace libgm {
@@ -15,8 +14,8 @@ struct BayesianNetwork::VertexData {
   Domain parents;
   AdjacencySet children;
 
-  template <typename ARCHIVE>
-  void serialize(ARCHIVE& ar) {
+  template <typename Archive>
+  void serialize(Archive& ar) {
     ar(parents);
   }
 
@@ -71,22 +70,16 @@ struct BayesianNetwork::Impl : Object::Impl {
     ::operator delete(ptr);
   }
 
-  template <typename ARCHIVE>
-  void save(ARCHIVE& ar) const {
-    if (property_layout.size != 0) {
-      throw std::logic_error("Serializing BayesianNetwork properties is unsupported.");
-    }
+  template <typename Archive>
+  void save(Archive& ar) const {
     ar(cereal::make_size_tag(data.size()));
     for (auto [u, ptr] : data) {
       ar(CEREAL_NVP(u), cereal::make_nvp("parents", ptr->parents));
     }
   }
 
-  template <typename ARCHIVE>
-  void load(ARCHIVE& ar) {
-    if (property_layout.size != 0) {
-      throw std::logic_error("Deserializing BayesianNetwork properties is unsupported.");
-    }
+  template <typename Archive>
+  void load(Archive& ar) {
     clear();
 
     cereal::size_type n;

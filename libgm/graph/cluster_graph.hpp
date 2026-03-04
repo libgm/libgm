@@ -14,9 +14,13 @@
 
 #include <ankerl/unordered_dense.h>
 
+#include <cereal/cereal.hpp>
+#include <cereal/types/base_class.hpp>
+
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/properties.hpp>
 
+#include <cassert>
 #include <new>
 #include <type_traits>
 #include <utility>
@@ -541,6 +545,40 @@ struct ClusterGraphT : ClusterGraph {
     static_cast<EP*>(ClusterGraph::property(e))->~EP();
     new (ClusterGraph::property(e)) EP(std::move(ep));
     return e;
+  }
+
+  template <typename Archive>
+  void save(Archive& ar) const {
+    ar(cereal::base_class<const ClusterGraph>(this));
+
+    ar(cereal::make_size_tag(num_vertices()));
+    for (Vertex* v : vertices()) {
+      ar(operator[](v));
+    }
+
+    ar(cereal::make_size_tag(num_edges()));
+    for (edge_descriptor e : edges()) {
+      ar(operator[](e));
+    }
+  }
+
+  template <typename Archive>
+  void load(Archive& ar) {
+    ar(cereal::base_class<ClusterGraph>(this));
+
+    cereal::size_type vertex_count;
+    ar(cereal::make_size_tag(vertex_count));
+    assert(vertex_count == num_vertices());
+    for (Vertex* v : vertices()) {
+      ar(operator[](v));
+    }
+
+    cereal::size_type edge_count;
+    ar(cereal::make_size_tag(edge_count));
+    assert(edge_count == num_edges());
+    for (edge_descriptor e : edges()) {
+      ar(operator[](e));
+    }
   }
 };
 

@@ -6,34 +6,12 @@
 
 #include <algorithm>
 #include <cassert>
-#include <stdexcept>
 #include <vector>
 
 namespace libgm {
 
 struct MarkovNetwork::VertexData {
   AdjacencyMap neighbors;
-
-  template <typename ARCHIVE>
-  void save(ARCHIVE& ar) {
-    // serialize the keys
-    ar(cereal::make_size_tag(neighbors.size()));
-    for (auto [v, _] : neighbors) {
-      ar(v);
-    }
-  }
-
-  template <typename ARCHIVE>
-  void load(ARCHIVE& ar) {
-    // deserialize the keys
-    cereal::size_type degree;
-    ar(cereal::make_size_tag(degree));
-    for (size_t i = 0; i < degree; ++i) {
-      Arg v;
-      ar(v);
-      neighbors.emplace(v, nullptr);
-    }
-  }
 };
 
 struct MarkovNetwork::Impl : Object::Impl {
@@ -104,29 +82,52 @@ struct MarkovNetwork::Impl : Object::Impl {
     ::operator delete(ptr);
   }
 
-  template <typename ARCHIVE>
-  void save(ARCHIVE& ar) const {
-    if (vertex_property_layout.size != 0 || edge_property_layout.size != 0) {
-      throw std::logic_error("Serializing MarkovNetwork properties is unsupported.");
+  template <typename Archive>
+  void save(Archive& ar) const {
+    ar(cereal::make_size_tag(data.size()));
+    for (auto [u, _] : data) {
+      ar(u);
     }
-    ar(data);
-  }
 
-  template <typename ARCHIVE>
-  void load(ARCHIVE& ar) {
-    if (vertex_property_layout.size != 0 || edge_property_layout.size != 0) {
-      throw std::logic_error("Deserializing MarkovNetwork properties is unsupported.");
-    }
-    free_edge_data();
-    free_vertex_data();
-    ar(data);
-    num_edges = 0;
+    ar(cereal::make_size_tag(num_edges));
     for (auto [u, vertex] : data) {
-      for (auto& [v, property] : vertex->neighbors) {
-        property = nullptr;
-        if (u <= v) ++num_edges;
+      for (auto [v, _] : vertex->neighbors) {
+        if (u <= v) {
+          ar(u, v);
+        }
       }
     }
+  }
+
+  template <typename Archive>
+  void load(Archive& ar) {
+    free_edge_data();
+    free_vertex_data();
+
+    cereal::size_type vertex_count;
+    ar(cereal::make_size_tag(vertex_count));
+    for (size_t i = 0; i < vertex_count; ++i) {
+      Arg u;
+      ar(u);
+      data.emplace(u, allocate_vertex());
+    }
+
+    cereal::size_type edge_count;
+    ar(cereal::make_size_tag(edge_count));
+    for (size_t i = 0; i < edge_count; ++i) {
+      Arg u, v;
+      ar(u, v);
+      auto uit = data.find(u);
+      auto vit = data.find(v);
+      assert(uit != data.end());
+      assert(vit != data.end());
+
+      void* ptr = allocate_edge_property();
+      uit->second->neighbors.emplace(v, ptr);
+      vit->second->neighbors.emplace(u, ptr);
+      ++num_edges;
+    }
+    assert(num_edges == edge_count);
   }
 
   Impl() = default;
@@ -273,10 +274,6 @@ const {
 SubRange<MarkovNetwork::vertex_iterator> MarkovNetwork::vertices() const {
   return { impl().data.begin(), impl().data.end() };
 }
-
-// SubRange<edge_iterator> MarkovNetwork::edges() const {
-//   return { { data_.begin(), data_.end() }, { data_.end(), data_.end() } };
-// }
 
 bool MarkovNetwork::contains(Arg u) const {
   return impl().find(u).second;
@@ -468,76 +465,5 @@ void MarkovNetwork::eliminate(const EliminationStrategy& strategy, VertexVisitor
     }
   }
 }
-
-#if 0
-class edge_iterator
-  : public std::iterator<std::forward_iterator_tag, edge_type> {
-public:
-  using reference = edge_type;
-  using outer_iterator = typename VertexDataMap::const_iterator;
-  using inner_iterator = typename neighbor_map::const_iterator;
-
-  edge_iterator() {}
-
-  edge_iterator(outer_iterator it1, outer_iterator end1)
-    : it1_(it1), end1_(end1) {
-    find_next();
-  }
-
-  edge_type operator*() const {
-    return edge_type(it1_->first, it2_->first, it2_->second);
-  }
-
-  edge_iterator& operator++() {
-    do {
-      ++it2_;
-    } while (it2_ != it1_->second.neighbors.end() &&
-              it2_->first < it1_->first);
-    if (it2_ == it1_->second.neighbors.end()) {
-      ++it1_;
-      find_next();
-    }
-    return *this;
-  }
-
-  edge_iterator operator++(int) {
-    edge_iterator copy = *this;
-    operator++();
-    return copy;
-  }
-
-  bool operator==(const edge_iterator& o) const {
-    return
-      (it1_ == end1_ && o.it1_ == o.end1_) ||
-      (it1_ == o.it1_ && it2_ == o.it2_);
-  }
-
-  bool operator!=(const edge_iterator& other) const {
-    return !(operator==(other));
-  }
-
-private:
-  /// find the next non-empty neighbor map with it1_->firstt <= it2_->first
-  void find_next() {
-    while (it1_ != end1_) {
-      it2_ = it1_->second.neighbors.begin();
-      while (it2_ != it1_->second.neighbors.end() &&
-              it2_->first < it1_->first) {
-        ++it2_;
-      }
-      if (it2_ != it1_->second.neighbors.end()) {
-        break;
-      } else {
-        ++it1_;
-      }
-    }
-  }
-
-  outer_iterator it1_;  ///< the iterator to the vertex data
-  outer_iterator end1_; ///< the iterator past the last vertex data
-  inner_iterator it2_;  ///< the iterator to the current neighbor
-
-}; // class edge_iterator
-#endif
 
 } // namespace libgm
