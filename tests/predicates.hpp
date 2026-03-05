@@ -4,10 +4,15 @@
 #include <algorithm>
 #include <fstream>
 #include <cstdio>
+#include <cassert>
 
+#if __has_include(<libgm/serialization/iarchive.hpp>) && __has_include(<libgm/serialization/oarchive.hpp>)
 #include <libgm/serialization/iarchive.hpp>
 #include <libgm/serialization/oarchive.hpp>
+#define LIBGM_HAS_SERIALIZATION_ARCHIVE 1
+#endif
 
+#ifdef LIBGM_HAS_SERIALIZATION_ARCHIVE
 std::string temp_filename() {
   char filename[L_tmpnam+1];
 #ifdef WIN32
@@ -83,6 +88,7 @@ serialize_deserialize(const T& value, libgm::universe& u) {
   }
   return true;
 }
+#endif
 
 template <typename Range1, typename Range2>
 boost::test_tools::predicate_result

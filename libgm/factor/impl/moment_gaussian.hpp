@@ -1,4 +1,4 @@
-#include "../moment_gaussian.hpp"
+d#include "../moment_gaussian.hpp"
 
 namespace libgm {
 

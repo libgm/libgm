@@ -163,10 +163,10 @@ public:
 
   Exp<T> maximum(std::vector<size_t>* values = nullptr) const;
   Exp<T> minimum(std::vector<size_t>* values = nullptr) const;
-  LogarithmicVector<T> maximum_front(unsigned n) const;
-  LogarithmicVector<T> maximum_back(unsigned n) const;
-  LogarithmicVector<T> minimum_front(unsigned n) const;
-  LogarithmicVector<T> minimum_back(unsigned n) const;
+  LogarithmicVector<T> maximum_front(unsigned n = 1) const;
+  LogarithmicVector<T> maximum_back(unsigned n = 1) const;
+  LogarithmicVector<T> minimum_front(unsigned n = 1) const;
+  LogarithmicVector<T> minimum_back(unsigned n = 1) const;
 
   // Restriction
   //--------------------------------------------------------------------------

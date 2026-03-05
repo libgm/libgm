@@ -76,7 +76,7 @@ struct ProbabilityMatrix<T>::Impl {
   }
 
   void divide_inverse(const T& x, ProbabilityMatrix& result) const {
-    result.param() = x * param;
+    result.param() = x / param;
   }
 
   void multiply(const ProbabilityMatrix& other, ProbabilityMatrix& result) const {

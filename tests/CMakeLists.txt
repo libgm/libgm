@@ -14,6 +14,7 @@ subdirs(
   argument
   assignment
   datastructure
+  factor
 #[[
   factor
   graph

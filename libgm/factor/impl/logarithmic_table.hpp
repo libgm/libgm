@@ -243,15 +243,15 @@ struct LogarithmicTable<T>::Impl {
   }
 
   T kl_divergence(const LogarithmicTable& other) const {
-    return transform_accumulate(param, std::plus<T>(), KldLogOp<T>());
+    return transform_accumulate(other, std::plus<T>(), KldLogOp<T>());
   }
 
   T sum_difference(const LogarithmicTable& other) const {
-    return transform_accumulate(param, std::plus<T>(), AbsDifference<T>());
+    return transform_accumulate(other, std::plus<T>(), AbsDifference<T>());
   }
 
   T max_difference(const LogarithmicTable& other) const {
-    return transform_accumulate(param, MaximumOp<T>(), AbsDifference<T>());
+    return transform_accumulate(other, MaximumOp<T>(), AbsDifference<T>());
   }
 
 }; // class LogarithmicTable<T>::Impl
@@ -261,7 +261,7 @@ LogarithmicTable<T>::LogarithmicTable() = default;
 
 template <typename T>
 LogarithmicTable<T>::LogarithmicTable(Exp<T> value)
-  : impl_(std::make_unique<Impl>()) {
+  : impl_(std::make_unique<Impl>(Shape())) {
   param()[0] = value.lv;
 }
 

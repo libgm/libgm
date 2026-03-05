@@ -3,8 +3,9 @@
 
 #include <fstream>
 #include <cstdio>
+#include <numeric>
 
-#include <libgm/datastructure/uint_vector.hpp>
+#include <libgm/argument/shape.hpp>
 #include <libgm/math/eigen/dense.hpp>
 
 #include "../predicates.hpp"
@@ -13,9 +14,9 @@
 template <typename F>
 boost::test_tools::predicate_result
 vector_properties(const F& f, std::size_t n) {
-  if (f.empty()) {
+  if (f.size() == 0 && n > 0) {
     boost::test_tools::predicate_result result(false);
-    result.message() << "The factor is empty [" << f << "]";
+    result.message() << "The factor is empty";
     return result;
   }
   if (f.arity() != 1) {
@@ -37,9 +38,9 @@ vector_properties(const F& f, std::size_t n) {
 template <typename F>
 boost::test_tools::predicate_result
 matrix_properties(const F& f, std::size_t m, std::size_t n) {
-  if (f.empty()) {
+  if (f.size() == 0 && m * n > 0) {
     boost::test_tools::predicate_result result(false);
-    result.message() << "The factor is empty [" << f << "]";
+    result.message() << "The factor is empty";
     return result;
   }
   if (f.arity() != 2) {
@@ -67,14 +68,14 @@ matrix_properties(const F& f, std::size_t m, std::size_t n) {
 // Checks the basic properties of table factors
 template <typename F>
 boost::test_tools::predicate_result
-table_properties(const F& f, const libgm::uint_vector& shape) {
+table_properties(const F& f, const libgm::Shape& shape) {
   std::size_t n =
     std::accumulate(shape.begin(), shape.end(), std::size_t(1),
                     std::multiplies<std::size_t>());
 
-  if (f.empty()) {
+  if (f.size() == 0 && n > 0) {
     boost::test_tools::predicate_result result(false);
-    result.message() << "The factor is empty [" << f << "]";
+    result.message() << "The factor is empty";
     return result;
   }
   if (f.arity() != shape.size()) {
@@ -101,11 +102,6 @@ table_properties(const F& f, const libgm::uint_vector& shape) {
 template <typename F>
 boost::test_tools::predicate_result
 cg_properties(const F& f, std::size_t n) {
-  if (f.empty() && n > 0) {
-    boost::test_tools::predicate_result result(false);
-    result.message() << "The factor is empty [" << f << "]";
-    return result;
-  }
   if (f.arity() != n) {
     boost::test_tools::predicate_result result(false);
     result.message() << "Invalid factor arity ["
@@ -115,12 +111,42 @@ cg_properties(const F& f, std::size_t n) {
   return true;
 }
 
+template <typename F>
+boost::test_tools::predicate_result
+cg_properties(const F& f, const libgm::Shape& shape) {
+  if (f.arity() != shape.size()) {
+    boost::test_tools::predicate_result result(false);
+    result.message() << "Invalid factor arity ["
+                     << f.arity() << " != " << shape.size() << "]";
+    return result;
+  }
+  if (f.shape() != shape) {
+    boost::test_tools::predicate_result result(false);
+    result.message() << "Invalid factor shape";
+    return result;
+  }
+  const std::size_t n = shape.sum();
+  if (static_cast<std::size_t>(f.inf_vector().size()) != n) {
+    boost::test_tools::predicate_result result(false);
+    result.message() << "Invalid information vector size ["
+                     << f.inf_vector().size() << " != " << n << "]";
+    return result;
+  }
+  if (static_cast<std::size_t>(f.inf_matrix().rows()) != n ||
+      static_cast<std::size_t>(f.inf_matrix().cols()) != n) {
+    boost::test_tools::predicate_result result(false);
+    result.message() << "Invalid information matrix shape";
+    return result;
+  }
+  return true;
+}
+
 // Checks the parameters of the canonical_gaussian
 template <typename F>
 boost::test_tools::predicate_result
 cg_params(const F& f,
-          const libgm::dense_vector<>& eta,
-          const libgm::dense_matrix<>& lambda,
+          const libgm::Vector<>& eta,
+          const libgm::Matrix<>& lambda,
           double lm) {
   if (!f.inf_vector().isApprox(eta, 1e-8)) {
     boost::test_tools::predicate_result result(false);
@@ -177,9 +203,9 @@ mg_properties(const F& f, std::size_t m, std::size_t n = 0) {
 template <typename F>
 boost::test_tools::predicate_result
 mg_params(const F& f,
-          const libgm::dense_vector<>& mean,
-          const libgm::dense_matrix<>& cov,
-          const libgm::dense_matrix<>& coef,
+          const libgm::Vector<>& mean,
+          const libgm::Matrix<>& cov,
+          const libgm::Matrix<>& coef,
           double lm) {
   if (!f.mean().isApprox(mean, 1e-8)) {
     boost::test_tools::predicate_result result(false);

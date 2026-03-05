@@ -155,12 +155,12 @@ public:
   T marginal() const;
   T maximum(std::vector<size_t>* values = nullptr) const;
   T minimum(std::vector<size_t>* values = nullptr) const;
-  ProbabilityVector<T> marginal_front(unsigned n) const;
-  ProbabilityVector<T> marginal_back(unsigned n) const;
-  ProbabilityVector<T> maximum_front(unsigned n) const;
-  ProbabilityVector<T> maximum_back(unsigned n) const;
-  ProbabilityVector<T> minimum_front(unsigned n) const;
-  ProbabilityVector<T> minimum_back(unsigned n) const;
+  ProbabilityVector<T> marginal_front(unsigned n = 1) const;
+  ProbabilityVector<T> marginal_back(unsigned n = 1) const;
+  ProbabilityVector<T> maximum_front(unsigned n = 1) const;
+  ProbabilityVector<T> maximum_back(unsigned n = 1) const;
+  ProbabilityVector<T> minimum_front(unsigned n = 1) const;
+  ProbabilityVector<T> minimum_back(unsigned n = 1) const;
 
   // Normalization
   //--------------------------------------------------------------------------

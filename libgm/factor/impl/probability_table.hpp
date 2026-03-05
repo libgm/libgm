@@ -292,7 +292,7 @@ ProbabilityTable<T>::ProbabilityTable() = default;
 
 template <typename T>
 ProbabilityTable<T>::ProbabilityTable(T value)
-  : impl_(std::make_unique<Impl>()) {
+  : impl_(std::make_unique<Impl>(Shape())) {
   param()[0] = value;
 }
 

@@ -350,7 +350,13 @@ struct CanonicalGaussian<T>::Impl {
   }
 
   void restrict_dims(const Dims& dims, const Vector<T>& values, CanonicalGaussian& result) const {
-    reduce(dims).restrict(values, result);
+    Dims retain;
+    for (unsigned i = 0; i < shape.size(); ++i) {
+      if (!dims.test(i)) {
+        retain.set(i);
+      }
+    }
+    reduce(retain).restrict(values, result);
   }
 
   // Entropy and divergences
