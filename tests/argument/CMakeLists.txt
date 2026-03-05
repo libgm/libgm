@@ -1,4 +1,3 @@
-#add_executable(basic_assignment basic_assignment.cpp)
 add_executable(arg arg_test.cpp)
 add_executable(domain domain_test.cpp)
 add_executable(named_argument named_argument_test.cpp)
@@ -6,7 +5,6 @@ add_executable(shape shape_test.cpp)
 add_executable(span span_test.cpp)
 add_executable(table_index_iterator table_index_iterator_test.cpp)
 
-#add_test(basic_assignment basic_assignment)
 add_test(arg arg)
 add_test(domain domain)
 add_test(named_argument named_argument)

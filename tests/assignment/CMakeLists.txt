@@ -1,0 +1,5 @@
+add_executable(discrete_assignment discrete_assignment_test.cpp)
+add_executable(vector_assignment vector_assignment_test.cpp)
+
+add_test(discrete_assignment discrete_assignment)
+add_test(vector_assignment vector_assignment)

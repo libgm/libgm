@@ -12,6 +12,7 @@ endif(CMAKE_COMPILER_IS_GNUCXX)
 
 subdirs(
   argument
+  assignment
 #[[
   datastructure
   factor
