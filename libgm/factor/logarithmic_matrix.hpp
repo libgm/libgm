@@ -8,10 +8,8 @@
 // #include <libgm/math/random/bivariate_categorical_distribution.hpp>
 
 #include <cereal/access.hpp>
-#include <cereal/types/memory.hpp>
 
 #include <initializer_list>
-#include <memory>
 
 namespace libgm {
 
@@ -42,19 +40,11 @@ public:
   using value_list = std::vector<size_t>;
   using result_type = Exp<T>;
 
-  /// Implementation class.
-  struct Impl;
-
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
 
   /// Default constructor. Creates an empty factor.
-  LogarithmicMatrix();
-  LogarithmicMatrix(const LogarithmicMatrix& other);
-  LogarithmicMatrix(LogarithmicMatrix&& other) noexcept;
-  LogarithmicMatrix& operator=(const LogarithmicMatrix& other);
-  LogarithmicMatrix& operator=(LogarithmicMatrix&& other) noexcept;
-  ~LogarithmicMatrix();
+  LogarithmicMatrix() = default;
 
   /// Constructs a factor with the given shape and constant value.
   LogarithmicMatrix(size_t rows, size_t cols, Exp<T> x = Exp<T>(0));
@@ -67,13 +57,11 @@ public:
 
   /// Constructs a factor with given parameters.
   template <typename DERIVED>
-  LogarithmicMatrix(const Eigen::DenseBase<DERIVED>& base) : LogarithmicMatrix() {
-    param() = base;
-  }
+  LogarithmicMatrix(const Eigen::DenseBase<DERIVED>& base) : param_(base) {}
 
   /// Swaps the content of two LogarithmicMatrix factors.
   friend void swap(LogarithmicMatrix& f, LogarithmicMatrix& g) {
-    std::swap(f.impl_, g.impl_);
+    std::swap(f.param_, g.param_);
   }
 
   // Accessors
@@ -83,17 +71,27 @@ public:
   size_t arity() const { return 2; }
 
   /// Returns the number of rows of the factor.
-  size_t rows() const;
+  size_t rows() const {
+    return param_.rows();
+  }
 
   /// Returns the number of columns of the factor.
-  size_t cols() const;
+  size_t cols() const {
+    return param_.cols();
+  }
 
   /// Returns the total number of elements of the factor.
-  size_t size() const;
+  size_t size() const {
+    return param_.size();
+  }
 
   /// Provides access to the parameter array of this factor.
-  Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic>& param();
-  const Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic>& param() const;
+  Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic>& param() {
+    return param_;
+  }
+  const Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic>& param() const {
+    return param_;
+  }
 
   /// Returns the value of the factor for the given row and column.
   Exp<T> operator()(size_t row, size_t col) const {
@@ -106,10 +104,15 @@ public:
   }
 
   /// Returns the log-value of the factor for the given row and column.
-  T log(size_t row, size_t col) const;
+  T log(size_t row, size_t col) const {
+    return param_(row, col);
+  }
 
   /// Returns the log-value of the factor for the given index.
-  T log(const std::vector<size_t>& values) const;
+  T log(const std::vector<size_t>& values) const {
+    assert(values.size() == 2);
+    return param_(values[0], values[1]);
+  }
 
   // Direct operations
   //--------------------------------------------------------------------------
@@ -207,15 +210,13 @@ public:
 
 private:
   LogarithmicMatrix divide_inverse(const Exp<T>& x) const;
-  Impl& impl();
-  const Impl& impl() const;
-  std::unique_ptr<Impl> impl_;
+  Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic> param_;
 
   friend class cereal::access;
 
   template <typename Archive>
   void serialize(Archive& ar) {
-    ar(impl_);
+    ar(param_);
   }
 
 }; // class LogarithmicMatrix

@@ -7,10 +7,9 @@
 // #include <libgm/math/random/multivariate_categorical_distribution.hpp>
 
 #include <cereal/access.hpp>
-#include <cereal/types/memory.hpp>
 
+#include <cmath>
 #include <initializer_list>
-#include <memory>
 
 namespace libgm {
 
@@ -41,19 +40,11 @@ public:
   using value_list = std::vector<size_t>;
   using result_type = T;
 
-  /// Implementation class
-  struct Impl;
-
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
 
   /// Default constructor. Creates an empty factor.
-  ProbabilityTable();
-  ProbabilityTable(const ProbabilityTable& other);
-  ProbabilityTable(ProbabilityTable&& other) noexcept;
-  ProbabilityTable& operator=(const ProbabilityTable& other);
-  ProbabilityTable& operator=(ProbabilityTable&& other) noexcept;
-  ~ProbabilityTable();
+  ProbabilityTable() = default;
 
   /// Constructs a factor equivalent to a constant.
   explicit ProbabilityTable(T value);
@@ -68,36 +59,50 @@ public:
   ProbabilityTable(Shape shape, const T* values);
 
   /// Creates a factor with the specified parameters.
-  ProbabilityTable(Table<T> param);
+  ProbabilityTable(Table<T> param) : param_(std::move(param)) {}
 
   /// Exchanges the content of two factors.
   friend void swap(ProbabilityTable& f, ProbabilityTable& g) {
-    std::swap(f.impl_, g.impl_);
+    std::swap(f.param_, g.param_);
   }
 
   // Accessors
   //--------------------------------------------------------------------------
 
   /// Returns the number of dimensions (guaranteed to be constant-time).
-  size_t arity() const;
+  size_t arity() const {
+    return param_.arity();
+  }
 
   /// Returns the total number of elements of the table.
-  size_t size() const;
+  size_t size() const {
+    return param_.size();
+  }
 
   /// Returns the shape of the underlying table.
-  const Shape& shape() const;
+  const Shape& shape() const {
+    return param_.shape();
+  }
 
   /// Provides mutable access to the parameter table of this factor.
-  Table<T>& param();
+  Table<T>& param() {
+    return param_;
+  }
 
   /// Returns the parameter table of this factor.
-  const Table<T>& param() const;
+  const Table<T>& param() const {
+    return param_;
+  }
 
   /// Returns the value of the expression for the given index.
-  T operator()(const std::vector<size_t>& values) const;
+  T operator()(const std::vector<size_t>& values) const {
+    return param_(values);
+  }
 
   /// Returns the log-value of the expression for the given index.
-  T log(const std::vector<size_t>& values) const;
+  T log(const std::vector<size_t>& values) const {
+    return std::log(param_(values));
+  }
 
   // Direct operations
   //--------------------------------------------------------------------------
@@ -179,7 +184,6 @@ public:
   //--------------------------------------------------------------------------
 
   void normalize();
-  void normalize_head(unsigned nhead);
 
   // Restriction
   //--------------------------------------------------------------------------
@@ -219,15 +223,13 @@ public:
 
 private:
   ProbabilityTable divide_inverse(T x) const;
-  Impl& impl();
-  const Impl& impl() const;
-  std::unique_ptr<Impl> impl_;
+  Table<T> param_;
 
   friend class cereal::access;
 
   template <typename Archive>
   void serialize(Archive& ar) {
-    ar(impl_);
+    ar(param_);
   }
 
 }; // class ProbabilityTable

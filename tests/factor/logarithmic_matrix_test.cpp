@@ -87,7 +87,7 @@ BOOST_AUTO_TEST_CASE(test_indexing_and_ops) {
   BOOST_CHECK_SMALL(max_diff(h, f), 1e-8);
 }
 
-BOOST_AUTO_TEST_CASE(test_join_collapse_restrict) {
+BOOST_AUTO_TEST_CASE(test_join) {
   LMatrix f(2, 3, {1.1, 0.5, 0.1, 0.2, 0.4, 0.0});
   LVector qx({0.4, 0.6});
   LVector qy({0.2, 0.5, 0.3});
@@ -96,11 +96,27 @@ BOOST_AUTO_TEST_CASE(test_join_collapse_restrict) {
   LMatrix fy = f.multiply_back(qy);
   BOOST_CHECK_CLOSE(fx.log(1, 0), f.log(1, 0) + qx.log(1), 1e-8);
   BOOST_CHECK_CLOSE(fy.log(0, 2), f.log(0, 2) + qy.log(2), 1e-8);
+  LMatrix fix = f;
+  fix.multiply_in_front(qx);
+  BOOST_CHECK_SMALL(max_diff(fix, fx), 1e-8);
+  LMatrix fiy = f;
+  fiy.multiply_in_back(qy);
+  BOOST_CHECK_SMALL(max_diff(fiy, fy), 1e-8);
 
   LMatrix dx = f.divide_front(qx);
   LMatrix dy = f.divide_back(qy);
   BOOST_CHECK_CLOSE(dx.log(1, 1), f.log(1, 1) - qx.log(1), 1e-8);
   BOOST_CHECK_CLOSE(dy.log(0, 1), f.log(0, 1) - qy.log(1), 1e-8);
+  LMatrix dix = f;
+  dix.divide_in_front(qx);
+  BOOST_CHECK_SMALL(max_diff(dix, dx), 1e-8);
+  LMatrix diy = f;
+  diy.divide_in_back(qy);
+  BOOST_CHECK_SMALL(max_diff(diy, dy), 1e-8);
+}
+
+BOOST_AUTO_TEST_CASE(test_collapse) {
+  LMatrix f(2, 3, {1.1, 0.5, 0.1, 0.2, 0.4, 0.0});
 
   LVector mx = f.maximum_front();
   LVector my = f.maximum_back();
@@ -122,6 +138,10 @@ BOOST_AUTO_TEST_CASE(test_join_collapse_restrict) {
   BOOST_CHECK_EQUAL(log(f.minimum(&argmin)), 0.0);
   BOOST_CHECK(argmax == std::vector<size_t>({0, 0}));
   BOOST_CHECK(argmin == std::vector<size_t>({1, 2}));
+}
+
+BOOST_AUTO_TEST_CASE(test_restrict) {
+  LMatrix f(2, 3, {1.1, 0.5, 0.1, 0.2, 0.4, 0.0});
 
   LVector rfront = f.restrict_front({1});
   LVector rback = f.restrict_back({2});

@@ -4,389 +4,153 @@
 
 #include <libgm/factor/logarithmic_vector.hpp>
 #include <libgm/factor/probability_table.hpp>
-#include <libgm/functional/algorithm.hpp>
 #include <libgm/functional/arithmetic.hpp>
 #include <libgm/functional/entropy.hpp>
 
+#include <algorithm>
 #include <numeric>
 
 namespace libgm {
 
 template <typename T>
-struct ProbabilityVector<T>::Impl {
-
-  /// The parameters of the factor, i.e., a vector of log-probabilities.
-  Eigen::Array<T, Eigen::Dynamic, 1> param;
-
-  template <typename ARCHIVE>
-  void serialize(ARCHIVE& ar) {
-    ar(param);
-  }
-
-  // Constructors
-  //--------------------------------------------------------------------------
-
-  Impl() = default;
-
-  explicit Impl(size_t size)
-    : param(size) {}
-
-  explicit Impl(const Shape& shape) {
-    assert(shape.size() == 1);
-    param.resize(shape[0]);
-  }
-
-  explicit Impl(Eigen::Array<T, Eigen::Dynamic, 1> param)
-    : param(std::move(param)) {}
-
-
-  // Utility functions
-  //--------------------------------------------------------------------------
-
-  const T* begin() const {
-    return param.data();
-  }
-
-  const T* end() const {
-    return param.data() + param.size();
-  }
-
-  // Object functions
-  //--------------------------------------------------------------------------
-
-  std::unique_ptr<Impl> clone() const {
-    return std::make_unique<Impl>(*this);
-  }
-
-  void print(std::ostream& out) const {
-    out << param;
-  }
-
-  // Direct operations
-  //--------------------------------------------------------------------------
-
-  void multiply(const T& x, ProbabilityVector& result) const {
-    result.param() = param * x;
-  }
-
-  void divide(const T& x, ProbabilityVector& result) const {
-    result.param() = param / x;
-  }
-
-  void divide_inverse(const T& x, ProbabilityVector& result) const {
-    result.param() = x / param;
-  }
-
-  void multiply(const ProbabilityVector& other, ProbabilityVector& result) const {
-    result.param() = param * other.param();
-  }
-
-  void divide(const ProbabilityVector& other, ProbabilityVector& result) const {
-    result.param() = param / other.param();
-  }
-
-  void multiply_in(const T& x) {
-    param *= x;
-  }
-
-  void divide_in(const T& x) {
-    param /= x;
-  }
-
-  void multiply_in(const ProbabilityVector& other) {
-    param *= other.param();
-  }
-
-  void divide_in(const ProbabilityVector& other) {
-    param /= other.param();
-  }
-
-  // Arithmetic
-  //--------------------------------------------------------------------------
-
-  void power(T x, ProbabilityVector& result) const {
-    result.param() = param.pow(x);
-  }
-
-  void weighted_update(const ProbabilityVector& other, T x, ProbabilityVector& result) const {
-    result.param() = (1 - x) * param + x * other.param();
-  }
-
-  // Aggregates
-  //--------------------------------------------------------------------------
-
-  T marginal() const {
-    return param.sum();
-  }
-
-  T maximum(std::vector<size_t>* values) const {
-    return values ? param.maxCoeff((values->resize(1), values->data())) : param.maxCoeff();
-  }
-
-  T minimum(std::vector<size_t>* values) const {
-    return values ? param.minCoeff((values->resize(1), values->data())) : param.minCoeff();
-  }
-
-  // Normalization
-  //--------------------------------------------------------------------------
-
-  void normalize() {
-    param /= marginal();
-  }
-
-  // Entropy and divergences
-  //--------------------------------------------------------------------------
-
-  T entropy() const {
-    return std::accumulate(begin(), end(), T(0), [](T acc, T val) {
-      return acc + EntropyOp<T>()(val);
-    });
-  }
-
-  template <typename Op>
-  T transform_sum(const ProbabilityVector& other, Op op) const {
-    assert(param.size() == other.size());
-    return std::inner_product(begin(), end(), other.impl().begin(), T(0), std::plus<T>(), op);
-  }
-
-  T cross_entropy(const ProbabilityVector& other) const {
-    return transform_sum(other, EntropyOp<T>());
-  }
-
-  T kl_divergence(const ProbabilityVector& other) const {
-    return transform_sum(other, KldOp<T>());
-  }
-
-  T sum_difference(const ProbabilityVector& other) const {
-    return (param - other.param()).abs().sum();
-  }
-
-  T max_difference(const ProbabilityVector& other) const {
-    return (param - other.param()).abs().maxCoeff();
-  }
-
-}; // struct Impl
-
-template <typename T>
-ProbabilityVector<T>::ProbabilityVector() = default;
-
-template <typename T>
 ProbabilityVector<T>::ProbabilityVector(size_t length, T x)
-  : impl_(std::make_unique<Impl>(length)) {
-  impl().param.fill(x);
+  : param_(length) {
+  param_.fill(x);
 }
 
 template <typename T>
-ProbabilityVector<T>::ProbabilityVector(const Shape& shape, T x)
-  : impl_(std::make_unique<Impl>(shape)) {
-  impl().param.fill(x);
+ProbabilityVector<T>::ProbabilityVector(const Shape& shape, T x) {
+  assert(shape.size() == 1);
+  param_.resize(shape[0]);
+  param_.fill(x);
 }
 
 template <typename T>
 ProbabilityVector<T>::ProbabilityVector(std::initializer_list<T> values)
-  : impl_(std::make_unique<Impl>(values.size())) {
-  std::copy(values.begin(), values.end(), impl().param.data());
-}
-
-template <typename T>
-ProbabilityVector<T>::ProbabilityVector(const ProbabilityVector& other)
-  : impl_(other.impl_ ? other.impl_->clone() : nullptr) {}
-
-template <typename T>
-ProbabilityVector<T>::ProbabilityVector(ProbabilityVector&& other) noexcept = default;
-
-template <typename T>
-ProbabilityVector<T>& ProbabilityVector<T>::operator=(const ProbabilityVector& other) {
-  if (this != &other) {
-    impl_ = other.impl_ ? other.impl_->clone() : nullptr;
-  }
-  return *this;
-}
-
-template <typename T>
-ProbabilityVector<T>& ProbabilityVector<T>::operator=(ProbabilityVector&& other) noexcept = default;
-
-template <typename T>
-ProbabilityVector<T>::~ProbabilityVector() = default;
-
-template <typename T>
-size_t ProbabilityVector<T>::size() const {
-  return impl().param.size();
-}
-
-template <typename T>
-Eigen::Array<T, Eigen::Dynamic, 1>& ProbabilityVector<T>::param() {
-  if (!impl_) {
-    impl_.reset(new Impl);
-  }
-  return impl().param;
-}
-
-template <typename T>
-const Eigen::Array<T, Eigen::Dynamic, 1>& ProbabilityVector<T>::param() const {
-  return impl().param;
-}
-
-template <typename T>
-T ProbabilityVector<T>::operator()(size_t row) const {
-  return impl().param[row];
-}
-
-template <typename T>
-T ProbabilityVector<T>::operator()(const std::vector<size_t>& values) const {
-  return impl().param[values[0]];
-}
-
-template <typename T>
-T ProbabilityVector<T>::log(size_t row) const {
-  return std::log(impl().param[row]);
-}
-
-template <typename T>
-T ProbabilityVector<T>::log(const std::vector<size_t>& values) const {
-  return std::log(impl().param[values[0]]);
+  : param_(values.size()) {
+  std::copy(values.begin(), values.end(), param_.data());
 }
 
 template <typename T>
 ProbabilityVector<T> ProbabilityVector<T>::operator*(T x) const {
-  ProbabilityVector result;
-  impl().multiply(x, result);
-  return result;
+  return {param_ * x};
 }
 
 template <typename T>
 ProbabilityVector<T> ProbabilityVector<T>::operator*(const ProbabilityVector& other) const {
-  ProbabilityVector result;
-  impl().multiply(other, result);
-  return result;
+  return {param_ * other.param_};
 }
 
 template <typename T>
 ProbabilityVector<T>& ProbabilityVector<T>::operator*=(T x) {
-  impl().multiply_in(x);
+  param_ *= x;
   return *this;
 }
 
 template <typename T>
 ProbabilityVector<T>& ProbabilityVector<T>::operator*=(const ProbabilityVector& other) {
-  impl().multiply_in(other);
+  param_ *= other.param_;
   return *this;
 }
 
 template <typename T>
 ProbabilityVector<T> ProbabilityVector<T>::operator/(T x) const {
-  ProbabilityVector result;
-  impl().divide(x, result);
-  return result;
+  return {param_ / x};
 }
 
 template <typename T>
 ProbabilityVector<T> ProbabilityVector<T>::divide_inverse(T x) const {
-  ProbabilityVector result;
-  impl().divide_inverse(x, result);
-  return result;
+  return {x / param_};
 }
 
 template <typename T>
 ProbabilityVector<T> ProbabilityVector<T>::operator/(const ProbabilityVector& other) const {
-  ProbabilityVector result;
-  impl().divide(other, result);
-  return result;
+  return {param_ / other.param_};
 }
 
 template <typename T>
 ProbabilityVector<T>& ProbabilityVector<T>::operator/=(T x) {
-  impl().divide_in(x);
+  param_ /= x;
   return *this;
 }
 
 template <typename T>
 ProbabilityVector<T>& ProbabilityVector<T>::operator/=(const ProbabilityVector& other) {
-  impl().divide_in(other);
+  param_ /= other.param_;
   return *this;
 }
 
 template <typename T>
 ProbabilityVector<T> ProbabilityVector<T>::pow(T x) const {
-  ProbabilityVector result;
-  impl().power(x, result);
-  return result;
+  return {param_.pow(x)};
 }
 
 template <typename T>
 ProbabilityVector<T> ProbabilityVector<T>::weighted_update(const ProbabilityVector& other, T x) const {
-  ProbabilityVector result;
-  impl().weighted_update(other, x, result);
-  return result;
+  return {(1 - x) * param_ + x * other.param_};
 }
 
 template <typename T>
 T ProbabilityVector<T>::marginal() const {
-  return impl().marginal();
+  return param_.sum();
 }
 
 template <typename T>
 T ProbabilityVector<T>::maximum(std::vector<size_t>* values) const {
-  return impl().maximum(values);
+  return values ? param_.maxCoeff((values->resize(1), values->data())) : param_.maxCoeff();
 }
 
 template <typename T>
 T ProbabilityVector<T>::minimum(std::vector<size_t>* values) const {
-  return impl().minimum(values);
+  return values ? param_.minCoeff((values->resize(1), values->data())) : param_.minCoeff();
 }
 
 template <typename T>
 void ProbabilityVector<T>::normalize() {
-  impl().normalize();
+  param_ /= marginal();
 }
 
 template <typename T>
 T ProbabilityVector<T>::entropy() const {
-  return impl().entropy();
+  const T* begin = param_.data();
+  const T* end = begin + param_.size();
+  return std::accumulate(begin, end, T(0), [](T acc, T val) {
+    return acc + EntropyOp<T>()(val);
+  });
 }
 
 template <typename T>
 T ProbabilityVector<T>::cross_entropy(const ProbabilityVector& other) const {
-  return impl().cross_entropy(other);
+  assert(param_.size() == other.size());
+  return std::inner_product(param_.data(), param_.data() + param_.size(), other.param_.data(),
+                            T(0), std::plus<T>(), EntropyOp<T>());
 }
 
 template <typename T>
 T ProbabilityVector<T>::kl_divergence(const ProbabilityVector& other) const {
-  return impl().kl_divergence(other);
+  assert(param_.size() == other.size());
+  return std::inner_product(param_.data(), param_.data() + param_.size(), other.param_.data(),
+                            T(0), std::plus<T>(), KldOp<T>());
 }
 
 template <typename T>
 T ProbabilityVector<T>::sum_diff(const ProbabilityVector& other) const {
-  return impl().sum_difference(other);
+  return (param_ - other.param_).abs().sum();
 }
 
 template <typename T>
 T ProbabilityVector<T>::max_diff(const ProbabilityVector& other) const {
-  return impl().max_difference(other);
+  return (param_ - other.param_).abs().maxCoeff();
 }
 
 template <typename T>
 LogarithmicVector<T> ProbabilityVector<T>::logarithmic() const {
-  return param().log();
+  return param_.log();
 }
 
 template <typename T>
 ProbabilityTable<T> ProbabilityVector<T>::table() const {
-  return {{size()}, param().data()};
-}
-
-template <typename T>
-typename ProbabilityVector<T>::Impl& ProbabilityVector<T>::impl() {
-  if (!impl_) {
-    impl_ = std::make_unique<Impl>();
-  }
-  return *impl_;
-}
-
-template <typename T>
-const typename ProbabilityVector<T>::Impl& ProbabilityVector<T>::impl() const {
-  assert(impl_);
-  return *impl_;
+  return {{size()}, param_.data()};
 }
 
 } // namespace libgm

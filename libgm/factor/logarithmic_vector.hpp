@@ -8,10 +8,8 @@
 // #include <libgm/math/random/categorical_distribution.hpp>
 
 #include <cereal/access.hpp>
-#include <cereal/types/memory.hpp>
 
 #include <initializer_list>
-#include <memory>
 
 namespace libgm {
 
@@ -41,19 +39,11 @@ public:
   using value_list = std::vector<size_t>;
   using result_type = Exp<T>;
 
-  /// Implementation class.
-  struct Impl;
-
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
 
   /// Default constructor. Creates an empty factor.
-  LogarithmicVector();
-  LogarithmicVector(const LogarithmicVector& other);
-  LogarithmicVector(LogarithmicVector&& other) noexcept;
-  LogarithmicVector& operator=(const LogarithmicVector& other);
-  LogarithmicVector& operator=(LogarithmicVector&& other) noexcept;
-  ~LogarithmicVector();
+  LogarithmicVector() = default;
 
   /// Constructs a factor with the given length and constant value.
   explicit LogarithmicVector(size_t length, Exp<T> x = Exp<T>(0));
@@ -66,13 +56,11 @@ public:
 
   /// Constructs a factor with the given parameters.
   template <typename DERIVED>
-  LogarithmicVector(const Eigen::DenseBase<DERIVED>& base) : LogarithmicVector() {
-    param() = base;
-  }
+  LogarithmicVector(const Eigen::DenseBase<DERIVED>& base) : param_(base) {}
 
   /// Swaps the content of two LogarithmicVector factors.
   friend void swap(LogarithmicVector& f, LogarithmicVector& g) {
-    std::swap(f.impl_, g.impl_);
+    std::swap(f.param_, g.param_);
   }
 
   // Accessors
@@ -84,13 +72,19 @@ public:
   }
 
   /// Returns the total number of elements of the factor.
-  size_t size() const;
+  size_t size() const {
+    return param_.size();
+  }
 
   /// Provides mutable access to the parameter array of this factor.
-  Eigen::Array<T, Eigen::Dynamic, 1>& param();
+  Eigen::Array<T, Eigen::Dynamic, 1>& param() {
+    return param_;
+  }
 
   /// Returns the parameter array of this factor.
-  const Eigen::Array<T, Eigen::Dynamic, 1>& param() const;
+  const Eigen::Array<T, Eigen::Dynamic, 1>& param() const {
+    return param_;
+  }
 
   /// Returns the value of the factor for the given row.
   Exp<T> operator()(size_t row) const {
@@ -103,10 +97,15 @@ public:
   }
 
   /// Returns the log-value of the factor for the given row.
-  T log(size_t row) const;
+  T log(size_t row) const {
+    return param_[row];
+  }
 
   /// Returns the log-value of the factor for the given index.
-  T log(const std::vector<size_t>& values) const;
+  T log(const std::vector<size_t>& values) const {
+    assert(values.size() == 1);
+    return param_[values[0]];
+  }
 
   // Direct operations
   //--------------------------------------------------------------------------
@@ -174,15 +173,13 @@ public:
 
 private:
   LogarithmicVector divide_inverse(const Exp<T>& x) const;
-  Impl& impl();
-  const Impl& impl() const;
-  std::unique_ptr<Impl> impl_;
+  Eigen::Array<T, Eigen::Dynamic, 1> param_;
 
   friend class cereal::access;
 
   template <typename Archive>
   void serialize(Archive& ar) {
-    ar(impl_);
+    ar(param_);
   }
 
 }; // class LogarithmicVector

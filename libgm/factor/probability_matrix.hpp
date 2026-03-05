@@ -7,10 +7,9 @@
 // #include <libgm/math/random/bivariate_categorical_distribution.hpp>
 
 #include <cereal/access.hpp>
-#include <cereal/types/memory.hpp>
 
 #include <initializer_list>
-#include <memory>
+#include <cmath>
 
 namespace libgm {
 
@@ -40,16 +39,8 @@ public:
   using value_list = std::vector<size_t>;
   using result_type = T;
 
-  /// Implementation class.
-  struct Impl;
-
   /// Default constructor. Creates an empty factor.
-  ProbabilityMatrix();
-  ProbabilityMatrix(const ProbabilityMatrix& other);
-  ProbabilityMatrix(ProbabilityMatrix&& other) noexcept;
-  ProbabilityMatrix& operator=(const ProbabilityMatrix& other);
-  ProbabilityMatrix& operator=(ProbabilityMatrix&& other) noexcept;
-  ~ProbabilityMatrix();
+  ProbabilityMatrix() = default;
 
   /// Constructs a factor with the given shape and constant value.
   explicit ProbabilityMatrix(size_t rows, size_t cols, T x = T(1));
@@ -62,13 +53,11 @@ public:
 
   /// Constructs a factor with the given parameters.
   template <typename DERIVED>
-  ProbabilityMatrix(const Eigen::DenseBase<DERIVED>& base) : ProbabilityMatrix() {
-    param() = base;
-  }
+  ProbabilityMatrix(const Eigen::DenseBase<DERIVED>& base) : param_(base) {}
 
   /// Swaps the content of two ProbabilityMatrix factors.
   friend void swap(ProbabilityMatrix& f, ProbabilityMatrix& g) {
-    std::swap(f.impl_, g.impl_);
+    std::swap(f.param_, g.param_);
   }
 
   // Accessors
@@ -78,29 +67,49 @@ public:
   size_t arity() const { return 2; }
 
   /// Returns the number of rows of the factor.
-  size_t rows() const;
+  size_t rows() const {
+    return param_.rows();
+  }
 
   /// Returns the number of columns of the factor.
-  size_t cols() const;
+  size_t cols() const {
+    return param_.cols();
+  }
 
   /// Returns the total number of elements of the factor.
-  size_t size() const;
+  size_t size() const {
+    return param_.size();
+  }
 
   /// Provides access to the parameter array of this factor.
-  Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic>& param();
-  const Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic>& param() const;
+  Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic>& param() {
+    return param_;
+  }
+  const Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic>& param() const {
+    return param_;
+  }
 
   /// Returns the value of the factor for the given row and column.
-  T operator()(size_t row, size_t col) const;
+  T operator()(size_t row, size_t col) const {
+    return param_(row, col);
+  }
 
   /// Returns the value of the factor for the given index.
-  T operator()(const std::vector<size_t>& values) const;
+  T operator()(const std::vector<size_t>& values) const {
+    assert(values.size() == 2);
+    return param_(values[0], values[1]);
+  }
 
   /// Returns the log-value of the factor for the given row and column.
-  T log(size_t row, size_t col) const;
+  T log(size_t row, size_t col) const {
+    return std::log(param_(row, col));
+  }
 
   /// Returns the log-value of the factor for the given index.
-  T log(const std::vector<size_t>& values) const;
+  T log(const std::vector<size_t>& values) const {
+    assert(values.size() == 2);
+    return std::log(param_(values[0], values[1]));
+  }
 
   // Direct operations
   //--------------------------------------------------------------------------
@@ -207,15 +216,13 @@ public:
 
 private:
   ProbabilityMatrix divide_inverse(T x) const;
-  Impl& impl();
-  const Impl& impl() const;
-  std::unique_ptr<Impl> impl_;
+  Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic> param_;
 
   friend class cereal::access;
 
   template <typename Archive>
   void serialize(Archive& ar) {
-    ar(impl_);
+    ar(param_);
   }
 
 }; // class ProbabilityMatrix

@@ -2,599 +2,244 @@
 
 #include "../logarithmic_matrix.hpp"
 
-#include <libgm/factor/logarithmic_vector.hpp>
 #include <libgm/factor/logarithmic_table.hpp>
+#include <libgm/factor/logarithmic_vector.hpp>
 #include <libgm/factor/probability_matrix.hpp>
-#include <libgm/functional/algorithm.hpp>
 #include <libgm/functional/arithmetic.hpp>
 #include <libgm/functional/entropy.hpp>
 
-#include <iostream>
+#include <algorithm>
 #include <numeric>
 
 namespace libgm {
 
 template <typename T>
-struct LogarithmicMatrix<T>::Impl {
-
-  /// The parameters of the factor, i.e., a matrix of log-probabilities.
-  Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic> param;
-
-  template <typename ARCHIVE>
-  void serialize(ARCHIVE& ar) {
-    ar(param);
-  }
-
-  // Constructors
-  //--------------------------------------------------------------------------
-
-  Impl() = default;
-
-  Impl(size_t rows, size_t cols)
-    : param(rows, cols) {}
-
-  explicit Impl(const Shape& shape) {
-    assert(shape.size() == 2);
-    param.resize(shape[0], shape[1]);
-  }
-
-  explicit Impl(Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic> param)
-    : param(std::move(param)) {}
-
-  // Utility functions
-  //--------------------------------------------------------------------------
-
-  const T* begin() const {
-    return param.data();
-  }
-
-  const T* end() const {
-    return param.data() + param.size();
-  }
-
-  // Object functions
-  //--------------------------------------------------------------------------
-
-  std::unique_ptr<Impl> clone() const {
-    return std::make_unique<Impl>(*this);
-  }
-
-  void print(std::ostream& out) const {
-    out << param;
-  }
-
-  // Direct operations
-  //--------------------------------------------------------------------------
-
-  void multiply(const Exp<T>& x, LogarithmicMatrix& result) const {
-    result.param() = param + x.lv;
-  }
-
-  void divide(const Exp<T>& x, LogarithmicMatrix& result) const {
-    result.param() = param - x.lv;
-  }
-
-  void divide_inverse(const Exp<T>& x, LogarithmicMatrix& result) const {
-    result.param() = x.lv - param;
-  }
-
-  void multiply(const LogarithmicMatrix& other, LogarithmicMatrix& result) const {
-    result.param() = param + other.param();
-  }
-
-  void divide(const LogarithmicMatrix& other, LogarithmicMatrix& result) const {
-    result.param() = param - other.param();
-  }
-
-  void multiply_in(const Exp<T>& x) {
-    param.array() += x.lv;
-  }
-
-  void divide_in(const Exp<T>& x) {
-    param.array() -= x.lv;
-  }
-
-  void multiply_in(const LogarithmicMatrix& other) {
-    param += other.param();
-  }
-
-  void divide_in(const LogarithmicMatrix& other){
-    param -= other.param();
-  }
-
-  // Join operations
-  //--------------------------------------------------------------------------
-
-  void multiply_front(const LogarithmicVector<T>& other, LogarithmicMatrix& result) const {
-    result.param() = param.colwise() + other.param();
-  }
-
-  void multiply_back(const LogarithmicVector<T>& other, LogarithmicMatrix& result) const {
-    result.param() = param.rowwise() + other.param().transpose();
-  }
-
-  void divide_front(const LogarithmicVector<T>& other, LogarithmicMatrix& result) const {
-    result.param() = param.colwise() - other.param();
-  }
-
-  void divide_back(const LogarithmicVector<T>& other, LogarithmicMatrix& result) const {
-    result.param() = param.rowwise() - other.param().transpose();
-  }
-
-  void multiply_in_front(const LogarithmicVector<T>& other) {
-    param.colwise() *= other.param();
-  }
-
-  void multiply_in_back(const LogarithmicVector<T>& other) {
-    param.rowwise() *= other.param().transpose();
-  }
-
-  void divide_in_front(const LogarithmicVector<T>& other) {
-    param.colwise() /= other.param();
-  }
-
-  void divide_in_back(const LogarithmicVector<T>& other) {
-    param.rowwise() /= other.param().transpose();
-  }
-
-  // Arithmetic
-  //--------------------------------------------------------------------------
-
-  void power(T x, LogarithmicMatrix& result) const {
-    result.param() = param * x;
-  }
-
-  void weighted_update(const LogarithmicMatrix& other, T x, LogarithmicMatrix& result) const {
-    result.param() = param * (1 - x) + other.param() * x;
-  }
-
-  // Aggregates
-  //--------------------------------------------------------------------------
-
-  Exp<T> maximum(std::vector<size_t>* values) const {
-    if (values) {
-      values->resize(2);
-      size_t* data = values->data();
-      return Exp<T>(param.maxCoeff(data, data + 1));
-    } else {
-      return Exp<T>(param.maxCoeff());
-    }
-  }
-
-  Exp<T> minimum(std::vector<size_t>* values) const {
-    if (values) {
-      values->resize(2);
-      size_t* data = values->data();
-      return Exp<T>(param.minCoeff(data, data + 1));
-    } else {
-      return Exp<T>(param.minCoeff());
-    }
-  }
-
-  void maximum_front(unsigned n, LogarithmicVector<T>& result) const {
-    assert(n == 1);
-    result.param() = param.rowwise().maxCoeff();
-  }
-
-  void maximum_back(unsigned n, LogarithmicVector<T>& result) const {
-    assert(n == 1);
-    result.param() = param.colwise().maxCoeff().transpose();
-  }
-
-  void minimum_front(unsigned n, LogarithmicVector<T>& result) const {
-    assert(n == 1);
-    result.param() = param.rowwise().minCoeff();
-  }
-
-  void minimum_back(unsigned n, LogarithmicVector<T>& result) const {
-    assert(n == 1);
-    result.param() = param.colwise().minCoeff().transpose();
-  }
-
-  // Restrictions
-  //--------------------------------------------------------------------------
-
-  void restrict_front(const std::vector<size_t>& values, LogarithmicVector<T>& result) const {
-    result.param() = param.row(values[0]).transpose();
-  }
-
-  void restrict_back(const std::vector<size_t>& values, LogarithmicVector<T>& result) const {
-    result.param() = param.col(values[0]);
-  }
-
-  // Reshaping
-  //--------------------------------------------------------------------------
-
-  void transpose(LogarithmicMatrix& result) const {
-    result.param() = param.transpose();
-  }
-
-  // Entropy and divergences
-  //--------------------------------------------------------------------------
-
-  T entropy() const {
-    return std::accumulate(begin(), end(), T(0), [](T acc, T val) {
-      return acc + EntropyLogOp<T>()(val);
-    });
-  }
-
-  template <typename Op>
-  T transform_sum(const LogarithmicMatrix& other, Op op) const {
-    assert(param.rows() == other.rows() && param.cols() == other.cols());
-    return std::inner_product(begin(), end(), other.impl().begin(), T(0), std::plus<T>(), op);
-  }
-
-  T cross_entropy(const LogarithmicMatrix& other) const {
-    return transform_sum(other, EntropyLogOp<T>());
-  }
-
-  T kl_divergence(const LogarithmicMatrix& other) const {
-    return transform_sum(other, KldLogOp<T>());
-  }
-
-  T sum_difference(const LogarithmicMatrix& other) const {
-    return (param - other.param()).abs().sum();
-  }
-
-  T max_difference(const LogarithmicMatrix& other) const {
-    return (param - other.param()).abs().maxCoeff();
-  }
-
-#if 0
-  // Sampling
-  //--------------------------------------------------------------------------
-
-  /**
-   * Returns a categorical distribution represented by this expression.
-   */
-  BivariateCategoricalDistribution<T> distribution() const {
-    return { param, log_tag() };
-  }
-
-  /**
-   * Draws a random sample from a marginal distribution represented by this
-   * expression.
-   *
-   * \throw std::out_of_range
-   *        may be thrown if the distribution is not normalized
-   */
-  template <typename Generator>
-  std::pair<size_t, size_t> sample(Generator& rng) const {
-    RealType p = std::uniform_real_distribution<RealType>()(rng);
-    return derived().find_if(
-      compose(partial_sum_greater_than<RealType>(p), exponent<RealType>())
-    );
-  }
-
-  /**
-   * Draws a random sample from a marginal distribution represented by this
-   * expression, storing the result in an output vector.
-   *
-   * \throw std::out_of_range
-   *        may be thrown if the distribution is not normalized
-   */
-  template <typename Generator>
-  void sample(Generator& rng, uint_vector& result) const {
-    result.resize(2);
-    std::tie(result.front(), result.back()) = sample(rng);
-  }
-#endif
-
-}; // Impl
-
-template <typename T>
-LogarithmicMatrix<T>::LogarithmicMatrix() = default;
-
-template <typename T>
 LogarithmicMatrix<T>::LogarithmicMatrix(size_t rows, size_t cols, Exp<T> x)
-  : impl_(std::make_unique<Impl>(rows, cols)) {
-  impl().param.fill(x.lv);
+  : param_(rows, cols) {
+  param_.fill(x.lv);
 }
 
 template <typename T>
-LogarithmicMatrix<T>::LogarithmicMatrix(const Shape& shape, Exp<T> x)
-  : impl_(std::make_unique<Impl>(shape)) {
-  impl().param.fill(x.lv);
+LogarithmicMatrix<T>::LogarithmicMatrix(const Shape& shape, Exp<T> x) {
+  assert(shape.size() == 2);
+  param_.resize(shape[0], shape[1]);
+  param_.fill(x.lv);
 }
 
 template <typename T>
 LogarithmicMatrix<T>::LogarithmicMatrix(size_t rows, size_t cols, std::initializer_list<T> values)
-  : impl_(std::make_unique<Impl>(rows, cols)) {
+  : param_(rows, cols) {
   assert(values.size() == rows * cols);
-  std::copy(values.begin(), values.end(), impl().param.data());
-}
-
-template <typename T>
-LogarithmicMatrix<T>::LogarithmicMatrix(const LogarithmicMatrix& other)
-  : impl_(other.impl_ ? other.impl_->clone() : nullptr) {}
-
-template <typename T>
-LogarithmicMatrix<T>::LogarithmicMatrix(LogarithmicMatrix&& other) noexcept = default;
-
-template <typename T>
-LogarithmicMatrix<T>& LogarithmicMatrix<T>::operator=(const LogarithmicMatrix& other) {
-  if (this != &other) {
-    impl_ = other.impl_ ? other.impl_->clone() : nullptr;
-  }
-  return *this;
-}
-
-template <typename T>
-LogarithmicMatrix<T>& LogarithmicMatrix<T>::operator=(LogarithmicMatrix&& other) noexcept = default;
-
-template <typename T>
-LogarithmicMatrix<T>::~LogarithmicMatrix() = default;
-
-template <typename T>
-size_t LogarithmicMatrix<T>::rows() const {
-  return impl().param.rows();
-}
-
-template <typename T>
-size_t LogarithmicMatrix<T>::cols() const {
-  return impl().param.cols();
-}
-
-template <typename T>
-size_t LogarithmicMatrix<T>::size() const {
-  return impl().param.size();
-}
-
-template <typename T>
-Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic>& LogarithmicMatrix<T>::param() {
-  if (!impl_) {
-    impl_.reset(new Impl);
-  }
-  return impl().param;
-}
-
-template <typename T>
-const Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic>& LogarithmicMatrix<T>::param() const {
-  return impl().param;
-}
-
-template <typename T>
-T LogarithmicMatrix<T>::log(size_t row, size_t col) const {
-  return impl().param(row, col);
-}
-
-template <typename T>
-T LogarithmicMatrix<T>::log(const std::vector<size_t>& values) const {
-  assert(values.size() == 2);
-  return impl().param(values[0], values[1]);
+  std::copy(values.begin(), values.end(), param_.data());
 }
 
 template <typename T>
 LogarithmicMatrix<T> LogarithmicMatrix<T>::operator*(const Exp<T>& x) const {
-  LogarithmicMatrix result;
-  impl().multiply(x, result);
-  return result;
+  return {param_ + x.lv};
 }
 
 template <typename T>
 LogarithmicMatrix<T> LogarithmicMatrix<T>::operator*(const LogarithmicMatrix& other) const {
-  LogarithmicMatrix result;
-  impl().multiply(other, result);
-  return result;
+  return {param_ + other.param_};
 }
 
 template <typename T>
 LogarithmicMatrix<T>& LogarithmicMatrix<T>::operator*=(const Exp<T>& x) {
-  impl().multiply_in(x);
+  param_.array() += x.lv;
   return *this;
 }
 
 template <typename T>
 LogarithmicMatrix<T>& LogarithmicMatrix<T>::operator*=(const LogarithmicMatrix& other) {
-  impl().multiply_in(other);
+  param_ += other.param_;
   return *this;
 }
 
 template <typename T>
 LogarithmicMatrix<T> LogarithmicMatrix<T>::operator/(const Exp<T>& x) const {
-  LogarithmicMatrix result;
-  impl().divide(x, result);
-  return result;
+  return {param_ - x.lv};
 }
 
 template <typename T>
 LogarithmicMatrix<T> LogarithmicMatrix<T>::divide_inverse(const Exp<T>& x) const {
-  LogarithmicMatrix result;
-  impl().divide_inverse(x, result);
-  return result;
+  return {x.lv - param_};
 }
 
 template <typename T>
 LogarithmicMatrix<T> LogarithmicMatrix<T>::operator/(const LogarithmicMatrix& other) const {
-  LogarithmicMatrix result;
-  impl().divide(other, result);
-  return result;
+  return {param_ - other.param_};
 }
 
 template <typename T>
 LogarithmicMatrix<T>& LogarithmicMatrix<T>::operator/=(const Exp<T>& x) {
-  impl().divide_in(x);
+  param_.array() -= x.lv;
   return *this;
 }
 
 template <typename T>
 LogarithmicMatrix<T>& LogarithmicMatrix<T>::operator/=(const LogarithmicMatrix& other) {
-  impl().divide_in(other);
+  param_ -= other.param_;
   return *this;
 }
 
 template <typename T>
 LogarithmicMatrix<T> LogarithmicMatrix<T>::multiply_front(const LogarithmicVector<T>& other) const {
-  LogarithmicMatrix result;
-  impl().multiply_front(other, result);
-  return result;
+  return {param_.colwise() + other.param()};
 }
 
 template <typename T>
 LogarithmicMatrix<T> LogarithmicMatrix<T>::multiply_back(const LogarithmicVector<T>& other) const {
-  LogarithmicMatrix result;
-  impl().multiply_back(other, result);
-  return result;
+  return {param_.rowwise() + other.param().transpose()};
 }
 
 template <typename T>
 LogarithmicMatrix<T>& LogarithmicMatrix<T>::multiply_in_front(const LogarithmicVector<T>& other) {
-  impl().multiply_in_front(other);
+  param_.colwise() += other.param();
   return *this;
 }
 
 template <typename T>
 LogarithmicMatrix<T>& LogarithmicMatrix<T>::multiply_in_back(const LogarithmicVector<T>& other) {
-  impl().multiply_in_back(other);
+  param_.rowwise() += other.param().transpose();
   return *this;
 }
 
 template <typename T>
 LogarithmicMatrix<T> LogarithmicMatrix<T>::divide_front(const LogarithmicVector<T>& other) const {
-  LogarithmicMatrix result;
-  impl().divide_front(other, result);
-  return result;
+  return {param_.colwise() - other.param()};
 }
 
 template <typename T>
 LogarithmicMatrix<T> LogarithmicMatrix<T>::divide_back(const LogarithmicVector<T>& other) const {
-  LogarithmicMatrix result;
-  impl().divide_back(other, result);
-  return result;
+  return {param_.rowwise() - other.param().transpose()};
 }
 
 template <typename T>
 LogarithmicMatrix<T>& LogarithmicMatrix<T>::divide_in_front(const LogarithmicVector<T>& other) {
-  impl().divide_in_front(other);
+  param_.colwise() -= other.param();
   return *this;
 }
 
 template <typename T>
 LogarithmicMatrix<T>& LogarithmicMatrix<T>::divide_in_back(const LogarithmicVector<T>& other) {
-  impl().divide_in_back(other);
+  param_.rowwise() -= other.param().transpose();
   return *this;
 }
 
 template <typename T>
 LogarithmicMatrix<T> LogarithmicMatrix<T>::pow(T x) const {
-  LogarithmicMatrix result;
-  impl().power(x, result);
-  return result;
+  return {param_ * x};
 }
 
 template <typename T>
 LogarithmicMatrix<T> LogarithmicMatrix<T>::weighted_update(const LogarithmicMatrix& other, T x) const {
-  LogarithmicMatrix result;
-  impl().weighted_update(other, x, result);
-  return result;
+  return {(1 - x) * param_ + x * other.param_};
 }
 
 template <typename T>
 Exp<T> LogarithmicMatrix<T>::maximum(std::vector<size_t>* values) const {
-  return impl().maximum(values);
+  if (values) {
+    values->resize(2);
+    size_t* data = values->data();
+    return Exp<T>(param_.maxCoeff(data, data + 1));
+  } else {
+    return Exp<T>(param_.maxCoeff());
+  }
 }
 
 template <typename T>
 Exp<T> LogarithmicMatrix<T>::minimum(std::vector<size_t>* values) const {
-  return impl().minimum(values);
+  if (values) {
+    values->resize(2);
+    size_t* data = values->data();
+    return Exp<T>(param_.minCoeff(data, data + 1));
+  } else {
+    return Exp<T>(param_.minCoeff());
+  }
 }
 
 template <typename T>
 LogarithmicVector<T> LogarithmicMatrix<T>::maximum_front(unsigned n) const {
-  LogarithmicVector<T> result;
-  impl().maximum_front(n, result);
-  return result;
+  assert(n == 1);
+  return {param_.rowwise().maxCoeff()};
 }
 
 template <typename T>
 LogarithmicVector<T> LogarithmicMatrix<T>::maximum_back(unsigned n) const {
-  LogarithmicVector<T> result;
-  impl().maximum_back(n, result);
-  return result;
+  assert(n == 1);
+  return {param_.colwise().maxCoeff().transpose()};
 }
 
 template <typename T>
 LogarithmicVector<T> LogarithmicMatrix<T>::minimum_front(unsigned n) const {
-  LogarithmicVector<T> result;
-  impl().minimum_front(n, result);
-  return result;
+  assert(n == 1);
+  return {param_.rowwise().minCoeff()};
 }
 
 template <typename T>
 LogarithmicVector<T> LogarithmicMatrix<T>::minimum_back(unsigned n) const {
-  LogarithmicVector<T> result;
-  impl().minimum_back(n, result);
-  return result;
+  assert(n == 1);
+  return {param_.colwise().minCoeff().transpose()};
 }
 
 template <typename T>
 LogarithmicVector<T> LogarithmicMatrix<T>::restrict_front(const std::vector<size_t>& values) const {
-  LogarithmicVector<T> result;
-  impl().restrict_front(values, result);
-  return result;
+  assert(values.size() == 1);
+  return {param_.row(values[0]).transpose()};
 }
 
 template <typename T>
 LogarithmicVector<T> LogarithmicMatrix<T>::restrict_back(const std::vector<size_t>& values) const {
-  LogarithmicVector<T> result;
-  impl().restrict_back(values, result);
-  return result;
+  assert(values.size() == 1);
+  return {param_.col(values[0])};
 }
 
 template <typename T>
 LogarithmicMatrix<T> LogarithmicMatrix<T>::transpose() const {
-  LogarithmicMatrix result;
-  impl().transpose(result);
-  return result;
+  return {param_.transpose()};
 }
 
 template <typename T>
 T LogarithmicMatrix<T>::entropy() const {
-  return impl().entropy();
+  const T* begin = param_.data();
+  const T* end = begin + param_.size();
+  return std::accumulate(begin, end, T(0), [](T acc, T val) {
+    return acc + EntropyLogOp<T>()(val);
+  });
 }
 
 template <typename T>
 T LogarithmicMatrix<T>::cross_entropy(const LogarithmicMatrix& other) const {
-  return impl().cross_entropy(other);
+  assert(param_.rows() == other.rows() && param_.cols() == other.cols());
+  return std::inner_product(param_.data(), param_.data() + param_.size(), other.param_.data(),
+                            T(0), std::plus<T>(), EntropyLogOp<T>());
 }
 
 template <typename T>
 T LogarithmicMatrix<T>::kl_divergence(const LogarithmicMatrix& other) const {
-  return impl().kl_divergence(other);
+  assert(param_.rows() == other.rows() && param_.cols() == other.cols());
+  return std::inner_product(param_.data(), param_.data() + param_.size(), other.param_.data(),
+                            T(0), std::plus<T>(), KldLogOp<T>());
 }
 
 template <typename T>
 T LogarithmicMatrix<T>::sum_diff(const LogarithmicMatrix& other) const {
-  return impl().sum_difference(other);
+  return (param_ - other.param_).abs().sum();
 }
 
 template <typename T>
 T LogarithmicMatrix<T>::max_diff(const LogarithmicMatrix& other) const {
-  return impl().max_difference(other);
+  return (param_ - other.param_).abs().maxCoeff();
 }
 
 template <typename T>
 ProbabilityMatrix<T> LogarithmicMatrix<T>::probability() const {
-  return param().exp();
+  return {param_.exp()};
 }
 
 template <typename T>
 LogarithmicTable<T> LogarithmicMatrix<T>::table() const {
-  return {{rows(), cols()}, param().data()};
-}
-
-template <typename T>
-typename LogarithmicMatrix<T>::Impl& LogarithmicMatrix<T>::impl() {
-  if (!impl_) {
-    impl_ = std::make_unique<Impl>();
-  }
-  return *impl_;
-}
-
-template <typename T>
-const typename LogarithmicMatrix<T>::Impl& LogarithmicMatrix<T>::impl() const {
-  assert(impl_);
-  return *impl_;
+  return {{rows(), cols()}, param_.data()};
 }
 
 } // namespace libgm

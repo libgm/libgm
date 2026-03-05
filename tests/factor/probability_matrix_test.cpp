@@ -88,7 +88,7 @@ BOOST_AUTO_TEST_CASE(test_indexing_and_ops) {
   BOOST_CHECK_SMALL(max_diff(h, f), 1e-8);
 }
 
-BOOST_AUTO_TEST_CASE(test_join_collapse_restrict) {
+BOOST_AUTO_TEST_CASE(test_join) {
   PMatrix f(2, 3, {1.1, 0.5, 0.1, 0.2, 0.4, 0.0});
   PVector qx({0.4, 0.6});
   PVector qy({0.2, 0.5, 0.3});
@@ -97,11 +97,27 @@ BOOST_AUTO_TEST_CASE(test_join_collapse_restrict) {
   PMatrix fy = f.multiply_back(qy);
   BOOST_CHECK_CLOSE(fx(1, 0), f(1, 0) * qx(1), 1e-8);
   BOOST_CHECK_CLOSE(fy(0, 2), f(0, 2) * qy(2), 1e-8);
+  PMatrix fix = f;
+  fix.multiply_in_front(qx);
+  BOOST_CHECK_SMALL(max_diff(fix, fx), 1e-8);
+  PMatrix fiy = f;
+  fiy.multiply_in_back(qy);
+  BOOST_CHECK_SMALL(max_diff(fiy, fy), 1e-8);
 
   PMatrix dx = f.divide_front(qx);
   PMatrix dy = f.divide_back(qy);
   BOOST_CHECK_CLOSE(dx(1, 1), f(1, 1) / qx(1), 1e-8);
   BOOST_CHECK_CLOSE(dy(0, 1), f(0, 1) / qy(1), 1e-8);
+  PMatrix dix = f;
+  dix.divide_in_front(qx);
+  BOOST_CHECK_SMALL(max_diff(dix, dx), 1e-8);
+  PMatrix diy = f;
+  diy.divide_in_back(qy);
+  BOOST_CHECK_SMALL(max_diff(diy, dy), 1e-8);
+}
+
+BOOST_AUTO_TEST_CASE(test_collapse) {
+  PMatrix f(2, 3, {1.1, 0.5, 0.1, 0.2, 0.4, 0.0});
 
   PVector back = f.marginal_back();
   PVector front = f.marginal_front();
@@ -143,6 +159,10 @@ BOOST_AUTO_TEST_CASE(test_join_collapse_restrict) {
   BOOST_CHECK_CLOSE(nh.param().col(0).sum(), 1.0, 1e-8);
   BOOST_CHECK_CLOSE(nh.param().col(1).sum(), 1.0, 1e-8);
   BOOST_CHECK_CLOSE(nh.param().col(2).sum(), 1.0, 1e-8);
+}
+
+BOOST_AUTO_TEST_CASE(test_restrict) {
+  PMatrix f(2, 3, {1.1, 0.5, 0.1, 0.2, 0.4, 0.0});
 
   PVector rfront = f.restrict_front({1});
   PVector rback = f.restrict_back({2});

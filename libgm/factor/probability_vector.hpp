@@ -5,9 +5,8 @@
 #include <libgm/math/eigen/dense.hpp>
 
 #include <cereal/access.hpp>
-#include <cereal/types/memory.hpp>
 
-#include <memory>
+#include <cmath>
 
 namespace libgm {
 
@@ -37,19 +36,11 @@ public:
   using value_list = std::vector<size_t>;
   using result_type = T;
 
-  // Implementation class
-  struct Impl;
-
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
 public:
   /// Default constructor. Creates an empty factor.
-  ProbabilityVector();
-  ProbabilityVector(const ProbabilityVector& other);
-  ProbabilityVector(ProbabilityVector&& other) noexcept;
-  ProbabilityVector& operator=(const ProbabilityVector& other);
-  ProbabilityVector& operator=(ProbabilityVector&& other) noexcept;
-  ~ProbabilityVector();
+  ProbabilityVector() = default;
 
   /// Constructs a factor with the given length and constant value.
   explicit ProbabilityVector(size_t length, T x = T(1));
@@ -62,13 +53,11 @@ public:
 
   /// Constructs a factor with the given parameters.
   template <typename DERIVED>
-  ProbabilityVector(const Eigen::DenseBase<DERIVED>& base) : ProbabilityVector() {
-    param() = base;
-  }
+  ProbabilityVector(const Eigen::DenseBase<DERIVED>& base) : param_(base) {}
 
   /// Swaps the content of two ProbabilityVector factors.
   friend void swap(ProbabilityVector& f, ProbabilityVector& g) {
-    std::swap(f.impl_, g.impl_);
+    std::swap(f.param_, g.param_);
   }
 
   // Accessors
@@ -80,25 +69,41 @@ public:
   }
 
   /// Returns the total number of elements of the factor.
-  size_t size() const;
+  size_t size() const {
+    return param_.size();
+  }
 
   /// Provides mutable access to the parameter array of this factor.
-  Eigen::Array<T, Eigen::Dynamic, 1>& param();
+  Eigen::Array<T, Eigen::Dynamic, 1>& param() {
+    return param_;
+  }
 
   /// Returns the parameter array of this factor.
-  const Eigen::Array<T, Eigen::Dynamic, 1>& param() const;
+  const Eigen::Array<T, Eigen::Dynamic, 1>& param() const {
+    return param_;
+  }
 
   /// Returns the value of the factor for the given row.
-  T operator()(size_t row) const;
+  T operator()(size_t row) const {
+    return param_[row];
+  }
 
   /// Returns the value of the factor for the given assignment.
-  T operator()(const std::vector<size_t>& values) const;
+  T operator()(const std::vector<size_t>& values) const {
+    assert(values.size() == 1);
+    return param_[values[0]];
+  }
 
   /// Returns the log-value of the factor for the given row.
-  T log(size_t row) const;
+  T log(size_t row) const {
+    return std::log(param_[row]);
+  }
 
   /// Returns the log-value of the factor for the given index.
-  T log(const std::vector<size_t>& values) const;
+  T log(const std::vector<size_t>& values) const {
+    assert(values.size() == 1);
+    return std::log(param_[values[0]]);
+  }
 
   // Direct operations
   //--------------------------------------------------------------------------
@@ -175,15 +180,13 @@ public:
 
 private:
   ProbabilityVector divide_inverse(T x) const;
-  Impl& impl();
-  const Impl& impl() const;
-  std::unique_ptr<Impl> impl_;
+  Eigen::Array<T, Eigen::Dynamic, 1> param_;
 
   friend class cereal::access;
 
   template <typename Archive>
   void serialize(Archive& ar) {
-    ar(impl_);
+    ar(param_);
   }
 
 }; // class ProbabilityVector

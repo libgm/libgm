@@ -8,10 +8,8 @@
 // #include <libgm/math/random/multivariate_categorical_distribution.hpp>
 
 #include <cereal/access.hpp>
-#include <cereal/types/memory.hpp>
 
 #include <initializer_list>
-#include <memory>
 
 namespace libgm {
 
@@ -39,19 +37,11 @@ public:
   using value_list = std::vector<size_t>;
   using result_type = Exp<T>;
 
-  /// Implementation class.
-  struct Impl;
-
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
 
   /// Default constructor. Creates an empty factor.
-  LogarithmicTable();
-  LogarithmicTable(const LogarithmicTable& other);
-  LogarithmicTable(LogarithmicTable&& other) noexcept;
-  LogarithmicTable& operator=(const LogarithmicTable& other);
-  LogarithmicTable& operator=(LogarithmicTable&& other) noexcept;
-  ~LogarithmicTable();
+  LogarithmicTable() = default;
 
   /// Constructs a factor equivalent to a constant.
   explicit LogarithmicTable(Exp<T> value);
@@ -66,36 +56,50 @@ public:
   LogarithmicTable(Shape shape, const T* values);
 
   /// Creates a factor with the specified parameters.
-  LogarithmicTable(Table<T> param);
+  LogarithmicTable(Table<T> param) : param_(std::move(param)) {}
 
   /// Exchanges the content of two factors.
   friend void swap(LogarithmicTable& f, LogarithmicTable& g) {
-    std::swap(f.impl_, g.impl_);
+    std::swap(f.param_, g.param_);
   }
 
   // Accessors
   //--------------------------------------------------------------------------
 
   /// Returns the number of dimensions (guaranteed to be constant-time).
-  size_t arity() const;
+  size_t arity() const {
+    return param_.arity();
+  }
 
   /// Returns the total number of elements of the table.
-  size_t size() const;
+  size_t size() const {
+    return param_.size();
+  }
 
   /// Returns the shape of the underlying table.
-  const Shape& shape() const;
+  const Shape& shape() const {
+    return param_.shape();
+  }
 
   /// Provides mutable access to the parameter table of this factor.
-  Table<T>& param();
+  Table<T>& param() {
+    return param_;
+  }
 
   /// Returns the parameter table of this factor.
-  const Table<T>& param() const;
+  const Table<T>& param() const {
+    return param_;
+  }
 
   /// Returns the value of the expression for the given index.
-  Exp<T> operator()(const std::vector<size_t>& values) const;
+  Exp<T> operator()(const std::vector<size_t>& values) const {
+    return Exp<T>(param_(values));
+  }
 
   /// Returns the log-value of the expression for the given index.
-  T log(const std::vector<size_t>& values) const;
+  T log(const std::vector<size_t>& values) const {
+    return param_(values);
+  }
 
   // Direct operations
   //--------------------------------------------------------------------------
@@ -207,15 +211,13 @@ public:
 
 private:
   LogarithmicTable divide_inverse(const Exp<T>& x) const;
-  Impl& impl();
-  const Impl& impl() const;
-  std::unique_ptr<Impl> impl_;
+  Table<T> param_;
 
   friend class cereal::access;
 
   template <typename Archive>
   void serialize(Archive& ar) {
-    ar(impl_);
+    ar(param_);
   }
 
 }; // class LogarithmicTable
