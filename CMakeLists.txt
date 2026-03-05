@@ -47,3 +47,6 @@ link_libraries(${Boost_LIBRARIES} unordered_dense::unordered_dense)
 
 subdirs(libgm)
 add_library(libgm)
+
+link_libraries(libgm)
+subdirs(tests)

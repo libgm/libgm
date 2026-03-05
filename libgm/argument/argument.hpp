@@ -80,6 +80,10 @@ inline bool operator==(Arg a, Arg b) {
   return a.ptr() == b.ptr();
 }
 
+inline size_t hash_value(Arg arg) noexcept {
+  return std::hash<const Argument*>()(arg.ptr());
+}
+
 /**
  * An unordered set of arguments.
  */
@@ -92,7 +96,7 @@ namespace std {
 template <>
 struct hash<libgm::Arg> {
   size_t operator()(libgm::Arg arg) const noexcept {
-    return std::hash<const libgm::Argument*>()(arg.ptr());
+    return hash_value(arg);
   }
 };
 

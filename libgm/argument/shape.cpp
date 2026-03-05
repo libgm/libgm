@@ -261,10 +261,10 @@ Shape operator+(const Shape& a, const Shape& b) {
 
 Shape join(const Shape& a, const Shape& b, const Dims& i, const Dims& j) {
   // Check that the provided dims are consistent.
-  if (a.size() != i.size()) {
+  if (a.size() != i.count()) {
     throw std::invalid_argument("Shape join: Inconsistent number of left dimensions.");
   }
-  if (b.size() != j.size()) {
+  if (b.size() != j.count()) {
     throw std::invalid_argument("Shape join: Inconsistent number of right dimensions.");
   }
 

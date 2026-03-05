@@ -5,7 +5,7 @@
 #include <libgm/argument/shape.hpp>
 #include <libgm/datastructure/subrange.hpp>
 
-#include <boost/functional/hash.hpp>
+#include <boost/container_hash/hash.hpp>
 
 #include <cereal/types/vector.hpp>
 
@@ -38,10 +38,10 @@ public:
    */
   explicit Domain(const ArgSet& set);
 
-  // /// Returns the hash value of a domain.
-  // friend size_t hash_value(const Domain& dom) {
-  //   return boost::hash_range(dom.begin(), dom.end());
-  // }
+  /// Returns the hash value of a domain.
+  friend size_t hash_value(const Domain& dom) {
+    return boost::hash_range(dom.begin(), dom.end());
+  }
 
   /**
    * Prints the domain to an output stream.

@@ -1,4 +1,4 @@
-project(test)
+project(tests)
 
 if(CYGWIN)
 add_definitions(-DBOOST_TEST_DYN_LINK)
@@ -12,6 +12,7 @@ endif(CMAKE_COMPILER_IS_GNUCXX)
 
 subdirs(
   argument
+#[[
   datastructure
   factor
   graph
@@ -24,4 +25,5 @@ subdirs(
   range
   serialization
   traits
+]]
   )

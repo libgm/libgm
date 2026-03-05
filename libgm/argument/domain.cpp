@@ -138,7 +138,7 @@ Dims Domain::dims(const Domain& args) const {
       ++j;
     }
   }
-  if (j < args.size()) return result;
+  if (j == args.size()) return result;
 
   throw std::invalid_argument("Domain::dims: The specified arguments are not an ordered subset");
 }
