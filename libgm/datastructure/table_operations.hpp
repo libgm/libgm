@@ -172,7 +172,7 @@ void join_front(const Table<T>& a, const Table<T>& b, BinaryOp op, Table<T>& res
 template <typename T, typename BinaryOp>
 void join_back(const Table<T>& a, const Table<T>& b, BinaryOp op, Table<T>& result) {
   assert(a.shape().has_suffix(b.shape()));
-  result(a.shape());
+  result.reset(a.shape());
   auto a_it = a.begin();
   auto dest = result.begin();
   size_t step = a.size() / b.size();
@@ -196,7 +196,7 @@ void join(const Table<T>& a, const Table<T>& b, const Dims& i, const Dims& j, Bi
   auto a_it = a.begin();
   auto b_it = b.begin();
   for (auto dest = result.begin(); dest != result.end(); ++dest) {
-    *dest++ = op(*a_it, *b_it);
+    *dest = op(*a_it, *b_it);
 
     // Advance the source pointers, as given by the highest incremented index position.
     size_t i = index.advance(result.shape());
@@ -237,7 +237,7 @@ void aggregate(const Table<T>& a, const Dims& retain, T init, BinaryOp op, Table
   // Aggregate the values, by iterating over table A sequentially and result "jumpy"
   auto dest = result.begin();
   for (auto it = a.begin(); it != a.end(); ++it) {
-    *dest = op(*dest, *it++);
+    *dest = op(*dest, *it);
 
     // Advance the destination based on the highest incremented index position
     size_t i = index.advance(a.shape());
@@ -275,7 +275,7 @@ void restrict(const Table<T>& a, const Dims& dims, const std::vector<size_t>& va
   // Extract the values, starting from the position of the first value.
   auto it = a.begin() + a.shape().linear(dims, values);
   for (auto dest = result.begin(); dest != result.end(); ++dest) {
-    *dest++ = *it;
+    *dest = *it;
 
     // Advance the source pointer, as given by the highest incremented index position.
     size_t i = index.advance(result.shape());

@@ -39,6 +39,11 @@ struct IntrusiveList {
       return prev.hook || next.hook;
     }
 
+    void reset() {
+      prev.hook = nullptr;
+      next.hook = nullptr;
+    }
+
     ~Hook() {
       if (prev.hook && next.hook) {
         next.hook->prev = prev;
@@ -116,6 +121,26 @@ struct IntrusiveList {
   IntrusiveList()
     : root_hook_{{nullptr, &root_hook_}, {nullptr, &root_hook_}} {}
 
+  IntrusiveList(const IntrusiveList&) = delete;
+  IntrusiveList& operator=(const IntrusiveList&) = delete;
+
+  IntrusiveList(IntrusiveList&& other) noexcept
+    : root_hook_{{nullptr, &root_hook_}, {nullptr, &root_hook_}} {
+    move_from(other);
+  }
+
+  IntrusiveList& operator=(IntrusiveList&& other) noexcept {
+    if (this != &other) {
+      clear();
+      move_from(other);
+    }
+    return *this;
+  }
+
+  ~IntrusiveList() {
+    clear();
+  }
+
   bool empty() const {
     return !root_hook_.next.item;
   }
@@ -162,14 +187,40 @@ struct IntrusiveList {
 
   void erase(T* item, Hook& hook) {
     assert(hook && "The specified hook is not taken");
-    Hook* prev_hook = hook->prev.hook;
-    Hook* next_hook = hook->next.hook;
-    next_hook->prev = hook->prev;
-    prev_hook->next = hook->next;
-    hook->reset();
+    Hook* prev_hook = hook.prev.hook;
+    Hook* next_hook = hook.next.hook;
+    next_hook->prev = hook.prev;
+    prev_hook->next = hook.next;
+    hook.reset();
+  }
+
+  void clear() {
+    Hook* hook = root_hook_.next.hook;
+    while (hook != &root_hook_) {
+      Hook* next = hook->next.hook;
+      hook->reset();
+      hook = next;
+    }
+    root_hook_.prev = {nullptr, &root_hook_};
+    root_hook_.next = {nullptr, &root_hook_};
   }
 
 private:
+  void move_from(IntrusiveList& other) {
+    if (other.empty()) {
+      return;
+    }
+
+    root_hook_.prev = other.root_hook_.prev;
+    root_hook_.next = other.root_hook_.next;
+
+    root_hook_.next.hook->prev = {nullptr, &root_hook_};
+    root_hook_.prev.hook->next = {nullptr, &root_hook_};
+
+    other.root_hook_.prev = {nullptr, &other.root_hook_};
+    other.root_hook_.next = {nullptr, &other.root_hook_};
+  }
+
   Hook root_hook_;
 };
 
