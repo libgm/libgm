@@ -5,6 +5,7 @@ target_sources(
   logarithmic_matrix.cpp
   logarithmic_table.cpp
   logarithmic_vector.cpp
+  moment_gaussian.cpp
   probability_matrix.cpp
   probability_table.cpp
   probability_vector.cpp

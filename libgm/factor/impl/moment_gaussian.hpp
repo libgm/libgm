@@ -1,169 +1,145 @@
-d#include "../moment_gaussian.hpp"
+#include <boost/math/constants/constants.hpp>
+
+#include "../moment_gaussian.hpp"
+#include <libgm/factor/canonical_gaussian.hpp>
+#include <libgm/math/eigen/logdet.hpp>
+#include <libgm/math/eigen/submatrix.hpp>
+#include <libgm/math/eigen/subvector.hpp>
 
 namespace libgm {
 
 template <typename T>
 struct MomentGaussian<T>::Impl {
-  /// The type of the LLT Cholesky decomposition object.
-  using CholeskyType = Eigen::LLT<DenseMatrix<T>>;
-  using VectorType = DenseVector<T>;
-  using MatrixType = DenseMatrix<T>;
-  using ImplPtr = std::unique_ptr<Impl>;
+  /// Helper types
+  using CholeskyType = Eigen::LLT<Matrix<T>>;
+  using SegmentType = decltype(std::declval<const Vector<T>>().head(size_t(0)));
+  using BlockType = decltype(std::declval<const Matrix<T>>().topLeftCorner(size_t(0), size_t(0)));
 
-  /// The shape of the head arguments.
-  Shape head_shape;
-
-  /// The shape of the tail arguments
-  Shape tail_shape;
+  /// The shape of the head + tail arguments.
+  Shape shape;
 
   /// The conditional mean.
-  DenseVector<T> mean;
+  Vector<T> mean;
 
   /// The covariance matrix.
-  DenseMatrix<T> cov;
+  Matrix<T> cov;
 
   /// The coefficient matrix.
-  DenseMatrix<T> coef;
+  Matrix<T> coef;
 
   /// The log-multiplier.
-  T lm;
+  T lm = T(0);
+
+  // Constructors
+  //--------------------------------------------------------------------------
+
+  Impl() = default;
+
+  explicit Impl(Exp<T> value)
+    : lm(value.lv) {}
+
+  explicit Impl(Shape shape)
+    : shape(std::move(shape)) {
+    size_t m = this->shape.sum();
+    mean.resize(m);
+    cov.resize(m, m);
+    coef.resize(m, 0);
+  }
+
+  Impl(Shape shape, Vector<T> mean, Matrix<T> cov, T lm = T(0))
+    : Impl(std::move(shape), mean, std::move(cov), Matrix<T>(mean.size(), 0), lm) {}
+
+  Impl(Shape shape, Vector<T> mean, Matrix<T> cov, Matrix<T> coef, T lm = T(0))
+    : shape(std::move(shape)),
+      mean(std::move(mean)),
+      cov(std::move(cov)),
+      coef(std::move(coef)),
+      lm(lm) {
+    assert(this->mean.size() == this->cov.rows());
+    assert(this->mean.size() == this->cov.cols());
+    assert(this->mean.size() == this->coef.rows());
+    assert(this->mean.size() + this->coef.cols() == this->shape.sum());
+  }
+
+  /// Pre-computed constant.
+  static const T log_two_pi;
+
+  /// Checks if the cholesky decomposition succeeded.
+  static void check(const CholeskyType& chol, const char* method) {
+    if (chol.info() != Eigen::Success) {
+      throw std::runtime_error(
+        "MomentGaussian::" + std::string(method) + ": Cholesky decomposition failed");
+    }
+  }
 
   // Accessors
   //--------------------------------------------------------------------------
 
+  unsigned arity() const {
+    return shape.size();
+  }
+
+  size_t size() const {
+    return head_size() + tail_size();
+  }
+
+  size_t head_size() const {
+    return coef.rows();
+  }
+
+  size_t tail_size() const {
+    return coef.cols();
+  }
+
   bool is_marginal() const {
-    return tail_arity() == 0;
+    return tail_size() == 0;
   }
 
   // Object operations
   //--------------------------------------------------------------------------
 
-  bool equals(const MomentGaussian& other) const {
-    const Impl& x = other.impl();
-    return head_shape == x.head_shape && tail_shape == x.tail_shape &&
-      lm == x.lm && mean == x.mean && cov == x.cov && coef == x.coef;
-  }
-
   void print(std::ostream& out) const {
-   out << head_shape << " " << tail_shape << std::endl
+   out << shape << std::endl
        << mean << std::endl
        << cov << std::endl
        << coef << std::endl
        << lm;
   }
 
-  void save(oarchive& ar) const {
-    ar << head_shape << tail_shape << mean << cov << coef << lm;
-  }
-
-  void load(iarchive& ar) {
-    ar >> head_shape >> tail_shape >> mean >> cov >> coef >> lm;
-  }
-
-  // Direct operations
-  //--------------------------------------------------------------------------
-
-  ImplPtr multiply(const Exp<T>& x) const {
-    return std::make_unique<Impl>(head_shape, tail_shape, mean, cov, coef, lm + log(x));
-  }
-
-  ImplPtr divide(const Exp<T>& x) const {
-    return std::make_unqiue<Impl>(head_shape, tail_shape, mean, cov, coef, lm - log(x));
-  }
-
-  void multiply_in(const Exp<T>& x) {
-    lm += log(x);
-  }
-
-  void divide_in(const Exp<T>& x) {
-    lm -= log(x);
-  }
-
   // Join operations
   //--------------------------------------------------------------------------
-  // Commented out for future work.
-#if 0
-  ImplPtr multiply_head(const MomentGaussian& other) const {
-    assert(0);
+  std::unique_ptr<Impl> multiply_head_tail(const Impl& other) const {
+    size_t m = head_size();
+    size_t n = tail_size();
+    assert(other.head_size() == n);
+    assert(other.tail_size() == 0);
+    auto result = std::make_unique<Impl>(shape);
+    Matrix<T> cov_mn = coef * other.cov;
+    result->mean.tail(n) = other.mean;
+    result->mean.head(m) = mean + coef * other.mean;
+    result->cov.bottomRightCorner(n, n) = other.cov;
+    result->cov.bottomLeftCorner(n, m) = cov_mn.transpose();
+    result->cov.topRightCorner(m, n) = cov_mn;
+    result->cov.topLeftCorner(m, m) = cov_mn * coef.transpose() + cov;
+    result->lm = lm + other.lm;
+    return result;
   }
 
-  ImplPtr multiply_tail(const MomentGaussian& other) const {
-    const Impl& x = impl(other);
-    assert(tail_shape == x.head_shape + y.tail_shape);
-    return {
-      head_shape + x.head_shape,
-      y.tail_shape,
-      ...;
-    }
+  std::unique_ptr<Impl> multiply_dims(const Impl& other, const Dims& i, const Dims& j) const {
+    assert(is_marginal());
+    assert(other.is_marginal());
+    assert((i & j).none() && "MomentGaussian::multiply does not support index overlap");
+    auto result = std::make_unique<Impl>(join(shape, other.shape, i, j));
+    result->cov.setZero();
+    Spans is = result->shape.spans(i);
+    Spans js = result->shape.spans(j);
+    sub(result->mean, is) = mean;
+    sub(result->mean, js) = other.mean;
+    sub(result->cov, is, is) = cov;
+    sub(result->cov, js, js) = other.cov;
+    result->lm = lm + other.lm;
+    return result;
   }
-
-  /**
-   * Multiplies two moment_gaussians when (a range of) the head of one operand
-   * matches (a range of) the tail of the other operand. The ordering of the
-   * operands is specified via the forward flag.
-   */
-  template <typename HeadIt, typename TailIt>
-  friend void multiply_head_tail(const moment_gaussian_param& f,
-                                 const moment_gaussian_param& g,
-                                 index_range<HeadIt> f_head,
-                                 index_range<TailIt> g_tail,
-                                 bool forward,
-                                 moment_gaussian_param& r) {
-    assert(f_head.size() == g_tail.size());
-
-    // compute the positions of the head and tail of f and g in the output
-    std::size_t n = f_head.size();
-    span x(forward ? 0 : g.head_size(), f.head_size());     // head of f
-    span y(forward ? f.head_size() : 0, g.head_size());     // head of g
-    span v(forward ? 0 : g.tail_size() - n, f.tail_size()); // tail of f
-    span w(forward ? f.tail_size() : 0, g.tail_size() - n); // tail of g
-
-    // compute the result
-    r.resize(f.head_size() + g.head_size(),
-             f.tail_size() + g.tail_size() - n);
-    dense_matrix<RealType> coef = subcols(g.coef, g_tail); // used frequently
-    subvec(r.mean, x) = f.mean;
-    subvec(r.mean, y).noalias() = g.mean + coef * subvec(f.mean, f_head);
-    submat(r.cov, x, x) = f.cov;
-    submat(r.cov, x, y).noalias() = subcols(f.cov, f_head) * coef.transpose();
-    submat(r.cov, y, x) = submat(r.cov, x, y).transpose();
-    submat(r.cov, y, y).noalias() =
-      g.cov + coef * submat(f.cov, f_head, f_head) * coef.transpose();
-    submat(r.coef, x, v) = f.coef;
-    submat(r.coef, x, w) = dense_matrix<RealType>::Zero(x.size(), w.size());
-    submat(r.coef, y, v).noalias() = coef * subrows(f.coef, f_head);
-    submat(r.coef, y, w) = subcols(g.coef, complement(g_tail, g.tail_size()));
-    r.lm = f.lm + g.lm;
-  }
-
-  /**
-   * Multiplies two moment_gugaussians when (a range of) the tail of the left
-   * operand matches (a range of) the tail of the right operand.
-   */
-  template <typename TailIt1, typename TailIt2>
-  friend void multiply_tails(const moment_gaussian_param& f,
-                             const moment_gaussian_param& g,
-                             index_range<TailIt1> f_tail,
-                             index_range<TailIt2> g_tail,
-                             moment_gaussian_param& r) {
-    assert(f_tail.size() == g_tail.size());
-    std::size_t n = f_tail.size();
-    r.zero(f.head_size() + g.head_size(),
-           f.tail_size() + g.tail_size() - n);
-    span x(0, f.head_size());
-    span y(f.head_size(), g.head_size());
-    span v(0, f.tail_size());
-    span w(f.tail_size(), g.tail_size() - n);
-    subvec(r.mean, x) = f.mean;
-    subvec(r.mean, y) = g.mean;
-    submat(r.cov, x, x) = f.cov;
-    submat(r.cov, y, y) = g.cov;
-    submat(r.coef, x, v) = f.coef;
-    submat(r.coef, y, f_tail) = subcols(g.coef, g_tail);
-    submat(r.coef, y, w) = subcols(g.coef, complement(g_tail, g.tail_size()));
-    r.lm = f.lm + g.lm;
-  }
-#endif
 
   // Aggregates
   //--------------------------------------------------------------------------
@@ -172,100 +148,161 @@ struct MomentGaussian<T>::Impl {
     return Exp<T>(lm);
   }
 
-  Exp<T> maximum(Values* values) const {
+  T log(const Vector<T>& values) const {
+    size_t m = head_size();
+    size_t n = tail_size();
+    assert(values.size() == m + n);
+    Vector<T> residual = values.head(m) - mean;
+    if (n > 0) {
+      residual.noalias() -= coef * values.tail(n);
+    }
+    CholeskyType chol;
+    chol.compute(cov);
+    check(chol, "log");
+    return lm - (m * log_two_pi + logdet(chol) + residual.dot(chol.solve(residual))) / T(2);
+  }
+
+  Exp<T> maximum(Vector<T>* values) const {
     if (values) *values = mean;
     CholeskyType chol;
-    chol.solve(cov);
+    chol.compute(cov);
     check(chol, "maximum");
     return Exp<T>((-log_two_pi * head_size() - logdet(chol)) / T(2) + lm);
   }
 
-  ImplPtr marginal_front(unsigned n) const {
-    size_t nx = head_shape.prefix_sum(n);
+  std::unique_ptr<Impl> marginal_front(unsigned n) const {
+    assert(is_marginal());
+    assert(n <= head_size());
     return std::make_unique<Impl>(
-      head_shape.prefix(n),
-      tail_shape,
-      mean.head(nx),
-      cov.topLeftCorner(nx, nx),
-      coef.topRows(nx),
+      shape.prefix(n),
+      mean.head(n),
+      cov.topLeftCorner(n, n),
       lm
     );
   }
 
-  ImplPtr marginal_back(unsigned n) const {
-    size_t nx = head_shape.suffix_sum(n);
+  std::unique_ptr<Impl> marginal_back(unsigned n) const {
+    assert(n >= tail_size());
+    unsigned m = n - tail_size();
+    assert(m <= head_size());
     return std::make_unique<Impl>(
-      head_shape.suffix(n),
-      tail_shape,
-      mean.tail(nx),
-      cov.bottomRightCorner(nx, nx),
-      coef.bottomRows(nx),
-      lm,
+      shape.suffix(n),
+      mean.tail(m),
+      cov.bottomRightCorner(n, n),
+      coef.bottomRows(n),
+      lm
     );
   }
 
-  ImplPtr marginal_dims(const Dims& i) const {
-    Spans is = head_shape.spans(i);
+  std::unique_ptr<Impl> marginal_dims(const Dims& i) const {
+    assert(is_marginal());
+    Spans is = shape.spans(i);
     return std::make_unique<Impl>(
-      head_shape.subseq(i),
-      tail_shape,
+      shape.select(i),
       sub(mean, is),
       sub(cov, is, is),
-      sub(coef, is, Span(0, coef.cols())),
-      lm,
+      lm
     );
   }
 
-  ImplPtr maximum_front(unsigned n) const {
+  std::unique_ptr<Impl> maximum_front(unsigned n) const {
     return marginal_to_maximum(marginal_front(n));
   }
 
-  ImplPtr maximum_back(unsigned n) const {
+  std::unique_ptr<Impl> maximum_back(unsigned n) const {
     return marginal_to_maximum(marginal_back(n));
   }
 
-  ImplPtr maximum_dims(const Dims& dims) const {
+  std::unique_ptr<Impl> maximum_dims(const Dims& dims) const {
     return marginal_to_maximum(marginal_dims(dims));
   }
 
-  ImplPtr marginal_to_maximum(ImplPtr impl) const {
-    Impl& result = static_cast<Impl&>(*impl);
-    result.lm += maximum().lv - result.maximum().lv;
-    return std::move(impl);
-  }
-
-  // Normalization
-  //--------------------------------------------------------------------------
-
-  void normalize() {
-    lm = 0;
-  }
-
-  void normalize(unsigned nhead) {
-
+  std::unique_ptr<Impl> marginal_to_maximum(std::unique_ptr<Impl> result) const {
+    result->lm += maximum(nullptr).lv - result->maximum(nullptr).lv;
+    return result;
   }
 
   // Restriction
   //--------------------------------------------------------------------------
 
-  ImplPtr restrict_head(const Values& values) const {
-    return restrict_head_tail(0, n)(a);
+  /// Implements the restrict operation for marginals
+  template <typename MAT, typename VEC>
+  struct RestrictMarginal {
+    Shape shape;
+    // retained: x, restricted head: y
+    VEC mean_x, mean_y;
+    MAT cov_xx, cov_xy, cov_yy;
+    T lm;
+
+    std::unique_ptr<Impl> operator()(const Vector<T>& values) {
+      // compute sol_yx = cov_yy^{-1} cov_yx using Cholesky decomposition
+      Matrix<T> sol_yx = cov_xy.transpose();
+      CholeskyType chol_yy;
+      chol_yy.compute(cov_yy);
+      check(chol_yy, "restrict");
+      if (mean_y.size() != 0) {
+        chol_yy.solveInPlace(sol_yx);
+      }
+
+      // compute the residual over y (observation vec_y - the prediction)
+      Vector<T> res_y = values - mean_y;
+
+      // compute the output
+      auto r = std::make_unique<Impl>();
+      r->shape = std::move(shape);
+      r->mean = mean_x + sol_yx.transpose() * res_y;
+      r->cov = cov_xx - cov_xy * sol_yx;
+      r->lm = lm - (mean_y.size() * log_two_pi + logdet(chol_yy) + res_y.dot(chol_yy.solve(res_y))) / T(2);
+      r->coef.resize(r->mean.size(), 0);
+      return r;
+    }
+  };
+
+  std::unique_ptr<Impl> restrict_front(const Vector<T>& values) const {
+    assert(is_marginal() && values.size() <= head_size());
+    size_t m = values.size();
+    size_t n = head_size() - m;
+    unsigned new_arity = arity() - shape.prefix_size(m);
+    return RestrictMarginal<BlockType, SegmentType>{
+      shape.suffix(new_arity),
+      mean.tail(n),
+      mean.head(m),
+      cov.bottomRightCorner(n, n),
+      cov.bottomLeftCorner(n, m),
+      cov.topLeftCorner(m, m),
+      lm,
+    }(values);
   }
 
-  ImplPtr restrict_tail(const Values& values) const {
-    if (n <= tail_arity()) {
-      return restrict_tail_only(n)(a);
-    } else {
-      return restrict_head_tail(arity() - n, n)(a);
-    }
+  std::unique_ptr<Impl> restrict_back(const Vector<T>& values) const {
+    assert(is_marginal() && values.size() <= head_size());
+    size_t m = head_size() - values.size();
+    size_t n = values.size();
+    unsigned new_arity = arity() - shape.suffix_size(n);
+    return RestrictMarginal<BlockType, SegmentType>{
+      shape.prefix(new_arity),
+      mean.head(m),
+      mean.tail(n),
+      cov.topLeftCorner(m, m),
+      cov.topRightCorner(m, n),
+      cov.bottomRightCorner(n, n),
+      lm,
+    }(values);
   }
 
-  ImplPtr restrict_dims(const Dims& dims, const Values& values) const {
-    if (i.subset_of(head_arity(), tail_arity())) {
-      return restrict_tail_only(i)(a);
-    } else {
-      return restrict_head_tail(i)(a);
-    }
+  std::unique_ptr<Impl> restrict_dims(const Dims& i, const Vector<T>& values) const {
+    assert(is_marginal());
+    Spans is = shape.spans(i);
+    Spans js = shape.spans(~i, /*ignore_out_of_range=*/true);
+    return RestrictMarginal<Matrix<T>, Vector<T>>{
+      shape.omit(i),
+      sub(mean, js),
+      sub(mean, is),
+      sub(cov, js, js),
+      sub(cov, js, is),
+      sub(cov, is, is),
+      lm,
+    }(values);
   }
 
   // Entropy and divergences
@@ -282,11 +319,11 @@ struct MomentGaussian<T>::Impl {
     const Impl& p = *this;
     const Impl& q = other.impl();
     assert(p.is_marginal() && q.is_marginal());
-    assert(p.head_shape == q.head_shape);
+    assert(p.shape == q.shape);
     unsigned m = p.head_size();
     CholeskyType chol_p(p.cov);
-    CholeskyTpye chol_q(q.cov);
-    auto identity = MatrixType::Identity(m, m);
+    CholeskyType chol_q(q.cov);
+    auto identity = Matrix<T>::Identity(m, m);
     T trace = (p.cov.array() * chol_q.solve(identity).array()).sum();
     T means = (p.mean - q.mean).transpose() * chol_q.solve(p.mean - q.mean);
     T logdets = -logdet(chol_p) + logdet(chol_q);
@@ -301,96 +338,30 @@ struct MomentGaussian<T>::Impl {
     return std::max({diff_mean, diff_cov, diff_coef});
   }
 
-  // Utility classes
+  // Conversion
   //--------------------------------------------------------------------------
 
-  /// Implements the restrict operation for restricting tail only.
-  template <typename MAT>
-  struct RestrictTailOnly {
-    const VectorType& mean;
-    const MatrixType& cov;
-    MAT coef_x, coef_y; // retained tail x, restricted tail y
-    T lm;
+  CanonicalGaussian<T> canonical() const {
+    CholeskyType chol(cov);
+    check(chol, "CanonicalGaussian: Cannot invert the covariance matrix.");
+    Matrix<T> sol_xy = chol.solve(coef);
 
-    ImplPtr operator()(const Values& values) const {
-      auto r = std::make_unique<Impl>();
-      r->mean = mean + coef_y * values;
-      r->coef = std::move(coef_x);
-      r->cov = cov;
-      r->lm = lm;
-      return r;
-    }
-  };
+    size_t m = head_size();
+    size_t n = tail_size();
+    size_t s = m + n;
 
-  /// Implements the restrict operation for restricting head and (optionally) tail.
-  template <typename MAT, typename VEC>
-  struct RestrictHeadTail {
-    // retained: x, restricted head: y, restricted tail: t
-    VEC mean_x, mean_y;
-    MAT cov_yy, cov_yx, cov_xx;
-    MAT coef_y, coef_x;
-    T lm;
+    Vector<T> eta(s);
+    eta.head(m) = chol.solve(mean);
+    eta.tail(n).noalias() = -sol_xy.transpose() * mean;
 
-    ImplPtr operator()(const Assignment& a) {
-      auto values = a.vector<T>(0);
-      auto vals_y = values.head(mean_y.size());
-      auto vals_tail = values.tail(...);
-      // compute sol_yx = cov_yy^{-1} cov_yx using Cholesky decomposition
-      CholeskyType chol_yy;
-      chol_yy.compute(ws.cov_yy);
-      if (chol_yy.info() != Eigen::Success) {
-        throw numerical_error(
-          "moment_gaussian restrict: Cholesky decomposition failed"
-        );
-      }
-      if (!y.empty()) {
-        ws.chol_yy.solveInPlace(ws.sol_yx);
-      }
+    Matrix<T> lambda(s, s);
+    lambda.topLeftCorner(m, m) = chol.solve(Matrix<T>::Identity(m, m));
+    lambda.topRightCorner(m, n) = -sol_xy;
+    lambda.bottomLeftCorner(n, m) = -sol_xy.transpose();
+    lambda.bottomRightCorner(n, n).noalias() = coef.transpose() * sol_xy;
 
-      // compute the residual over y (observation vec_y - the prediction)
-      VectorType res_y = vals_y - mean_y;
-      if (!is_marginal()) {
-        res_y.noalias() -= coef_y * vals_tail;
-      }
-
-      // compute the output
-      auto r = std::make_unique<Impl>();
-      r->mean = mean_x + sol_yx.transpose() * res_y;
-      if (!is_marginal()) {
-        r->mean.noalias() += coef_x * vals_tail;
-      }
-      r->cov = cov_xx - cov_xy * sol_yx;
-      r->lm = lm -
-        (mean_y.size() * std::log(two_pi<T>()) + logdet(chol_yy) +
-         res_y.dot(chol_yy.solve(res_y))) / T(2);
-    }
-  };
-
-
-  RestrictTailOnly<MatrixType> restrict_tail_only(const Dims& i) const {
-    return {mean, cov, cols(coef, j), cols(coef, i), lm};
-  }
-
-  RestrictTailOnly<BlockType> restrict_tail_only(unsigned n) const {
-   return {mean, cov, coef.lefCols(tail_size() - n, n), coef.rightCols(n), lm};
-  }
-
-  RestrictHeadTail<MatrixType, VectorType> restrict_head_tail(const Dims& i) const {
-    Dims j = exclude(i);
-    return {
-      sub(mean, i),
-      sub(mean, y),
-      sub(cov, y, y),
-      sub(cov, y, x),
-      sub(cov, x, x),
-      rows(coef, y),
-      rows(coef, x),
-      lm
-    };
-  }
-
-  RestrictHeadTail<BlockType, SegmentType> restrict_head_tail(unsigend start, unsigned n) {
-
+    double lv = lm - (m * log_two_pi + logdet(chol) + eta.segment(0, m).dot(mean)) / T(2);
+    return CanonicalGaussian<T>(shape, std::move(eta), std::move(lambda), lv);
   }
 };
 
@@ -416,7 +387,187 @@ template <typename T>
 MomentGaussian<T>::~MomentGaussian() = default;
 
 template <typename T>
-typename MomentGaussian<T>::Impl& MomentGaussian<T>::impl() {
+MomentGaussian<T>::MomentGaussian(std::unique_ptr<Impl> impl)
+  : impl_(std::move(impl)) {}
+
+template <typename T>
+MomentGaussian<T>::MomentGaussian(Exp<T> value)
+  : impl_(std::make_unique<Impl>(value)) {}
+
+template <typename T>
+MomentGaussian<T>::MomentGaussian(Shape shape)
+  : impl_(std::make_unique<Impl>(std::move(shape))) {
+  impl().mean.setZero();
+  impl().cov.setIdentity();
+  impl().lm = T(0);
+}
+
+template <typename T>
+MomentGaussian<T>::MomentGaussian(Shape shape, Vector<T> mean, Matrix<T> cov, T lm)
+  : impl_(std::make_unique<Impl>(std::move(shape), std::move(mean), std::move(cov), lm)) {}
+
+template <typename T>
+MomentGaussian<T>::MomentGaussian(Shape shape, Vector<T> mean, Matrix<T> cov, Matrix<T> coef, T lm)
+  : impl_(std::make_unique<Impl>(std::move(shape), std::move(mean), std::move(cov), std::move(coef), lm)) {}
+
+template <typename T>
+T MomentGaussian<T>::log_multiplier() const {
+  return impl().lm;
+}
+
+template <typename T>
+unsigned MomentGaussian<T>::arity() const {
+  return impl().arity();
+}
+
+template <typename T>
+const Shape& MomentGaussian<T>::shape() const {
+  return impl().shape;
+}
+
+template <typename T>
+const Vector<T>& MomentGaussian<T>::mean() const {
+  return impl().mean;
+}
+
+template <typename T>
+const Matrix<T>& MomentGaussian<T>::covariance() const {
+  return impl().cov;
+}
+
+template <typename T>
+const Matrix<T>& MomentGaussian<T>::coefficients() const {
+  return impl().coef;
+}
+
+template <typename T>
+Exp<T> MomentGaussian<T>::operator()(const Vector<T>& values) const {
+  return Exp<T>(log(values));
+}
+
+template <typename T>
+T MomentGaussian<T>::log(const Vector<T>& values) const {
+  return impl().log(values);
+}
+
+template <typename T>
+MomentGaussian<T> MomentGaussian<T>::operator*(Exp<T> x) const {
+  MomentGaussian result(*this);
+  result.impl().lm += x.lv;
+  return result;
+}
+
+template <typename T>
+MomentGaussian<T>& MomentGaussian<T>::operator*=(Exp<T> x) {
+  impl().lm += x.lv;
+  return *this;
+}
+
+template <typename T>
+MomentGaussian<T> MomentGaussian<T>::operator/(Exp<T> x) const {
+  MomentGaussian result(*this);
+  result.impl().lm -= x.lv;
+  return result;
+}
+
+template <typename T>
+MomentGaussian<T>& MomentGaussian<T>::operator/=(Exp<T> x) {
+  impl().lm -= x.lv;
+  return *this;
+}
+
+template <typename T>
+MomentGaussian<T> MomentGaussian<T>::multiply_front(const MomentGaussian& other) {
+  return MomentGaussian(other.impl().multiply_head_tail(impl()));
+}
+
+template <typename T>
+MomentGaussian<T> MomentGaussian<T>::multiply_back(const MomentGaussian& other) {
+  return MomentGaussian(impl().multiply_head_tail(other.impl()));
+}
+
+template <typename T>
+MomentGaussian<T> MomentGaussian<T>::multiply(const MomentGaussian& other, const Dims& i, const Dims& j) const {
+  return MomentGaussian(impl().multiply_dims(other.impl(), i, j));
+}
+
+template <typename T>
+Exp<T> MomentGaussian<T>::marginal() const {
+  return impl().marginal();
+}
+
+template <typename T>
+Exp<T> MomentGaussian<T>::maximum(Vector<T>* values) const {
+  return impl().maximum(values);
+}
+
+template <typename T>
+MomentGaussian<T> MomentGaussian<T>::marginal_front(unsigned n) const {
+  return MomentGaussian(impl().marginal_front(n));
+}
+
+template <typename T>
+MomentGaussian<T> MomentGaussian<T>::marginal_back(unsigned n) const {
+  return MomentGaussian(impl().marginal_back(n));
+}
+
+template <typename T>
+MomentGaussian<T> MomentGaussian<T>::marginal_dims(const Dims& dims) const {
+  return MomentGaussian(impl().marginal_dims(dims));
+}
+
+template <typename T>
+MomentGaussian<T> MomentGaussian<T>::maximum_front(unsigned n) const {
+  return MomentGaussian(impl().maximum_front(n));
+}
+
+template <typename T>
+MomentGaussian<T> MomentGaussian<T>::maximum_back(unsigned n) const {
+  return MomentGaussian(impl().maximum_back(n));
+}
+
+template <typename T>
+MomentGaussian<T> MomentGaussian<T>::maximum_dims(const Dims& dims) const {
+  return MomentGaussian(impl().maximum_dims(dims));
+}
+
+template <typename T>
+void MomentGaussian<T>::normalize() {
+  impl().lm = T(0);
+}
+
+template <typename T>
+MomentGaussian<T> MomentGaussian<T>::restrict_front(const Vector<T>& values) const {
+  return MomentGaussian(impl().restrict_front(values));
+}
+
+template <typename T>
+MomentGaussian<T> MomentGaussian<T>::restrict_back(const Vector<T>& values) const {
+  return MomentGaussian(impl().restrict_back(values));
+}
+
+template <typename T>
+MomentGaussian<T> MomentGaussian<T>::restrict_dims(const Dims& dims, const Vector<T>& values) const {
+  return MomentGaussian(impl().restrict_dims(dims, values));
+}
+
+template <typename T>
+T MomentGaussian<T>::entropy() const {
+  return impl().entropy();
+}
+
+template <typename T>
+T MomentGaussian<T>::kl_divergence(const MomentGaussian& other) const {
+  return impl().kl_divergence(other);
+}
+
+template <typename T>
+CanonicalGaussian<T> MomentGaussian<T>::canonical() const {
+  return impl().canonical();
+}
+
+template <typename T>
+MomentGaussian<T>::Impl& MomentGaussian<T>::impl() {
   if (!impl_) {
     impl_ = std::make_unique<Impl>();
   }
@@ -429,98 +580,7 @@ const typename MomentGaussian<T>::Impl& MomentGaussian<T>::impl() const {
   return *impl_;
 }
 
-// TODO: Integrate the following functions into the Impl class.
-//
-//   auto values = a.vector<T>(0);
-//   size_t m = tail_arity();
-//   if (n < m) {
-//     auto r = std::make_unique<Impl>();
-//     return r;
-//   } else {
-//     return restrict_tail(values);
-//   }
-//
-// ImplPtr restrict_tail
-//     r->mean = mean + coef * values.tail(m);
-//     r->coef = MatrixType(mean.size(), 0);
-//     r->cov = cov;
-//     r->lm = lm;
-//
-// /// Assigns a constant to this factor.
-// moment_gaussian& operator=(logarithmic<RealType> x) {
-//   reset(0);
-//   param_.lm = log(x);
-//   return *this;
-// }
-//
-// /// Serializes the factor to an archive.
-// void save(oarchive& ar) const override {
-//   ar << param_;
-// }
-//
-// /// Deserializes the factor from an archive.
-// void load(iarchive& ar) override {
-//   ar >> param_;
-// }
-//
-// /// Returns the dimensionality of the parameters for the given domain.
-// template <typename Arg>
-// static std::size_t shape(const domain<Arg>& dom) {
-//   return dom.num_dimensions();
-// }
-//
-// void canonical() {
-//   CholeskyType chol(mg.covariance());
-//   if (chol.info() != Eigen::Success) {
-//     throw numerical_error(
-//       "CanonicalGaussian: Cannot invert the covariance matrix. "
-//       "Are you passing in a non-singular moment Gaussian distribution?"
-//     );
-//   }
-//   MatrixType sol_xy = chol.solve(mg.coefficients());
-//
-//   size_t m = mg.head_size();
-//   size_t n = mg.tail_size();
-//   resize(m + n);
-//
-//   eta.segment(0, m) = chol.solve(mg.mean());
-//   eta.segment(m, n).noalias() = -sol_xy.transpose() * mg.mean();
-//
-//   lambda.block(0, 0, m, m) = chol.solve(MatrixType::Identity(m, m));
-//   lambda.block(0, m, m, n) = -sol_xy;
-//   lambda.block(m, 0, n, m) = -sol_xy.transpose();
-//   lambda.block(m, m, n, n).noalias() = mg.coef.transpose() * sol_xy;
-//
-//   lm = mg.lm - (m * std::log(two_pi<T>()) + logdet(chol)
-//                 + eta.segment(0, m).dot(mg.mean())) / T(2);
-// }
-//
-// T log_multiplier() const {
-//   return param_.lm;
-// }
-//
-// const Vector<T>& mean() const {
-//   return param_.mean;
-// }
-//
-// const Matrix<T>& covariance() const {
-//   return param_.cov;
-// }
-//
-// const Matrix<T>& coefficients() const {
-//   return param_.coef;
-// }
-//
-// Exp<T> operator()(const Vector<T>& v) const {
-//   return Exp<T>(log(v));
-// }
-//
-// T log(const Vector<T>& v) const {
-//   return param_(v);
-// }
-//
-// void normalize() {
-//   param_.lm = RealType(0);
-// }
+template <typename T>
+const T MomentGaussian<T>::Impl::log_two_pi = std::log(boost::math::constants::two_pi<T>());
 
 } // namespace libgm

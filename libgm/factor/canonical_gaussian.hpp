@@ -39,10 +39,10 @@ public:
   CanonicalGaussian() = default;
 
   CanonicalGaussian(const CanonicalGaussian& other);
-  CanonicalGaussian(CanonicalGaussian&& other) noexcept = default;
+  CanonicalGaussian(CanonicalGaussian&& other) noexcept;
   CanonicalGaussian& operator=(const CanonicalGaussian& other);
-  CanonicalGaussian& operator=(CanonicalGaussian&& other) noexcept = default;
-  ~CanonicalGaussian() = default;
+  CanonicalGaussian& operator=(CanonicalGaussian&& other) noexcept;
+  ~CanonicalGaussian();
 
   /// Constructs a canonical Gaussian factor equivalent to a constant.
   explicit CanonicalGaussian(Exp<T> value);
@@ -75,6 +75,9 @@ public:
 
   /// Returns the shape of the factor.
   const Shape& shape() const;
+
+  /// Returns the length of the information vector.
+  size_t size() const;
 
   /// Returns the log multiplier.
   T log_multiplier() const;

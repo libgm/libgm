@@ -7,7 +7,7 @@ add_executable(logarithmic_vector logarithmic_vector_test.cpp)
 add_executable(probability_matrix probability_matrix_test.cpp)
 add_executable(logarithmic_matrix logarithmic_matrix_test.cpp)
 #
-#add_executable(moment_gaussian moment_gaussian.cpp)
+add_executable(moment_gaussian moment_gaussian_test.cpp)
 add_executable(canonical_gaussian canonical_gaussian_test.cpp)
 #
 #add_executable(softmax softmax.cpp)
@@ -21,7 +21,7 @@ add_test(logarithmic_vector logarithmic_vector)
 add_test(probability_matrix probability_matrix)
 add_test(logarithmic_matrix logarithmic_matrix)
 #
-#add_test(moment_gaussian moment_gaussian)
+add_test(moment_gaussian moment_gaussian)
 add_test(canonical_gaussian canonical_gaussian)
 #
 #add_test(softmax softmax)

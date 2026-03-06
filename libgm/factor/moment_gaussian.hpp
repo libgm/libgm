@@ -40,8 +40,6 @@ public:
   using value_type = T;
   using value_list = Vector<T>;
   using result_type = Exp<T>;
-  // using mle_type = MomentGaussianMLE<T>;
-  // using ll_type = MomentGaussianLL<T>;
 
   struct Impl;
 
@@ -57,19 +55,25 @@ public:
   /// Constructs a factor equivalent to a constant.
   explicit MomentGaussian(Exp<T> value);
 
-  /// Constructs a moment Gaussian from the specified canonical Gaussian.
-  explicit MomentGaussian(const CanonicalGaussian<T>& cg, unsigned tail = 0);
+  /// Constructs a marginal zero-mean, identity-covariance Gaussian with given shape.
+  explicit MomentGaussian(Shape shape);
 
-  /// Constructs a factor representing a marginal moment_gaussian
+  /// Constructs a factor representing a marginal Gaussian distribution
   /// with the specified mean vector and covariance matrix.
-  MomentGaussian(const Shape& shape_head, Vector<T> mean, Matrix<T> cov, T lm = 0);
+  MomentGaussian(Shape shape, Vector<T> mean, Matrix<T> cov, T lm = 0);
 
-  /// Constructs a factor representing a conditional moment_gaussian
+  /// Constructs a factor representing a conditional Gaussian distribution
   /// with the specified mean vector, covariance matrix, and coefficients.
-  MomentGaussian(const Shape& shape_head, const Shape& shape_tail, Vector<T> mean, Matrix<T> cov, Matrix<T> coef, T lm = 0);
+  MomentGaussian(Shape shape, Vector<T> mean, Matrix<T> cov, Matrix<T> coef, T lm = 0);
 
-  // Accessors (these need to be cleaned up)
+  // Accessors
   //--------------------------------------------------------------------------
+
+  /// Returns the number of arguments.
+  unsigned arity() const;
+
+  /// Returns the argument shape.
+  const Shape& shape() const;
 
   /// Returns the log multiplier.
   T log_multiplier() const;
@@ -92,24 +96,21 @@ public:
   // Direct operations
   //--------------------------------------------------------------------------
 
-  MomentGaussian operator*(const Exp<T>& x) const;
-  MomentGaussian operator*(const MomentGaussian& other) const;
-  MomentGaussian& operator*=(const Exp<T>& x);
+  MomentGaussian operator*(Exp<T> x) const;
+  MomentGaussian& operator*=(Exp<T> x);
 
-  MomentGaussian operator/(const Exp<T>& x) const;
-  MomentGaussian& operator/=(const Exp<T>& x);
+  MomentGaussian operator/(Exp<T> x) const;
+  MomentGaussian& operator/=(Exp<T> x);
 
   friend MomentGaussian operator*(const Exp<T>& x, const MomentGaussian& y) {
     return y * x;
   }
 
-  friend MomentGaussian operator/(const Exp<T>& x, const MomentGaussian& y) {
-    return y.divide_inverse(x);
-  }
-
   // Join operations
   //--------------------------------------------------------------------------
 
+  MomentGaussian multiply_front(const MomentGaussian& other);
+  MomentGaussian multiply_back(const MomentGaussian& other);
   MomentGaussian multiply(const MomentGaussian& other, const Dims& i, const Dims& j) const;
 
   friend MomentGaussian multiply(const MomentGaussian& a, const MomentGaussian& b, const Dims& i, const Dims& j) {
@@ -121,12 +122,17 @@ public:
 
   Exp<T> marginal() const;
   Exp<T> maximum(Vector<T>* values = nullptr) const;
+  MomentGaussian marginal_front(unsigned n) const;
+  MomentGaussian marginal_back(unsigned n) const;
+  MomentGaussian marginal_dims(const Dims& dims) const;
+  MomentGaussian maximum_front(unsigned n) const;
+  MomentGaussian maximum_back(unsigned n) const;
+  MomentGaussian maximum_dims(const Dims& dims) const;
 
   // Normalization
   //--------------------------------------------------------------------------
 
   void normalize();
-  void normalize_head(unsigned nhead);
 
   // Restriction
   //--------------------------------------------------------------------------
@@ -141,11 +147,16 @@ public:
   T entropy() const;
   T kl_divergence(const MomentGaussian& other) const;
 
+  // Conversions
+  //--------------------------------------------------------------------------
+
+  CanonicalGaussian<T> canonical() const;
+
 private:
-  MomentGaussian divide_inverse(const Exp<T>& x) const;
+  explicit MomentGaussian(std::unique_ptr<Impl> impl);
+
   Impl& impl();
   const Impl& impl() const;
-
   std::unique_ptr<Impl> impl_;
 
   friend class cereal::access;

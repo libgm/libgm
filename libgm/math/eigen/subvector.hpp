@@ -39,7 +39,7 @@ public:
 
   /// Returns the number of elements of this view.
   std::ptrdiff_t size() const {
-    return spans_.size();
+    return spans_.sum();
   }
 
   /// Evaluates this subvector to a vector-like object.

@@ -14,7 +14,7 @@
 namespace libgm {
 
 /**
- * A vector of sizes.
+ * The shape of a tensor or partitioning of a vector.
  */
 class Shape : public std::vector<size_t> {
 public:
@@ -30,10 +30,10 @@ public:
   /// Returns true if this shape matches another shape at the given dimensions of this shape.
   bool has_select(const Dims& dims, const Shape& other) const;
 
-  /// Returns the prefix of the shape.
+  /// Returns the prefix of the shape for the given number of dimensions.
   Shape prefix(unsigned n) const;
 
-  /// Returns the suffix of the shape.
+  /// Returns the suffix of the shape for the given number of dimensions.
   Shape suffix(unsigned n) const;
 
   /// Returns a subsequence of the shape for the given dimensions.
@@ -47,6 +47,16 @@ public:
 
   /// Returns the sum of the suffix of the shape.
   size_t suffix_sum(unsigned n) const;
+
+  /// Returns the number of prefix elements, whose sum equals the given length.
+  /// This can be thought of as the inverse of prefix_sum.
+  /// \throw std::invalid_argument if there is no exact match
+  unsigned prefix_size(size_t length) const;
+
+  /// Returns the number of suffix elements, whose sum equals the given length.
+  /// This can be thought of as the inverse of suffix_sum.
+  /// \throw std::invalid_argument if there is no exact match
+  unsigned suffix_size(size_t length) const;
 
   /// Returns the sum of all elements in the shape.
   size_t sum() const;

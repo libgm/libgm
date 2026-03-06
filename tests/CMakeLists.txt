@@ -15,13 +15,13 @@ subdirs(
   assignment
   datastructure
   factor
+  math
 #[[
   factor
   graph
   inference
   learning
   model
-  math
   optimization
   parser
   range

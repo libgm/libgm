@@ -151,26 +151,6 @@ struct CanonicalGaussian<T>::Impl {
   // Join operations
   //--------------------------------------------------------------------------
 
-  void multiply_front(const CanonicalGaussian& other, CanonicalGaussian& result) const {
-    result.reset(clone());
-    result.multiply_in_front(other);
-  }
-
-  void multiply_back(const CanonicalGaussian& other, CanonicalGaussian& result) const {
-    result.reset(clone());
-    result.multiply_in_back(other);
-  }
-
-  void divide_front(const CanonicalGaussian& other, CanonicalGaussian& result) const {
-    result.reset(clone());
-    result.divide_in_front(other);
-  }
-
-  void divide_back(const CanonicalGaussian& other, CanonicalGaussian& result) const {
-    result.reset(clone());
-    result.divide_in_back(other);
-  }
-
   void multiply_dims(const CanonicalGaussian& other, const Dims& i, const Dims& j, CanonicalGaussian& result) const {
     result.reset(join(shape, other.shape(), i, j));
     const Impl& x = other.impl();
@@ -285,30 +265,6 @@ struct CanonicalGaussian<T>::Impl {
     return Exp<T>(lm + eta.dot(vec) / T(2));
   }
 
-  void marginal_front(unsigned n, CanonicalGaussian& result) const {
-    reduce_front(n).marginal(result);
-  }
-
-  void marginal_back(unsigned n, CanonicalGaussian& result) const {
-    reduce_back(n).marginal(result);
-  }
-
-  void marginal_dims(const Dims& dims, CanonicalGaussian& result) const {
-    reduce(dims).marginal(result);
-  }
-
-  void maximum_front(unsigned n, CanonicalGaussian& result) const {
-    reduce_front(n).maximum(result);
-  }
-
-  void maximum_back(unsigned n, CanonicalGaussian& result) const {
-    reduce_back(n).maximum(result);
-  }
-
-  void maximum_dims(const Dims& dims, CanonicalGaussian& result) const {
-    reduce(dims).maximum(result);
-  }
-
   // Normalization
   //--------------------------------------------------------------------------
 
@@ -336,27 +292,6 @@ struct CanonicalGaussian<T>::Impl {
     eta.tail(ny).noalias() = sol_xy.transpose() * eta.head(nx);
     lambda.bottomRightCorner(ny, ny).noalias() = lambda.bottomLeftCorner(ny, nx) * sol_xy;
     lm = (logdet(chol_xx) - log_two_pi * nx - eta.head(nx).dot(sol_x)) / T(2);
-  }
-
-  // Restrictions
-  //--------------------------------------------------------------------------
-
-  void restrict_front(const Vector<T>& values, CanonicalGaussian& result) const {
-    reduce_front(values.size()).restrict(values, result);
-  }
-
-  void restrict_back(const Vector<T>& values, CanonicalGaussian& result) const {
-    reduce_back(values.size()).restrict(values, result);
-  }
-
-  void restrict_dims(const Dims& dims, const Vector<T>& values, CanonicalGaussian& result) const {
-    Dims retain;
-    for (unsigned i = 0; i < shape.size(); ++i) {
-      if (!dims.test(i)) {
-        retain.set(i);
-      }
-    }
-    reduce(retain).restrict(values, result);
   }
 
   // Entropy and divergences
@@ -441,8 +376,7 @@ struct CanonicalGaussian<T>::Impl {
       collapse(result, /*adjust_lm=*/false);
     }
 
-    void restrict(const Vector<T>& values, CanonicalGaussian& result) {
-      const Vector<T>& vec = values;
+    void restrict(const Vector<T>& vec, CanonicalGaussian& result) {
       Impl& impl = result.impl();
       impl.shape = std::move(shape);
       impl.eta = std::move(eta_x);
@@ -494,6 +428,20 @@ struct CanonicalGaussian<T>::Impl {
     };
   }
 
+  Reduce<Matrix<T>, Vector<T>> reduce_inv(const Dims& i) const {
+    Spans is = shape.spans(i);
+    Spans js = shape.spans(~i, /*ignore_out_of_range=*/true);
+    return {
+      shape.omit(i),
+      sub(eta, js),
+      sub(eta, is),
+      sub(lambda, js, js),
+      sub(lambda, js, is),
+      sub(lambda, is, is),
+      lm,
+    };
+  }
+
   // Conversion
   //--------------------------------------------------------------------------
   MomentGaussian<T> moment() const {
@@ -531,12 +479,21 @@ CanonicalGaussian<T>::CanonicalGaussian(const CanonicalGaussian& other)
   : impl_(other.impl_ ? other.impl_->clone() : nullptr) {}
 
 template <typename T>
+CanonicalGaussian<T>::CanonicalGaussian(CanonicalGaussian&& other) noexcept = default;
+
+template <typename T>
 CanonicalGaussian<T>& CanonicalGaussian<T>::operator=(const CanonicalGaussian& other) {
   if (this != &other) {
     impl_ = other.impl_ ? other.impl_->clone() : nullptr;
   }
   return *this;
 }
+
+template <typename T>
+CanonicalGaussian<T>& CanonicalGaussian<T>::operator=(CanonicalGaussian&& other) noexcept = default;
+
+template <typename T>
+CanonicalGaussian<T>::~CanonicalGaussian() = default;
 
 template <typename T>
 unsigned CanonicalGaussian<T>::arity() const {
@@ -561,6 +518,11 @@ void CanonicalGaussian<T>::reset(std::unique_ptr<Impl> impl) {
 template <typename T>
 const Shape& CanonicalGaussian<T>::shape() const {
   return impl().shape;
+}
+
+template <typename T>
+size_t CanonicalGaussian<T>::size() const {
+  return impl().eta.size();
 }
 
 template <typename T>
@@ -649,15 +611,15 @@ CanonicalGaussian<T>& CanonicalGaussian<T>::operator/=(const CanonicalGaussian& 
 
 template <typename T>
 CanonicalGaussian<T> CanonicalGaussian<T>::multiply_front(const CanonicalGaussian& other) const {
-  CanonicalGaussian result;
-  impl().multiply_front(other, result);
+  CanonicalGaussian result(*this);
+  result.multiply_in_front(other);
   return result;
 }
 
 template <typename T>
 CanonicalGaussian<T> CanonicalGaussian<T>::multiply_back(const CanonicalGaussian& other) const {
-  CanonicalGaussian result;
-  impl().multiply_back(other, result);
+  CanonicalGaussian result(*this);
+  result.multiply_in_back(other);
   return result;
 }
 
@@ -688,15 +650,15 @@ CanonicalGaussian<T>& CanonicalGaussian<T>::multiply_in(const CanonicalGaussian&
 
 template <typename T>
 CanonicalGaussian<T> CanonicalGaussian<T>::divide_front(const CanonicalGaussian& other) const {
-  CanonicalGaussian result;
-  impl().divide_front(other, result);
+  CanonicalGaussian result(*this);
+  result.divide_in_front(other);
   return result;
 }
 
 template <typename T>
 CanonicalGaussian<T> CanonicalGaussian<T>::divide_back(const CanonicalGaussian& other) const {
-  CanonicalGaussian result;
-  impl().divide_back(other, result);
+  CanonicalGaussian result(*this);
+  result.divide_in_back(other);
   return result;
 }
 
@@ -752,42 +714,42 @@ Exp<T> CanonicalGaussian<T>::maximum(Vector<T>* values) const {
 template <typename T>
 CanonicalGaussian<T> CanonicalGaussian<T>::marginal_front(unsigned n) const {
   CanonicalGaussian result;
-  impl().marginal_front(n, result);
+  impl().reduce_front(n).marginal(result);
   return result;
 }
 
 template <typename T>
 CanonicalGaussian<T> CanonicalGaussian<T>::marginal_back(unsigned n) const {
   CanonicalGaussian result;
-  impl().marginal_back(n, result);
+  impl().reduce_back(n).marginal(result);
   return result;
 }
 
 template <typename T>
 CanonicalGaussian<T> CanonicalGaussian<T>::marginal_dims(const Dims& dims) const {
   CanonicalGaussian result;
-  impl().marginal_dims(dims, result);
+  impl().reduce(dims).marginal(result);
   return result;
 }
 
 template <typename T>
 CanonicalGaussian<T> CanonicalGaussian<T>::maximum_front(unsigned n) const {
   CanonicalGaussian result;
-  impl().maximum_front(n, result);
+  impl().reduce_front(n).maximum(result);
   return result;
 }
 
 template <typename T>
 CanonicalGaussian<T> CanonicalGaussian<T>::maximum_back(unsigned n) const {
   CanonicalGaussian result;
-  impl().maximum_back(n, result);
+  impl().reduce_back(n).maximum(result);
   return result;
 }
 
 template <typename T>
 CanonicalGaussian<T> CanonicalGaussian<T>::maximum_dims(const Dims& dims) const {
   CanonicalGaussian result;
-  impl().maximum_dims(dims, result);
+  impl().reduce(dims).maximum(result);
   return result;
 }
 
@@ -804,21 +766,21 @@ void CanonicalGaussian<T>::normalize_head(unsigned nhead) {
 template <typename T>
 CanonicalGaussian<T> CanonicalGaussian<T>::restrict_front(const Vector<T>& values) const {
   CanonicalGaussian result;
-  impl().restrict_front(values, result);
+  impl().reduce_back(shape().suffix_size(size() - values.size())).restrict(values, result);
   return result;
 }
 
 template <typename T>
 CanonicalGaussian<T> CanonicalGaussian<T>::restrict_back(const Vector<T>& values) const {
   CanonicalGaussian result;
-  impl().restrict_back(values, result);
+  impl().reduce_front(shape().prefix_size(size() - values.size())).restrict(values, result);
   return result;
 }
 
 template <typename T>
 CanonicalGaussian<T> CanonicalGaussian<T>::restrict_dims(const Dims& dims, const Vector<T>& values) const {
   CanonicalGaussian result;
-  impl().restrict_dims(dims, values, result);
+  impl().reduce_inv(dims).restrict(values, result);
   return result;
 }
 
@@ -843,7 +805,7 @@ MomentGaussian<T> CanonicalGaussian<T>::moment() const {
 }
 
 template <typename T>
-typename CanonicalGaussian<T>::Impl& CanonicalGaussian<T>::impl() {
+CanonicalGaussian<T>::Impl& CanonicalGaussian<T>::impl() {
   if (!impl_) {
     impl_ = std::make_unique<Impl>();
   }
@@ -851,7 +813,7 @@ typename CanonicalGaussian<T>::Impl& CanonicalGaussian<T>::impl() {
 }
 
 template <typename T>
-const typename CanonicalGaussian<T>::Impl& CanonicalGaussian<T>::impl() const {
+const CanonicalGaussian<T>::Impl& CanonicalGaussian<T>::impl() const {
   assert(impl_);
   return *impl_;
 }

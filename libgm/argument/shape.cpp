@@ -100,6 +100,30 @@ size_t Shape::suffix_sum(unsigned n) const {
   return std::accumulate(end() - n, end(), size_t(0));
 }
 
+unsigned Shape::prefix_size(size_t length) const {
+  unsigned i = 0;
+  size_t cumulative_sum = 0;
+  for (i = 0; i < size() && cumulative_sum < length; ++i) {
+    cumulative_sum += operator[](i);
+  }
+  if (cumulative_sum != length) {
+    throw std::invalid_argument("Shape::prefix_size: Length does not match a prefix exactly.");
+  }
+  return i;
+}
+
+unsigned Shape::suffix_size(size_t length) const {
+  unsigned i = 0;
+  size_t cumulative_sum = 0;
+  for (i = 0; i < size() && cumulative_sum < length; ++i) {
+    cumulative_sum += operator[](size() - i - 1);
+  }
+  if (cumulative_sum != length) {
+    throw std::invalid_argument("Shape::suffix_size: Length does not match a suffix exactly.");
+  }
+  return i;
+}
+
 size_t Shape::sum() const {
   return std::accumulate(begin(), end(), size_t(0));
 }
@@ -228,15 +252,17 @@ Spans Shape::spans(const Dims& dims, bool ignore_out_of_range) const {
   // Walk over the dimensions, accumulating the sizes.
   Span span;
   size_t count = 0;
+  size_t start = 0;
   for (size_t i = 0; i < size(); ++i) {
     if (dims.test(i)) {
       ++count;
-      if (span.length == 0) span.start = i;
+      if (span.length == 0) span.start = start;
       span.length += operator[](i);
     } else if (span.length > 0) {
       result.push_back(span);
       span.length = 0;
     }
+    start += operator[](i);
   }
 
   // Check if we covered all the set bits.

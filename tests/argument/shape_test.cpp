@@ -43,6 +43,27 @@ BOOST_AUTO_TEST_CASE(test_prefix_suffix_and_sums) {
   BOOST_CHECK_THROW(s.suffix_sum(5), std::invalid_argument);
 }
 
+BOOST_AUTO_TEST_CASE(test_prefix_suffix_size) {
+  Shape s = {2, 3, 4, 5};
+
+  BOOST_CHECK_EQUAL(s.prefix_size(0), 0u);
+  BOOST_CHECK_EQUAL(s.prefix_size(2), 1u);
+  BOOST_CHECK_EQUAL(s.prefix_size(5), 2u);
+  BOOST_CHECK_EQUAL(s.prefix_size(14), 4u);
+
+  BOOST_CHECK_EQUAL(s.suffix_size(0), 0u);
+  BOOST_CHECK_EQUAL(s.suffix_size(5), 1u);
+  BOOST_CHECK_EQUAL(s.suffix_size(9), 2u);
+  BOOST_CHECK_EQUAL(s.suffix_size(14), 4u);
+
+  BOOST_CHECK_THROW(s.prefix_size(1), std::invalid_argument);
+  BOOST_CHECK_THROW(s.prefix_size(6), std::invalid_argument);
+  BOOST_CHECK_THROW(s.prefix_size(15), std::invalid_argument);
+  BOOST_CHECK_THROW(s.suffix_size(1), std::invalid_argument);
+  BOOST_CHECK_THROW(s.suffix_size(6), std::invalid_argument);
+  BOOST_CHECK_THROW(s.suffix_size(15), std::invalid_argument);
+}
+
 BOOST_AUTO_TEST_CASE(test_index_and_linear) {
   Shape s = {2, 3, 4};
   std::vector<size_t> idx = {1, 2, 3};
@@ -77,7 +98,7 @@ BOOST_AUTO_TEST_CASE(test_select_omit_spans_and_join) {
   BOOST_CHECK_EQUAL(spans.size(), 2);
   BOOST_CHECK_EQUAL(spans[0].start, 0);
   BOOST_CHECK_EQUAL(spans[0].length, 5);
-  BOOST_CHECK_EQUAL(spans[1].start, 3);
+  BOOST_CHECK_EQUAL(spans[1].start, 9);
   BOOST_CHECK_EQUAL(spans[1].length, 5);
   BOOST_CHECK_EQUAL(spans.sum(), 10);
 
@@ -92,6 +113,21 @@ BOOST_AUTO_TEST_CASE(test_select_omit_spans_and_join) {
   BOOST_CHECK_THROW(s.select(make_dims({0, 10})), std::invalid_argument);
   BOOST_CHECK(s.omit(make_dims({0, 1, 2, 3, 10})) == Shape());
   BOOST_CHECK_THROW(s.spans(make_dims({0, 10})), std::invalid_argument);
+}
+
+BOOST_AUTO_TEST_CASE(test_spans_use_flat_offsets_for_non_unit_shape) {
+  Shape s = {2, 3, 4, 5};
+
+  // Selected dims: 1 and 3 (non-contiguous, non-unit sizes).
+  // Flat offsets should be:
+  // dim 1 starts at 2, length 3
+  // dim 3 starts at 2 + 3 + 4 = 9, length 5
+  Spans spans = s.spans(make_dims({1, 3}));
+  BOOST_CHECK_EQUAL(spans.size(), 2);
+  BOOST_CHECK_EQUAL(spans[0].start, 2);
+  BOOST_CHECK_EQUAL(spans[0].length, 3);
+  BOOST_CHECK_EQUAL(spans[1].start, 9);
+  BOOST_CHECK_EQUAL(spans[1].length, 5);
 }
 
 BOOST_AUTO_TEST_CASE(test_stream_and_product_overflow) {

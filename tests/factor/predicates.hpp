@@ -1,5 +1,4 @@
-#ifndef LIBGM_TEST_FACTOR_PREDICATES_HPP
-#define LIBGM_TEST_FACTOR_PREDICATES_HPP
+#pragma once
 
 #include <fstream>
 #include <cstdio>
@@ -13,7 +12,7 @@
 // Checks the basic properties of vector factors
 template <typename F>
 boost::test_tools::predicate_result
-vector_properties(const F& f, std::size_t n) {
+vector_properties(const F& f, size_t n) {
   if (f.size() == 0 && n > 0) {
     boost::test_tools::predicate_result result(false);
     result.message() << "The factor is empty";
@@ -37,7 +36,7 @@ vector_properties(const F& f, std::size_t n) {
 // Checks the basic properties of matrix factors
 template <typename F>
 boost::test_tools::predicate_result
-matrix_properties(const F& f, std::size_t m, std::size_t n) {
+matrix_properties(const F& f, size_t m, size_t n) {
   if (f.size() == 0 && m * n > 0) {
     boost::test_tools::predicate_result result(false);
     result.message() << "The factor is empty";
@@ -69,9 +68,9 @@ matrix_properties(const F& f, std::size_t m, std::size_t n) {
 template <typename F>
 boost::test_tools::predicate_result
 table_properties(const F& f, const libgm::Shape& shape) {
-  std::size_t n =
-    std::accumulate(shape.begin(), shape.end(), std::size_t(1),
-                    std::multiplies<std::size_t>());
+  size_t n =
+    std::accumulate(shape.begin(), shape.end(), size_t(1),
+                    std::multiplies<size_t>());
 
   if (f.size() == 0 && n > 0) {
     boost::test_tools::predicate_result result(false);
@@ -101,7 +100,7 @@ table_properties(const F& f, const libgm::Shape& shape) {
 // Checks the basic properties of canonical_gaussians
 template <typename F>
 boost::test_tools::predicate_result
-cg_properties(const F& f, std::size_t n) {
+cg_properties(const F& f, size_t n) {
   if (f.arity() != n) {
     boost::test_tools::predicate_result result(false);
     result.message() << "Invalid factor arity ["
@@ -125,15 +124,15 @@ cg_properties(const F& f, const libgm::Shape& shape) {
     result.message() << "Invalid factor shape";
     return result;
   }
-  const std::size_t n = shape.sum();
-  if (static_cast<std::size_t>(f.inf_vector().size()) != n) {
+  const size_t n = shape.sum();
+  if (static_cast<size_t>(f.inf_vector().size()) != n) {
     boost::test_tools::predicate_result result(false);
     result.message() << "Invalid information vector size ["
                      << f.inf_vector().size() << " != " << n << "]";
     return result;
   }
-  if (static_cast<std::size_t>(f.inf_matrix().rows()) != n ||
-      static_cast<std::size_t>(f.inf_matrix().cols()) != n) {
+  if (static_cast<size_t>(f.inf_matrix().rows()) != n ||
+      static_cast<size_t>(f.inf_matrix().cols()) != n) {
     boost::test_tools::predicate_result result(false);
     result.message() << "Invalid information matrix shape";
     return result;
@@ -170,30 +169,56 @@ cg_params(const F& f,
   return true;
 }
 
+template <typename F, typename G>
+boost::test_tools::predicate_result
+cg_params(const F& f, const G& g) {
+  return cg_params(f, g.inf_vector(), g.inf_matrix(), g.log_multiplier());
+}
+
 template <typename F>
 boost::test_tools::predicate_result
-mg_properties(const F& f, std::size_t m, std::size_t n = 0) {
-  if (f.empty() && m + n > 0) {
+mg_properties(const F& f, const libgm::Shape& shape, unsigned tail_arity = 0) {
+  if (tail_arity > shape.size()) {
     boost::test_tools::predicate_result result(false);
-    result.message() << "The factor is empty [" << f << "]";
+    result.message() << "Invalid tail arity [" << tail_arity
+                     << " > " << shape.size() << "]";
     return result;
   }
-  if (f.arity() != m + n) {
+
+  if (f.arity() != shape.size()) {
     boost::test_tools::predicate_result result(false);
     result.message() << "Invalid factor arity ["
-                     << f.arity() << " != " << m + n << "]";
+                     << f.arity() << " != " << shape.size() << "]";
     return result;
   }
-  if (f.head_arity() != m) {
+
+  if (f.shape() != shape) {
     boost::test_tools::predicate_result result(false);
-    result.message() << "Invalid head arity ["
-                     << f.head_arity() << " != " << m << "]";
+    result.message() << "Invalid factor shape";
     return result;
   }
-  if (f.tail_arity() != n) {
+
+  size_t tail_size = shape.suffix_sum(tail_arity);
+  size_t head_size = shape.sum() - tail_size;
+
+  if (static_cast<size_t>(f.mean().size()) != head_size) {
     boost::test_tools::predicate_result result(false);
-    result.message() << "Invalid factor arity ["
-                     << f.tail_arity() << " != " << n << "]";
+    result.message() << "Invalid mean size ["
+                     << f.mean().size() << " != " << head_size << "]";
+    return result;
+  }
+
+  if (static_cast<size_t>(f.covariance().rows()) != head_size ||
+      static_cast<size_t>(f.covariance().cols()) != head_size) {
+    boost::test_tools::predicate_result result(false);
+    result.message() << "Invalid covariance shape";
+    return result;
+  }
+
+  if (static_cast<size_t>(f.coefficients().rows()) != head_size ||
+      static_cast<size_t>(f.coefficients().cols()) != tail_size) {
+    boost::test_tools::predicate_result result(false);
+    result.message() << "Invalid coefficient shape";
     return result;
   }
 
@@ -235,4 +260,8 @@ mg_params(const F& f,
   return true;
 }
 
-#endif
+template <typename F, typename G>
+boost::test_tools::predicate_result
+mg_params(const F& f, const G& g) {
+  return mg_params(f, g.mean(), g.covariance(), g.coefficients(), g.log_multiplier());
+}
