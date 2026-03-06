@@ -313,28 +313,22 @@ size_t FactorGraph::num_factors() const {
   return impl().num_factors;
 }
 
-void* FactorGraph::property(Arg u) {
-  return impl().argument_property(impl().arguments.at(u));
+OpaqueRef FactorGraph::property(Arg u) {
+  return {impl().argument_property_layout.type_info,
+          impl().argument_property(impl().arguments.at(u))};
 }
 
-const void* FactorGraph::property(Arg u) const {
-  return impl().argument_property(impl().arguments.at(u));
+OpaqueCref FactorGraph::property(Arg u) const {
+  return {impl().argument_property_layout.type_info,
+          impl().argument_property(impl().arguments.at(u))};
 }
 
-void* FactorGraph::property(Factor* u) {
-  return impl().factor_property(u);
+OpaqueRef FactorGraph::property(Factor* u) {
+  return {impl().factor_property_layout.type_info, impl().factor_property(u)};
 }
 
-const void* FactorGraph::property(Factor* u) const {
-  return impl().factor_property(u);
-}
-
-const std::type_info& FactorGraph::argument_property_type_info() const {
-  return impl().argument_property_layout.type_info;
-}
-
-const std::type_info& FactorGraph::factor_property_type_info() const {
-  return impl().factor_property_layout.type_info;
+OpaqueCref FactorGraph::property(Factor* u) const {
+  return {impl().factor_property_layout.type_info, impl().factor_property(u)};
 }
 
 std::ostream& operator<<(std::ostream& out, const FactorGraph& g) {

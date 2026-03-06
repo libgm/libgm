@@ -269,16 +269,12 @@ const Domain& BayesianNetwork::parents(Arg u) const {
   return data(u).parents;
 }
 
-void* BayesianNetwork::property(Arg u) {
-  return impl().property(impl().data.at(u));
+OpaqueRef BayesianNetwork::property(Arg u) {
+  return {impl().property_layout.type_info, impl().property(impl().data.at(u))};
 }
 
-const void* BayesianNetwork::property(Arg u) const {
-  return impl().property(impl().data.at(u));
-}
-
-const std::type_info& BayesianNetwork::property_type_info() const {
-  return impl().property_layout.type_info;
+OpaqueCref BayesianNetwork::property(Arg u) const {
+  return {impl().property_layout.type_info, impl().property(impl().data.at(u))};
 }
 
 MarkovNetwork BayesianNetwork::markov_network() const {

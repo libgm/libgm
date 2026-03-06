@@ -7,6 +7,7 @@
 #include <libgm/graph/markov_network.hpp>
 #include <libgm/graph/util/property_layout.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
+#include <libgm/opaque.hpp>
 
 #include <ankerl/unordered_dense.h>
 
@@ -104,47 +105,17 @@ public:
   /// Returns the number of factors.
   size_t num_factors() const;
 
-  /// Returns the raw pointer to the property associated with an argument.
-  void* property(Arg u);
+  /// Returns an opaque reference to the property associated with an argument.
+  OpaqueRef property(Arg u);
 
-  /// Returns the raw pointer to the property associated with an argument.
-  const void* property(Arg u) const;
+  /// Returns an opaque const reference to the property associated with an argument.
+  OpaqueCref property(Arg u) const;
 
-  /// Returns the raw pointer to the property associated with a factor.
-  void* property(Factor* u);
+  /// Returns an opaque reference to the property associated with a factor.
+  OpaqueRef property(Factor* u);
 
-  /// Returns the raw pointer to the property associated with a factor.
-  const void* property(Factor* u) const;
-
-  /// Returns the runtime type information for argument property type.
-  const std::type_info& argument_property_type_info() const;
-
-  /// Returns the runtime type information for factor property type.
-  const std::type_info& factor_property_type_info() const;
-
-  template <typename P>
-  P& property_cast(Arg u) {
-    assert(argument_property_type_info() == typeid(P));
-    return *static_cast<P*>(property(u));
-  }
-
-  template <typename P>
-  const P& property_cast(Arg u) const {
-    assert(argument_property_type_info() == typeid(P));
-    return *static_cast<const P*>(property(u));
-  }
-
-  template <typename P>
-  P& property_cast(Factor* u) {
-    assert(factor_property_type_info() == typeid(P));
-    return *static_cast<P*>(property(u));
-  }
-
-  template <typename P>
-  const P& property_cast(Factor* u) const {
-    assert(factor_property_type_info() == typeid(P));
-    return *static_cast<const P*>(property(u));
-  }
+  /// Returns an opaque const reference to the property associated with a factor.
+  OpaqueCref property(Factor* u) const;
 
   /// Prints the graph to an output stream.
   friend std::ostream& operator<<(std::ostream& out, const FactorGraph& g);
@@ -226,19 +197,19 @@ struct FactorGraphT : FactorGraph {
     : FactorGraph(property_layout<AP>(), property_layout<FP>()) {}
 
   AP& operator[](Arg u) {
-    return property_cast<AP>(u);
+    return opaque_cast<AP>(property(u));
   }
 
   const AP& operator[](Arg u) const {
-    return property_cast<AP>(u);
+    return opaque_cast<AP>(property(u));
   }
 
   FP& operator[](Factor* f) {
-    return property_cast<FP>(f);
+    return opaque_cast<FP>(property(f));
   }
 
   const FP& operator[](Factor* f) const {
-    return property_cast<FP>(f);
+    return opaque_cast<FP>(property(f));
   }
 
   /// Adds an argument and associates it with a strongly-typed property.

@@ -10,6 +10,7 @@
 #include <libgm/graph/util/property_layout.hpp>
 #include <libgm/iterator/casting_iterator.hpp>
 #include <libgm/iterator/member_iterator.hpp>
+#include <libgm/opaque.hpp>
 
 #include <ankerl/unordered_dense.h>
 
@@ -172,47 +173,17 @@ public:
   /// Returns the first vertex or the null vertex if the graph is empty.
   Vertex* root() const;
 
-  /// Returns the raw pointer to the property associated with a vertex.
-  void* property(Vertex* u);
+  /// Returns an opaque reference to the property associated with a vertex.
+  OpaqueRef property(Vertex* u);
 
-  /// Returns the raw pointer to the property associated with a vertex.
-  const void* property(Vertex* u) const;
+  /// Returns an opaque const reference to the property associated with a vertex.
+  OpaqueCref property(Vertex* u) const;
 
-  /// Returns the raw pointer to the property associated with an edge.
-  void* property(edge_descriptor e);
+  /// Returns an opaque reference to the property associated with an edge.
+  OpaqueRef property(edge_descriptor e);
 
-  /// Returns the raw pointer to the property associated with an edge.
-  const void* property(edge_descriptor e) const;
-
-  /// Returns the runtime type information for vertex property type.
-  const std::type_info& vertex_property_type_info() const;
-
-  /// Returns the runtime type information for edge property type.
-  const std::type_info& edge_property_type_info() const;
-
-  template <typename P>
-  P& property_cast(Vertex* u) {
-    assert(vertex_property_type_info() == typeid(P));
-    return *static_cast<P*>(property(u));
-  }
-
-  template <typename P>
-  const P& property_cast(Vertex* u) const {
-    assert(vertex_property_type_info() == typeid(P));
-    return *static_cast<const P*>(property(u));
-  }
-
-  template <typename P>
-  P& property_cast(edge_descriptor e) {
-    assert(edge_property_type_info() == typeid(P));
-    return *static_cast<P*>(property(e));
-  }
-
-  template <typename P>
-  const P& property_cast(edge_descriptor e) const {
-    assert(edge_property_type_info() == typeid(P));
-    return *static_cast<const P*>(property(e));
-  }
+  /// Returns an opaque const reference to the property associated with an edge.
+  OpaqueCref property(edge_descriptor e) const;
 
   /// Returns true if two cluster graphs are identical.
   bool operator==(const ClusterGraph& other) const;
@@ -558,19 +529,19 @@ struct ClusterGraphT : ClusterGraph {
     : ClusterGraph(property_layout<VP>(), property_layout<EP>()) {}
 
   VP& operator[](Vertex* u) {
-    return property_cast<VP>(u);
+    return opaque_cast<VP>(property(u));
   }
 
   const VP& operator[](Vertex* u) const {
-    return property_cast<VP>(u);
+    return opaque_cast<VP>(property(u));
   }
 
   EP& operator[](edge_descriptor e) {
-    return property_cast<EP>(e);
+    return opaque_cast<EP>(property(e));
   }
 
   const EP& operator[](edge_descriptor e) const {
-    return property_cast<EP>(e);
+    return opaque_cast<EP>(property(e));
   }
 
   Vertex* add_vertex(Domain cluster, VP vp) {

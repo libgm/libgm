@@ -449,28 +449,20 @@ bool ClusterGraph::contains(edge_descriptor e) const {
   return e->impl == &impl();
 }
 
-void* ClusterGraph::property(Vertex* u) {
-  return impl().vertex_property(u);
+OpaqueRef ClusterGraph::property(Vertex* u) {
+  return {impl().vertex_property_layout.type_info, impl().vertex_property(u)};
 }
 
-const void* ClusterGraph::property(Vertex* u) const {
-  return impl().vertex_property(u);
+OpaqueCref ClusterGraph::property(Vertex* u) const {
+  return {impl().vertex_property_layout.type_info, impl().vertex_property(u)};
 }
 
-void* ClusterGraph::property(edge_descriptor e) {
-  return impl().edge_property(e.get());
+OpaqueRef ClusterGraph::property(edge_descriptor e) {
+  return {impl().edge_property_layout.type_info, impl().edge_property(e.get())};
 }
 
-const void* ClusterGraph::property(edge_descriptor e) const {
-  return impl().edge_property(e.get());
-}
-
-const std::type_info& ClusterGraph::vertex_property_type_info() const {
-  return impl().vertex_property_layout.type_info;
-}
-
-const std::type_info& ClusterGraph::edge_property_type_info() const {
-  return impl().edge_property_layout.type_info;
+OpaqueCref ClusterGraph::property(edge_descriptor e) const {
+  return {impl().edge_property_layout.type_info, impl().edge_property(e.get())};
 }
 
 SubRange<ClusterGraph::argument_iterator> ClusterGraph::arguments() const {
@@ -847,7 +839,7 @@ ClusterGraph::Vertex* ClusterGraph::merge(edge_descriptor e) {
   for (edge_descriptor out : u->adjacency) {
     if (out.target() != v) {
       edge_descriptor new_edge = add_edge(v, out.target(), std::move(out->separator));
-      impl().edge_property_layout.destroy_and_copy_construct(property(new_edge), property(out));
+      impl().edge_property_layout.destroy_and_copy_construct(property(new_edge).ptr, property(out).ptr);
     }
   }
 

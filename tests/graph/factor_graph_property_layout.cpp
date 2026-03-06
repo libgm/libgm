@@ -86,12 +86,12 @@ BOOST_AUTO_TEST_CASE(argument_and_factor_property_addresses_and_lifetime) {
   BOOST_CHECK_EQUAL(ArgumentProperty::alive_count, 2);
   BOOST_CHECK_EQUAL(fg[a].value, 10);
   BOOST_CHECK_EQUAL(fg[b].value, 20);
-  BOOST_CHECK_EQUAL(static_cast<void*>(&fg[a]), fg.property(a));
+  BOOST_CHECK_EQUAL(static_cast<void*>(&fg[a]), fg.property(a).ptr);
 
   FactorGraph::Factor* f = fg.add_factor({a, b}, FactorProperty(30));
   BOOST_CHECK_EQUAL(FactorProperty::alive_count, 1);
   BOOST_CHECK_EQUAL(fg[f].value, 30);
-  BOOST_CHECK_EQUAL(static_cast<void*>(&fg[f]), fg.property(f));
+  BOOST_CHECK_EQUAL(static_cast<void*>(&fg[f]), fg.property(f).ptr);
 
   fg.remove_factor(f);
   BOOST_CHECK_EQUAL(FactorProperty::alive_count, 0);

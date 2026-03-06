@@ -299,28 +299,22 @@ size_t MarkovNetwork::num_edges() const {
   return impl().num_edges;
 }
 
-void* MarkovNetwork::property(Arg u) {
-  return impl().vertex_property(impl().data.at(u));
+OpaqueRef MarkovNetwork::property(Arg u) {
+  return {impl().vertex_property_layout.type_info,
+          impl().vertex_property(impl().data.at(u))};
 }
 
-const void* MarkovNetwork::property(Arg u) const {
-  return impl().vertex_property(impl().data.at(u));
+OpaqueCref MarkovNetwork::property(Arg u) const {
+  return {impl().vertex_property_layout.type_info,
+          impl().vertex_property(impl().data.at(u))};
 }
 
-void* MarkovNetwork::property(const UndirectedEdge<Arg>& e) {
-  return e.property();
+OpaqueRef MarkovNetwork::property(const UndirectedEdge<Arg>& e) {
+  return {impl().edge_property_layout.type_info, e.property()};
 }
 
-const void* MarkovNetwork::property(const UndirectedEdge<Arg>& e) const {
-  return e.property();
-}
-
-const std::type_info& MarkovNetwork::vertex_property_type_info() const {
-  return impl().vertex_property_layout.type_info;
-}
-
-const std::type_info& MarkovNetwork::edge_property_type_info() const {
-  return impl().edge_property_layout.type_info;
+OpaqueCref MarkovNetwork::property(const UndirectedEdge<Arg>& e) const {
+  return {impl().edge_property_layout.type_info, e.property()};
 }
 
 bool MarkovNetwork::add_vertex(Arg u) {

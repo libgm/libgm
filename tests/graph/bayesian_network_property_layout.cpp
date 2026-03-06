@@ -54,7 +54,7 @@ BOOST_AUTO_TEST_CASE(property_pointer_matches_typed_reference) {
   BOOST_CHECK_EQUAL(bn.num_vertices(), 1);
   BOOST_CHECK_EQUAL(CountingProperty::alive_count, 1);
   BOOST_CHECK_EQUAL(bn[a].value, 7);
-  BOOST_CHECK_EQUAL(static_cast<void*>(&bn[a]), bn.property(a));
+  BOOST_CHECK_EQUAL(static_cast<void*>(&bn[a]), bn.property(a).ptr);
 
   bn.remove_vertex(a);
   BOOST_CHECK_EQUAL(CountingProperty::alive_count, 0);

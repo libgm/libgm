@@ -10,6 +10,7 @@
 #include <libgm/iterator/bind1_iterator.hpp>
 #include <libgm/iterator/bind2_iterator.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
+#include <libgm/opaque.hpp>
 
 #include <cereal/cereal.hpp>
 #include <cereal/types/base_class.hpp>
@@ -136,26 +137,11 @@ public:
   /// Returns the arguments of a factor.
   const Domain& parents(Arg u) const;
 
-  /// Returns the raw pointer to the property associated with a vertex.
-  void* property(Arg u);
+  /// Returns an opaque reference to the property associated with a vertex.
+  OpaqueRef property(Arg u);
 
-  /// Returns the raw pointer to the property associated with a vertex.
-  const void* property(Arg u) const;
-
-  /// Returns the runtime type information for the vertex property type.
-  const std::type_info& property_type_info() const;
-
-  template <typename P>
-  P& property_cast(Arg u) {
-    assert(property_type_info() == typeid(P));
-    return *static_cast<P*>(property(u));
-  }
-
-  template <typename P>
-  const P& property_cast(Arg u) const {
-    assert(property_type_info() == typeid(P));
-    return *static_cast<const P*>(property(u));
-  }
+  /// Returns an opaque const reference to the property associated with a vertex.
+  OpaqueCref property(Arg u) const;
 
   // Queries
   //--------------------------------------------------------------------------
@@ -206,11 +192,11 @@ struct BayesianNetworkT : BayesianNetwork {
     : BayesianNetwork(count, property_layout<VP>()) {}
 
   VP& operator[](Arg u) {
-    return property_cast<VP>(u);
+    return opaque_cast<VP>(property(u));
   }
 
   const VP& operator[](Arg u) const {
-    return property_cast<VP>(u);
+    return opaque_cast<VP>(property(u));
   }
 
   bool add_vertex(Arg u, Domain parents, VP vp) {
