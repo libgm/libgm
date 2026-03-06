@@ -1,4 +1,4 @@
-#include <boost/math/constants/constants.hpp>
+  #include <boost/math/constants/constants.hpp>
 
 #include "../moment_gaussian.hpp"
 #include <libgm/factor/canonical_gaussian.hpp>

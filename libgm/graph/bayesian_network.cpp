@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cassert>
 #include <new>
+#include <stdexcept>
 #include <vector>
 
 namespace libgm {
@@ -190,12 +191,16 @@ BayesianNetwork::BayesianNetwork(size_t count, PropertyLayout layout)
 BayesianNetwork::BayesianNetwork(const BayesianNetwork& other)
   : impl_(other.impl_ ? other.impl_->clone() : nullptr) {}
 
+BayesianNetwork::BayesianNetwork(BayesianNetwork&& other) noexcept = default;
+
 BayesianNetwork& BayesianNetwork::operator=(const BayesianNetwork& other) {
   if (this != &other) {
     impl_ = other.impl_ ? other.impl_->clone() : nullptr;
   }
   return *this;
 }
+
+BayesianNetwork& BayesianNetwork::operator=(BayesianNetwork&& other) noexcept = default;
 
 BayesianNetwork::~BayesianNetwork() = default;
 
@@ -233,7 +238,7 @@ bool BayesianNetwork::contains(const DirectedEdge<Arg> e) const {
 
 DirectedEdge<Arg> BayesianNetwork::edge(Arg u, Arg v) const {
   auto it = impl().data.find(u);
-  if (it != impl().data.end()) {
+  if (it != impl().data.end() && it->second->children.contains(v)) {
     return {u, v};
   } else {
     return {};
@@ -288,9 +293,25 @@ MarkovNetwork BayesianNetwork::markov_network() const {
 }
 
 bool BayesianNetwork::add_vertex(Arg v, Domain parents) {
-  auto [it, found] = impl().find(v);
+  // Check for self-loops and missing parent vertices.
+  for (Arg u : parents) {
+    if (u == v) {
+      throw std::invalid_argument("BayesianNetwork::add_vertex: self-parent is not allowed");
+    }
+    if (!contains(u)) {
+      throw std::out_of_range("BayesianNetwork::add_vertex: parent not found");
+    }
+  }
+
+  // Check for duplicate parents
+  Domain parents_copy(parents);
+  parents_copy.unique();
+  if (parents_copy.size() != parents.size()) {
+    throw std::invalid_argument("BayesianNetwork::add_vertex: duplicate parent");
+  }
 
   // Insert new vertex data or clear in-edges of the old one.
+  auto [it, found] = impl().find(v);
   if (found) {
     impl().remove_in_edges(it);
   } else {
@@ -310,17 +331,25 @@ bool BayesianNetwork::add_vertex(Arg v, Domain parents) {
   return !found;
 }
 
-void BayesianNetwork::remove_vertex(Arg u) {
+size_t BayesianNetwork::remove_vertex(Arg u) {
   auto [it, found] = impl().find(u);
-  assert(found && it->second->children.empty());
+  if (!found) {
+    return 0;
+  }
+  if (!it->second->children.empty()) {
+    throw std::logic_error("BayesianNetwork::remove_vertex: vertex has outgoing edges");
+  }
   impl().remove_in_edges(it);
   impl().free_vertex(it->second);
   impl().data.erase(it);
+  return 1;
 }
 
 void BayesianNetwork::remove_in_edges(Arg u) {
   auto [it, found]= impl().find(u);
-  assert(found);
+  if (!found) {
+    throw std::out_of_range("BayesianNetwork::remove_in_edges: vertex does not exist");
+  }
   impl().remove_in_edges(it);
 }
 

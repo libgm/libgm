@@ -55,9 +55,9 @@ public:
   /// Creates an empty graph.
   FactorGraph();
   FactorGraph(const FactorGraph& other);
-  FactorGraph(FactorGraph&& other) noexcept = default;
+  FactorGraph(FactorGraph&& other) noexcept;
   FactorGraph& operator=(const FactorGraph& other);
-  FactorGraph& operator=(FactorGraph&& other) noexcept = default;
+  FactorGraph& operator=(FactorGraph&& other) noexcept;
   ~FactorGraph();
 
 protected:

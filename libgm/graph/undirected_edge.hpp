@@ -134,7 +134,7 @@ namespace std {
 /// \relates DirectedEdge
 template <typename Vertex>
 struct hash<libgm::UndirectedEdge<Vertex>> {
-  size_t operator()(const libgm::UndirectedEdge<Vertex>& e) {
+  size_t operator()(const libgm::UndirectedEdge<Vertex>& e) const {
     size_t seed = 0;
     boost::hash_combine(seed, e.source());
     boost::hash_combine(seed, e.target());

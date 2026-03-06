@@ -79,9 +79,9 @@ public:
   explicit BayesianNetwork(size_t count = 0);
 
   BayesianNetwork(const BayesianNetwork& other);
-  BayesianNetwork(BayesianNetwork&& other) noexcept = default;
+  BayesianNetwork(BayesianNetwork&& other) noexcept;
   BayesianNetwork& operator=(const BayesianNetwork& other);
-  BayesianNetwork& operator=(BayesianNetwork&& other) noexcept = default;
+  BayesianNetwork& operator=(BayesianNetwork&& other) noexcept;
   ~BayesianNetwork();
 
 protected:
@@ -154,14 +154,20 @@ public:
   // Modifications
   //--------------------------------------------------------------------------
 
-  /// Adds an argument with the given parent domain.
+  /**
+   * Adds an argument with the given parent domain.
+   * Throws if a parent is invalid (missing, duplicated, or self-parent).
+   */
   bool add_vertex(Arg u, Domain parents);
 
 public:
-  /// Removes a vertex from the graph, provided that it has no outgoing edges.
-  void remove_vertex(Arg u);
+  /**
+   * Removes a vertex from the graph and returns 1 if it existed, 0 otherwise.
+   * Throws if the vertex exists but still has outgoing edges.
+   */
+  size_t remove_vertex(Arg u);
 
-  /// Removes all edges incoming to a vertex.
+  /// Removes all edges incoming to a vertex. Throws if the vertex does not exist.
   void remove_in_edges(Arg u);
 
   /// Removes all vertices and edges from the graph.

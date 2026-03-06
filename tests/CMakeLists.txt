@@ -15,10 +15,10 @@ subdirs(
   assignment
   datastructure
   factor
+  graph
   math
 #[[
   factor
-  graph
   inference
   learning
   model

@@ -236,12 +236,16 @@ FactorGraph::FactorGraph(PropertyLayout argument_layout, PropertyLayout factor_l
 FactorGraph::FactorGraph(const FactorGraph& other)
   : impl_(other.impl_ ? other.impl_->clone() : nullptr) {}
 
+FactorGraph::FactorGraph(FactorGraph&& other) noexcept = default;
+
 FactorGraph& FactorGraph::operator=(const FactorGraph& other) {
   if (this != &other) {
     impl_ = other.impl_ ? other.impl_->clone() : nullptr;
   }
   return *this;
 }
+
+FactorGraph& FactorGraph::operator=(FactorGraph&& other) noexcept = default;
 
 FactorGraph::~FactorGraph() = default;
 

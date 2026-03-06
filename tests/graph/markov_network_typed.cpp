@@ -1,9 +1,8 @@
-#define BOOST_TEST_MODULE cluster_graph_property_layout
+#define BOOST_TEST_MODULE markov_network_typed
 #include <boost/test/unit_test.hpp>
 
-#include <libgm/argument/domain.hpp>
 #include <libgm/argument/named_argument.hpp>
-#include <libgm/graph/cluster_graph.hpp>
+#include <libgm/graph/markov_network.hpp>
 
 namespace libgm {
 namespace {
@@ -72,33 +71,45 @@ Arg make_arg(const char* name) {
 
 } // namespace
 
-BOOST_AUTO_TEST_CASE(vertex_and_edge_property_addresses_and_lifetime) {
+BOOST_AUTO_TEST_CASE(base_markov_network_uses_null_edge_property_pointer) {
+  MarkovNetwork mn;
+  Arg a = make_arg("a");
+  Arg b = make_arg("b");
+
+  BOOST_CHECK(mn.add_vertex(a));
+  BOOST_CHECK(mn.add_vertex(b));
+
+  auto [e, inserted] = mn.add_edge(a, b);
+  BOOST_CHECK(inserted);
+  BOOST_CHECK_EQUAL(mn.property(e).ptr, nullptr);
+}
+
+BOOST_AUTO_TEST_CASE(typed_vertex_and_edge_property_addresses_and_lifetime) {
   VertexProperty::alive_count = 0;
   EdgeProperty::alive_count = 0;
 
-  ClusterGraphT<VertexProperty, EdgeProperty> cg;
-
+  MarkovNetworkT<VertexProperty, EdgeProperty> mn;
   Arg a = make_arg("a");
   Arg b = make_arg("b");
-  Arg c = make_arg("c");
 
-  ClusterGraph::Vertex* v1 = cg.add_vertex({a, b}, VertexProperty(10));
-  ClusterGraph::Vertex* v2 = cg.add_vertex({b, c}, VertexProperty(20));
+  BOOST_CHECK(mn.add_vertex(a, VertexProperty(10)));
+  BOOST_CHECK(mn.add_vertex(b, VertexProperty(20)));
   BOOST_CHECK_EQUAL(VertexProperty::alive_count, 2);
-  BOOST_CHECK_EQUAL(cg[v1].value, 10);
-  BOOST_CHECK_EQUAL(cg[v2].value, 20);
-  BOOST_CHECK_EQUAL(static_cast<void*>(&cg[v1]), cg.property(v1).ptr);
+  BOOST_CHECK_EQUAL(mn[a].value, 10);
+  BOOST_CHECK_EQUAL(mn[b].value, 20);
+  BOOST_CHECK_EQUAL(static_cast<void*>(&mn[a]), mn.property(a).ptr);
 
-  auto e = cg.add_edge(v1, v2, {b}, EdgeProperty(30));
+  auto [e, inserted] = mn.add_edge(a, b, EdgeProperty(30));
+  BOOST_CHECK(inserted);
   BOOST_CHECK_EQUAL(EdgeProperty::alive_count, 1);
-  BOOST_CHECK_EQUAL(cg[e].value, 30);
-  BOOST_CHECK_EQUAL(static_cast<void*>(&cg[e]), cg.property(e).ptr);
+  BOOST_CHECK_EQUAL(mn[e].value, 30);
+  BOOST_CHECK_EQUAL(static_cast<void*>(&mn[e]), mn.property(e).ptr);
 
-  cg.remove_edge(e);
+  mn.remove_edge(a, b);
   BOOST_CHECK_EQUAL(EdgeProperty::alive_count, 0);
 
-  cg.remove_vertex(v1);
-  cg.remove_vertex(v2);
+  mn.remove_vertex(a);
+  mn.remove_vertex(b);
   BOOST_CHECK_EQUAL(VertexProperty::alive_count, 0);
 }
 
@@ -106,50 +117,48 @@ BOOST_AUTO_TEST_CASE(default_constructed_properties_and_clear) {
   VertexProperty::alive_count = 0;
   EdgeProperty::alive_count = 0;
 
-  ClusterGraphT<VertexProperty, EdgeProperty> cg;
-
+  MarkovNetworkT<VertexProperty, EdgeProperty> mn;
   Arg a = make_arg("a");
   Arg b = make_arg("b");
-  Arg c = make_arg("c");
 
-  ClusterGraph::Vertex* v1 = cg.add_vertex({a, b});
-  ClusterGraph::Vertex* v2 = cg.add_vertex({b, c});
-  auto e = cg.add_edge(v1, v2, {b});
+  BOOST_CHECK(mn.add_vertex(a));
+  BOOST_CHECK(mn.add_vertex(b));
+  auto [e, inserted] = mn.add_edge(a, b);
+  BOOST_CHECK(inserted);
 
   BOOST_CHECK_EQUAL(VertexProperty::alive_count, 2);
   BOOST_CHECK_EQUAL(EdgeProperty::alive_count, 1);
-  BOOST_CHECK_EQUAL(cg[v1].value, 0);
-  BOOST_CHECK_EQUAL(cg[v2].value, 0);
-  BOOST_CHECK_EQUAL(cg[e].value, 0);
+  BOOST_CHECK_EQUAL(mn[a].value, 0);
+  BOOST_CHECK_EQUAL(mn[b].value, 0);
+  BOOST_CHECK_EQUAL(mn[e].value, 0);
 
-  cg.clear();
+  mn.clear();
   BOOST_CHECK_EQUAL(VertexProperty::alive_count, 0);
   BOOST_CHECK_EQUAL(EdgeProperty::alive_count, 0);
 }
 
-BOOST_AUTO_TEST_CASE(assignment_overwrites_without_leaking_instances) {
+BOOST_AUTO_TEST_CASE(add_edge_does_not_overwrite_existing_property) {
   VertexProperty::alive_count = 0;
   EdgeProperty::alive_count = 0;
 
-  ClusterGraphT<VertexProperty, EdgeProperty> cg;
-
+  MarkovNetworkT<VertexProperty, EdgeProperty> mn;
   Arg a = make_arg("a");
   Arg b = make_arg("b");
-  Arg c = make_arg("c");
 
-  ClusterGraph::Vertex* v1 = cg.add_vertex({a, b});
-  ClusterGraph::Vertex* v2 = cg.add_vertex({b, c});
-  auto e = cg.add_edge(v1, v2, {b});
+  BOOST_CHECK(mn.add_vertex(a));
+  BOOST_CHECK(mn.add_vertex(b));
 
-  cg[v1] = VertexProperty(77);
-  cg[e] = EdgeProperty(88);
-
-  BOOST_CHECK_EQUAL(VertexProperty::alive_count, 2);
+  auto [e1, inserted1] = mn.add_edge(a, b, EdgeProperty(1));
+  BOOST_CHECK(inserted1);
   BOOST_CHECK_EQUAL(EdgeProperty::alive_count, 1);
-  BOOST_CHECK_EQUAL(cg[v1].value, 77);
-  BOOST_CHECK_EQUAL(cg[e].value, 88);
+  BOOST_CHECK_EQUAL(mn[e1].value, 1);
 
-  cg.clear();
+  auto [e2, inserted2] = mn.add_edge(a, b, EdgeProperty(9));
+  BOOST_CHECK(!inserted2);
+  BOOST_CHECK_EQUAL(EdgeProperty::alive_count, 1);
+  BOOST_CHECK_EQUAL(mn[e2].value, 1);
+
+  mn.clear();
   BOOST_CHECK_EQUAL(VertexProperty::alive_count, 0);
   BOOST_CHECK_EQUAL(EdgeProperty::alive_count, 0);
 }

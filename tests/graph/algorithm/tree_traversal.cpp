@@ -8,8 +8,8 @@
 
 using namespace libgm;
 
-struct fixture {
-  fixture() {
+struct Fixture {
+  Fixture() {
     g.add_edge(5, 2);
     g.add_edge(2, 1);
     g.add_edge(1, 7);
@@ -22,7 +22,7 @@ struct fixture {
   graph_type g;
 };
 
-BOOST_FIXTURE_TEST_CASE(test_preorder, fixture) {
+BOOST_FIXTURE_TEST_CASE(test_preorder, Fixture) {
   std::set<int> visited({1});
   pre_order_traversal(g, 1, [&](const edge_type& e) {
       BOOST_CHECK(visited.count(e.source()));
@@ -30,7 +30,7 @@ BOOST_FIXTURE_TEST_CASE(test_preorder, fixture) {
     });
 }
 
-BOOST_FIXTURE_TEST_CASE(test_postorder, fixture) {
+BOOST_FIXTURE_TEST_CASE(test_postorder, Fixture) {
   std::set<int> visited;
   for (int v : g.vertices()) {
     if (g.degree(v) == 1) {
@@ -44,7 +44,7 @@ BOOST_FIXTURE_TEST_CASE(test_postorder, fixture) {
 }
 
 
-BOOST_FIXTURE_TEST_CASE(test_mpp, fixture) {
+BOOST_FIXTURE_TEST_CASE(test_mpp, Fixture) {
   std::set<vpair> visited;
   mpp_traversal(g, 0, [&](const edge_type& e) {
       for (edge_type in : g.in_edges(e.source())) {

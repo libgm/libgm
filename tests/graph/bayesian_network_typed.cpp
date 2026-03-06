@@ -1,4 +1,4 @@
-#define BOOST_TEST_MODULE bayesian_network_property_layout
+#define BOOST_TEST_MODULE bayesian_network_typed
 #include <boost/test/unit_test.hpp>
 
 #include <libgm/argument/domain.hpp>

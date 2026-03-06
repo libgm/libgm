@@ -359,27 +359,39 @@ void MarkovNetwork::add_clique(const Domain& vertices) {
   }
 }
 
-void MarkovNetwork::remove_vertex(Arg u) {
+size_t MarkovNetwork::remove_vertex(Arg u) {
+  auto it = impl().data.find(u);
+  if (it == impl().data.end()) {
+    return 0;
+  }
+
   remove_edges(u);
-  impl().free_vertex(impl().data.at(u));
-  impl().data.erase(u);
+  impl().free_vertex(it->second);
+  impl().data.erase(it);
+  return 1;
 }
 
-void MarkovNetwork::remove_edge(Arg u, Arg v) {
-  AdjacencyMap& neighbors_u = data(u).neighbors;
-  AdjacencyMap& neighbors_v = data(v).neighbors;
+size_t MarkovNetwork::remove_edge(Arg u, Arg v) {
+  auto [uit, ufound] = impl().find(u);
+  auto [vit, vfound] = impl().find(v);
+  if (!ufound || !vfound) {
+    return 0;
+  }
+  AdjacencyMap& neighbors_u = uit->second->neighbors;
+  AdjacencyMap& neighbors_v = vit->second->neighbors;
 
   // Look up the edge data
   auto it = neighbors_u.find(v);
-  assert(it != neighbors_u.end());
+  if (it == neighbors_u.end()) {
+    return 0;
+  }
 
   // delete the edge data and the edge itself
-  if (u <= v) {
-    impl().edge_property_layout.free_allocated(it->second);
-  }
+  impl().edge_property_layout.free_allocated(it->second);
   neighbors_u.erase(it);
   neighbors_v.erase(u);
   --impl().num_edges;
+  return 1;
 }
 
 void MarkovNetwork::remove_edges(Arg u) {
@@ -434,7 +446,7 @@ void MarkovNetwork::eliminate(const EliminationStrategy& strategy, VertexVisitor
 
     // Find out vertices whose priority may change
     affected_vertices.clear();
-    strategy.update(u, *this, affected_vertices);
+    strategy.updated(u, *this, affected_vertices);
 
     // Eliminate the vertex
     visitor(u);
@@ -449,6 +461,11 @@ void MarkovNetwork::eliminate(const EliminationStrategy& strategy, VertexVisitor
       }
     }
   }
+}
+
+std::ostream& operator<<(std::ostream& out, const MarkovNetwork& mn) {
+  mn.impl().print(out);
+  return out;
 }
 
 } // namespace libgm

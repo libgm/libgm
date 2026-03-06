@@ -50,8 +50,9 @@ public:
   struct Vertex;
   struct Edge;
 
-  // Vertex I/O
+  // Vertex and edge I/O
   friend std::ostream& operator<<(std::ostream& out, Vertex* v);
+  friend std::ostream& operator<<(std::ostream& out, Edge* e);
 
   // Public type declarations
   //--------------------------------------------------------------------------
@@ -111,9 +112,9 @@ public:
   /// Constructs an empty cluster graph with no clusters.
   ClusterGraph();
   ClusterGraph(const ClusterGraph& other);
-  ClusterGraph(ClusterGraph&& other) noexcept = default;
+  ClusterGraph(ClusterGraph&& other) noexcept;
   ClusterGraph& operator=(const ClusterGraph& other);
-  ClusterGraph& operator=(ClusterGraph&& other) noexcept = default;
+  ClusterGraph& operator=(ClusterGraph&& other) noexcept;
   ~ClusterGraph();
 
   /// Swaps two cluster graphs in constant time.
@@ -123,7 +124,7 @@ public:
 
   VertexColorMap vertex_color_map() { return {}; }
 
-  VertexIndexMap vertex_index_map() { return {}; }
+  VertexIndexMap vertex_index_map();
 
   // Graph accessors
   //--------------------------------------------------------------------------
@@ -206,8 +207,11 @@ public:
   /// The cluster associated with a vertex.
   const Domain& cluster(Vertex* v) const;
 
-  /// The seprator associated with an edge.
+  /// The separator associated with an edge.
   const Domain& separator(edge_descriptor e) const;
+
+  /// The pre-computed reachable variables through this edge.
+  const Domain& reachable(edge_descriptor e) const;
 
   /// Returns the shape of the arguments at a vertex.
   Shape shape(Vertex* v, const ShapeMap& map) const;
@@ -226,6 +230,9 @@ public:
 
   /// Returns the index mapping from the separator to the target cluster.
   Dims target_dims(edge_descriptor e) const;
+
+  /// Returns true if hte given vertex is marked.
+  bool marked(Vertex* v) const;
 
   // Queries
   //--------------------------------------------------------------------------
@@ -442,10 +449,12 @@ public:
   void remove_vertex(Vertex* v);
 
   /// Removes an undirected edge {u, v} and the associated data.
-  void remove_edge(Vertex* u, Vertex* v);
+  /// Returns 1 if removed, 0 otherwise.
+  size_t remove_edge(Vertex* u, Vertex* v);
 
   /// Removes an undirected edge and the associated data.
-  void remove_edge(edge_descriptor e);
+  /// Returns 1 if removed, 0 otherwise.
+  size_t remove_edge(edge_descriptor e);
 
   /// Removes all edges incindent to a vertex
   void clear_vertex(Vertex* u);
@@ -478,7 +487,7 @@ public:
    *
    * \tparam Range a range with values convertible to Domain
    */
-  void triangulated(const std::vector<Domain>& cliques);
+  std::vector<Vertex*> triangulated(const std::vector<Domain>& cliques);
 
   /**
    * Initializes the edges using the maximum spanning tree algorithm based
@@ -497,8 +506,10 @@ private:
   void serialize(Archive& ar) {
     ar(impl_);
   }
+};
 
-}; // class ClusterGraph
+/// Prints the cluster graph to an output stream.
+std::ostream& operator<<(std::ostream& out, const ClusterGraph& graph);
 
 /// Returns the color associated with a vertex.
 boost::default_color_type get(const ClusterGraph::VertexColorMap&, ClusterGraph::Vertex* v);

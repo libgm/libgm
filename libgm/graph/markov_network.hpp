@@ -188,10 +188,12 @@ public:
   void add_clique(const Domain& vertices);
 
   /// Removes a vertex from the graph and all its incident edges.
-  void remove_vertex(Arg u);
+  /// Returns 1 if removed, 0 if the vertex does not exist.
+  size_t remove_vertex(Arg u);
 
   /// Removes an undirected edge {u, v}.
-  void remove_edge(Arg u, Arg v);
+  /// Returns 1 if removed, 0 if the edge does not exist.
+  size_t remove_edge(Arg u, Arg v);
 
   /// Removes all edges incident to a vertex.
   void remove_edges(Arg u);
@@ -210,6 +212,9 @@ public:
    * strategy.
    */
   void eliminate(const EliminationStrategy& strategy, VertexVisitor visitor);
+
+  /// Prints a Markov network to an output stream.
+  friend std::ostream& operator<<(std::ostream& out, const MarkovNetwork& g);
 
 private:
   std::unique_ptr<Impl> impl_;

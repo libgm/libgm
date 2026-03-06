@@ -13,8 +13,8 @@ namespace libgm {
 
 using namespace libgm;
 
-struct fixture {
-  fixture() {
+struct Fixture {
+  Fixture() {
     for (std::size_t i = 0; i < 6; ++i) {
       x.push_back(var::discrete(u, "x" + std::to_string(i), 2));
     }
@@ -44,7 +44,7 @@ struct fixture {
   region_graph<domain<var> > rg;
 };
 
-BOOST_FIXTURE_TEST_CASE(test_validity, fixture) {
+BOOST_FIXTURE_TEST_CASE(test_validity, Fixture) {
   using libgm::id_t;
   BOOST_CHECK(rg.num_vertices() == 9);
   BOOST_CHECK(rg.num_edges() == 12);

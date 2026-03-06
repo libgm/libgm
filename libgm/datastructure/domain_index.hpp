@@ -65,6 +65,13 @@ public:
   }
 
   /**
+   * Returns the number of distinct arguments present in this index.
+   */
+  size_t num_arguments() const {
+    return adjacency_.size();
+  }
+
+  /**
    * Returns a handle for any domain that contains the specified argument.
    * \return the handle or nullptr if no there is no domain containing the argument
    * \throw std::out_of_range if there is no such argument

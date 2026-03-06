@@ -106,7 +106,7 @@ namespace std {
 /// \relates DirectedEdge
 template <typename Vertex>
 struct hash<libgm::DirectedEdge<Vertex>> {
-  size_t operator()(const libgm::DirectedEdge<Vertex>& e) {
+  size_t operator()(const libgm::DirectedEdge<Vertex>& e) const {
     size_t seed = 0;
     boost::hash_combine(seed, e.source());
     boost::hash_combine(seed, e.target());

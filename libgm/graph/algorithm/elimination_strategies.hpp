@@ -1,8 +1,6 @@
 #pragma once
 
-#include <libgm/graph/markov_network.hpp>
-
-#include <algorithm>
+#include <libgm/graph/elimination_strategy.hpp>
 
 namespace libgm {
 
@@ -14,7 +12,7 @@ namespace libgm {
  *
  * \ingroup graph_types
  */
-struct MinDegreeStrategy : MarkovNetwork::EliminationStrategy {
+struct MinDegreeStrategy : EliminationStrategy {
   /// Computes the priority of a vertex, which is its negative degree.
   ptrdiff_t priority(Arg u, const MarkovNetwork& g) const override;
 
@@ -30,9 +28,7 @@ struct MinDegreeStrategy : MarkovNetwork::EliminationStrategy {
  * for all the vertices within distance 2 of this vertex.
  *
  */
-struct MinFillStrategy : MarkovNetwork::EliminationStrategy {
-  using adjacency_iterator = MarkovNetwork::adjacency_iterator;
-
+struct MinFillStrategy : EliminationStrategy {
   /// Computes the priority of a vertex, which is the negative of the fill-in.
   ptrdiff_t priority(Arg u, const MarkovNetwork& g) const override;
 
@@ -41,5 +37,3 @@ struct MinFillStrategy : MarkovNetwork::EliminationStrategy {
 };
 
 } // namespace libgm
-
-#endif

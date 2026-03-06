@@ -17,8 +17,8 @@ namespace libgm {
 
 using namespace libgm;
 
-struct fixture {
-  fixture() {
+struct Fixture {
+  Fixture() {
     for (std::size_t i = 0; i < 6; ++i) {
       v.push_back(var::discrete(u, "v" + std::to_string(i), 2));
     }
@@ -37,7 +37,7 @@ struct fixture {
   cluster_graph<domain<var> > cg;
 };
 
-BOOST_FIXTURE_TEST_CASE(test_properties, fixture) {
+BOOST_FIXTURE_TEST_CASE(test_properties, Fixture) {
   using libgm::id_t;
 
   BOOST_CHECK(cg.connected());
@@ -49,7 +49,7 @@ BOOST_FIXTURE_TEST_CASE(test_properties, fixture) {
   BOOST_CHECK(!cg.running_intersection());
 }
 
-BOOST_FIXTURE_TEST_CASE(test_copy, fixture) {
+BOOST_FIXTURE_TEST_CASE(test_copy, Fixture) {
   cluster_graph<domain<var> > cg2(cg);
   BOOST_CHECK(cg2.connected());
   BOOST_CHECK(cg2.tree());
@@ -58,7 +58,7 @@ BOOST_FIXTURE_TEST_CASE(test_copy, fixture) {
 }
 
 /*
-BOOST_FIXTURE_TEST_CASE(test_serialization, fixture) {
+BOOST_FIXTURE_TEST_CASE(test_serialization, Fixture) {
   BOOST_CHECK(serialize_deserialize(cg, u));
 }
 */

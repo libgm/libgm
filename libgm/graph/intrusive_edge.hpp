@@ -2,6 +2,8 @@
 
 #include <libgm/datastructure/intrusive_list.hpp>
 
+#include <iostream>
+#include <functional>
 #include <utility>
 
 namespace libgm {
@@ -36,6 +38,10 @@ public:
     return entry_.item;
   }
 
+  explicit operator bool() const {
+    return entry_.item != nullptr;
+  }
+
   bool index() const {
     ptrdiff_t diff = entry_.hook - connectivity().adjacency_hook;
     assert((diff & ~ptrdiff_t(1)) == 0 && "Invalid hook");
@@ -43,11 +49,11 @@ public:
   }
 
   V* source() const {
-    return connectivity().vertex[!index()];
+    return connectivity().vertex[index()];
   }
 
   V* target() const {
-    return connectivity().vertex[index()];
+    return connectivity().vertex[!index()];
   }
 
   IntrusiveEdge reverse() const {
@@ -62,6 +68,10 @@ public:
     return entry_ != other.entry_;
   }
 
+  friend std::ostream& operator<<(std::ostream& out, const IntrusiveEdge& e) {
+    out << e.get();
+    return out;
+  }
 private:
   Connectivity& connectivity() const {
     // This is guaranteed to work because E is standard layout
@@ -72,3 +82,14 @@ private:
 };
 
 }
+
+namespace std {
+
+template <typename V, typename E>
+struct hash<libgm::IntrusiveEdge<V, E>> {
+  size_t operator()(const libgm::IntrusiveEdge<V, E>& edge) const noexcept {
+    return std::hash<E*>()(edge.get());
+  }
+};
+
+} // namespace std

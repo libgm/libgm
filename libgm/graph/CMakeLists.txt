@@ -1,3 +1,5 @@
+subdirs(algorithm)
+
 target_sources(
   libgm
   PRIVATE
