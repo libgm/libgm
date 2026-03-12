@@ -1,7 +1,8 @@
 #pragma once
 
+#include <libgm/factor/logarithmic_vector.hpp>
+#include <libgm/factor/probability_vector.hpp>
 #include <libgm/math/eigen/dense.hpp>
-#include <libgm/math/tags.hpp>
 
 #include <numeric>
 #include <random>
@@ -16,20 +17,17 @@ namespace libgm {
 template <typename T = double>
 class CategoricalDistribution {
 public:
-  /// The underlying parameter type.
-  typedef DenseVector<T> param_type;
-
   /// The type representing the sample.
-  typedef size_t result_type;
+  using result_type = size_t;
 
   /// Constructor for a distribution in the probability space.
-  CategoricalDistribution(const DenseVector<T>& p, prob_tag)
+  explicit CategoricalDistribution(const ProbabilityVector<T>& p)
     : psum_(p) {
     std::partial_sum(psum_.data(), psum_.data() + psum_.size(), psum_.data());
   }
 
   /// Constructor for a distribution in the log space.
-  CategoricalDistribution(const DenseVector<T>& p, log_tag)
+  explicit CategoricalDistribution(const LogarithmicVector<T>& p)
     : psum_(exp(p.array())) {
     std::partial_sum(psum_.data(), psum_.data() + psum_.size(), psum_.data());
   }
@@ -50,8 +48,8 @@ public:
 
 private:
   /// Partial sums.
-  DenseVector<T> psum_;
+  Vector<T> psum_;
 
-}; // class CategoricalDistribution
+};
 
-} // namespace libgm
+}

@@ -1,5 +1,4 @@
-#ifndef LIBGM_FUNCTIONAL_ARITHMETIC_HPP
-#define LIBGM_FUNCTIONAL_ARITHMETIC_HPP
+#pragma once
 
 #include <algorithm>
 #include <cmath>
@@ -290,5 +289,3 @@ struct ScalarCast {
 };
 
 } // namespace libgm
-
-#endif

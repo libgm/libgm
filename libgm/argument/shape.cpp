@@ -139,9 +139,19 @@ size_t Shape::product() const {
   return result;
 }
 
+size_t Shape::multiplier(unsigned n) const {
+  assert(n <= size());
+  return std::accumulate(begin(), end(), size_t(1), std::multiplies<size_t>());
+}
+
 std::vector<size_t> Shape::index(size_t linear) const {
-  std::vector<size_t> result(size());
-  for (size_t i = 0; i < size(); ++i) {
+  return index_front(linear, size());
+}
+
+std::vector<size_t> Shape::index_front(size_t linear, unsigned n) const {
+  assert(n <= size());
+  std::vector<size_t> result(n);
+  for (unsigned i = 0; i < n; ++i) {
     result[i] = linear % operator[](i);
     linear /= operator[](i);
   }

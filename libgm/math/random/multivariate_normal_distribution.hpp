@@ -1,5 +1,6 @@
 #pragma once
 
+#include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/numerical_error.hpp>
 
 #include <random>
@@ -14,28 +15,22 @@ namespace libgm {
  */
 template <typename T = double>
 class MultivariateNormalDistribution {
-  typedef DenseMatrix<T> mat_type;
-  typedef DenseVector<T> vec_type;
-
 public:
-  /// The type of parameters of this distribution.
-  typedef MomentGaussian<T> param_type;
-
   /// The type representing the sample.
-  typedef DenseVector<T> result_type;
+  using result_type = Vector<T>;
 
   /// The type representing an assignment to the tail.
-  typedef DenseVector<T> tail_type;
+  using tail_type = Vector<T>;
 
   /**
    * Constructs a marginal or conditional distribution
    * with given moment Gaussian parameters.
    */
-  explicit MultivariateNormalDistribution(const MomentGaussian<T>& param)
+  explicit MultivariateNormalDistribution(const MomentGaussian<T>& mg)
     : mean_(param.mean), coef_(param.coef) {
-    Eigen::LLT<mat_type> chol(param.cov);
+    Eigen::LLT<Matrix<T>> chol(param.cov);
     if (chol.info() != Eigen::Success) {
-      throw numerical_error(
+      throw std::runtime_error(
         "MultivariateNormalDistribution: Cannot compute the Cholesky decomposition"
       );
     }
@@ -46,16 +41,16 @@ public:
    * Draws a random sample from a marginal distribution.
    */
   template <typename Generator>
-  vec_type operator()(Generator& rng) const {
-    return operator()(rng, vec_type());
+  Vector<T> operator()(Generator& rng) const {
+    return operator()(rng, Vector<T>());
   }
 
   /**
    * Draws a random sample from a conditional distribution.
    */
   template <typename Generator>
-  vec_type operator()(Generator& rng, const vec_type& tail) const {
-    vec_type z(mean_.size());
+  Vector<T> operator()(Generator& rng, const Vector<T>& tail) const {
+    Vector<T> z(mean_.size());
     std::normal_distribution<T> normal;
     for (std::ptrdiff_t i = 0; i < mean_.size(); ++i) {
       z[i] = normal(rng);
@@ -64,10 +59,10 @@ public:
   }
 
 private:
-  vec_type mean_;
-  mat_type mult_;
-  mat_type coef_;
+  Vector<T> mean_;
+  Matrix<T> mult_;
+  Matrix<T> coef_;
 
-}; // class MultivariateNormalDistribution
+};
 
-} // namespace libgm
+}

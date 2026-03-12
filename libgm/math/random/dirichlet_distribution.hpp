@@ -5,7 +5,6 @@
 #include <Eigen/Core>
 
 namespace libgm {
-
 /**
  * Dirichlet(n, alpha) distribution.
  *
@@ -71,8 +70,8 @@ private:
   param_type alpha_;
 
   /// The gamma distributions.
-  std::vector<gamma_distribution<T> > gamma_;
+  std::vector<std::gamma_distribution<T>> gamma_;
 
-}; // class DirichletDistribution
+};
 
-} // namespace libgm
+}

@@ -64,20 +64,29 @@ public:
   /// Returns the product of all elements in the shape, checking for overflow.
   size_t product() const;
 
+  /// Returns the multiplier for the given position. This is the product of elements up to that position.
+  size_t multiplier(unsigned n) const;
+
   /**
-   * Assuming that this shape represents the shape of a multidimensional array (table / tensor),
-   * converts the given lienar index to an index in that array.
+   * Assuming that this shape represents the shape of a multidimensional array (table/tensor),
+   * converts the given linear index to an index in that array.
    */
   std::vector<size_t> index(size_t linear) const;
 
   /**
-   * Assuming that this shape represents the shape of a multidimensional array (table / tensor),
+   * Assuming that this shape represents the shape of a multidimensional array (table/tensor),
+   * converts the given linear index for the given number of front dimensions to an index in that array.
+   */
+  std::vector<size_t> index_front(size_t linear, unsigned n) const;
+
+  /**
+   * Assuming that this shape represents the shape of a multidimensional array (table/tensor),
    * converts the given index to a linear index in that array.
    */
   size_t linear(const std::vector<size_t>& index) const;
 
   /**
-   * Assuming that this shape represents the shape of a multidimensional array (table / tensor),
+   * Assuming that this shape represents the shape of a multidimensional array (table/tensor),
    * converts the given index to the front dimensions to a linear index in that array.
    */
   size_t linear_front(const std::vector<size_t>& index) const;
@@ -103,7 +112,7 @@ public:
   Spans spans(const Dims& dims, bool ignore_out_of_range = false) const;
 };
 
-// Concatenats two shapes.
+/// Concatenates two shapes.
 Shape operator+(const Shape& a, const Shape& b);
 
 /// Joins two shapes on the given dimensions.

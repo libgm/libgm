@@ -44,7 +44,7 @@ public:
   /**
    * Constructs a table with the given shape. This constructor does not
    * initialize the table elements. If needed, the table contents can be
-   * initialized with other constructors or with the the fill() function.
+   * initialized with other constructors or with the fill() function.
    */
   explicit Table(Shape shape) {
     reset(std::move(shape));

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <libgm/datastructure/uint_vector.hpp>
+#include <libgm/factor/logarithmic_matrix.hpp>
+#include <libgm/factor/probability_matrix.hpp>
 #include <libgm/math/eigen/dense.hpp>
-#include <libgm/math/tags.hpp>
 
 #include <numeric>
 #include <random>
@@ -17,24 +17,21 @@ namespace libgm {
 template <typename T = double>
 class BivariateCategoricalDistribution {
 public:
-  /// The underlying parameter type.
-  typedef DenseMatrix<T> param_type;
-
   /// The type representing the sample.
-  typedef std::pair<size_t, size_t> result_type;
+  using result_type = std::pair<size_t, size_t>;
 
   /// The type representing the assignment to the tail.
-  typedef size_t tail_type;
+  using tail_type = size_t ;
 
   /// Constructor for a distribution in the probability space.
-  BivariateCategoricalDistribution(const DenseMatrix<T>& p, prob_tag)
-    : psum_(p) {
+  explicit BivariateCategoricalDistribution(const ProbabilityMatrix<T>& p)
+    : psum_(p.param()) {
     std::partial_sum(psum_.data(), psum_.data() + psum_.size(), psum_.data());
   }
 
   /// Constructor for a distribution in the log space.
-  BivariateCategoricalDistribution(const DenseMatrix<T>& p, log_tag)
-    : psum_(exp(p.array())) {
+  explicit BivariateCategoricalDistribution(const LoagarithmicMatrix<T>& p)
+    : psum_(exp(p.param())) {
     std::partial_sum(psum_.data(), psum_.data() + psum_.size(), psum_.data());
   }
 
@@ -68,9 +65,9 @@ public:
   }
 
 private:
-  /// Partial sums.
-  DenseMatrix<T> psum_;
+  /// Partial sums in the row-major format.
+  Matrix<T> psum_;
 
-}; // class BivariateCategoricalDistribution.
+};
 
-} // namespace libgm
+}
