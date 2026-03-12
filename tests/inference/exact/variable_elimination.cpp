@@ -10,14 +10,8 @@
 #include <libgm/factor/utility/operations.hpp>
 #include <libgm/graph/special/grid_graph.hpp>
 #include <libgm/model/pairwise_markov_network.hpp>
-
+  
 #include <random>
-
-namespace libgm {
-  template <>
-  struct argument_traits<std::pair<int, int> >
-    : fixed_discrete_traits<std::pair<int, int>, 2> { };
-}
 
 BOOST_AUTO_TEST_CASE(test_grid) {
   using namespace libgm;

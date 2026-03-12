@@ -75,15 +75,14 @@ private:
  * \relates TableGenerator
  */
 template <typename RealType = double>
-using UniformTableGenerator = TableGenerator<std::uniform_distribution<RealType>>;
+using UniformTableGenerator = TableGenerator<std::uniform_real_distribution<RealType>>;
 
 /**
- * A TableGenerator that returns a table whose parameters are drawn from a
- * gamma distribution.
+ * A TableGenerator that returns a table whose parameters are drawn from a gamma distribution.
  *
  * In the special case, when the second parameter of the gamma distribution is
- * 1, and the table is normalized to sum to 1, this results in a draw from
- * a dirichlet distribution.
+ * 1, and the table is normalized to sum to 1, resulting in a draw from
+ * a Dirichlet distribution.
  *
  * \relates TableGenerator
  */
@@ -91,67 +90,42 @@ template <typename RealType = double>
 using DirichletTableGenerator = TableGenerator<std::gamma_distribution<RealType>>;
 
 /**
- * A generator that draws a random table that is a sum of a fixed base
- * number and a constant diagonal matrix, whose value is drawn from
- * a uniform distribution. This can be used to generate associative
- * factors and ising factors.
+ * A generator that draws a random table that is a sum of a fixed base number and a constant diagonal matrix, whose
+ * value is drawn from a uniform distribution. This can be used to generate associative factors and ising factors.
  */
 template <typename Distribution>
 class DiagonalTableGenerator {
-  // ParameterGenerator types
-  using real_type = RealType;
-  using result_type = table<RealType>;
+public:
+  using real_type = typename Distribution::real_type;
+  using result_type = Table<RealType>;
   using shape_type = Shape;
-  // using param_type = diagonal_generator_param<RealType>;
 
-  /**
-   * Constructs a diagonal_TableGenerator, passing the arguments down to
-   * the diagonal_generator_param struct.
-   */
+  /// Constructs a diagonal_TableGenerator, passing the arguments down to the diagonal_generator_param struct.
   template <typename... Arg>
-  DiagonalTableGenerator(Arg&&... arg)
-    : param_(std::forward<Arg>(arg)...) { }
+  DiagonalTableGenerator(real_type base, Arg&&... arg)
+    : base_(base), distribution_(std::forward<Arg>(arg)...) { }
 
-  /**
-   * Returns the parameter set associated with the distribution.
-   */
-  param_type param() const {
-    return param_;
-  }
-
-  /**
-   * Sets the parameter set associated with the distribution.
-   */
-  void param(const param_type& params) {
-    param_ = params;
-  }
-
-  /**
-   * Prints the generator to an output stream.
-   */
-  friend std::ostream&
-  operator<<(std::ostream& out, const TableGenerator& g) {
-    out << "diagonal_TableGenerator(" << g.param_ << ")";
+  /// Prints the generator to an output stream.
+  friend std::ostream& operator<<(std::ostream& out, const DiagonalTableGenerator& g) {
+    out << "DiagonalTableGenerator(" << g.base_ << ", " << g.distribution_ << ")";
     return out;
   }
 
-  /**
-   * Generates a table using the stored random number distribution.
-   */
+  /// Generates a table using the stored random number distribution.
   template <typename Generator>
   Table<RealType> operator()(unsigned arity, size_t n, Generator& g) const {
-    Table<real_type> result(Shape(arity, n), real_type(0));
+    Table<real_type> result(Shape(arity, n), base_);
     std::vector<size_t> index;
     for (size_t k = 0; k < n; ++k) {
       index.assign(arity, k);
-      result(index) = distribution_(g);
+      result(index) += distribution_(g);
     }
     return r;
   }
 
 private:
+  real_type base_;
   Distribution distribution_;
-
 };
 
 }

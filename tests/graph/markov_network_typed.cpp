@@ -4,6 +4,8 @@
 #include <libgm/argument/named_argument.hpp>
 #include <libgm/graph/markov_network.hpp>
 
+#include <algorithm>
+
 namespace libgm {
 namespace {
 
@@ -157,6 +159,51 @@ BOOST_AUTO_TEST_CASE(add_edge_does_not_overwrite_existing_property) {
   BOOST_CHECK(!inserted2);
   BOOST_CHECK_EQUAL(EdgeProperty::alive_count, 1);
   BOOST_CHECK_EQUAL(mn[e2].value, 1);
+
+  mn.clear();
+  BOOST_CHECK_EQUAL(VertexProperty::alive_count, 0);
+  BOOST_CHECK_EQUAL(EdgeProperty::alive_count, 0);
+}
+
+BOOST_AUTO_TEST_CASE(init_vertex_and_edge_properties) {
+  VertexProperty::alive_count = 0;
+  EdgeProperty::alive_count = 0;
+
+  MarkovNetworkT<VertexProperty, EdgeProperty> mn;
+  Arg a = make_arg("init_a");
+  Arg b = make_arg("init_b");
+  Arg c = make_arg("init_c");
+
+  BOOST_CHECK(mn.add_vertex(a));
+  BOOST_CHECK(mn.add_vertex(b));
+  BOOST_CHECK(mn.add_vertex(c));
+  BOOST_CHECK(mn.add_edge(a, b).second);
+  BOOST_CHECK(mn.add_edge(b, c).second);
+
+  int vertex_calls = 0;
+  mn.init_vertices([&](Arg u) {
+    ++vertex_calls;
+    if (u == a) return VertexProperty(11);
+    if (u == b) return VertexProperty(22);
+    return VertexProperty(33);
+  });
+
+  BOOST_CHECK_EQUAL(vertex_calls, 3);
+  BOOST_CHECK_EQUAL(mn[a].value, 11);
+  BOOST_CHECK_EQUAL(mn[b].value, 22);
+  BOOST_CHECK_EQUAL(mn[c].value, 33);
+
+  int edge_calls = 0;
+  mn.init_edges([&](UndirectedEdge<Arg> e) {
+    ++edge_calls;
+    const bool is_ab = e.unordered_pair() == std::minmax(a, b);
+    if (is_ab) return EdgeProperty(44);
+    return EdgeProperty(55);
+  });
+
+  BOOST_CHECK_EQUAL(edge_calls, 2);
+  BOOST_CHECK_EQUAL(mn[mn.edge(a, b)].value, 44);
+  BOOST_CHECK_EQUAL(mn[mn.edge(b, c)].value, 55);
 
   mn.clear();
   BOOST_CHECK_EQUAL(VertexProperty::alive_count, 0);

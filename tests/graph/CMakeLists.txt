@@ -1,4 +1,5 @@
 subdirs(algorithm)
+subdirs(special)
 
 add_executable(bayesian_network bayesian_network_test.cpp)
 add_executable(bayesian_network_typed bayesian_network_typed.cpp)

@@ -281,6 +281,23 @@ struct MarkovNetworkT : MarkovNetwork {
     return result;
   }
 
+  void init_vertices(const std::function<VP(Arg)>& init_fn) {
+    for (Arg u : vertices()) {
+      (*this)[u] = init_fn(u);
+    }
+  }
+
+  void init_edges(
+      const std::function<EP(UndirectedEdge<Arg>)>& init_fn) {
+    for (Arg u : vertices()) {
+      for (UndirectedEdge<Arg> e : out_edges(u)) {
+        if (e.source() <= e.target()) {
+          (*this)[e] = init_fn(e);
+        }
+      }
+    }
+  }
+
   template <typename Archive>
   void save(Archive& ar) const {
     ar(cereal::base_class<const MarkovNetwork>(this));

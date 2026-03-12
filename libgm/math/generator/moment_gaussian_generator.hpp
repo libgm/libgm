@@ -1,6 +1,6 @@
 #pragma once
 
-#include <libgm/factor/MomentGaussian.hpp>
+#include <libgm/factor/moment_gaussian.hpp>
 
 #include <algorithm>
 #include <functional>

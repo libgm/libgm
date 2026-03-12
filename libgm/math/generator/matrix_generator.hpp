@@ -18,7 +18,7 @@ namespace libgm {
  */
 template <typename Distribution>
 class MatrixGenerator {
-  // ParameterGenerator types
+public:
   using real_type = typename Distribution::real_type;
   using result_type = Matrix<real_type>;
   using shape_type = std::pair<size_t, size_t>;
@@ -64,8 +64,8 @@ private:
 };
 
 /**
- * A MatrixGenerator that draws the matrix elements from a uniform
- * distribution.
+ * A MatrixGenerator that draws the matrix elements from a uniform distribution.
+ *
  * \relates MatrixGenerator
  */
 template <typename T = double>
@@ -74,9 +74,8 @@ using UniformMatrixGenerator = MatrixGenerator<std::uniform_distribution<T>>;
 /**
  * A MatrixGenerator that returns a matrix whose parameters are drawn from a gamma distribution.
  *
- * In the special case, when the second parameter of the gamma distribution is
- * 1, and the matrix is normalized to sum to 1, this results in a draw from
- * a dirichlet distribution.
+ * In the special case, when the second parameter of the gamma distribution is 1, and the matrix is normalized to sum
+ * to 1, this results in a draw from a Dirichlet distribution.
  *
  * \relates MatrixGenerator
  */
@@ -84,64 +83,38 @@ template <typename T = double>
 using DirichlatMatrixGenerator = MatrixGenerator<std::gamma_distribution<T> >;
 
 /**
- * A generator that draws a random matrix that is a sum of a fixed base
- * number and a constant diagonal matrix, whose value is drawn from
- * a uniform distribution. This can be used to generate associative
- * factors and ising factors.
+ * A generator that draws a random matrix that is a sum of a fixed base number and a diagonal matrix, whose values are
+ * drawn from a uniform distribution. This can be used to generate associative factors and Ising factors.
  */
-template <typename RealType = double>
+template <typename Distribution>
 class DiagonalMatrixGenerator {
 public:
-  // ParameterGenerator types
-  using real_type = RealType;
-  using result_type = Matrix<RealType>;
+  using real_type = typename Distribution::real_type;
+  using result_type = Matrix<real_type>;
   using shape_type = size_t;
-  using param_type = diagonal_generator_param<RealType>;
 
-  /**
-   * Constructs a DiagonalMatrixGenerator, passing the arguments down to
-   * the diagonal_generator_param struct.
-   */
+  /// Constructs a DiagonalMatrixGenerator, passing the arguments down to the diagonal_generator_param struct.
   template <typename... Arg>
-  DiagonalMatrixGenerator(Arg&&... arg)
-    : param_(std::forward<Arg>(arg)...) { }
+  DiagonalMatrixGenerator(real_type base, Arg&&... arg)
+    : base_(base), distribution_(std::forward<Arg>(arg)...) { }
 
-  /**
-   * Returns the parameter set associated with the distribution.
-   */
-  param_type param() const {
-    return param_;
-  }
-
-  /**
-   * Sets the parameter set associated with the distribution.
-   */
-  void param(const param_type& params) {
-    param_ = params;
-  }
-
-  /**
-   * Prints the generator to an output stream.
-   */
-  friend std::ostream&
-  operator<<(std::ostream& out, const MatrixGenerator& g) {
-    out << "DiagonalMatrixGenerator(" << g.param_ << ")";
+  /// Prints the generator to an output stream.
+  friend std::ostream& operator<<(std::ostream& out, const DiagonalMatrixGenerator& g) {
+    out << "DiagonalMatrixGenerator(" << g.base_ << ", " << g.distribution_ << ")";
     return out;
   }
 
-  /**
-   * Generates a matrix using the stored random number distribution.
-   */
+  /// Generates a matrix using the stored random number distribution.
   template <typename Generator>
   Matrix<real_type> operator()(size_t n, Generator& g) const {
-    std::uniform_real_distribution<RealType> offset(param_.lower,
-                                                    param_.upper);
-    return Matrix<RealType>::Constant(n, n, param_.base) +
-      Matrix<RealType>::Identity(n, n, offset(g));
+    Vector<real_type> vec(n);
+    std::generate(vec.begin(), vec.end(), std::bind(distribution_, std::ref(g)));
+    return Matrix<real_type>::Constant(n, n, base_) + vec.asDiagonal();
   }
 
 private:
-  diagonal_generator_param<RealType> param_;
+  real_type base_;
+  Distribution distribution_;
 };
 
 }
