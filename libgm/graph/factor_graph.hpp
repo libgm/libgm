@@ -3,7 +3,6 @@
 #include <libgm/argument/domain.hpp>
 #include <libgm/datastructure/intrusive_list.hpp>
 #include <libgm/datastructure/subrange.hpp>
-#include <libgm/factor/utility/commutative_semiring.hpp>
 #include <libgm/graph/markov_network.hpp>
 #include <libgm/graph/util/property_layout.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
@@ -17,8 +16,6 @@
 
 #include <cassert>
 #include <memory>
-#include <new>
-#include <typeinfo>
 #include <type_traits>
 #include <utility>
 
@@ -148,13 +145,6 @@ public:
 
   /// Removes all vertices and edges from the graph.
   void clear();
-
-protected:
-#if 0
-  // Eliminates all variables other than the specified ones.
-  void eliminate(const Domain& retain, const CommutativeSemiring& csr, const ShapeMap& shape_map,
-                 const EliminationStrategy& strategy);
-#endif
 
   // Private members
   //--------------------------------------------------------------------------

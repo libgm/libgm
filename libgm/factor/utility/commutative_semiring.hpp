@@ -5,10 +5,6 @@
 
 namespace libgm {
 
-struct OpaqueCommutativeSemiring {
-  std::shared_ptr<void> (*init)(const Shape& shape);
-};
-
 /**
  * A base class that represents one of pre-defined commutative semirings
  * on factor types.
@@ -18,29 +14,15 @@ class CommutativeSemiring {
 public:
   virtual ~CommutativeSemiring() = default;
 
-  /**
-   * The initial factor for the dot operation (e.g., 1 in sum-product).
-   */
+  /// The initial factor for the dot operation (e.g., 1 in sum-product).
   virtual F init(const Shape& shape) const = 0;
 
-  /**
-   * Combines a factor with another one in place along give dimensions.
-   */
+  /// Combines a factor with another one in place along give dimensions.
   virtual void combine_in(F& result, const F& other, const Dims& dims) const = 0;
 
-  /**
-   * Collapses a factor, retaining a set of indices.
-   */
+  /// Collapses a factor, retaining a set of indices.
   virtual F collapse(const F& factor, const Dims& retain) const = 0;
 
-  /**
-   * Returns type-erased ring.
-   */
-  OpaqueCommutativeSemiring opaque() {
-    return {
-
-    };
-  }
 }; // class CommutativeSemiring
 
 /**

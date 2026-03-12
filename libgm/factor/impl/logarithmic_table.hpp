@@ -42,6 +42,12 @@ LogarithmicTable<T>::LogarithmicTable(Shape shape, const T* values)
 }
 
 template <typename T>
+void LogarithmicTable<T>::reset(Shape shape) {
+  param_.reset(std::move(shape));
+  param_.fill(0);
+}
+
+template <typename T>
 LogarithmicTable<T> LogarithmicTable<T>::operator*(const Exp<T>& x) const {
   LogarithmicTable result;
   transform(param_, IncrementedBy<T>(x.lv), result.param_);

@@ -1,12 +1,9 @@
 #pragma once
 
 #include <libgm/argument/shape.hpp>
-#include <libgm/math/eigen/dense.hpp>
+#include <libgm/assignment/vector_assignment.hpp>
 #include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/exp.hpp>
-// #include <libgm/math/likelihood/moment_gaussian_ll.hpp>
-// #include <libgm/math/likelihood/moment_gaussian_mle.hpp>
-// #include <libgm/math/random/multivariate_normal_distribution.hpp>
 
 #include <cereal/access.hpp>
 #include <cereal/types/memory.hpp>
@@ -40,6 +37,7 @@ public:
   using value_type = T;
   using value_list = Vector<T>;
   using result_type = Exp<T>;
+  using assignment_type = VectorAssignment<T>;
 
   struct Impl;
 

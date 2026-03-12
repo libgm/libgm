@@ -1,15 +1,14 @@
 #pragma once
 
 #include <libgm/argument/shape.hpp>
-#include <vector>
+#include <libgm/assignment/discrete_assignment.hpp>
 #include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/exp.hpp>
-// #include <libgm/math/likelihood/logarithmic_vector_ll.hpp>
-// #include <libgm/math/random/categorical_distribution.hpp>
 
 #include <cereal/access.hpp>
 
 #include <initializer_list>
+#include <vector>
 
 namespace libgm {
 
@@ -38,6 +37,7 @@ public:
   using value_type = T;
   using value_list = std::vector<size_t>;
   using result_type = Exp<T>;
+  using assignment_type = DiscreteAssignment;
 
   // Constructors and conversion operators
   //--------------------------------------------------------------------------

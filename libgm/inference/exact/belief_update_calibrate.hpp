@@ -7,128 +7,113 @@ namespace libgm {
 /**
  * An algorithm for compute the marginal of a factorized probability model
  * using the division belief update algorithm on a junction tree.
+ *
+ * \tparam F
+ *         A type representing the factors. The type must support
+ *         multiplication, division, and marginalization operations.
  */
+template <typename F>
 class BeliefUpdateCalibrate {
-
-  // Public type declarations
-  //--------------------------------------------------------------------------
 public:
-  struct PotentialCref : Implements<...> { void* ref; };
-  struct PotentialRef : PotentialCref, Implements<...> { PotentialRef& operator=(...); };
-  struct Potential : PotentialRef { std::unique_ptr<char[]> data; };
-
   // Graph types
   using vertex_descriptor = ClusterGraph::vertex_descriptor;
   using edge_descriptor = ClusterGraph::edge_descriptor;
 
-  // Constructors
-  //--------------------------------------------------------------------------
-public:
-  /**
-   * Default constructor. Constructs a belief update algorithm with no model.
-   */
-  BeliefUpdateCalibrate() = default;
+  /// Initializes the algorithm to the given network.
+  void reset(MarkovNetwork& mn, const EliminationStrategy& strategy, const ShapeMap& shape_map) {
+    // compute the junction tree for the given factors
+    jt_.triangulated(mn, strategy);
 
-  /**
-   * Initializes the algorithm to the given network.
-   */
-  void reset(MarkovNetwork& mn, const EliminationStrategy& strategy, const ShapeMap& shape_map);
+    // intialize the clique and separator potentials to unity
+    for (vertex_descriptor v : jt_.vertices()) {
+      jt_[v].reset(jt_.shape(v, shape_map));
+    }
+    for (edge_descriptor e : jt_.edges()) {
+      jt_[e].reset(jt_.shape(e, shape_map));
+    }
+  }
 
-  /**
-   * Multiplies in the given factor to the underlying junction tree.
-   */
-  void multiply_in(const Domain& domain, Potential factor);
+  /// Multiplies in the given factor to the underlying junction tree.
+  void multiply_in(const Domain& domain, const F& factor) {
+    vertex_descriptor v = jt_.find_cluster_cover(domain);
+    assert(v);
+    jt_[v].multiply_in(factor, jt_.dims(v, domain));
+  }
 
-  // Functions running the algorithm
-  //--------------------------------------------------------------------------
+  /// Conditions the inference on an assignment to one or more variables. This is a mutable operation.
+  /// Note that calibrate() needs to be called afterwards.
+  void condition(const typename F::assignment_type& a) {
+    // Extract the restricted arguments
+    Domain args = a.keys();
 
-  /**
-   * Calibrates the junction tree by passing flow according to the message
-   * passing protocol.
-   */
-  void calibrate();
+    // Update the factors and messages
+    jt_.intersecting_clusters(args, [&](vertex_descriptor v) {
+      Domain y, x; // restricted, retained
+      a.partition(jt_.cluster(v), y, x);
+      jt_[v] = jt_[v].restrict_dims(jt_.dims(v, y), a.values(y));
+      jt_.update_cluster(v, x);
+    });
+    jt_.intersecting_separators(args, [&](edge_descriptor e) {
+      Domain y, x; // restricted, retained
+      a.partition(jt_.separator(e), y, x);
+      jt_[e] = jt_[e].restrict_dims(jt_.dims(e, y), a.values(y));
+      jt_.update_separator(e, x);
+    });
+  }
 
-  /**
-   * Normalizes the clique and edge potentials.
-   */
-  void normalize();
+  /// Calibrates the junction tree by passing flow according to the message passing protocol.
+  void calibrate() {
+    jt_.mpp_traversal(jt_.root(), [&](edge_descriptor e) {
+      jt_[e.target()].divide_in(jt_[e], jt_.target_dims(e));
+      jt_[e] = jt_[e.source()].marginal_dims(jt_.source_dims(e));
+      jt_[e.target()].multiply_in(jt_[e], jt_.target_dims(e));
+    });
+  }
 
-  /**
-   * Conditions the inference on an assignment to one or more variables
-   * This is a mutable operation. Note that calibrate() needs to be called
-   * afterwards.
-   */
-  void condition(const Assignment& a);
-
-  // Queries
-  //--------------------------------------------------------------------------
+  /// Normalizes the clique and edge potentials.
+  void normalize() {
+    auto z = jt_[jt_.root()].marginal();
+    for (vertex_descriptor v : jt_.vertices()) {
+      jt_[v] /= z;
+    }
+    for (edge_descriptor e : jt_.edges()) {
+      jt_[e] /= z;
+    }
+  }
 
   /// Returns the junction tree.
-  const ClusterGraph& jt() const {
-    return jt_;
+  const ClusterGraphT<F>& jt() const { return jt_; }
+
+  /// Returns the node belief.
+  const F& belief(vertex_descriptor v) const { return jt_[v]; }
+
+  /// Returns the edge belief.
+  const F& belief(edge_descriptor e) const { return jt_[e]; }
+
+  /// Computes the belief for a set of arguments.
+  /// \throw std::invalid_argument
+  ///        if the specified set is not covered by a clique ofthe junction tree constructed by the engine.
+  F belief(const Domain& domain) const {
+    // Try to find a separator that covers the variables
+    edge_descriptor e = jt_.find_separator_cover(domain);
+    if (e) {
+      return jt_[e].marginal_dims(jt_.dims(e, domain));;
+    }
+
+    // Next, look for a clique that covers the variables
+    vertex_descriptor v = jt_.find_cluster_cover(domain);
+    if (v) {
+      return jt_[v].marginal_dims(jt_.dims(v, domain));
+    }
+
+    // Did not find a suitable clique/separator
+    throw std::invalid_argument(
+      "BeliefUpdateCalibrate::belief: the domain is not covered by any clique or separator."
+    );
   }
 
-  /// Returns the belief associated with a vertex.
-  PotentialCref belief(vertex_descriptor v) const {
-    return {jt_[v], vtable};
-  }
-
-  /// Returns the belief associated with an edge.
-  PotentialCref belief(edge_descriptor e) const {
-    return {jt_[e], vtable};
-  }
-
-  /**
-   * Returns the belief for a set of arguments.
-   * \throw std::invalid_argument
-   *        if the specified set is not covered by a clique of
-   *        the junction tree constructed by the engine.
-   */
-  Potential belief(const Domain& domain) const;
-
-protected:
-  std::unique_ptr<Potential> one(const Shape& shape) const = 0;
-
-  Potential::VTable vtable;
+private:
+  ClusterGraphT<F> jt_;
 }; // class BeliefUpdateCalibrate
-
-)
-/**
- * \tparam F
- *         A type representing the factors. The type must support
- *         multiplication, division, and marginalization operations.
- * \ingroup inference
- */
-template <typename F>
-class BeliefUpdateCalibrateT : public BeliefUpdateCalibrate {
-protected:
-  /// The underlying junction tree.
-  ClusterGraphT<F, F> jt_;
-
-  Potential one(const Shape& shape) const override {
-    return F(shape);
-  }
-
-public:
-  BeliefUpdateCalibrateT() {
-    vtable = F::vtable.generic(); // exposiiton only
-  }
-
-  void multiply_in(const Domain& args, const F& factor) {
-    BeliefUpdateCalibrate::multiply_in(args, PotentialCref(&factor));
-  }
-
-  const F& belief(vertex_descriptor v) const {
-    return BeliefUpdateCalibrate::belief(v).cast<F>();
-  }
-
-  const F& belief(edge_descriptor e) const {
-    return BeliefUpdateCalibrate::belief(e).cast<F>();
-  }
-
-  F belief(const Domain& args) const {
-    return BeliefUpdateCalibrate::belief(args).cast<F>();
-  }
-};
 
 } // namespace libgm

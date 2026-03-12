@@ -4,8 +4,6 @@
 #include <libgm/assignment/discrete_assignment.hpp>
 #include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/exp.hpp>
-// #include <libgm/math/likelihood/logarithmic_matrix_ll.hpp>
-// #include <libgm/math/random/bivariate_categorical_distribution.hpp>
 
 #include <cereal/access.hpp>
 
@@ -39,6 +37,7 @@ public:
   using value_type = T;
   using value_list = std::vector<size_t>;
   using result_type = Exp<T>;
+  using assignment_type = DiscreteAssignment;
 
   // Constructors and conversion operators
   //--------------------------------------------------------------------------

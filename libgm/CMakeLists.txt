@@ -4,6 +4,7 @@ subdirs(
   datastructure
   factor
   graph
+  inference
 )
 
 target_sources(

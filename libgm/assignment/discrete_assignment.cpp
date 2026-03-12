@@ -14,6 +14,16 @@ Domain DiscreteAssignment::keys() const {
   return result;
 }
 
+void DiscreteAssignment::partition(const Domain& domain, Domain& present, Domain& absent) const {
+  for (Arg arg : domain) {
+    if (this->contains(arg)) {
+      present.push_back(arg);
+    } else {
+      absent.push_back(arg);
+    }
+  }
+}
+
 std::vector<size_t> DiscreteAssignment::values(Arg arg) const {
   return {this->at(arg)};
 }
@@ -35,16 +45,6 @@ void DiscreteAssignment::set(const Domain& domain, const std::vector<size_t>& va
   assert(values.size() == domain.size());
   for (size_t i = 0; i < domain.size(); ++i) {
     (*this)[domain[i]] = values[i];
-  }
-}
-
-void DiscreteAssignment::partition(const Domain& domain, Domain& present, Domain& absent) const {
-  for (Arg arg : domain) {
-    if (this->contains(arg)) {
-      present.push_back(arg);
-    } else {
-      absent.push_back(arg);
-    }
   }
 }
 

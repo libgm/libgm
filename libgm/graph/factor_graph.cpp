@@ -385,37 +385,4 @@ void FactorGraph::clear() {
   impl().clear();
 }
 
-#if 0
-void FactorGraph::eliminate(const Domain& retain,
-                            const OpaqeCommutativeSemiring& csr,
-                            const ShapeMap& shape_map,
-                            const EliminationStrategy& strategy) {
-  MarkovNetwork mn = markov_network();
-  mn.eliminate(strategy, [&](Arg arg) {
-    if (!retain.contains(arg)) {
-      // Determine the union of all adjacent factor domains.
-      Domain domain;
-      for (Factor* f : factors(arg)) {
-        domain.append(f->arguments);
-      }
-      domain.unique();
-
-      // Combine all factors that have this variable as an argument
-      std::shared_ptr<void> combination = csr.init(domain.shape(shape_map));
-      for (Factor* f : factors(arg)) {
-        csr.combine_in(combination.get(), property(f), domain.dims(f->arguments));
-      }
-
-      // Delete the eliminated argument and the associated factors.
-      remove_argument(arg);
-
-      // Add the new factor.
-      std::shared_ptr<void> result = csr.collapse(combination.get(), domain.dims_omit(arg));
-      domain.erase(arg);
-      add_factor(std::move(domain), std::move(result));
-    }
-  });
-}
-#endif
-
 } // namespace libgm

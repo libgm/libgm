@@ -43,6 +43,12 @@ ProbabilityTable<T>::ProbabilityTable(Shape shape, const T* values)
 }
 
 template <typename T>
+void ProbabilityTable<T>::reset(Shape shape) {
+  param_.reset(std::move(shape));
+  param_.fill(T(1));
+}
+
+template <typename T>
 ProbabilityTable<T> ProbabilityTable<T>::operator*(T x) const {
   ProbabilityTable result;
   transform(param_, MultipliedBy<T>(x), result.param_);

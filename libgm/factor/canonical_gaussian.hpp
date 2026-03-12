@@ -1,14 +1,15 @@
 #pragma once
 
 #include <libgm/argument/shape.hpp>
+#include <libgm/assignment/vector_assignment.hpp>
 #include <libgm/math/eigen/dense.hpp>
 #include <libgm/math/exp.hpp>
-#include <libgm/math/eigen/dense.hpp>
 
 #include <cereal/access.hpp>
 #include <cereal/types/memory.hpp>
 
 #include <memory>
+
 
 namespace libgm {
 
@@ -31,6 +32,7 @@ public:
   using value_type = T;
   using value_list = Vector<T>;
   using result_type = Exp<T>;
+  using assignment_type = VectorAssignment<T>;
 
   // Implementation class.
   struct Impl;

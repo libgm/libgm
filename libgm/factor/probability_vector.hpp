@@ -1,12 +1,13 @@
 #pragma once
 
 #include <libgm/argument/shape.hpp>
-#include <vector>
+#include <libgm/assignment/discrete_assignment.hpp>
 #include <libgm/math/eigen/dense.hpp>
 
 #include <cereal/access.hpp>
 
 #include <cmath>
+#include <vector>
 
 namespace libgm {
 
@@ -35,6 +36,7 @@ public:
   using value_type = T;
   using value_list = std::vector<size_t>;
   using result_type = T;
+  using assignment_type = DiscreteAssignment;
 
   // Constructors and conversion operators
   //--------------------------------------------------------------------------

@@ -16,10 +16,9 @@ subdirs(
   datastructure
   factor
   graph
+  inference
   math
 #[[
-  factor
-  inference
   learning
   model
   optimization

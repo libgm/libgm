@@ -1,15 +1,14 @@
 #pragma once
 
 #include <libgm/argument/shape.hpp>
-#include <vector>
+#include <libgm/assignment/discrete_assignment.hpp>
 #include <libgm/datastructure/table.hpp>
 #include <libgm/math/exp.hpp>
-// #include <libgm/math/likelihood/canonical_table_ll.hpp>
-// #include <libgm/math/random/multivariate_categorical_distribution.hpp>
 
 #include <cereal/access.hpp>
 
 #include <initializer_list>
+#include <vector>
 
 namespace libgm {
 
@@ -36,6 +35,7 @@ public:
   using value_type = T;
   using value_list = std::vector<size_t>;
   using result_type = Exp<T>;
+  using assignment_type = DiscreteAssignment;
 
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
@@ -62,6 +62,9 @@ public:
   friend void swap(LogarithmicTable& f, LogarithmicTable& g) {
     std::swap(f.param_, g.param_);
   }
+
+  /// Alters shape and sets elements to constant value 1.
+  void reset(Shape shape);
 
   // Accessors
   //--------------------------------------------------------------------------

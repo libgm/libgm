@@ -14,7 +14,7 @@ namespace libgm {
  * The assignment can be efficiently represented as a map from Arg to Vector<T>.
  */
 template <typename T>
-class VectorAssignment
+class VectorAssignment final
   : public ankerl::unordered_dense::map<Arg, Vector<T>> {
 public:
   using value_list = Vector<T>;
