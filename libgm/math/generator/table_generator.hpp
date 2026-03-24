@@ -18,8 +18,9 @@ namespace libgm {
  */
 template <typename Distribution>
 class TableGenerator {
+public:
   // ParameterGenerator types
-  using real_type = typename Distribution::real_type;
+  using real_type = typename Distribution::result_type;
   using result_type = Table<real_type>;
   using shape_type = Shape;
   using param_type = typename Distribution::param_type;
@@ -58,7 +59,7 @@ class TableGenerator {
    * Generates a table using the stored random number distribution.
    */
   template <typename Generator>
-  Table<real_type> operator()(Shape shape, Generator& g) const {
+  Table<real_type> operator()(Shape shape, Generator& g) {
     Table<real_type> r(std::move(shape));
     std::generate(r.begin(), r.end(), std::bind(distribution_, std::ref(g)));
     return r;
@@ -96,8 +97,8 @@ using DirichletTableGenerator = TableGenerator<std::gamma_distribution<RealType>
 template <typename Distribution>
 class DiagonalTableGenerator {
 public:
-  using real_type = typename Distribution::real_type;
-  using result_type = Table<RealType>;
+  using real_type = typename Distribution::result_type;
+  using result_type = Table<real_type>;
   using shape_type = Shape;
 
   /// Constructs a diagonal_TableGenerator, passing the arguments down to the diagonal_generator_param struct.
@@ -113,14 +114,14 @@ public:
 
   /// Generates a table using the stored random number distribution.
   template <typename Generator>
-  Table<RealType> operator()(unsigned arity, size_t n, Generator& g) const {
+  Table<real_type> operator()(unsigned arity, size_t n, Generator& g) {
     Table<real_type> result(Shape(arity, n), base_);
     std::vector<size_t> index;
     for (size_t k = 0; k < n; ++k) {
       index.assign(arity, k);
       result(index) += distribution_(g);
     }
-    return r;
+    return result;
   }
 
 private:

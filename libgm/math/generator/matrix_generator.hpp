@@ -19,7 +19,7 @@ namespace libgm {
 template <typename Distribution>
 class MatrixGenerator {
 public:
-  using real_type = typename Distribution::real_type;
+  using real_type = typename Distribution::result_type;
   using result_type = Matrix<real_type>;
   using shape_type = std::pair<size_t, size_t>;
   using param_type = typename Distribution::param_type;
@@ -47,7 +47,7 @@ public:
 
   /// Generates a matrix using the stored random number distribution.
   template <typename Generator>
-  Matrix<real_type> operator()(size_t rows, size_t cols, Generator& g) const {
+  Matrix<real_type> operator()(size_t rows, size_t cols, Generator& g) {
     Matrix<real_type> r(rows, cols);
     std::generate(r.data(), r.data() + r.size(), std::bind(distribution_, std::ref(g)));
     return r;
@@ -55,7 +55,7 @@ public:
 
   /// Generates a matrix using the stored random number distribution.
   template <typename Generator>
-  Matrix<real_type> operator()(std::pair<size_t, size_t> shape, Generator& g) const {
+  Matrix<real_type> operator()(std::pair<size_t, size_t> shape, Generator& g) {
     return operator()(shape.first, shape.second, g);
   }
 
@@ -89,7 +89,7 @@ using DirichlatMatrixGenerator = MatrixGenerator<std::gamma_distribution<T> >;
 template <typename Distribution>
 class DiagonalMatrixGenerator {
 public:
-  using real_type = typename Distribution::real_type;
+  using real_type = typename Distribution::result_type;
   using result_type = Matrix<real_type>;
   using shape_type = size_t;
 
@@ -106,7 +106,7 @@ public:
 
   /// Generates a matrix using the stored random number distribution.
   template <typename Generator>
-  Matrix<real_type> operator()(size_t n, Generator& g) const {
+  Matrix<real_type> operator()(size_t n, Generator& g) {
     Vector<real_type> vec(n);
     std::generate(vec.begin(), vec.end(), std::bind(distribution_, std::ref(g)));
     return Matrix<real_type>::Constant(n, n, base_) + vec.asDiagonal();

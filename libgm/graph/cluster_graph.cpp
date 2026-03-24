@@ -817,12 +817,14 @@ void ClusterGraph::mpp_traversal(Vertex* start, EdgeVisitor edge_visitor) {
 }
 
 ClusterGraph::Vertex* ClusterGraph::add_vertex(Domain cluster) {
+  assert(cluster.is_sorted());
   return impl().add_vertex(std::move(cluster));
 }
 
 ClusterGraph::edge_descriptor
 ClusterGraph::add_edge(Vertex* u, Vertex* v, Domain separator) {
   assert(u != v);
+  assert(separator.is_sorted());
   assert(is_subset(separator, u->cluster));
   assert(is_subset(separator, v->cluster));
   Edge* e = impl().add_edge(u, v, std::move(separator));

@@ -7,4 +7,5 @@ target_sources(
   cluster_graph.cpp
   factor_graph.cpp
   markov_network.cpp
+  special/grid_graph.cpp
 )

@@ -2,53 +2,39 @@
 #define LIBGM_TEST_MN_FIXTURE_HPP
 
 #include <libgm/factor/probability_table.hpp>
-#include <libgm/factor/random/bind.hpp>
-#include <libgm/factor/random/diagonal_table_generator.hpp>
-#include <libgm/factor/random/uniform_table_generator.hpp>
-#include <libgm/factor/utility/operations.hpp>
 #include <libgm/graph/special/grid_graph.hpp>
-#include <libgm/model/pairwise_markov_network.hpp>
-#include <libgm/inference/exact/variable_elimination.hpp>
+#include <libgm/math/generator/table_generator.hpp>
 
 #include <random>
 
 namespace libgm {
-  template <>
-  struct argument_traits<std::pair<int, int> >
-    : fixed_discrete_traits<std::pair<int, int>, 2> { };
-}
 
-using namespace libgm;
+struct Fixture {
+  using PTable = ProbabilityTable<double>;
 
-struct fixture {
-  typedef probability_table<std::pair<int, int> > ptable;
-  fixture() {
-    std::size_t m = 5;
-    std::size_t n = 4;
-    std::mt19937 rng;
-    make_grid_graph(m, n, mn);
-    mn.initialize(bind_marginal(uniform_table_generator<ptable>(), rng),
-                  bind_marginal(diagonal_table_generator<ptable>(), rng));
+  Fixture(size_t rows = 5, size_t cols = 4, unsigned seed = 17)
+    : rows(rows),
+      cols(cols),
+      rng(seed),
+      mn(make_grid_graph<PTable, PTable>(rows, cols, make_argument)) {
+    UniformTableGenerator<double> unary_gen(0.1, 1.0);
+    DiagonalTableGenerator<std::uniform_real_distribution<double>> pairwise_gen(0.1, 0.2, 1.0);
+
+    mn.init_vertices([&](Arg) {
+      return PTable(unary_gen(Shape{2}, rng));
+    });
+    mn.init_edges([&](UndirectedEdge<Arg>) {
+      return PTable(pairwise_gen(2, 2, rng));
+    });
   }
 
-  void check_belief(const ptable& belief, double tol) {
-    std::list<ptable> factors(mn.begin(), mn.end());
-    variable_elimination(factors, belief.arguments(),
-                         sum_product<ptable>());
-    ptable expected = prod_all(factors).marginal(belief.arguments());
-    BOOST_CHECK_SMALL(max_diff(belief, expected), tol);
-  }
-
-  void check_belief_normalized(const ptable& belief, double tol) {
-    std::list<ptable> factors(mn.begin(), mn.end());
-    variable_elimination(factors, belief.arguments(),
-                         sum_product<ptable>());
-    ptable expected = prod_all(factors).marginal(belief.arguments());
-    BOOST_CHECK_SMALL(max_diff(belief, expected.normalize()), tol);
-  }
-
-  pairwise_markov_network<ptable> mn;
+  size_t rows;
+  size_t cols;
+  std::mt19937 rng;
+  ShapeMap shape_map = [](Arg) { return size_t(2); };
+  MarkovNetworkT<PTable, PTable> mn;
 };
 
-#endif
+} // namespace libgm
 
+#endif

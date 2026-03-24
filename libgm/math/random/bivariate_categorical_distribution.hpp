@@ -30,7 +30,7 @@ public:
   }
 
   /// Constructor for a distribution in the log space.
-  explicit BivariateCategoricalDistribution(const LoagarithmicMatrix<T>& p)
+  explicit BivariateCategoricalDistribution(const LogarithmicMatrix<T>& p)
     : psum_(exp(p.param())) {
     std::partial_sum(psum_.data(), psum_.data() + psum_.size(), psum_.data());
   }

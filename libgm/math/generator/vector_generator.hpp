@@ -18,7 +18,7 @@ namespace libgm {
 template <typename Distribution>
 class VectorGenerator {
 public:
-  using real_type = typename Distribution::real_type;
+  using real_type = typename Distribution::result_type;
   using result_type = Vector<real_type>;
   using shape_type = size_t;
   using param_type = typename Distribution::param_type;
@@ -46,7 +46,7 @@ public:
 
   /// Generates a vector using the stored random number distribution.
   template <typename Generator>
-  Vector<real_type> operator()(size_t length, Generator& g) const {
+  Vector<real_type> operator()(size_t length, Generator& g) {
     Vector<real_type> r(length);
     std::generate(r.data(), r.data() + r.size(), std::bind(distribution_, std::ref(g)));
     return r;

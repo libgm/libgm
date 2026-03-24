@@ -16,8 +16,8 @@ template <typename F>
 class SumProductCalibrate {
 public:
   // Descriptors
-  using vertex_descriptor = typename ClusterGraph::vertex_descriptor;
-  using edge_descriptor   = typename ClusterGraph::edge_descriptor;
+  using vertex_descriptor = ClusterGraph::vertex_descriptor;
+  using edge_descriptor   = ClusterGraph::edge_descriptor;
 
   /// Default constructor. Constructs a sum-product algorithm with no model.
   SumProductCalibrate() = default;

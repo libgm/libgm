@@ -92,7 +92,7 @@ public:
 
   /// Generates a marginal distribution with the specified head arity.
   template <typename Generator>
-  MomentGaussian<T> operator()(Shape shape, Generator& g) const {
+  MomentGaussian<T> operator()(Shape shape, Generator& g) {
     MomentGaussian<T> r(std::move(shape));
     generate_moments(g, r.mean, r.cov);
     return r
@@ -103,7 +103,7 @@ public:
    * tail arity.
    */
   template <typename Generator>
-  MomentGaussian<T> operator()(const Shape& head, const Shape& tail, Generator& rng) const {
+  MomentGaussian<T> operator()(const Shape& head, const Shape& tail, Generator& rng) {
     MomentGaussian<T> r(head, tail);
     generate_moments(rng, r.mean, r.cov);
     generate_coeffs(rng, r.coef);

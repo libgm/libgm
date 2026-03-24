@@ -2,6 +2,7 @@
 
 #include <libgm/argument/domain.hpp>
 #include <libgm/argument/shape.hpp>
+#include <libgm/factor/utility/annotated.hpp>
 #include <libgm/factor/utility/commutative_semiring.hpp>
 #include <libgm/graph/elimination_strategy.hpp>
 #include <libgm/graph/factor_graph.hpp>
@@ -41,6 +42,18 @@ struct VariableElimination {
         fg.add_factor(std::move(domain), std::move(result));
       }
     });
+  }
+
+  // Combines all factors with the given commutative semiring.
+  template <typename T>
+  Annotated<F> combine_all(const FactorGraphT<T, F>& fg, const ShapeMap& shape_map, const CommutativeSemiring<F>& csr) {
+    Domain domain(fg.arguments());
+    domain.sort();
+    F result = csr.init(domain.shape(shape_map));
+    for (FactorGraph::Factor* f : fg.factors()) {
+      csr.combine_in(result, fg[f], domain.dims(fg.arguments(f)));
+    }
+    return {std::move(result), std::move(domain)};
   }
 };
 

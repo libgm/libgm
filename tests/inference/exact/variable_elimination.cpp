@@ -1,41 +1,46 @@
 #define BOOST_TEST_MODULE variable_elimination
 #include <boost/test/unit_test.hpp>
 
-#include <libgm/inference/exact/variable_elimination.hpp>
-
 #include <libgm/factor/probability_table.hpp>
-#include <libgm/factor/random/bind.hpp>
-#include <libgm/factor/random/diagonal_table_generator.hpp>
-#include <libgm/factor/random/uniform_table_generator.hpp>
-#include <libgm/factor/utility/operations.hpp>
-#include <libgm/graph/special/grid_graph.hpp>
-#include <libgm/model/pairwise_markov_network.hpp>
-  
-#include <random>
+#include <libgm/factor/utility/commutative_semiring.hpp>
+#include <libgm/graph/algorithm/elimination_strategies.hpp>
+#include <libgm/graph/factor_graph.hpp>
+#include <libgm/inference/exact/variable_elimination.hpp>
+#include "mn_fixture.hpp"
 
-BOOST_AUTO_TEST_CASE(test_grid) {
-  using namespace libgm;
-  typedef std::pair<int, int> grid_vertex;
-  typedef probability_table<grid_vertex> ptable;
+namespace libgm {
+namespace {
 
-  // generate a Markov network with random potentials
-  std::size_t m = 4;
-  std::size_t n = 3;
-  std::mt19937 rng;
-  pairwise_markov_network<ptable> mn;
-  make_grid_graph(m, n, mn);
-  mn.initialize(bind_marginal(uniform_table_generator<ptable>(), rng),
-                bind_marginal(diagonal_table_generator<ptable>(), rng));
+using PTable = Fixture::PTable;
 
-  // for each edge, verify that the marginal over this edge
-  // computed directly matches the one computed by variable elimination
-  ptable product = prod_all(mn);
-  for (undirected_edge<grid_vertex> e : mn.edges()) {
-    domain<grid_vertex> retain({e.source(), e.target()});
-    std::list<ptable> factors(mn.begin(), mn.end());
-    variable_elimination(factors, retain, sum_product<ptable>());
-    ptable elim_result = prod_all(factors).marginal(retain);
-    ptable direct_result = product.marginal(retain);
-    BOOST_CHECK_SMALL(max_diff(elim_result, direct_result), 1e-3);
+} // namespace
+
+BOOST_FIXTURE_TEST_CASE(test_grid, Fixture) {
+  FactorGraphT<int, PTable> fg(mn);
+  MinFillStrategy strategy;
+  SumProduct<PTable> semiring;
+  VariableElimination<PTable> ve;
+
+  auto joint = ve.combine_all(fg, shape_map, semiring);
+
+  for (Arg u : mn.vertices()) {
+    for (UndirectedEdge<Arg> e : mn.out_edges(u)) {
+      if (e.source() > e.target()) {
+        continue;
+      }
+
+      Domain retain{e.source(), e.target()};
+      BOOST_CHECK(retain.is_sorted());
+
+      FactorGraphT<int, PTable> reduced = fg;
+      ve.eliminate(reduced, retain, shape_map, strategy, semiring);
+      auto eliminated = ve.combine_all(reduced, shape_map, semiring);
+
+      PTable direct = joint.factor.marginal_dims(joint.domain.dims(retain));
+      PTable via_elimination = eliminated.factor.marginal_dims(eliminated.domain.dims(retain));
+      BOOST_CHECK_SMALL(max_diff(via_elimination, direct), 1e-8);
+    }
   }
 }
+
+} // namespace libgm

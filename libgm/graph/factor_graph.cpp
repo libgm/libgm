@@ -362,13 +362,17 @@ bool FactorGraph::add_argument(Arg u) {
 }
 
 FactorGraph::Factor* FactorGraph::add_factor(Domain arguments) {
+  assert(arguments.is_sorted());
   return impl().add_factor(std::move(arguments));
 }
 
 void FactorGraph::remove_argument(Arg u) {
   auto it = impl().arguments.find(u);
+  assert(it != impl().arguments.end());
   Argument* argument = it->second;
-  assert(argument->factors.empty());
+  while (!argument->factors.empty()) {
+    remove_factor(argument->factors.front());
+  }
   impl().free_argument(argument);
   impl().arguments.erase(it);
 }

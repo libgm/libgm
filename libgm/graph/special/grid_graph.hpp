@@ -3,10 +3,13 @@
 #include <libgm/argument/argument.hpp>
 #include <libgm/graph/markov_network.hpp>
 
+#include <cstddef>
 #include <functional>
 #include <vector>
 
 namespace libgm {
+
+Arg make_argument(size_t row, size_t col);
 
 template <typename VP, typename EP = VP>
 MarkovNetworkT<VP, EP> make_grid_graph(

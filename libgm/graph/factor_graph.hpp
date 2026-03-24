@@ -132,8 +132,7 @@ public:
   Factor* add_factor(Domain args);
 
   /**
-   * Removes an argument from the graph.
-   * The argument must not be present in any factor.
+   * Removes an argument from the graph and all adjacent factors.
    */
   void remove_argument(Arg u);
 
@@ -185,6 +184,23 @@ struct FactorGraphT : FactorGraph {
 
   FactorGraphT()
     : FactorGraph(property_layout<AP>(), property_layout<FP>()) {}
+
+  explicit FactorGraphT(const MarkovNetworkT<FP, FP>& mn)
+    : FactorGraphT() {
+    for (Arg u : mn.vertices()) {
+      add_argument(u);
+    }
+    for (Arg u : mn.vertices()) {
+      add_factor(Domain{u}, mn[u]);
+    }
+    for (Arg u : mn.vertices()) {
+      for (UndirectedEdge<Arg> e : mn.out_edges(u)) {
+        if (e.source() <= e.target()) {
+          add_factor(Domain{e.source(), e.target()}, mn[e]);
+        }
+      }
+    }
+  }
 
   AP& operator[](Arg u) {
     return opaque_cast<AP>(property(u));

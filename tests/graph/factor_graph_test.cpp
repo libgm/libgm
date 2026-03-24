@@ -240,3 +240,24 @@ BOOST_FIXTURE_TEST_CASE(test_updates_and_removals, Fixture) {
   fg.clear();
   BOOST_CHECK(fg.empty());
 }
+
+BOOST_FIXTURE_TEST_CASE(remove_argument_removes_incident_factors, Fixture) {
+  fg.remove_argument(c);
+
+  BOOST_CHECK(!fg.contains(c));
+  BOOST_CHECK_EQUAL(fg.num_arguments(), 4);
+  BOOST_CHECK_EQUAL(fg.num_factors(), 1);
+
+  BOOST_CHECK_EQUAL(fg.degree(a), 1);
+  BOOST_CHECK_EQUAL(fg.degree(b), 1);
+  BOOST_CHECK_EQUAL(fg.degree(d), 0);
+  BOOST_CHECK_EQUAL(fg.degree(e), 0);
+
+  std::unordered_set<FactorGraph::Factor*> factors_of_b = {f_ab};
+  for (FactorGraph::Factor* f : fg.factors(b)) {
+    BOOST_CHECK_EQUAL(factors_of_b.erase(f), 1);
+  }
+  BOOST_CHECK(factors_of_b.empty());
+
+  BOOST_CHECK(fg.arguments(f_ab) == Domain({a, b}));
+}

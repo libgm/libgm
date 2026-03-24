@@ -1,11 +1,12 @@
 #pragma once
 
+#include <libgm/factor/moment_gaussian.hpp>
 #include <libgm/math/eigen/dense.hpp>
-#include <libgm/math/numerical_error.hpp>
+
+#include <Eigen/Cholesky>
 
 #include <random>
 
-#include <Eigen/Cholesky>
 
 namespace libgm {
 
@@ -27,8 +28,8 @@ public:
    * with given moment Gaussian parameters.
    */
   explicit MultivariateNormalDistribution(const MomentGaussian<T>& mg)
-    : mean_(param.mean), coef_(param.coef) {
-    Eigen::LLT<Matrix<T>> chol(param.cov);
+    : mean_(mg.mean()), coef_(mg.coefficients()) {
+    Eigen::LLT<Matrix<T>> chol(mg.covariance());
     if (chol.info() != Eigen::Success) {
       throw std::runtime_error(
         "MultivariateNormalDistribution: Cannot compute the Cholesky decomposition"

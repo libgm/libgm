@@ -1,32 +1,61 @@
 #define BOOST_TEST_MODULE belief_update_calibrate
 #include <boost/test/unit_test.hpp>
 
-#include <libgm/inference/exact/belief_update_calibrate.hpp>
-
-#include <libgm/argument/var.hpp>
-#include <libgm/factor/canonical_gaussian.hpp>
 #include <libgm/factor/probability_table.hpp>
-
-namespace libgm {
-  template class belief_update_calibrate<probability_table<var> >;
-  template class belief_update_calibrate<canonical_gaussian<var> >;
-}
-
+#include <libgm/factor/utility/commutative_semiring.hpp>
+#include <libgm/graph/algorithm/elimination_strategies.hpp>
+#include <libgm/graph/factor_graph.hpp>
+#include <libgm/inference/exact/belief_update_calibrate.hpp>
+#include <libgm/inference/exact/variable_elimination.hpp>
 #include "mn_fixture.hpp"
 
-BOOST_FIXTURE_TEST_CASE(test_calibrate, fixture) {
-  using libgm::id_t;
-  belief_update_calibrate<ptable> engine(mn);
+namespace libgm {
+namespace {
 
-  // check if clique marginals are correct
+using PTable = Fixture::PTable;
+
+} // namespace
+
+BOOST_FIXTURE_TEST_CASE(test_calibrate, Fixture) {
+  FactorGraphT<int, PTable> fg(mn);
+
+  MinFillStrategy strategy;
+
+  BeliefUpdateCalibrate<PTable> engine;
+  engine.reset(mn, strategy, shape_map);
+  for (FactorGraph::Factor* f : fg.factors()) {
+    engine.multiply_in(fg.arguments(f), fg[f]);
+  }
   engine.calibrate();
-  for (id_t v : engine.jt().vertices()) {
-    check_belief(engine.belief(v), 1e-8);
+
+  VariableElimination<PTable> ve;
+  SumProduct<PTable> semiring;
+
+  for (ClusterGraph::vertex_descriptor v : engine.jt().vertices()) {
+    Domain retain = engine.jt().cluster(v);
+    BOOST_CHECK(retain.is_sorted());
+
+    FactorGraphT<int, PTable> reduced = fg;
+    ve.eliminate(reduced, retain, shape_map, strategy, semiring);
+    auto expected_joint = ve.combine_all(reduced, shape_map, semiring);
+    PTable expected = expected_joint.factor.marginal_dims(expected_joint.domain.dims(retain));
+
+    BOOST_CHECK_SMALL(max_diff(engine.belief(v), expected), 1e-8);
   }
 
-  // check if clique marginals are correct after normalization
   engine.normalize();
-  for (id_t v : engine.jt().vertices()) {
-    check_belief_normalized(engine.belief(v), 1e-8);
+  for (ClusterGraph::vertex_descriptor v : engine.jt().vertices()) {
+    Domain retain = engine.jt().cluster(v);
+    BOOST_CHECK(retain.is_sorted());
+
+    FactorGraphT<int, PTable> reduced = fg;
+    ve.eliminate(reduced, retain, shape_map, strategy, semiring);
+    auto expected_joint = ve.combine_all(reduced, shape_map, semiring);
+    PTable expected = expected_joint.factor.marginal_dims(expected_joint.domain.dims(retain));
+    expected.normalize();
+
+    BOOST_CHECK_SMALL(max_diff(engine.belief(v), expected), 1e-8);
   }
 }
+
+} // namespace libgm

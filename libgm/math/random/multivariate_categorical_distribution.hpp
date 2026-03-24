@@ -32,7 +32,7 @@ public:
   }
 
   /// Constructor for a distribution in the log space.
-  expliciti MultivariateCategoricalDistribution(const LogarithmicTable<T>& lp)
+  explicit MultivariateCategoricalDistribution(const LogarithmicTable<T>& lp)
     : psum_(lp.shape()) {
     std::transform(lp.begin(), lp.end(), psum_.begin(), ExponentOp<T>());
     std::partial_sum(psum_.begin(), psum_.end(), psum_.begin());
