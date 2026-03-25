@@ -8,6 +8,7 @@
 #include <cereal/access.hpp>
 #include <cereal/types/memory.hpp>
 
+#include <iosfwd>
 #include <memory>
 
 
@@ -29,10 +30,11 @@ template <typename T>
 class CanonicalGaussian {
 public:
   // Factor member types
-  using value_type = T;
-  using value_list = Vector<T>;
-  using result_type = Exp<T>;
   using assignment_type = VectorAssignment<T>;
+  using real_type = T;
+  using result_type = Exp<T>;
+  using value_list = Vector<T>;
+  using value_type = T;
 
   // Implementation class.
   struct Impl;
@@ -212,5 +214,8 @@ private:
   }
 
 }; // class CanonicalGaussian
+
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const CanonicalGaussian<T>& f);
 
 } // namespace libgm

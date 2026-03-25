@@ -6,6 +6,7 @@ namespace libgm {
 
 template class LogarithmicMatrix<float>;
 template class LogarithmicMatrix<double>;
+template std::ostream& operator<<(std::ostream&, const LogarithmicMatrix<float>&);
+template std::ostream& operator<<(std::ostream&, const LogarithmicMatrix<double>&);
 
 }
-

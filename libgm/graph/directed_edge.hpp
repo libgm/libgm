@@ -24,7 +24,7 @@ public:
   explicit DirectedEdge(Vertex target)
     : source_(), target_(target) { }
 
-  /// Constructor the stanard edge.
+  /// Constructor the standard edge.
   DirectedEdge(Vertex source, Vertex target)
     : source_(source), target_(target) { }
 
@@ -90,10 +90,10 @@ public:
   }
 
 private:
-  /// Vertex from which the edge originates
+  /// Vertex from which the edge originates.
   Vertex source_;
 
-  /// Vertex to which the edge emenates
+  /// Vertex to which the edge emanates.
   Vertex target_;
 
 }; // class DirectedEdge

@@ -14,32 +14,33 @@ TableIncrement::TableIncrement(const Shape& a_shape, const Dims& b_dims)
       inc_[i] = -multiplier + 1;
     }
   }
+  inc_[size_] = -multiplier + 1;
 }
 
 TableIncrement::TableIncrement(const Dims& a_dims, const Shape& b_shape)
   : TableIncrement(b_shape.size() - a_dims.count()) {
   std::fill_n(inc_, size_, ptrdiff_t(0));
+
+  size_t j = 0;
   ptrdiff_t multiplier = 1;
-  for (size_t i = 0, j = 0; i < b_shape.size(); ++i) {
-    if (a_dims.test(i)) {
-      // rewind at the next position if we are transitioning from unrestricted dims
-      if (i != 0 && !a_dims.test(i - 1)) inc_[j] = multiplier;
-    } else {
-      // advance at this position if we are transitioning from restricted dims
-      if (i == 0 || a_dims.test(i - 1)) inc_[j] += multiplier;
-      ++j;
+  ptrdiff_t accumulate = 0;
+  for (size_t i = 0; i < b_shape.size(); ++i) {
+    if (!a_dims.test(i)) {
+      // this dimension counts; the increment is the multiplier offset by carry
+      inc_[j++] = multiplier - accumulate;
+      accumulate += multiplier * (b_shape[i] - 1);
     }
     multiplier *= b_shape[i];
   }
 
-  // Add up the contributions up to the last incremented dimension.
-  std::partial_sum(inc_, inc_ + size_, inc_);
+  assert(j == size_);
+  inc_[size_] = -accumulate;
 }
 
 TableIncrement::TableIncrement(size_t arity)
   : size_(arity) {
-  if (arity > 6) {
-    inc_ = new ptrdiff_t[arity];
+  if (arity >= 6) {
+    inc_ = new ptrdiff_t[arity + 1];
   } else {
     inc_ = buf_;
   }

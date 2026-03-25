@@ -8,6 +8,7 @@
 #include <cereal/access.hpp>
 #include <cereal/types/memory.hpp>
 
+#include <iosfwd>
 #include <memory>
 
 namespace libgm {
@@ -34,10 +35,11 @@ template <typename T> class CanonicalGaussian;
 template <typename T>
 class MomentGaussian {
 public:
-  using value_type = T;
-  using value_list = Vector<T>;
-  using result_type = Exp<T>;
   using assignment_type = VectorAssignment<T>;
+  using real_type = T;
+  using result_type = Exp<T>;
+  using value_list = Vector<T>;
+  using value_type = T;
 
   struct Impl;
 
@@ -164,5 +166,8 @@ private:
     ar(impl_);
   }
 };
+
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const MomentGaussian<T>& f);
 
 } // namespace libgm

@@ -7,6 +7,7 @@
 #include <cereal/access.hpp>
 
 #include <cmath>
+#include <iosfwd>
 #include <initializer_list>
 #include <vector>
 
@@ -35,10 +36,11 @@ template <typename T>
 class ProbabilityTable {
 public:
   /// Result of evaluating this table on a vector.
-  using value_type = T;
-  using value_list = std::vector<size_t>;
-  using result_type = T;
   using assignment_type = DiscreteAssignment;
+  using real_type = T;
+  using result_type = T;
+  using value_list = std::vector<size_t>;
+  using value_type = T;
 
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
@@ -236,5 +238,8 @@ private:
   }
 
 }; // class ProbabilityTable
+
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const ProbabilityTable<T>& f);
 
 } // namespace libgm

@@ -1,6 +1,6 @@
-add_executable(belief_update_calibrate belief_update_calibrate.cpp)
-add_executable(sum_product_calibrate sum_product_calibrate.cpp)
-add_executable(variable_elimination variable_elimination.cpp)
+add_executable(belief_update_calibrate belief_update_calibrate_test.cpp)
+add_executable(sum_product_calibrate sum_product_calibrate_test.cpp)
+add_executable(variable_elimination variable_elimination_test.cpp)
 
 add_test(belief_update_calibrate belief_update_calibrate)
 add_test(sum_product_calibrate sum_product_calibrate)

@@ -3,6 +3,7 @@
 #include <libgm/argument/domain.hpp>
 #include <libgm/datastructure/intrusive_list.hpp>
 #include <libgm/datastructure/subrange.hpp>
+#include <libgm/graph/bipartite_edge.hpp>
 #include <libgm/graph/markov_network.hpp>
 #include <libgm/graph/util/property_layout.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
@@ -18,6 +19,9 @@
 #include <memory>
 #include <type_traits>
 #include <utility>
+
+#include "libgm/iterator/bind1_iterator.hpp"
+#include "libgm/iterator/bind2_iterator.hpp"
 
 namespace libgm {
 
@@ -41,10 +45,18 @@ protected:
 public:
   /// Factor class (Factor* is the handle).
   struct Factor;
+  using vertex1_descriptor = Arg;
+  using vertex2_descriptor = Factor*;
+  using af_edge_descriptor = BipartiteEdge<Arg, Factor*>;
+  using fa_edge_descriptor = BipartiteEdge<Factor*, Arg>;
 
   // Iterators (the exact types are implementation detail).
   using argument_iterator = MapKeyIterator<ArgumentMap>;
   using factor_iterator = IntrusiveList<Factor>::iterator;
+  using out_edge1_iterator = Bind1Iterator<IntrusiveList<Factor>::iterator, af_edge_descriptor, Arg>;
+  using out_edge2_iterator = Bind1Iterator<Domain::const_iterator, fa_edge_descriptor, Factor*>;
+  using in_edge1_iterator = Bind2Iterator<IntrusiveList<Factor>::iterator, fa_edge_descriptor, Arg>;
+  using in_edge2_iterator = Bind2Iterator<Domain::const_iterator, af_edge_descriptor, Factor*>;
 
   // Constructors, destructors, and related functions
   //--------------------------------------------------------------------------
@@ -72,11 +84,23 @@ public:
   /// Returns the range of all factors.
   SubRange<factor_iterator> factors() const;
 
+  /// Returns the factors containing an argument.
+  const IntrusiveList<Factor>& factors(Arg u) const;
+
+  /// Returns the edges from the argument to its incident factors.
+  SubRange<out_edge1_iterator> out_edges(Arg u) const;
+
+  /// Returns the edges from the incident factors to the argument.
+  SubRange<in_edge1_iterator> in_edges(Arg u) const;
+
   /// Returns the arguments associated with a factor.
   const Domain& arguments(Factor* u) const;
 
-  /// Returns the factors containing an argument.
-  const IntrusiveList<Factor>& factors(Arg u) const;
+  /// Returns the edges from the factor to its incident arguments.
+  SubRange<out_edge2_iterator> out_edges(Factor* u) const;
+
+  /// Returns the edges from the incident arguments to the factor.
+  SubRange<in_edge2_iterator> in_edges(Factor* u) const;
 
   /// Returns true if the graph contains the given argument.
   bool contains(Arg u) const;
@@ -185,18 +209,30 @@ struct FactorGraphT : FactorGraph {
   FactorGraphT()
     : FactorGraph(property_layout<AP>(), property_layout<FP>()) {}
 
-  explicit FactorGraphT(const MarkovNetworkT<FP, FP>& mn)
+  explicit FactorGraphT(const MarkovNetworkT<AP, FP>& mn)
     : FactorGraphT() {
     for (Arg u : mn.vertices()) {
-      add_argument(u);
-    }
-    for (Arg u : mn.vertices()) {
-      add_factor(Domain{u}, mn[u]);
+      add_argument(u, mn[u]);
     }
     for (Arg u : mn.vertices()) {
       for (UndirectedEdge<Arg> e : mn.out_edges(u)) {
-        if (e.source() <= e.target()) {
+        if (e.is_nominal()) {
           add_factor(Domain{e.source(), e.target()}, mn[e]);
+        }
+      }
+    }
+  }
+
+  template <typename AP2, typename FP2, typename Converter>
+  explicit FactorGraphT(const MarkovNetworkT<AP2, FP2>& mn, Converter converter)
+  : FactorGraphT() {
+    for (Arg u : mn.vertices()) {
+      add_argument(u, converter(mn[u]));
+    }
+    for (Arg u : mn.vertices()) {
+      for (UndirectedEdge<Arg> e : mn.out_edges(u)) {
+        if (e.is_nominal()) {
+          add_factor(Domain{e.source(), e.target()}, converter(mn[e]));
         }
       }
     }

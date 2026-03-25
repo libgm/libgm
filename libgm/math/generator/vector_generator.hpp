@@ -39,7 +39,7 @@ public:
   }
 
   /// Prints the generator to an output stream.
-  friend std::ostream& operator<<(std::ostream& out, const vector_generator& g) {
+  friend std::ostream& operator<<(std::ostream& out, const VectorGenerator& g) {
     out << "vector_generator(" << g.distribution_ << ")";
     return out;
   }
@@ -61,7 +61,7 @@ private:
  * \relates VectorGenerator
  */
 template <typename T = double>
-using UniformVectorGenerator = VectorGenerator<std::uniform_distribution<T>>;
+using UniformVectorGenerator = VectorGenerator<std::uniform_real_distribution<T>>;
 
 /**
  * A vector_generator that returns a vector whose parameters are drawn from a gamma distribution.

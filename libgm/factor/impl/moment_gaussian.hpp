@@ -583,4 +583,15 @@ const typename MomentGaussian<T>::Impl& MomentGaussian<T>::impl() const {
 template <typename T>
 const T MomentGaussian<T>::Impl::log_two_pi = std::log(boost::math::constants::two_pi<T>());
 
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const MomentGaussian<T>& f) {
+  return out << "MomentGaussian("
+             << "shape=" << f.shape()
+             << ", mean=" << f.mean()
+             << ", cov=" << f.covariance()
+             << ", coef=" << f.coefficients()
+             << ", lm=" << f.log_multiplier()
+             << ")";
+}
+
 } // namespace libgm

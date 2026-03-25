@@ -3,6 +3,7 @@
 #include <libgm/factor/concepts.hpp>
 #include <libgm/graph/cluster_graph.hpp>
 #include <libgm/graph/util/bidirectional.hpp>
+#include <libgm/inference/exact/junction_tree_engine.hpp>
 
 namespace libgm {
 
@@ -13,7 +14,7 @@ namespace libgm {
  * \ingroup inference
  */
 template <typename F>
-class SumProductCalibrate {
+class SumProductCalibrate : public JunctionTreeEngine<F> {
 public:
   // Descriptors
   using vertex_descriptor = ClusterGraph::vertex_descriptor;
@@ -42,7 +43,7 @@ public:
 }
 
   /// Initializes the algorithm to the cliques obtained by eliminating given collection of factors.
-  void reset(MarkovNetwork& mn, const EliminationStrategy& strategy, const ShapeMap& shape_map) {
+  void reset(MarkovNetwork mn, const EliminationStrategy& strategy, const ShapeMap& shape_map) override {
     calibrated_ = false;
 
     // initialize the junction tree
@@ -52,10 +53,16 @@ public:
     for (vertex_descriptor v : jt_.vertices()) {
       jt_[v].reset(jt_.shape(v, shape_map));
     }
+
+    // Initialize the messages
+    for (edge_descriptor e : jt_.edges()) {
+      jt_[e].forward.reset(jt_.shape(e, shape_map));;
+      jt_[e].reverse.reset(jt_.shape(e, shape_map));
+    }
   }
 
   /// Multiplies in a factor.
-  void multiply_in(const Domain& domain, const F& factor) {
+  void multiply_in(const Domain& domain, const F& factor) override {
     vertex_descriptor v = jt_.find_cluster_cover(domain);
     assert(v);
     jt_[v].multiply_in(factor, jt_.dims(v, domain));
@@ -66,7 +73,7 @@ public:
   //--------------------------------------------------------------------------
 
   /// Performs inference by calibrating the junction tree.
-  void calibrate() {
+  void calibrate() override {
     jt_.mpp_traversal(jt_.root(), [&](edge_descriptor e) {
       F factor = jt_[e.source()];
       for (edge_descriptor in : jt_.in_edges(e.source())) {
@@ -80,12 +87,12 @@ public:
   }
 
   /// Ensures that all the beliefs are normalized. The underlying junction tree must be calibrated.
-  void normalize() {
+  void normalize() override {
     assert(calibrated_ && !jt_.empty());
     // Compute the normalization constant z, and normalize the root
     // and every message in the direction from the root
     vertex_descriptor root = jt_.root();
-    auto z = jt_[root].marginal();
+    auto z = belief(root).marginal();
     jt_[root] /= z;
     jt_.pre_order_traversal(root, [this, z](edge_descriptor e) {
       message(e) /= z;
@@ -97,7 +104,7 @@ public:
    * This is a mutable operation. Note that calibrate() needs to be called
    * afterwards.
    */
-  void condition(const typename F::assignment_type& a) {
+  void condition(const typename F::assignment_type& a) override {
     // Extract the restricted arguments
     Domain args = a.keys();
 
@@ -167,9 +174,18 @@ public:
     throw std::invalid_argument("SumProductCalibrate::belief: the domain is not covered by any clique or separator");
   }
 
-  /// Message along a directed edge
-  F& message(edge_descriptor e) { return jt_[e](e); }
-  const F& message(edge_descriptor e) const { return jt_[e](e); }
+  /// Potentials and messages
+  const F& potential(vertex_descriptor v) {
+    return jt_[v];
+  }
+
+  F& message(edge_descriptor e) {
+    return jt_[e](e);
+  }
+
+  const F& message(edge_descriptor e) const {
+    return jt_[e](e);
+  }
 
 private:
   /// The junction tree used to store the factors and messages

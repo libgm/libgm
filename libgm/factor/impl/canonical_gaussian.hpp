@@ -821,4 +821,14 @@ const CanonicalGaussian<T>::Impl& CanonicalGaussian<T>::impl() const {
 template <typename T>
 const T CanonicalGaussian<T>::Impl::log_two_pi = std::log(boost::math::constants::two_pi<T>());
 
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const CanonicalGaussian<T>& f) {
+  return out << "CanonicalGaussian("
+             << "shape=" << f.shape()
+             << ", eta=" << f.inf_vector()
+             << ", lambda=" << f.inf_matrix()
+             << ", lv=" << f.log_multiplier()
+             << ")";
+}
+
 } // namespace libgm

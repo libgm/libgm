@@ -261,6 +261,25 @@ LogarithmicTable<T> LogarithmicTable<T>::minimum_dims(const Dims& dims) const {
 }
 
 template <typename T>
+LogarithmicVector<T> LogarithmicTable<T>::expected_log_dim(const std::vector<ProbabilityVector<T>>& beliefs,
+                                                           unsigned retain) const {
+  size_t k = arity();
+  Vector<T> result = Vector<T>::Zero(k);
+  TableIndex index(k);
+  for (T value : param_) {
+    for (size_t i = 0, j = 0; j < k; ++j) {
+      if (j != retain) {
+        value *= beliefs[i++](index[j]);
+      }
+    }
+    result[index[retain]] += value;
+    index.advance(param_.shape());
+  }
+  return result;
+}
+
+
+template <typename T>
 LogarithmicTable<T> LogarithmicTable<T>::restrict_front(const std::vector<size_t>& values) const {
   LogarithmicTable result;
   libgm::restrict_front(param_, values, result.param_);
@@ -334,6 +353,11 @@ LogarithmicMatrix<T> LogarithmicTable<T>::matrix() const {
   assert(arity() == 2);
   using Array = Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic>;
   return Eigen::Map<const Array>(param_.data(), param_.size(0), param_.size(1));
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const LogarithmicTable<T>& f) {
+  return out << "LogarithmicTable(" << f.param() << ")";
 }
 
 } // namespace libgm

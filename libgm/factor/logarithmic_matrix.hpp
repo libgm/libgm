@@ -8,6 +8,9 @@
 #include <cereal/access.hpp>
 
 #include <initializer_list>
+#include <iosfwd>
+
+#include "probability_vector.hpp"
 
 namespace libgm {
 
@@ -34,10 +37,11 @@ template <typename T>
 class LogarithmicMatrix {
 public:
   /// The result of applying this factor to an index.
-  using value_type = T;
-  using value_list = std::vector<size_t>;
-  using result_type = Exp<T>;
   using assignment_type = DiscreteAssignment;
+  using real_type = T;
+  using result_type = Exp<T>;
+  using value_list = std::vector<size_t>;
+  using value_type = T;
 
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
@@ -170,6 +174,11 @@ public:
   LogarithmicVector<T> minimum_front(unsigned n = 1) const;
   LogarithmicVector<T> minimum_back(unsigned n = 1) const;
 
+  // Join-aggregates
+  //--------------------------------------------------------------------------
+  LogarithmicVector<T> expected_log_front(const ProbabilityVector<T>& belief) const;
+  LogarithmicVector<T> expected_log_back(const ProbabilityVector<T>& belief) const;
+
   // Restriction
   //--------------------------------------------------------------------------
 
@@ -219,5 +228,8 @@ private:
   }
 
 }; // class LogarithmicMatrix
+
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const LogarithmicMatrix<T>& f);
 
 } // namespace libgm

@@ -270,4 +270,9 @@ ProbabilityTable<T> ProbabilityMatrix<T>::table() const {
   return {{rows(), cols()}, param_.data()};
 }
 
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const ProbabilityMatrix<T>& f) {
+  return out << "ProbabilityMatrix(" << f.param() << ")";
+}
+
 } // namespace libgm

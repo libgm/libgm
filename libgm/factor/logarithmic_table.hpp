@@ -7,6 +7,7 @@
 
 #include <cereal/access.hpp>
 
+#include <iosfwd>
 #include <initializer_list>
 #include <vector>
 
@@ -16,6 +17,7 @@ namespace libgm {
 template <typename T> class LogarithmicMatrix;
 template <typename T> class LogarithmicVector;
 template <typename T> class ProbabilityTable;
+template <typename T> class ProbabilityVector;
 
 /**
  * A factor of a categorical distribution represented in the log space.
@@ -31,11 +33,12 @@ template <typename T> class ProbabilityTable;
 template <typename T>
 class LogarithmicTable {
 public:
-  /// The result of applying this factor to an index.
-  using value_type = T;
-  using value_list = std::vector<size_t>;
-  using result_type = Exp<T>;
   using assignment_type = DiscreteAssignment;
+  using probability_type = ProbabilityTable<T>;
+  using real_type = T;
+  using result_type = Exp<T>;
+  using value_list = std::vector<size_t>;
+  using value_type = T;
 
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
@@ -175,6 +178,7 @@ public:
   LogarithmicTable minimum_front(unsigned n) const;
   LogarithmicTable minimum_back(unsigned n) const;
   LogarithmicTable minimum_dims(const Dims& dims) const;
+  LogarithmicVector<T> expected_log_dim(const std::vector<ProbabilityVector<T>>& beliefs, unsigned retain) const;
 
   // Restriction
   //--------------------------------------------------------------------------
@@ -224,5 +228,8 @@ private:
   }
 
 }; // class LogarithmicTable
+
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const LogarithmicTable<T>& f);
 
 } // namespace libgm

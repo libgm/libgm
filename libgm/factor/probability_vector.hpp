@@ -7,6 +7,7 @@
 #include <cereal/access.hpp>
 
 #include <cmath>
+#include <iosfwd>
 #include <vector>
 
 namespace libgm {
@@ -33,10 +34,11 @@ template <typename T>
 class ProbabilityVector {
 public:
   // The result of applying a vector to an index.
-  using value_type = T;
-  using value_list = std::vector<size_t>;
-  using result_type = T;
   using assignment_type = DiscreteAssignment;
+  using real_type = T;
+  using result_type = T;
+  using value_list = std::vector<size_t>;
+  using value_type = T;
 
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
@@ -192,5 +194,8 @@ private:
   }
 
 }; // class ProbabilityVector
+
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const ProbabilityVector<T>& f);
 
 } // namespace libgm

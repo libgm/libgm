@@ -8,6 +8,7 @@
 
 #include <initializer_list>
 #include <cmath>
+#include <iosfwd>
 #include <vector>
 
 namespace libgm {
@@ -34,10 +35,11 @@ template <typename T> class LogarithmicMatrix;
 template <typename T>
 class ProbabilityMatrix {
 public:
-  using value_type = T;
-  using value_list = std::vector<size_t>;
-  using result_type = T;
   using assignment_type = DiscreteAssignment;
+  using real_type = T;
+  using result_type = T;
+  using value_list = std::vector<size_t>;
+  using value_type = T;
 
   /// Default constructor. Creates an empty factor.
   ProbabilityMatrix() = default;
@@ -143,6 +145,9 @@ public:
   ProbabilityMatrix divide_back(const ProbabilityVector<T>& other) const;
   ProbabilityMatrix& divide_in_front(const ProbabilityVector<T>& other);
   ProbabilityMatrix& divide_in_back(const ProbabilityVector<T>& other);
+  friend ProbabilityMatrix outer_prod(const ProbabilityVector<T>& a, const ProbabilityVector<T>& b) {
+    return a.param() * b.param().transpose();
+  }
 
   // Arithmetic
   //--------------------------------------------------------------------------
@@ -226,5 +231,8 @@ private:
   }
 
 }; // class ProbabilityMatrix
+
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const ProbabilityMatrix<T>& f);
 
 } // namespace libgm

@@ -53,8 +53,14 @@ public:
     return target_;
   }
 
+  /// Returns the weakly typed property.
   void* property() const {
     return property_;
+  }
+
+  /// Returns true if the edge is in the nominal direction, i.e., source <= target.
+  bool is_nominal() const {
+    return source_ <= target_;
   }
 
   /// Returns a copy of this edge with the endpoints reversed.

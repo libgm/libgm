@@ -1,7 +1,6 @@
 #pragma once
 
 #include <libgm/math/eigen/dense.hpp>
-#include <libgm/math/generator/diagonal_generator_param.hpp>
 
 #include <algorithm>
 #include <functional>
@@ -69,7 +68,7 @@ private:
  * \relates MatrixGenerator
  */
 template <typename T = double>
-using UniformMatrixGenerator = MatrixGenerator<std::uniform_distribution<T>>;
+using UniformMatrixGenerator = MatrixGenerator<std::uniform_real_distribution<T>>;
 
 /**
  * A MatrixGenerator that returns a matrix whose parameters are drawn from a gamma distribution.
@@ -109,7 +108,9 @@ public:
   Matrix<real_type> operator()(size_t n, Generator& g) {
     Vector<real_type> vec(n);
     std::generate(vec.begin(), vec.end(), std::bind(distribution_, std::ref(g)));
-    return Matrix<real_type>::Constant(n, n, base_) + vec.asDiagonal();
+    Matrix<real_type> r = vec.asDiagonal();
+    r += Matrix<real_type>::Constant(n, n, base_);
+    return r;
   }
 
 private:

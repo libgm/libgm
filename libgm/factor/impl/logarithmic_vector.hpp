@@ -143,4 +143,9 @@ LogarithmicTable<T> LogarithmicVector<T>::table() const {
   return {{size()}, param_.data()};
 }
 
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const LogarithmicVector<T>& f) {
+  return out << "LogarithmicVector(" << f.param().transpose() << ")";
+}
+
 } // namespace libgm

@@ -6,5 +6,7 @@ namespace libgm {
 
 template class LogarithmicTable<float>;
 template class LogarithmicTable<double>;
+template std::ostream& operator<<(std::ostream&, const LogarithmicTable<float>&);
+template std::ostream& operator<<(std::ostream&, const LogarithmicTable<double>&);
 
 }

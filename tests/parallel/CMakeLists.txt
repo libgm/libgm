@@ -1,0 +1,2 @@
+add_executable(map_processor map_processor_test.cpp)
+add_test(map_processor map_processor)

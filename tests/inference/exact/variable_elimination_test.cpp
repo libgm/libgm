@@ -5,39 +5,33 @@
 #include <libgm/factor/utility/commutative_semiring.hpp>
 #include <libgm/graph/algorithm/elimination_strategies.hpp>
 #include <libgm/graph/factor_graph.hpp>
-#include <libgm/inference/exact/variable_elimination.hpp>
+#include <libgm/inference/exact/variable_elimination_test.hpp>
 #include "mn_fixture.hpp"
 
 namespace libgm {
-namespace {
-
-using PTable = Fixture::PTable;
-
-} // namespace
 
 BOOST_FIXTURE_TEST_CASE(test_grid, Fixture) {
-  FactorGraphT<int, PTable> fg(mn);
+  FactorGraphT<PTable, PTable> fg(mn, [](auto&& factor) { return factor.table(); });
   MinFillStrategy strategy;
   SumProduct<PTable> semiring;
-  VariableElimination<PTable> ve;
+  VariableElimination<PTable> ve(shape_map, min_fill, sum_product);
+  Domain arguments = mn.vertices();
+  arguments.sort();
 
-  auto joint = ve.combine_all(fg, shape_map, semiring);
+  auto joint = ve.join(fg, arguments);
 
   for (Arg u : mn.vertices()) {
     for (UndirectedEdge<Arg> e : mn.out_edges(u)) {
-      if (e.source() > e.target()) {
+      if (!e.is_nominal()) {
         continue;
       }
 
       Domain retain{e.source(), e.target()};
       BOOST_CHECK(retain.is_sorted());
 
-      FactorGraphT<int, PTable> reduced = fg;
-      ve.eliminate(reduced, retain, shape_map, strategy, semiring);
-      auto eliminated = ve.combine_all(reduced, shape_map, semiring);
-
-      PTable direct = joint.factor.marginal_dims(joint.domain.dims(retain));
-      PTable via_elimination = eliminated.factor.marginal_dims(eliminated.domain.dims(retain));
+      FactorGraphT<PTable, PTable> reduced = fg;
+      PTable via_elimination = ve.eliminate_join(reduced, retain);
+      PTable direct = joint.marginal_dims(arguments.dims(retain));
       BOOST_CHECK_SMALL(max_diff(via_elimination, direct), 1e-8);
     }
   }

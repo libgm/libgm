@@ -6,5 +6,7 @@ namespace libgm {
 
 template class CanonicalGaussian<float>;
 template class CanonicalGaussian<double>;
+template std::ostream& operator<<(std::ostream&, const CanonicalGaussian<float>&);
+template std::ostream& operator<<(std::ostream&, const CanonicalGaussian<double>&);
 
 }

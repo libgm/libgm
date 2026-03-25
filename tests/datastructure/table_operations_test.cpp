@@ -26,6 +26,91 @@ Dims make_dims(std::initializer_list<size_t> bits) {
 
 } // namespace
 
+BOOST_AUTO_TEST_CASE(test_table_increment_select) {
+  Shape shape3 = {2, 3, 2};
+  TableIncrement inc0(shape3,make_dims({0}));
+  BOOST_CHECK_EQUAL(inc0.size(), 3);
+  BOOST_CHECK_EQUAL(inc0[0], 1);
+  BOOST_CHECK_EQUAL(inc0[1], -1);
+  BOOST_CHECK_EQUAL(inc0[2], -1);
+  BOOST_CHECK_EQUAL(inc0[3], -1);
+
+  TableIncrement inc1(shape3,make_dims({1}));
+  BOOST_CHECK_EQUAL(inc1.size(), 3);
+  BOOST_CHECK_EQUAL(inc1[0], 0);
+  BOOST_CHECK_EQUAL(inc1[1], 1);
+  BOOST_CHECK_EQUAL(inc1[2], -2);
+  BOOST_CHECK_EQUAL(inc1[3], -2);
+
+  TableIncrement inc2(shape3, make_dims({2}));
+  BOOST_CHECK_EQUAL(inc2.size(), 3);
+  BOOST_CHECK_EQUAL(inc2[0], 0);
+  BOOST_CHECK_EQUAL(inc2[1], 0);
+  BOOST_CHECK_EQUAL(inc2[2], 1);
+  BOOST_CHECK_EQUAL(inc2[3], -1);
+
+  TableIncrement inc01(shape3, make_dims({0, 1}));
+  BOOST_CHECK_EQUAL(inc01.size(), 3);
+  BOOST_CHECK_EQUAL(inc01[0], 1);
+  BOOST_CHECK_EQUAL(inc01[1], 1);
+  BOOST_CHECK_EQUAL(inc01[2], -5);
+  BOOST_CHECK_EQUAL(inc01[3], -5);;
+
+  TableIncrement inc02(shape3, make_dims({0, 2}));
+  BOOST_CHECK_EQUAL(inc02.size(), 3);
+  BOOST_CHECK_EQUAL(inc02[0], 1);
+  BOOST_CHECK_EQUAL(inc02[1], -1);
+  BOOST_CHECK_EQUAL(inc02[2], 1);
+  BOOST_CHECK_EQUAL(inc02[3], -3);
+}
+
+BOOST_AUTO_TEST_CASE(test_table_increment_restrict) {
+  // (0, 0, 0)
+  // (1, 0, 0)
+  // (0, 1, 0)
+  // (1, 1, 0)
+  // (0, 2, 0)
+  // (1, 2, 0)
+  // (0, 0, 1)
+  // (1, 0, 1)
+  // (0, 1, 1)
+  // (1, 1, 1)
+  // (0, 2, 1)
+  // (1, 2, 1)
+
+  Shape shape3 = {2, 3, 2};
+  TableIncrement inc0(make_dims({0}), shape3);
+  BOOST_CHECK_EQUAL(inc0.size(), 2);
+  BOOST_CHECK_EQUAL(inc0[0], 2);
+  BOOST_CHECK_EQUAL(inc0[1], 2);
+  BOOST_CHECK_EQUAL(inc0[2], -10);
+
+  TableIncrement inc1(make_dims({1}), shape3);
+  BOOST_CHECK_EQUAL(inc1.size(), 2);
+  BOOST_CHECK_EQUAL(inc1[0], 1);
+  BOOST_CHECK_EQUAL(inc1[1], 5);
+  BOOST_CHECK_EQUAL(inc1[2], -7);
+
+  TableIncrement inc2(make_dims({2}), shape3);
+  BOOST_CHECK_EQUAL(inc2.size(), 2);
+  BOOST_CHECK_EQUAL(inc2[0], 1);
+  BOOST_CHECK_EQUAL(inc2[1], 1);
+  BOOST_CHECK_EQUAL(inc2[2], -5);
+
+  Shape shape4(4, 2);
+  TableIncrement inc01(make_dims({0, 1}), shape4);
+  BOOST_CHECK_EQUAL(inc01.size(), 2);
+  BOOST_CHECK_EQUAL(inc01[0], 4);
+  BOOST_CHECK_EQUAL(inc01[1], 4);
+  BOOST_CHECK_EQUAL(inc01[2], -12);
+
+  TableIncrement inc02(make_dims({0, 2}), shape4);
+  BOOST_CHECK_EQUAL(inc02.size(), 2);
+  BOOST_CHECK_EQUAL(inc02[0], 2);
+  BOOST_CHECK_EQUAL(inc02[1], 6);
+  BOOST_CHECK_EQUAL(inc02[2], -10);
+}
+
 BOOST_AUTO_TEST_CASE(test_sequential_ops) {
   IntTable x({2, 2});
   IntTable y({2, 2});

@@ -317,6 +317,18 @@ OpaqueCref MarkovNetwork::property(const UndirectedEdge<Arg>& e) const {
   return {impl().edge_property_layout.type_info, e.property()};
 }
 
+MarkovNetwork MarkovNetwork::without_properties() const {
+  MarkovNetwork result(num_vertices());
+  result.impl().num_edges = num_edges();
+  for (const auto& [u, data] : impl().data) {
+    AdjacencyMap& adjacency = result.impl().data.emplace(u, result.impl().allocate_vertex()).first->second->neighbors;
+    for (auto p : data->neighbors) {
+      adjacency.emplace(p.first, nullptr);
+    }
+  }
+  return result;
+}
+
 bool MarkovNetwork::add_vertex(Arg u) {
   assert(u != Arg());
   if (contains(u)) {

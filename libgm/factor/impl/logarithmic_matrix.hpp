@@ -183,6 +183,16 @@ LogarithmicVector<T> LogarithmicMatrix<T>::minimum_back(unsigned n) const {
 }
 
 template <typename T>
+LogarithmicVector<T> LogarithmicMatrix<T>::expected_log_front(const ProbabilityVector<T>& belief) const {
+  return param_.matrix().transpose() * belief.param().matrix();
+}
+
+template <typename T>
+LogarithmicVector<T> LogarithmicMatrix<T>::expected_log_back(const ProbabilityVector<T>& belief) const {
+  return param_.matrix() * belief.param().matrix();
+}
+
+template <typename T>
 LogarithmicVector<T> LogarithmicMatrix<T>::restrict_front(const std::vector<size_t>& values) const {
   assert(values.size() == 1);
   return {param_.row(values[0]).transpose()};
@@ -240,6 +250,11 @@ ProbabilityMatrix<T> LogarithmicMatrix<T>::probability() const {
 template <typename T>
 LogarithmicTable<T> LogarithmicMatrix<T>::table() const {
   return {{rows(), cols()}, param_.data()};
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const LogarithmicMatrix<T>& f) {
+  return out << "LogarithmicMatrix(" << f.param() << ")";
 }
 
 } // namespace libgm

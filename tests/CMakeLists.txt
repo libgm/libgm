@@ -18,6 +18,7 @@ subdirs(
   graph
   inference
   math
+  parallel
 #[[
   learning
   model

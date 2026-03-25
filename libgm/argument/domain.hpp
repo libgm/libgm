@@ -80,6 +80,11 @@ public:
    */
   void append(const Domain& other);
 
+  /**
+   * Returns the index of the given argument in this domain.
+   */
+  size_t index(Arg arg) const;
+
   // Set operations
   //----------------------------------------------------------------------------
 

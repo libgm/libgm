@@ -8,6 +8,7 @@
 #include <cereal/access.hpp>
 
 #include <initializer_list>
+#include <iosfwd>
 #include <vector>
 
 namespace libgm {
@@ -34,10 +35,12 @@ template <typename T>
 class LogarithmicVector {
 public:
   /// The result of applying this factor to an index.
-  using value_type = T;
-  using value_list = std::vector<size_t>;
-  using result_type = Exp<T>;
   using assignment_type = DiscreteAssignment;
+  using probability_type = ProbabilityVector<T>;
+  using real_type = T;
+  using result_type = Exp<T>;
+  using value_list = std::vector<size_t>;
+  using value_type = T;
 
   // Constructors and conversion operators
   //--------------------------------------------------------------------------
@@ -183,5 +186,8 @@ private:
   }
 
 }; // class LogarithmicVector
+
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const LogarithmicVector<T>& f);
 
 } // namespace libgm

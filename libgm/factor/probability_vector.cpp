@@ -6,6 +6,7 @@ namespace libgm {
 
 template class ProbabilityVector<float>;
 template class ProbabilityVector<double>;
+template std::ostream& operator<<(std::ostream&, const ProbabilityVector<float>&);
+template std::ostream& operator<<(std::ostream&, const ProbabilityVector<double>&);
 
 }
-

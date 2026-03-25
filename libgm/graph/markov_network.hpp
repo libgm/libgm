@@ -165,6 +165,9 @@ public:
   /// Returns an opaque const reference to the property associated with an edge.
   OpaqueCref property(const UndirectedEdge<Arg>& e) const;
 
+  /// Returns a Markov network with the same structure but omitting the properties.
+  MarkovNetwork without_properties() const;
+
   // Modifications
   //--------------------------------------------------------------------------
 
@@ -287,11 +290,10 @@ struct MarkovNetworkT : MarkovNetwork {
     }
   }
 
-  void init_edges(
-      const std::function<EP(UndirectedEdge<Arg>)>& init_fn) {
+  void init_edges(const std::function<EP(UndirectedEdge<Arg>)>& init_fn) {
     for (Arg u : vertices()) {
       for (UndirectedEdge<Arg> e : out_edges(u)) {
-        if (e.source() <= e.target()) {
+        if (e.is_nominal()) {
           (*this)[e] = init_fn(e);
         }
       }

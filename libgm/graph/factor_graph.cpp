@@ -277,12 +277,32 @@ SubRange<FactorGraph::factor_iterator> FactorGraph::factors() const {
   return { impl().factors.begin(), impl().factors.end() };
 }
 
+const IntrusiveList<FactorGraph::Factor>& FactorGraph::factors(Arg u) const {
+  return argument(u).factors;
+}
+
+SubRange<FactorGraph::out_edge1_iterator> FactorGraph::out_edges(Arg u) const {
+  const IntrusiveList<Factor>& adjacent = factors(u);
+  return {out_edge1_iterator(adjacent.begin(), u), out_edge1_iterator(adjacent.end(), u)};
+}
+
+SubRange<FactorGraph::in_edge1_iterator> FactorGraph::in_edges(Arg u) const {
+  const IntrusiveList<Factor>& adjacent = factors(u);
+  return {in_edge1_iterator(adjacent.begin(), u), in_edge1_iterator(adjacent.end(), u)};
+}
+
 const Domain& FactorGraph::arguments(Factor* u) const {
   return u->arguments;
 }
 
-const IntrusiveList<FactorGraph::Factor>& FactorGraph::factors(Arg u) const {
-  return argument(u).factors;
+SubRange<FactorGraph::out_edge2_iterator> FactorGraph::out_edges(Factor* u) const {
+  const Domain& adjacent = arguments(u);
+  return {out_edge2_iterator(adjacent.begin(), u), out_edge2_iterator(adjacent.end(), u)};
+}
+
+SubRange<FactorGraph::in_edge2_iterator> FactorGraph::in_edges(Factor* u) const {
+  const Domain& adjacent = arguments(u);
+  return {in_edge2_iterator(adjacent.begin(), u), in_edge2_iterator(adjacent.end(), u)};
 }
 
 bool FactorGraph::contains(Arg u) const {

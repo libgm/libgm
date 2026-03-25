@@ -2,6 +2,8 @@
 
 #include <libgm/datastructure/subrange.hpp>
 
+#include <boost/range/const_iterator.hpp>
+#include <boost/range/mutable_iterator.hpp>
 #include <boost/stl_interfaces/iterator_interface.hpp>
 
 #include <cereal/cereal.hpp>
@@ -118,6 +120,8 @@ struct IntrusiveList {
     entry_iterator it_;
   };
 
+  using const_iterator = iterator;
+
   IntrusiveList()
     : root_hook_{{nullptr, &root_hook_}, {nullptr, &root_hook_}} {}
 
@@ -225,3 +229,17 @@ private:
 };
 
 } // namespace libgm
+
+namespace boost {
+
+template <typename T>
+struct range_mutable_iterator<libgm::IntrusiveList<T>, void> {
+  using type = typename libgm::IntrusiveList<T>::iterator;
+};
+
+template <typename T>
+struct range_const_iterator<libgm::IntrusiveList<T>, void> {
+  using type = typename libgm::IntrusiveList<T>::const_iterator;
+};
+
+} // namespace boost

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <libgm/graph/cluster_graph.hpp>
+#include <libgm/inference/exact/junction_tree_engine.hpp>
 
 namespace libgm {
 
@@ -13,14 +14,14 @@ namespace libgm {
  *         multiplication, division, and marginalization operations.
  */
 template <typename F>
-class BeliefUpdateCalibrate {
+class BeliefUpdateCalibrate : public JunctionTreeEngine<F> {
 public:
   // Graph types
   using vertex_descriptor = ClusterGraph::vertex_descriptor;
   using edge_descriptor = ClusterGraph::edge_descriptor;
 
   /// Initializes the algorithm to the given network.
-  void reset(MarkovNetwork& mn, const EliminationStrategy& strategy, const ShapeMap& shape_map) {
+  void reset(MarkovNetwork mn, const EliminationStrategy& strategy, const ShapeMap& shape_map) override {
     // compute the junction tree for the given factors
     jt_.triangulated(mn, strategy);
 
@@ -34,7 +35,7 @@ public:
   }
 
   /// Multiplies in the given factor to the underlying junction tree.
-  void multiply_in(const Domain& domain, const F& factor) {
+  void multiply_in(const Domain& domain, const F& factor) override {
     vertex_descriptor v = jt_.find_cluster_cover(domain);
     assert(v);
     jt_[v].multiply_in(factor, jt_.dims(v, domain));
@@ -42,7 +43,7 @@ public:
 
   /// Conditions the inference on an assignment to one or more variables. This is a mutable operation.
   /// Note that calibrate() needs to be called afterwards.
-  void condition(const typename F::assignment_type& a) {
+  void condition(const typename F::assignment_type& a) override {
     // Extract the restricted arguments
     Domain args = a.keys();
 
@@ -62,7 +63,7 @@ public:
   }
 
   /// Calibrates the junction tree by passing flow according to the message passing protocol.
-  void calibrate() {
+  void calibrate() override {
     jt_.mpp_traversal(jt_.root(), [&](edge_descriptor e) {
       jt_[e.target()].divide_in(jt_[e], jt_.target_dims(e));
       jt_[e] = jt_[e.source()].marginal_dims(jt_.source_dims(e));
@@ -71,7 +72,7 @@ public:
   }
 
   /// Normalizes the clique and edge potentials.
-  void normalize() {
+  void normalize() override {
     auto z = jt_[jt_.root()].marginal();
     for (vertex_descriptor v : jt_.vertices()) {
       jt_[v] /= z;

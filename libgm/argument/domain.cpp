@@ -45,6 +45,14 @@ void Domain::append(const Domain& other) {
   insert(end(), other.begin(), other.end());
 }
 
+size_t Domain::index(Arg arg) const {
+  auto it = std::find(begin(), end(), arg);
+  if (it != end()) {
+    return it - begin();
+  }
+  throw std::invalid_argument("Domain::index: Argument not found.");
+}
+
 void Domain::sort() {
   std::sort(begin(), end());
 }

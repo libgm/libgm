@@ -6,6 +6,7 @@ namespace libgm {
 
 template class LogarithmicVector<float>;
 template class LogarithmicVector<double>;
+template std::ostream& operator<<(std::ostream&, const LogarithmicVector<float>&);
+template std::ostream& operator<<(std::ostream&, const LogarithmicVector<double>&);
 
 }
-

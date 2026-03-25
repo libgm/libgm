@@ -21,7 +21,7 @@ namespace libgm {
  */
 class TableIncrement {
 public:
-  /// Creates an increment for the given shape of table A, selecting the given dimesions of table B.
+  /// Creates an increment for the given shape of table A, selecting the given dimensions of table B.
   TableIncrement(const Shape& a_shape, const Dims& b_dims);
 
   /// Creates an increment omitting the given dimensions of table A, given the shape of table B.
@@ -73,6 +73,8 @@ public:
 
   /// Destructor.
   ~TableIndex();
+
+  size_t operator[](size_t i) const {  return data_[i]; }
 
   /// Advances the index by 1 and returns the position of the last updated index.
   size_t advance(const Shape& shape);

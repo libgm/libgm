@@ -24,10 +24,11 @@ public:
   //--------------------------------------------------------------------------
 
   // Factor member types
-  using value_type  = T;
-  using value_list  = typename F::value_list;
-  using real_type   = typename F::real_type;
+  using assignment_type = typename F::assignment_type;
+  using real_type = typename F::real_type;
   using result_type = typename F::result_type;
+  using value_list = typename F::value_list;
+  using value_type = T;
 
   // Constructors and initialization
   //--------------------------------------------------------------------------
@@ -94,14 +95,6 @@ public:
   /// Returns the factor representing the given component.
   const F& operator[](size_t i) const {
     return components_[i];
-  }
-
-  /// Outputs a human-readable representation of the mixture to a stream.
-  friend std::ostream& operator<<(std::ostream& out, const Mixture& m) {
-    for (size_t i = 0; i < m.size(); ++i) {
-      out << m.param(i) << std::endl;
-    }
-    return out;
   }
 
   // Queries
@@ -262,6 +255,17 @@ private:
   std::vector<F> components_;
 
 }; // class mixture
+
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const Mixture<T>& m);
+
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const Mixture<T>& m) {
+  for (size_t i = 0; i < m.size(); ++i) {
+    out << m.param(i) << std::endl;
+  }
+  return out;
+}
 
 /**
  * Projects the mixture to a single component.

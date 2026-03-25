@@ -153,4 +153,9 @@ ProbabilityTable<T> ProbabilityVector<T>::table() const {
   return {{size()}, param_.data()};
 }
 
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const ProbabilityVector<T>& f) {
+  return out << "ProbabilityVector(" << f.param().transpose() << ")";
+}
+
 } // namespace libgm

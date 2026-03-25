@@ -990,12 +990,15 @@ void ClusterGraph::mst_edges() {
 }
 
 std::ostream& operator<<(std::ostream& out, const ClusterGraph& cg) {
+  std::cout << "ClusterGraph([" << std::endl;
   for (ClusterGraph::Vertex* v : cg.vertices()) {
     out << v << std::endl;
   }
+  std::cout << "], [" << std::endl;
   for (ClusterGraph::Edge* e : cg.edges()) {
     out << e << std::endl;
   }
+  std::cout << "])" << std::endl;
   return out;
 }
 

@@ -368,4 +368,9 @@ ProbabilityMatrix<T> ProbabilityTable<T>::matrix() const {
   return Eigen::Map<const Array>(param_.data(), param_.size(0), param_.size(1));
 }
 
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const ProbabilityTable<T>& f) {
+  return out << "ProbabilityTable(" << f.param() << ")";
+}
+
 } // namespace libgm
