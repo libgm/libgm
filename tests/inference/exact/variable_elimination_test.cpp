@@ -5,7 +5,7 @@
 #include <libgm/factor/utility/commutative_semiring.hpp>
 #include <libgm/graph/algorithm/elimination_strategies.hpp>
 #include <libgm/graph/factor_graph.hpp>
-#include <libgm/inference/exact/variable_elimination_test.hpp>
+#include <libgm/inference/exact/variable_elimination.hpp>
 #include "mn_fixture.hpp"
 
 namespace libgm {

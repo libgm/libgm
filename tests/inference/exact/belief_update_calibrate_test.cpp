@@ -3,7 +3,7 @@
 
 #include <libgm/factor/probability_table.hpp>
 #include <libgm/graph/factor_graph.hpp>
-#include <libgm/inference/exact/belief_update_calibrate_test.hpp>
+#include <libgm/inference/exact/belief_update_calibrate.hpp>
 #include "mn_fixture.hpp"
 
 namespace libgm {

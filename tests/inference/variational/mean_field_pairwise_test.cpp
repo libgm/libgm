@@ -9,8 +9,8 @@
 #include <libgm/graph/factor_graph.hpp>
 #include <libgm/graph/special/grid_graph.hpp>
 #include <libgm/graph/algorithm/elimination_strategies.hpp>
-#include <libgm/inference/exact/sum_product_calibrate_test.hpp>
-#include <libgm/inference/variational/mean_field_pairwise_test.hpp>
+#include <libgm/inference/exact/sum_product_calibrate.hpp>
+#include <libgm/inference/variational/mean_field_pairwise.hpp>
 #include <libgm/math/generator/matrix_generator.hpp>
 #include <libgm/math/generator/vector_generator.hpp>
 

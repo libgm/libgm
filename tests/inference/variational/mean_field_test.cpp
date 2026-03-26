@@ -11,8 +11,8 @@
 #include <libgm/graph/algorithm/elimination_strategies.hpp>
 #include <libgm/graph/factor_graph.hpp>
 #include <libgm/graph/markov_network.hpp>
-#include <libgm/inference/exact/sum_product_calibrate_test.hpp>
-#include <libgm/inference/variational/mean_field_test.hpp>
+#include <libgm/inference/exact/sum_product_calibrate.hpp>
+#include <libgm/inference/variational/mean_field.hpp>
 #include <libgm/math/generator/matrix_generator.hpp>
 #include <libgm/math/generator/vector_generator.hpp>
 

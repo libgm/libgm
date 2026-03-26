@@ -1,6 +1,6 @@
-#include "belief_update_calibrate_test.hpp"
-#include "sum_product_calibrate_test.hpp"
-#include "variable_elimination_test.hpp"
+#include "belief_update_calibrate.hpp"
+#include "sum_product_calibrate.hpp"
+#include "variable_elimination.hpp"
 
 #include <libgm/factor/canonical_gaussian.hpp>
 #include <libgm/factor/probability_table.hpp>

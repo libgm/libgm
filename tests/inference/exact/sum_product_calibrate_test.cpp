@@ -1,13 +1,11 @@
 #define BOOST_TEST_MODULE sum_product_calibrate
 #include <boost/test/unit_test.hpp>
 
-#include <libgm/assignment/discrete_assignment.hpp>
 #include <libgm/graph/factor_graph.hpp>
-#include <libgm/inference/exact/sum_product_calibrate_test.hpp>
+#include <libgm/inference/exact/sum_product_calibrate.hpp>
 #include "mn_fixture.hpp"
 
 namespace libgm {
-
 
 BOOST_FIXTURE_TEST_CASE(test_calibrate, Fixture) {
   SumProductCalibrate<PTable> engine;

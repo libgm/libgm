@@ -7,7 +7,7 @@
 #include <libgm/graph/algorithm/elimination_strategies.hpp>
 #include <libgm/graph/special/grid_graph.hpp>
 #include <libgm/inference/exact/junction_tree_engine.hpp>
-#include <libgm/inference/exact/variable_elimination_test.hpp>
+#include <libgm/inference/exact/variable_elimination.hpp>
 #include <libgm/math/generator/matrix_generator.hpp>
 #include <libgm/math/generator/vector_generator.hpp>
 
