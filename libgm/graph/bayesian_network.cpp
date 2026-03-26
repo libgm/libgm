@@ -204,23 +204,23 @@ BayesianNetwork& BayesianNetwork::operator=(BayesianNetwork&& other) noexcept = 
 
 BayesianNetwork::~BayesianNetwork() = default;
 
-SubRange<BayesianNetwork::out_edge_iterator> BayesianNetwork::out_edges(Arg u) const {
+std::ranges::subrange<BayesianNetwork::out_edge_iterator> BayesianNetwork::out_edges(Arg u) const {
   const AdjacencySet& children = data(u).children;
   return { out_edge_iterator(children.begin(), u), out_edge_iterator(children.end(), u) };
 }
 
-SubRange<BayesianNetwork::in_edge_iterator> BayesianNetwork::in_edges(Arg u) const {
+std::ranges::subrange<BayesianNetwork::in_edge_iterator> BayesianNetwork::in_edges(Arg u) const {
   const Domain& parents = data(u).parents;
   return { in_edge_iterator(parents.begin(), u), in_edge_iterator(parents.end(), u) };
 }
 
-SubRange<BayesianNetwork::adjacency_iterator>
+std::ranges::subrange<BayesianNetwork::adjacency_iterator>
 BayesianNetwork::adjacent_vertices(Arg u) const {
   const AdjacencySet& children = data(u).children;
   return { children.begin(), children.end() };
 }
 
-SubRange<BayesianNetwork::vertex_iterator> BayesianNetwork::vertices() const {
+std::ranges::subrange<BayesianNetwork::vertex_iterator> BayesianNetwork::vertices() const {
   return { impl().data.begin(), impl().data.end() };
 }
 

@@ -1,10 +1,10 @@
 #pragma once
 
 #include <libgm/argument/shape.hpp>
-#include <libgm/datastructure/subrange.hpp>
 #include <libgm/iterator/table_index_iterator.hpp>
 
 #include <numeric>
+#include <ranges>
 
 namespace libgm {
 
@@ -214,7 +214,7 @@ public:
   }
 
   /// Returns an iterator range over indices into this table.
-  SubRange<TableIndexIterator> indices() const {
+  std::ranges::subrange<TableIndexIterator> indices() const {
     if (empty()) {
       return { TableIndexIterator(), TableIndexIterator() };
     } else {

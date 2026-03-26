@@ -14,6 +14,7 @@
 #include <libgm/graph/util/void.hpp>
 
 #include <algorithm>
+#include <ranges>
 
 namespace libgm {
 
@@ -89,42 +90,42 @@ namespace libgm {
     //--------------------------------------------------------------------------
 
     //! Returns the union of all the clusters in this graph.
-    iterator_range<argument_iterator> arguments() const {
+    std::ranges::subrange<argument_iterator> arguments() const {
       return cluster_index_.values();
     }
 
     //! Returns all edges in the graph
-    iterator_range<edge_iterator>
+    std::ranges::subrange<edge_iterator>
     edges() const {
       return graph_.edges();
     }
 
     //! Returns the range of all vertices.
-    iterator_range<vertex_iterator>
+    std::ranges::subrange<vertex_iterator>
     vertices() const {
       return graph_.vertices();
     }
 
     //! Returns the parents of u.
-    iterator_range<neighbor_iterator>
+    std::ranges::subrange<neighbor_iterator>
     parents(id_t u) const {
       return graph_.parents(u);
     }
 
     //! Returns the children of u.
-    iterator_range<neighbor_iterator>
+    std::ranges::subrange<neighbor_iterator>
     children(id_t u) const {
       return graph_.children(u);
     }
 
     //! Returns the edges incoming to a vertex.
-    iterator_range<in_edge_iterator>
+    std::ranges::subrange<in_edge_iterator>
     in_edges(id_t u) const {
       return graph_.in_edges(u);
     }
 
     //! Returns the outgoing edges from a vertex.
-    iterator_range<out_edge_iterator>
+    std::ranges::subrange<out_edge_iterator>
     out_edges(id_t u) const {
       return graph_.out_edges(u);
     }

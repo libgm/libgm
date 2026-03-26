@@ -3,13 +3,13 @@
 #include <libgm/argument/argument.hpp>
 #include <libgm/argument/domain.hpp>
 #include <libgm/datastructure/intrusive_list.hpp>
-#include <libgm/datastructure/subrange.hpp>
 #include <libgm/datastructure/unordered_dense.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
 
 #include <algorithm>
 #include <functional>
 #include <iostream>
+#include <ranges>
 #include <vector>
 
 namespace libgm {
@@ -52,7 +52,7 @@ public:
   /**
    * Returns the range of arguments in this index.
    */
-  SubRange<argument_iterator> arguments() const {
+  std::ranges::subrange<argument_iterator> arguments() const {
     return { adjacency_.begin(), adjacency_.end() };
   }
 

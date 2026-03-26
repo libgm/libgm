@@ -238,23 +238,23 @@ const MarkovNetwork::VertexData& MarkovNetwork::data(Arg arg) const {
   return *impl().data.at(arg);
 }
 
-SubRange<MarkovNetwork::out_edge_iterator> MarkovNetwork::out_edges(Arg u) const {
+std::ranges::subrange<MarkovNetwork::out_edge_iterator> MarkovNetwork::out_edges(Arg u) const {
   const AdjacencyMap& neighbors = data(u).neighbors;
   return { out_edge_iterator(neighbors.begin(), u), out_edge_iterator(neighbors.end(), u) };
 }
 
-SubRange<MarkovNetwork::in_edge_iterator> MarkovNetwork::in_edges(Arg u) const {
+std::ranges::subrange<MarkovNetwork::in_edge_iterator> MarkovNetwork::in_edges(Arg u) const {
   const AdjacencyMap& neighbors = data(u).neighbors;
   return { in_edge_iterator(neighbors.begin(), u), in_edge_iterator(neighbors.end(), u) };
 }
 
-SubRange<MarkovNetwork::adjacency_iterator> MarkovNetwork::adjacent_vertices(Arg u)
+std::ranges::subrange<MarkovNetwork::adjacency_iterator> MarkovNetwork::adjacent_vertices(Arg u)
 const {
   const AdjacencyMap& neighbors = data(u).neighbors;
   return { neighbors.begin(), neighbors.end() };
 }
 
-SubRange<MarkovNetwork::vertex_iterator> MarkovNetwork::vertices() const {
+std::ranges::subrange<MarkovNetwork::vertex_iterator> MarkovNetwork::vertices() const {
   return { impl().data.begin(), impl().data.end() };
 }
 

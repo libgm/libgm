@@ -1,15 +1,12 @@
 #pragma once
 
-#include <libgm/datastructure/subrange.hpp>
-
-#include <boost/range/const_iterator.hpp>
-#include <boost/range/mutable_iterator.hpp>
 #include <boost/stl_interfaces/iterator_interface.hpp>
 
 #include <cereal/cereal.hpp>
 
 #include <cassert>
 #include <memory>
+#include <ranges>
 #include <vector>
 
 namespace libgm {
@@ -165,7 +162,7 @@ struct IntrusiveList {
     return entry_iterator(root_hook_);
   }
 
-  SubRange<entry_iterator> entries() const {
+  std::ranges::subrange<entry_iterator> entries() const {
     return {entry_iterator(root_hook_.next), entry_iterator(root_hook_)};
   }
 
@@ -229,17 +226,3 @@ private:
 };
 
 } // namespace libgm
-
-namespace boost {
-
-template <typename T>
-struct range_mutable_iterator<libgm::IntrusiveList<T>, void> {
-  using type = typename libgm::IntrusiveList<T>::iterator;
-};
-
-template <typename T>
-struct range_const_iterator<libgm::IntrusiveList<T>, void> {
-  using type = typename libgm::IntrusiveList<T>::const_iterator;
-};
-
-} // namespace boost

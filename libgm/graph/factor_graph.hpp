@@ -2,7 +2,6 @@
 
 #include <libgm/argument/domain.hpp>
 #include <libgm/datastructure/intrusive_list.hpp>
-#include <libgm/datastructure/subrange.hpp>
 #include <libgm/graph/bipartite_edge.hpp>
 #include <libgm/graph/markov_network.hpp>
 #include <libgm/graph/util/property_layout.hpp>
@@ -17,6 +16,7 @@
 
 #include <cassert>
 #include <memory>
+#include <ranges>
 #include <type_traits>
 #include <utility>
 
@@ -79,28 +79,28 @@ protected:
   //--------------------------------------------------------------------------
 public:
   /// Returns the range of all arguments.
-  SubRange<argument_iterator> arguments() const;
+  std::ranges::subrange<argument_iterator> arguments() const;
 
   /// Returns the range of all factors.
-  SubRange<factor_iterator> factors() const;
+  std::ranges::subrange<factor_iterator> factors() const;
 
   /// Returns the factors containing an argument.
   const IntrusiveList<Factor>& factors(Arg u) const;
 
   /// Returns the edges from the argument to its incident factors.
-  SubRange<out_edge1_iterator> out_edges(Arg u) const;
+  std::ranges::subrange<out_edge1_iterator> out_edges(Arg u) const;
 
   /// Returns the edges from the incident factors to the argument.
-  SubRange<in_edge1_iterator> in_edges(Arg u) const;
+  std::ranges::subrange<in_edge1_iterator> in_edges(Arg u) const;
 
   /// Returns the arguments associated with a factor.
   const Domain& arguments(Factor* u) const;
 
   /// Returns the edges from the factor to its incident arguments.
-  SubRange<out_edge2_iterator> out_edges(Factor* u) const;
+  std::ranges::subrange<out_edge2_iterator> out_edges(Factor* u) const;
 
   /// Returns the edges from the incident arguments to the factor.
-  SubRange<in_edge2_iterator> in_edges(Factor* u) const;
+  std::ranges::subrange<in_edge2_iterator> in_edges(Factor* u) const;
 
   /// Returns true if the graph contains the given argument.
   bool contains(Arg u) const;

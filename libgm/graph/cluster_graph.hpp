@@ -3,7 +3,6 @@
 #include <libgm/argument/domain.hpp>
 #include <libgm/datastructure/domain_index.hpp>
 #include <libgm/datastructure/intrusive_list.hpp>
-#include <libgm/datastructure/subrange.hpp>
 #include <libgm/graph/intrusive_edge.hpp>
 #include <libgm/graph/markov_network.hpp>
 #include <libgm/graph/util/bgl.hpp>
@@ -24,6 +23,7 @@
 #include <cassert>
 #include <memory>
 #include <new>
+#include <ranges>
 #include <typeinfo>
 #include <type_traits>
 #include <utility>
@@ -130,19 +130,19 @@ public:
   //--------------------------------------------------------------------------
 
   /// Returns the outgoing edges from a vertex.
-  SubRange<out_edge_iterator> out_edges(Vertex* u) const;
+  std::ranges::subrange<out_edge_iterator> out_edges(Vertex* u) const;
 
   /// Returns the edges incoming to a vertex.
-  SubRange<in_edge_iterator> in_edges(Vertex* u) const;
+  std::ranges::subrange<in_edge_iterator> in_edges(Vertex* u) const;
 
   /// Returns the vertices adjacent to u.
-  SubRange<adjacency_iterator> adjacent_vertices(Vertex* u) const;
+  std::ranges::subrange<adjacency_iterator> adjacent_vertices(Vertex* u) const;
 
   /// Returns the range of all vertices.
-  SubRange<vertex_iterator> vertices() const;
+  std::ranges::subrange<vertex_iterator> vertices() const;
 
   /// Returns the range of all vertices.
-  SubRange<edge_iterator> edges() const;
+  std::ranges::subrange<edge_iterator> edges() const;
 
   /// Returns true if the graph has no vertices.
   bool empty() const;
@@ -202,7 +202,7 @@ public:
   size_t count(Arg x) const;
 
   /// Returns the union of all the clusters in this graph.
-  SubRange<argument_iterator> arguments() const;
+  std::ranges::subrange<argument_iterator> arguments() const;
 
   /// The cluster associated with a vertex.
   const Domain& cluster(Vertex* v) const;

@@ -269,11 +269,11 @@ void swap(FactorGraph& a, FactorGraph& b) {
   std::swap(a.impl_, b.impl_);
 }
 
-SubRange<FactorGraph::argument_iterator> FactorGraph::arguments() const {
+std::ranges::subrange<FactorGraph::argument_iterator> FactorGraph::arguments() const {
   return { impl().arguments.begin(), impl().arguments.end() };
 }
 
-SubRange<FactorGraph::factor_iterator> FactorGraph::factors() const {
+std::ranges::subrange<FactorGraph::factor_iterator> FactorGraph::factors() const {
   return { impl().factors.begin(), impl().factors.end() };
 }
 
@@ -281,12 +281,12 @@ const IntrusiveList<FactorGraph::Factor>& FactorGraph::factors(Arg u) const {
   return argument(u).factors;
 }
 
-SubRange<FactorGraph::out_edge1_iterator> FactorGraph::out_edges(Arg u) const {
+std::ranges::subrange<FactorGraph::out_edge1_iterator> FactorGraph::out_edges(Arg u) const {
   const IntrusiveList<Factor>& adjacent = factors(u);
   return {out_edge1_iterator(adjacent.begin(), u), out_edge1_iterator(adjacent.end(), u)};
 }
 
-SubRange<FactorGraph::in_edge1_iterator> FactorGraph::in_edges(Arg u) const {
+std::ranges::subrange<FactorGraph::in_edge1_iterator> FactorGraph::in_edges(Arg u) const {
   const IntrusiveList<Factor>& adjacent = factors(u);
   return {in_edge1_iterator(adjacent.begin(), u), in_edge1_iterator(adjacent.end(), u)};
 }
@@ -295,12 +295,12 @@ const Domain& FactorGraph::arguments(Factor* u) const {
   return u->arguments;
 }
 
-SubRange<FactorGraph::out_edge2_iterator> FactorGraph::out_edges(Factor* u) const {
+std::ranges::subrange<FactorGraph::out_edge2_iterator> FactorGraph::out_edges(Factor* u) const {
   const Domain& adjacent = arguments(u);
   return {out_edge2_iterator(adjacent.begin(), u), out_edge2_iterator(adjacent.end(), u)};
 }
 
-SubRange<FactorGraph::in_edge2_iterator> FactorGraph::in_edges(Factor* u) const {
+std::ranges::subrange<FactorGraph::in_edge2_iterator> FactorGraph::in_edges(Factor* u) const {
   const Domain& adjacent = arguments(u);
   return {in_edge2_iterator(adjacent.begin(), u), in_edge2_iterator(adjacent.end(), u)};
 }

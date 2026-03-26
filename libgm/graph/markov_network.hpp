@@ -2,7 +2,6 @@
 
 #include <libgm/argument/argument.hpp>
 #include <libgm/argument/domain.hpp>
-#include <libgm/datastructure/subrange.hpp>
 #include <libgm/graph/elimination_strategy.hpp>
 #include <libgm/graph/undirected_edge.hpp>
 #include <libgm/graph/util/property_layout.hpp>
@@ -25,6 +24,7 @@
 #include <iosfwd>
 #include <memory>
 #include <new>
+#include <ranges>
 #include <typeinfo>
 #include <type_traits>
 #include <utility>
@@ -112,16 +112,16 @@ public:
   static Arg null_vertex() { return Arg(); }
 
   /// Returns the edges outgoing from a vertex.
-  SubRange<out_edge_iterator> out_edges(Arg u) const;
+  std::ranges::subrange<out_edge_iterator> out_edges(Arg u) const;
 
   /// Returns the edges incoming to a vertex.
-  SubRange<in_edge_iterator> in_edges(Arg u) const;
+  std::ranges::subrange<in_edge_iterator> in_edges(Arg u) const;
 
   /// Returns the vertices adjacent to u.
-  SubRange<adjacency_iterator> adjacent_vertices(Arg u) const;
+  std::ranges::subrange<adjacency_iterator> adjacent_vertices(Arg u) const;
 
   /// Returns the range of all vertices.
-  SubRange<vertex_iterator> vertices() const;
+  std::ranges::subrange<vertex_iterator> vertices() const;
 
   /// Returns true if the graph contains the given vertex.
   bool contains(Arg u) const;

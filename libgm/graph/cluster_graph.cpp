@@ -6,7 +6,6 @@
 #include <boost/graph/depth_first_search.hpp>
 #include <boost/graph/kruskal_min_spanning_tree.hpp>
 #include <boost/property_map/function_property_map.hpp>
-#include <boost/range/algorithm.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -408,23 +407,23 @@ ClusterGraph::VertexIndexMap ClusterGraph::vertex_index_map() {
   return {};
 }
 
-SubRange<ClusterGraph::out_edge_iterator> ClusterGraph::out_edges(Vertex* u) const {
-  return u->adjacency.entries();
+std::ranges::subrange<ClusterGraph::out_edge_iterator> ClusterGraph::out_edges(Vertex* u) const {
+  return cast_subrange<out_edge_iterator>(u->adjacency.entries());
 }
 
-SubRange<ClusterGraph::in_edge_iterator> ClusterGraph::in_edges(Vertex* u) const {
-  return out_edges(u);
+std::ranges::subrange<ClusterGraph::in_edge_iterator> ClusterGraph::in_edges(Vertex* u) const {
+  return cast_subrange<in_edge_iterator>(out_edges(u));
 }
 
-SubRange<ClusterGraph::adjacency_iterator> ClusterGraph::adjacent_vertices(Vertex* u) const {
-  return out_edges(u);
+std::ranges::subrange<ClusterGraph::adjacency_iterator> ClusterGraph::adjacent_vertices(Vertex* u) const {
+  return cast_subrange<adjacency_iterator>(out_edges(u));
 }
 
-SubRange<ClusterGraph::vertex_iterator> ClusterGraph::vertices() const {
+std::ranges::subrange<ClusterGraph::vertex_iterator> ClusterGraph::vertices() const {
   return { impl().vertices.begin(), impl().vertices.end() };
 }
 
-SubRange<ClusterGraph::edge_iterator> ClusterGraph::edges() const {
+std::ranges::subrange<ClusterGraph::edge_iterator> ClusterGraph::edges() const {
   return { impl().edges.begin(), impl().edges.end() };
 }
 
@@ -492,7 +491,7 @@ OpaqueCref ClusterGraph::property(edge_descriptor e) const {
   return {impl().edge_property_layout.type_info, impl().edge_property(e.get())};
 }
 
-SubRange<ClusterGraph::argument_iterator> ClusterGraph::arguments() const {
+std::ranges::subrange<ClusterGraph::argument_iterator> ClusterGraph::arguments() const {
   return impl().cluster_index.arguments();
 }
 

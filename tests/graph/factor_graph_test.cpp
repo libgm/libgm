@@ -1,11 +1,10 @@
 #define BOOST_TEST_MODULE factor_graph
 #include <boost/test/unit_test.hpp>
 
-#include <boost/range/algorithm/equal.hpp>
-
 #include <libgm/argument/named_argument.hpp>
 #include <libgm/graph/factor_graph.hpp>
 
+#include <ranges>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -148,7 +147,7 @@ BOOST_FIXTURE_TEST_CASE(test_accessors_contains_and_degree, Fixture) {
   BOOST_CHECK(fg.arguments(f_cde) == Domain({c, d, e}));
 
   std::vector<FactorGraph::Factor*> factors_of_c = {f_bc, f_cde};
-  BOOST_CHECK(boost::range::equal(fg.factors(c), factors_of_c));
+  BOOST_CHECK(std::ranges::equal(fg.factors(c), factors_of_c));
 
   std::unordered_set<Arg> all_args = {a, b, c, d, e};
   for (Arg u : fg.arguments()) {
@@ -165,11 +164,11 @@ BOOST_FIXTURE_TEST_CASE(test_accessors_contains_and_degree, Fixture) {
 }
 
 BOOST_FIXTURE_TEST_CASE(test_argument_factor_incidences, Fixture) {
-  BOOST_CHECK(boost::range::equal(fg.factors(a), std::vector<FactorGraph::Factor*>{f_ab}));
-  BOOST_CHECK(boost::range::equal(fg.factors(b), std::vector<FactorGraph::Factor*>{f_ab, f_bc}));
-  BOOST_CHECK(boost::range::equal(fg.factors(c), std::vector<FactorGraph::Factor*>{f_bc, f_cde}));
-  BOOST_CHECK(boost::range::equal(fg.factors(d), std::vector<FactorGraph::Factor*>{f_cde}));
-  BOOST_CHECK(boost::range::equal(fg.factors(e), std::vector<FactorGraph::Factor*>{f_cde}));
+  BOOST_CHECK(std::ranges::equal(fg.factors(a), std::vector<FactorGraph::Factor*>{f_ab}));
+  BOOST_CHECK(std::ranges::equal(fg.factors(b), std::vector<FactorGraph::Factor*>{f_ab, f_bc}));
+  BOOST_CHECK(std::ranges::equal(fg.factors(c), std::vector<FactorGraph::Factor*>{f_bc, f_cde}));
+  BOOST_CHECK(std::ranges::equal(fg.factors(d), std::vector<FactorGraph::Factor*>{f_cde}));
+  BOOST_CHECK(std::ranges::equal(fg.factors(e), std::vector<FactorGraph::Factor*>{f_cde}));
 
   BOOST_CHECK(fg.arguments(f_ab) == Domain({a, b}));
   BOOST_CHECK(fg.arguments(f_bc) == Domain({b, c}));
@@ -178,16 +177,16 @@ BOOST_FIXTURE_TEST_CASE(test_argument_factor_incidences, Fixture) {
 
 BOOST_FIXTURE_TEST_CASE(test_in_and_out_edges, Fixture) {
   std::vector<FactorGraph::af_edge_descriptor> expected_out_b = {{b, f_ab}, {b, f_bc}};
-  BOOST_CHECK(boost::range::equal(fg.out_edges(b), expected_out_b));
+  BOOST_CHECK(std::ranges::equal(fg.out_edges(b), expected_out_b));
 
   std::vector<FactorGraph::fa_edge_descriptor> expected_in_b = {{f_ab, b}, {f_bc, b}};
-  BOOST_CHECK(boost::range::equal(fg.in_edges(b), expected_in_b));
+  BOOST_CHECK(std::ranges::equal(fg.in_edges(b), expected_in_b));
 
   std::vector<FactorGraph::fa_edge_descriptor> expected_out_cde = {{f_cde, c}, {f_cde, d}, {f_cde, e}};
-  BOOST_CHECK(boost::range::equal(fg.out_edges(f_cde), expected_out_cde));
+  BOOST_CHECK(std::ranges::equal(fg.out_edges(f_cde), expected_out_cde));
 
   std::vector<FactorGraph::af_edge_descriptor> expected_in_cde = {{c, f_cde}, {d, f_cde}, {e, f_cde}};
-  BOOST_CHECK(boost::range::equal(fg.in_edges(f_cde), expected_in_cde));
+  BOOST_CHECK(std::ranges::equal(fg.in_edges(f_cde), expected_in_cde));
 }
 
 BOOST_FIXTURE_TEST_CASE(test_markov_network, Fixture) {

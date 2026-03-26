@@ -1,14 +1,21 @@
 #pragma once
 
-#include <libgm/datastructure/subrange.hpp>
-
+#include <ranges>
 #include <utility>
 
 namespace libgm {
 
-template <typename IT>
-std::pair<IT, IT> make_iterator_pair(const SubRange<IT>& range) {
-  return {range.begin(), range.end()};
+template <std::ranges::range Range>
+auto make_iterator_pair(Range&& range) {
+  return std::make_pair(std::ranges::begin(range), std::ranges::end(range));
+}
+
+template <typename ToIterator, std::ranges::range Range>
+std::ranges::subrange<ToIterator> cast_subrange(Range&& range) {
+  return {
+    ToIterator(std::ranges::begin(range)),
+    ToIterator(std::ranges::end(range))
+  };
 }
 
 // Ranges

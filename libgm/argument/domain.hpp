@@ -3,7 +3,6 @@
 #include <libgm/argument/argument.hpp>
 #include <libgm/argument/dims.hpp>
 #include <libgm/argument/shape.hpp>
-#include <libgm/datastructure/subrange.hpp>
 
 #include <boost/container_hash/hash.hpp>
 
@@ -11,6 +10,7 @@
 
 #include <iostream>
 #include <memory>
+#include <ranges>
 #include <vector>
 
 namespace libgm {
@@ -29,8 +29,8 @@ public:
   /**
    * Constructs a domain from a range.
    */
-  template <typename IT>
-  Domain(const SubRange<IT>& range)
+  template <typename It, typename Sentinel>
+  Domain(std::ranges::subrange<It, Sentinel> range)
     : std::vector<Arg>(range.begin(), range.end()) {}
 
   /**

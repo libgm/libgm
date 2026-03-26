@@ -2,7 +2,6 @@
 
 #include <libgm/argument/argument.hpp>
 #include <libgm/argument/domain.hpp>
-#include <libgm/datastructure/subrange.hpp>
 #include <libgm/datastructure/unordered_dense.hpp>
 #include <libgm/graph/directed_edge.hpp>
 #include <libgm/graph/markov_network.hpp>
@@ -20,6 +19,7 @@
 #include <cstddef>
 #include <memory>
 #include <new>
+#include <ranges>
 #include <typeinfo>
 #include <type_traits>
 #include <utility>
@@ -93,16 +93,16 @@ public:
   //--------------------------------------------------------------------------
 
   /// Returns the outgoing edges from a vertex.
-  SubRange<out_edge_iterator> out_edges(Arg u) const;
+  std::ranges::subrange<out_edge_iterator> out_edges(Arg u) const;
 
   /// Returns the edges incoming to a vertex.
-  SubRange<in_edge_iterator> in_edges(Arg u) const;
+  std::ranges::subrange<in_edge_iterator> in_edges(Arg u) const;
 
   /// Returns the children of u.
-  SubRange<adjacency_iterator> adjacent_vertices(Arg u) const;
+  std::ranges::subrange<adjacency_iterator> adjacent_vertices(Arg u) const;
 
   /// Returns the range of all vertices.
-  SubRange<vertex_iterator> vertices() const;
+  std::ranges::subrange<vertex_iterator> vertices() const;
 
   /// Returns true if the graph contains the given vertex.
   bool contains(Arg u) const;

@@ -11,7 +11,6 @@
 #include <libgm/iterator/uint_vector_iterator.hpp>
 #include <libgm/parser/range_io.hpp>
 #include <libgm/range/index_range.hpp>
-#include <libgm/range/iterator_range.hpp>
 #include <libgm/range/joined.hpp>
 #include <libgm/serialization/vector.hpp>
 #include <libgm/traits/int_constant.hpp>
@@ -26,6 +25,7 @@
 #include <memory>
 #include <numeric>
 #include <random>
+#include <ranges>
 #include <stdexcept>
 #include <vector>
 
@@ -761,7 +761,7 @@ namespace libgm {
     }
 
     //! Returns an iterator range over indices into this table.
-    iterator_range<index_iterator> indices() const {
+    std::ranges::subrange<index_iterator> indices() const {
       if (empty()) {
         return { index_iterator(), index_iterator() };
       } else {
