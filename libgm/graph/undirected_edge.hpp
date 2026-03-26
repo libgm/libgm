@@ -1,7 +1,5 @@
 #pragma once
 
-#include <libgm/object.hpp>
-
 #include <boost/functional/hash.hpp>
 
 #include <algorithm>

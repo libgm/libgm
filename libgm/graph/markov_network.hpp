@@ -1,5 +1,6 @@
 #pragma once
 
+#include <libgm/opaque.hpp>
 #include <libgm/argument/argument.hpp>
 #include <libgm/argument/domain.hpp>
 #include <libgm/graph/elimination_strategy.hpp>
@@ -8,7 +9,6 @@
 #include <libgm/iterator/map_bind1_iterator.hpp>
 #include <libgm/iterator/map_bind2_iterator.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
-#include <libgm/opaque.hpp>
 
 #include <ankerl/unordered_dense.h>
 
@@ -19,13 +19,9 @@
 #include <cereal/types/memory.hpp>
 
 #include <cassert>
-#include <cstddef>
-#include <iterator>
 #include <iosfwd>
 #include <memory>
-#include <new>
 #include <ranges>
-#include <typeinfo>
 #include <type_traits>
 #include <utility>
 #include <vector>

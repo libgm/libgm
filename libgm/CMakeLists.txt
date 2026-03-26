@@ -6,9 +6,3 @@ subdirs(
   graph
   inference
 )
-
-target_sources(
-  libgm
-  PRIVATE
-  object.cpp
-)
