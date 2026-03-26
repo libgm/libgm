@@ -1,18 +1,20 @@
 #define BOOST_TEST_MODULE mutable_queue
+
 #include <boost/test/unit_test.hpp>
 
-#include <queue>
-#include <boost/random/mersenne_twister.hpp>
 #include <libgm/datastructure/mutable_queue.hpp>
 
-boost::mt19937 rng;
+#include <queue>
+#include <random>
+
+std::mt19937 rng;
 int n = 1000;
 
 // Insert the same keys into STL queues and LibGM queues and make sure
 // they spit out the keys in the same order.
 BOOST_AUTO_TEST_CASE(test_insert) {
   std::priority_queue<int> std_pq;
-  libgm::mutable_queue<int, int> prl_pq;
+  libgm::MutableQueue<int, int> prl_pq;
   for (int i = 0; i < n; i++) {
     int x = rng();
     int y = rng();
@@ -33,7 +35,7 @@ BOOST_AUTO_TEST_CASE(test_insert) {
 // Insert a bunch of items into the LibGM queue, reprioritize them,
 // and then make sure they come out in sorted order.
 BOOST_AUTO_TEST_CASE(test_reprioritize) {
-  libgm::mutable_queue<int, int> prl_pq;
+  libgm::MutableQueue<int, int> prl_pq;
   for (int i = 0; i < n; i++) {
     int x = rng();
     prl_pq.push(i, x);

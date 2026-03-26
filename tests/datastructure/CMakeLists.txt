@@ -1,11 +1,11 @@
-#add_executable(mutable_queue mutable_queue.cpp)
+add_executable(mutable_queue mutable_queue_test.cpp)
 add_executable(intrusive_list intrusive_list_test.cpp)
 add_executable(domain_index domain_index_test.cpp)
 add_executable(domain_index_operations domain_index_operations_test.cpp)
 add_executable(table table_test.cpp)
 add_executable(table_operations table_operations_test.cpp)
 
-#add_test(mutable_queue mutable_queue)
+add_test(mutable_queue mutable_queue)
 add_test(intrusive_list intrusive_list)
 add_test(domain_index domain_index)
 add_test(domain_index_operations domain_index_operations)

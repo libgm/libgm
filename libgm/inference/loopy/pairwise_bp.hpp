@@ -1,16 +1,41 @@
 #pragma once
 
-#include <libgm/datastructure/mutable_queue.hpp>
-#include <libgm/factor/utility/diff_fn.hpp>
+#include <libgm/argument/argument.hpp>
 #include <libgm/graph/markov_network.hpp>
+#include <libgm/graph/undirected_edge.hpp>
 
-#include <algorithm>
-#include <random>
-#include <unordered_map>
-#include <utility>
-#include <vector>
+#include <ankerl/unordered_dense.h>
 
 namespace libgm {
+
+/**
+ * An interface for storing the belief state and computing the messages and beliefs in pairwise belief propagation.
+ */
+template <typename NodeF>
+struct PairwiseBeliefState {
+  virtual ~PairwiseBeliefState() {}
+
+  /// Initializes all the messages using the given generator (must be provided).
+  virtual void initialize(std::function<NodeF(Arg)> gen) = 0;
+
+  /// Initializes all the messages by initializing them to identity using the provided shape_map.
+  virtual void initialize(const ShapeMap& map) = 0;
+
+  /// Computes the message along an edge.
+  virtual NodeF compute_message(UndirectedEdge<Arg> e) const = 0;
+
+  /// Returns a message. Throws std::out_of_range if not already present.
+  virtual const NodeF& message(UndirectedEdge<Arg> e) const = 0;
+
+  /// Returns a mutable reference ot the message.
+  virtual NodeF& message(UndirectedEdge<Arg> e) = 0;
+
+  /// Returns the underlying Markov network.
+  virtual const MarkovNetwork& graph() = 0;
+
+  /// Swaps the underlying message map for another one.
+  virtual void swap(ankerl::unordered_dense::map<UndirectedEdge<Arg>, NodeF>& other) = 0;
+};
 
 /**
  * An engine that performs loopy belief propagation. If the underlying markov network changes,
@@ -19,173 +44,113 @@ namespace libgm {
  *
  * \ingroup inference
  */
-class PairwiseBeliefPropagation {
-public:
-  /// Node factor requirements.
-  template <typename NodeF>
-  using NodeTraits = Implements<
-    MultiplyIn<NodeF>,
-    Normalize<NodeF>
-  >;
-
-  /// Edge factor requirements.
-  template <typename NodeF, typename EdgeF>
-  using EdgeTraits = Implements<
-    MultiplyInSpan<EdgeF, NodeF>,
-    MarginalSpan<EdgeF, NodeF>,
-    Normalize<NodeF>
-  >;
-
-  /// A generic node potential.
-  struct NodeFactor : NodeTraits<NodeFactor> {};
-
-  /// A generic edge potential.
-  struct EdgeFactor : EdgeTraits<NodeFactor, EdgeFactor> {};
-
-  template <typename R>
-  struct Schedule {
-    /// Virtual destructor.
-    virtual ~Schedule() = default;
-
-    /// Initialize the S]schedule.
-    virtual void initialize() {}
-
-    /// Perform one iteration.
-    virtual R iterate(PairwiseBeliefPropagation& bp, R eta) = 0;
-
-    /// Update one message
-    std::function<R(NodeFactor&, NodeFactor, R)> update;
-
-    /// Difference function, such as sum_diff and max_diff.
-    std::function<R(const NodeFactor&, const NodeFactor&)> diff;
-
-    /// The number of updates performed so far.
-    size_t nupdates = 0;
-  };
-
-  // Shortcuts
-  using MessageMap =
-    unkerl::unordered_dense::map<std::pair<Arg, Arg>, NodeFactor, PairHash<Arg, Arg>>;
-
-  // Constructors and initialization
-  //--------------------------------------------------------------------------
-
-  /**
-   * Constructs a loopy bp engine for the given graph and difference function.
-   */
-  PairwiseBeliefPropagation(const MarkovNetwork& graph);
-
-  /**
-   * Resets all the messages using the given generator or uniformly
-   * if the generator is null.
-   */
-  virtual void reset(std::function<Potential(Arg)> gen = nullptr);
-
-  // Iteration and queries
-  //--------------------------------------------------------------------------
-
-  /// The number of updates performed so far
-  size_t num_updates() const;
-
-  /// Computes the node belief.
-  NodeFactor belief(Arg u) const;
-
-  /// Computes the edge belief.
-  EdgeFactor belief(UndirectedEdge<Arg> e) const;
-
-  /// Computes the message along an edge.
-  NodeFactor compute_message(UndirectedEdge<Arg> e) const;
-
-  // Implementation
-  //--------------------------------------------------------------------------
-private:
-  /// Casts the node property to a node factor.
-  NodeFactor factor(Arg u) const;
-
-  /// Casts the edge proeprty to an edge factor, transposing as necessary.
-  EdgeFactor factor(UndirectedEdge<Arg> e) const;
-
-  /// Returns a message. Throws std::out_of_range if not already present.
-  const NodeFactor& message(Arg from, Arg to) const {
-    return message_.at(std::make_pair(from, to));
-  }
-
-  /// Returns a message. Throws std::out_of_range if not already present.
-  const NodeFactor& message(UndirectedEdge<Arg> e) const {
-    return message_.at(e.pair());
-  }
-
-  // Virtual tables
-  //--------------------------------------------------------------------------
-protected:
-  /// The virtual table for node factors.
-  NodeFactor::VTable nt_;
-
-  /// The virtual table for edge factors.
-  EdgeFactor::VTable et_;
-
-  // Private data
-  //--------------------------------------------------------------------------
-private:
-  /// A pointer to the Markov network used in the computations.
-  const MarkovNetwork& graph_;
-
-  /// A map that stores the messages.
-  MessageMap messages_;
-
-}; // class PairwiseBeliefPropagation
-
 template <typename NodeF, typename EdgeF>
-class PairwiseBeliefPropagationT : public PairwiseBeliefPropagation {
+class PairwiseBeliefPropagation : public PairwiseBeliefState<NodeF> {
 public:
-  static_assert(
-    std::is_same<typename NodeF::real_type, typename EdgeF::real_type>::value,
-    "The underlying real type of the node and edge factors must be the same."
-  );
-
   using real_type = typename NodeF::real_type;
 
-  PairwiseBeliefPropagationT(MarkovNetwork<NodeF, EdgeF>& mn, SchedulePtr<real_tye> schedule)
-    : PairwiseBeliefPropagation(mn), schedule_ = std::move(schedule) {
-    nt_ = NodeF::vtable.copy<NodeTraits<NodeF>>;
-    et_ = EdgeF::vtable.copy<EdgeTraits<NodeF, EdgeF>>;
+  /// Constructs a loopy bp engine for the given graph.
+  PairwiseBeliefPropagation(const MarkovNetworkT<NodeF, EdgeF>& graph)
+    : graph_(graph) {}
 
-    // Initialize the update function.
-    const auto& diff = schedule_->diff;
-    schedule_->update = [diff](NodeFactor& message, NodeFactor new_message, real_type eta) {
-      real_type residual = diff(message, new_message);
-      if (eta == real_type(1)) {
-        message = std:::move(new_message);
-      } else {
-        message.cast<NodeF>().update(new_message.cast<NodeF>(), eta);
+  void initialize(std::function<NodeF(Arg)> gen) override {
+    for (Arg v : graph_.vertices()) {
+      for (auto e : graph_.in_edges(v)) {
+        message(e) = gen(v);
       }
-      return residual;
-    };
+    }
   }
 
-  real_type iterate(real_type eta) {
-    return schedule_->iterate(*this, eta);
+  void initialize(const ShapeMap& shape_map) override {
+    for (Arg v : graph_.vertices()) {
+      for (auto e : graph_.in_edges(v)) {
+        message(e) = NodeF(shape_map(v));
+      }
+    }
   }
 
+  NodeF compute_message(UndirectedEdge<Arg> e) const override {
+    Arg u = e.source();
+    Arg v = e.target();
+
+    // Compute the product of factor at u and messages into u.
+    NodeF incoming = factor(u);
+    for (auto f : graph_.in_edges(u)) {
+      if (f.source() != v) {
+        incoming *= message(f);
+      }
+    }
+
+    // Sum-product over the edge
+    NodeF result = e.is_nominal()
+      ? graph_[e].multiply_front(incoming).marginal_back(1)
+      : graph_[e].multiply_back(incoming).marginal_front(1);
+
+    // Normalize and return
+    result.normalize();
+    return result;
+  }
+
+  const NodeF& message(UndirectedEdge<Arg> e) const override {
+    return messages_.at(e);
+  }
+
+  NodeF& message(UndirectedEdge<Arg> e) override {
+    return messages_[e];
+  }
+
+  const MarkovNetwork& graph() override {
+    return graph_;
+  }
+
+  void swap(ankerl::unordered_dense::map<UndirectedEdge<Arg>, NodeF>& other) override {
+    using std::swap;
+    swap(messages_, other);;
+  }
+
+  /// Computes the node belief.
   NodeF belief(Arg u) const {
-    return PairwiseBeliefPropagation::belief(u).cast<NodeF>();
+    NodeF f = factor(u);
+    for (auto e : graph_.in_edges(u)) {
+      f *= message(e);
+    }
+    f.normalize();
+    return f;
   }
 
+  /// Computes the edge belief.
   EdgeF belief(UndirectedEdge<Arg> e) const {
-    return PairwiseBeliefPropagation::belief(e).cast<EdgeF>();
+    Arg u = e.source();
+    Arg v = e.target();
+    NodeF fu = factor(u);
+    NodeF fv = factor(v);
+    for (auto e : graph_.in_edges(u)) {
+      if (e.source() != v) { fu *= message(e); }
+    }
+    for (auto e : graph_.in_edges(v)) {
+      if (e.source() != u) { fv *= message(e); }
+    }
+    EdgeF result = factor(e);
+    result.multiply_in_front(fu);
+    result.multiply_in_back(fv);
+    result.normalize();
+    return result;
   }
 
 private:
-  SchedulePtr>real_Type> schedule_;
+  const NodeF& factor(Arg u) const {
+    return graph_[u];
+  }
+
+  EdgeF factor(UndirectedEdge<Arg> e) const {
+    return e.is_nominal() ? graph_[e] : graph_[e].transpose();
+  }
+
+  /// A reference to the Markov network used in the computations.
+  const MarkovNetworkT<NodeF, EdgeF>& graph_;
+
+  /// The underlying state.
+  ankerl::unordered_dense::map<UndirectedEdge<Arg>, NodeF> messages_;
 };
 
-template <typename R>
-PairwiseBeliefPropagation::SchedulePtr<R> make_synchronous_schedule();
-
-template <typename R>
-PairwiseBeliefPropagation::SchedulePtr<R> make_asynchronous_schedule();
-
-template <typename R>
-PairwiseBeliefPropagation::SchedulePtr<R> make_residual_schedule();
-
-} // namespace libgm
+}

@@ -1,1 +1,1 @@
-subdirs(exact variational) # loopy)
+subdirs(exact loopy variational)
