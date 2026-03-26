@@ -5,6 +5,8 @@
 #include <libgm/graph/bipartite_edge.hpp>
 #include <libgm/graph/markov_network.hpp>
 #include <libgm/graph/util/property_layout.hpp>
+#include <libgm/iterator/bind1_iterator.hpp>
+#include <libgm/iterator/bind2_iterator.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
 #include <libgm/opaque.hpp>
 
@@ -19,9 +21,6 @@
 #include <ranges>
 #include <type_traits>
 #include <utility>
-
-#include "libgm/iterator/bind1_iterator.hpp"
-#include "libgm/iterator/bind2_iterator.hpp"
 
 namespace libgm {
 

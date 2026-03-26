@@ -4,5 +4,4 @@ subdirs(
   datastructure
   factor
   graph
-  inference
 )
