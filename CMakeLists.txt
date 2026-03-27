@@ -49,4 +49,4 @@ subdirs(libgm)
 add_library(libgm)
 
 link_libraries(libgm)
-subdirs(tests)
+subdirs(tests timing)

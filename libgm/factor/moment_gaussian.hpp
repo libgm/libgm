@@ -44,7 +44,7 @@ public:
   struct Impl;
 
   /// Constructs an empty moment Gaussian.
-  MomentGaussian() = default;
+  MomentGaussian();
 
   MomentGaussian(const MomentGaussian& other);
   MomentGaussian(MomentGaussian&& other) noexcept;

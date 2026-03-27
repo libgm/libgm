@@ -1,5 +1,3 @@
 project(timing)
 
-subdirs(
-  factor
-  )
+subdirs(factor)

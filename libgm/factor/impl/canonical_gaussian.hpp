@@ -461,6 +461,9 @@ struct CanonicalGaussian<T>::Impl {
 }; // class Impl
 
 template <typename T>
+CanonicalGaussian<T>::CanonicalGaussian() = default;
+
+template <typename T>
 CanonicalGaussian<T>::CanonicalGaussian(Exp<T> value)
   : impl_(std::make_unique<Impl>(value)) {}
 

@@ -366,6 +366,9 @@ struct MomentGaussian<T>::Impl {
 };
 
 template <typename T>
+MomentGaussian<T>::MomentGaussian() = default;
+
+template <typename T>
 MomentGaussian<T>::MomentGaussian(const MomentGaussian& other)
   : impl_(other.impl_ ? std::make_unique<Impl>(*other.impl_) : nullptr) {}
 

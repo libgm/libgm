@@ -40,7 +40,7 @@ public:
   struct Impl;
 
   /// Constructs an empty factor.
-  CanonicalGaussian() = default;
+  CanonicalGaussian();
 
   CanonicalGaussian(const CanonicalGaussian& other);
   CanonicalGaussian(CanonicalGaussian&& other) noexcept;
