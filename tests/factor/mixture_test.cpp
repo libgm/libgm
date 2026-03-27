@@ -14,18 +14,6 @@ using GaussianMixture = Mixture<MGaussian>;
 using Vec = Vector<double>;
 using Mat = Matrix<double>;
 
-namespace {
-
-Dims make_dims(std::initializer_list<size_t> idx) {
-  Dims d;
-  for (size_t i : idx) {
-    d.set(i);
-  }
-  return d;
-}
-
-} // namespace
-
 BOOST_AUTO_TEST_CASE(test_constructors_and_accessors) {
   GaussianMixture a;
   BOOST_CHECK_EQUAL(a.size(), 0);

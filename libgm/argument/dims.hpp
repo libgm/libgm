@@ -1,6 +1,8 @@
 #pragma once
 
 #include <bitset>
+#include <cstddef>
+#include <initializer_list>
 
 namespace libgm {
 
@@ -13,8 +15,12 @@ namespace libgm {
  * MomentGaussian and CanonicalGaussian can have more than 64 dimensions, because
  * each argument in those factors can have length > 1.
  *
- * TODO: check the order of bits printed in the operator<< - MSB or LSB first?
+ * NOTE: the order of bits printed in the operator<< is MSB first, which deviates from Domain / Shape
  */
 using Dims = std::bitset<64>;
+
+Dims make_dims(std::initializer_list<size_t> idx);
+
+Dims make_dims_range(size_t begin, size_t end);
 
 } // namespace libgm

@@ -10,18 +10,6 @@
 
 using namespace libgm;
 
-namespace {
-
-Dims make_dims(std::initializer_list<size_t> bits) {
-  Dims d;
-  for (size_t bit : bits) {
-    d.set(bit);
-  }
-  return d;
-}
-
-} // namespace
-
 BOOST_AUTO_TEST_CASE(test_prefix_suffix_and_sums) {
   Shape s = {2, 3, 4, 5};
 

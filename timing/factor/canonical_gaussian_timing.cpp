@@ -26,14 +26,6 @@ Shape unit_shape(size_t n) {
   return Shape(n, 1);
 }
 
-Dims make_dims(std::initializer_list<size_t> idx) {
-  Dims d;
-  for (size_t i : idx) {
-    d.set(i);
-  }
-  return d;
-}
-
 Dims first_last_dims(size_t n) {
   return make_dims({0, n - 1});
 }

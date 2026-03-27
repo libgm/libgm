@@ -31,14 +31,6 @@ Vec subvector02(const Vec& v) {
   return out;
 }
 
-Dims make_dims(std::initializer_list<size_t> idx) {
-  Dims d;
-  for (size_t i : idx) {
-    d.set(i);
-  }
-  return d;
-}
-
 } // namespace
 
 BOOST_AUTO_TEST_CASE(test_constructors) {

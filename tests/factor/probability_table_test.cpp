@@ -16,16 +16,6 @@ using LTable = LogarithmicTable<double>;
 using PTable = ProbabilityTable<double>;
 using PVector = ProbabilityVector<double>;
 
-namespace {
-Dims make_dims(std::initializer_list<size_t> idx) {
-  Dims d;
-  for (size_t i : idx) {
-    d.set(i);
-  }
-  return d;
-}
-} // namespace
-
 BOOST_AUTO_TEST_CASE(test_constructors) {
   PTable b({2, 3});
   BOOST_CHECK(table_properties(b, Shape{2, 3}));

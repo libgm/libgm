@@ -17,18 +17,6 @@ using CGaussian = CanonicalGaussian<double>;
 using Vec = Vector<double>;
 using Mat = Matrix<double>;
 
-namespace {
-
-Dims make_dims(std::initializer_list<size_t> idx) {
-  Dims d;
-  for (size_t i : idx) {
-    d.set(i);
-  }
-  return d;
-}
-
-} // namespace
-
 BOOST_AUTO_TEST_CASE(test_constructors_and_accessors) {
   const Vec mean2{{3.0, 2.0}};
   const Mat cov2{{2.0, 1.0}, {1.0, 2.0}};

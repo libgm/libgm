@@ -14,18 +14,6 @@ using namespace libgm;
 
 using IntTable = Table<int>;
 
-namespace {
-
-Dims make_dims(std::initializer_list<size_t> bits) {
-  Dims d;
-  for (size_t bit : bits) {
-    d.set(bit);
-  }
-  return d;
-}
-
-} // namespace
-
 BOOST_AUTO_TEST_CASE(test_table_increment_select) {
   Shape shape3 = {2, 3, 2};
   TableIncrement inc0(shape3,make_dims({0}));

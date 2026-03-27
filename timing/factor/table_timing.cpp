@@ -29,22 +29,6 @@ const char* version(Exp<double>) {
   return "logarithmic";
 }
 
-Dims make_dims(std::initializer_list<size_t> idx) {
-  Dims d;
-  for (size_t i : idx) {
-    d.set(i);
-  }
-  return d;
-}
-
-Dims make_dims_range(size_t begin, size_t end) {
-  Dims d;
-  for (size_t i = begin; i < end; ++i) {
-    d.set(i);
-  }
-  return d;
-}
-
 template <typename Factor, std::size_t N, typename Op>
 void time_transform(Op op) {
   Timer t;
