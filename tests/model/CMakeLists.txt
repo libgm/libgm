@@ -1,8 +1,0 @@
-add_executable(bayesian_network bayesian_network.cpp)
-add_executable(decomposable decomposable.cpp)
-#add_executable(mixture mixture)
-add_executable(pairwise_markov_network pairwise_markov_network.cpp)
-
-add_test(bayesian_network bayesian_network)
-add_test(decomposable decomposable)
-#add_test(mixture mixture)

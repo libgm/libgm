@@ -115,7 +115,7 @@ struct Mixture<R>::Impl : Object::Impl {
    * Returns the distribution for this mixture.
    */
   auto distribution() const {
-    return mixture_distribution<typename F::distribution_type>(param());
+    return mixture_distribution<typename F::distribution_type>((*this));
   }
 #endif
 
