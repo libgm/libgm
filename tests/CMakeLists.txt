@@ -20,11 +20,6 @@ subdirs(
   math
   parallel
 #[[
-  learning
-  model
-  optimization
-  parser
-  range
   serialization
   traits
 ]]
