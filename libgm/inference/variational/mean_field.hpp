@@ -2,7 +2,10 @@
 
 #include <ankerl/unordered_dense.h>
 
+#include <numeric>
+
 #include <libgm/graph/factor_graph.hpp>
+#include <libgm/parallel/map_processor.hpp>
 
 namespace libgm {
 
@@ -40,14 +43,20 @@ public:
 
   /// Performs a single iteration of mean field.
   real_type iterate() {
-    for (auto& [edge, message] : messages_) {
-      update_message(edge, message);
-    }
+    MapProcessor<edge_descriptor, ArgumentF> update_messages(
+        [this](const edge_descriptor& edge, ArgumentF& message) {
+          update_message(edge, message);
+        });
+    update_messages(messages_, nthreads_);
 
-    real_type diff = real_type(0);
-    for (auto& [arg, belief] : beliefs_) {
-      diff += update_belief(arg, belief);
-    }
+    std::vector<real_type> diff_state(nthreads_, real_type(0));
+    MapProcessor<Arg, belief_type, real_type> update_beliefs(
+        [this](const Arg& arg, belief_type& belief, real_type& diff) {
+          diff += update_belief(arg, belief);
+        });
+    update_beliefs(beliefs_, diff_state);
+
+    real_type diff = std::accumulate(diff_state.begin(), diff_state.end(), real_type(0));
     return diff / graph_.num_arguments();
   }
 
