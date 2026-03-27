@@ -19,7 +19,4 @@ subdirs(
   inference
   math
   parallel
-#[[
-  traits
-]]
-  )
+)
