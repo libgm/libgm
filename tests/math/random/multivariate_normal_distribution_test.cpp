@@ -11,7 +11,7 @@ using Dist = MultivariateNormalDistribution<double>;
 using Vec = Vector<double>;
 using Mat = Matrix<double>;
 
-std::size_t nsamples = 10000;
+size_t nsamples = 10000;
 double tol = 0.05;
 
 BOOST_AUTO_TEST_CASE(test_marginal) {
@@ -26,7 +26,7 @@ BOOST_AUTO_TEST_CASE(test_marginal) {
   Vec mean = Vec::Zero(3);
   Mat cov = Mat::Zero(3, 3);
   std::mt19937 rng;
-  for (std::size_t i = 0; i < nsamples; ++i) {
+  for (size_t i = 0; i < nsamples; ++i) {
     Vec sample = d(rng);
     mean += sample;
     cov += sample * sample.transpose();

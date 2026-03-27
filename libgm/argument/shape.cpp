@@ -141,7 +141,7 @@ size_t Shape::product() const {
 
 size_t Shape::multiplier(unsigned n) const {
   assert(n <= size());
-  return std::accumulate(begin(), end(), size_t(1), std::multiplies<size_t>());
+  return std::accumulate(begin(), begin() + n, size_t(1), std::multiplies<size_t>());
 }
 
 std::vector<size_t> Shape::index(size_t linear) const {

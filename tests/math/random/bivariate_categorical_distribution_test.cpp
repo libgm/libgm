@@ -12,15 +12,15 @@ using Mat = Matrix<double>;
 using PMat = ProbabilityMatrix<double>;
 using LMat = LogarithmicMatrix<double>;
 
-std::size_t nsamples = 10000;
+size_t nsamples = 10000;
 double tol = 0.01;
 
 double marginal_diff(const Dist& d, const Mat& a) {
   std::mt19937 rng;
   Mat estimate = Mat::Zero(a.rows(), a.cols());
-  for (std::size_t i = 0; i < nsamples; ++i) {
-    std::pair<std::size_t, std::size_t> sample = d(rng);
-    ++estimate(sample.first, sample.second);
+  for (size_t i = 0; i < nsamples; ++i) {
+    auto [row, col] = d(rng);
+    ++estimate(row, col);
   }
   estimate /= double(nsamples);
   return (estimate - a).array().abs().maxCoeff();
@@ -29,8 +29,8 @@ double marginal_diff(const Dist& d, const Mat& a) {
 double conditional_diff(const Dist& d, const Mat& a) {
   std::mt19937 rng;
   Mat estimate = Mat::Zero(a.rows(), a.cols());
-  for (std::ptrdiff_t tail = 0; tail < a.cols(); ++tail) {
-    for (std::size_t i = 0; i < nsamples; ++i) {
+  for (ptrdiff_t tail = 0; tail < a.cols(); ++tail) {
+    for (size_t i = 0; i < nsamples; ++i) {
       ++estimate(d(rng, tail), tail);
     }
   }
