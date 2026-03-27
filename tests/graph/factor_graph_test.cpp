@@ -119,6 +119,21 @@ BOOST_AUTO_TEST_CASE(test_constructors_and_copy_move) {
   BOOST_CHECK_EQUAL(g5.num_factors(), 1);
 }
 
+BOOST_AUTO_TEST_CASE(base_factor_graph_uses_null_property_pointers) {
+  FactorGraph fg;
+  Arg a = make_arg("prop_a");
+  Arg b = make_arg("prop_b");
+
+  BOOST_CHECK(fg.add_argument(a));
+  BOOST_CHECK(fg.add_argument(b));
+  FactorGraph::Factor* f = fg.add_factor({a, b});
+
+  BOOST_CHECK(fg.property(a).type_info == typeid(void));
+  BOOST_CHECK_EQUAL(fg.property(a).ptr, nullptr);
+  BOOST_CHECK(fg.property(f).type_info == typeid(void));
+  BOOST_CHECK_EQUAL(fg.property(f).ptr, nullptr);
+}
+
 BOOST_FIXTURE_TEST_CASE(test_accessors_contains_and_degree, Fixture) {
   BOOST_CHECK(fg.contains(a));
   BOOST_CHECK(fg.contains(b));

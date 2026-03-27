@@ -103,6 +103,7 @@ BOOST_AUTO_TEST_CASE(test_vertices_and_overwrite) {
   BOOST_CHECK_EQUAL(bn.num_vertices(), 3);
   BOOST_CHECK_EQUAL(bn.num_edges(), 2);
   BOOST_CHECK(bn.property(a).type_info == typeid(void));
+  BOOST_CHECK_EQUAL(bn.property(a).ptr, nullptr);
 
   std::set<Arg> seen;
   for (Arg u : bn.vertices()) {

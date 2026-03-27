@@ -61,45 +61,14 @@ struct FactorGraph::Impl {
 
   PropertyLayout argument_property_layout;
   PropertyLayout factor_property_layout;
-  size_t argument_property_offset = sizeof(Argument);
-  size_t argument_allocation_size = sizeof(Argument);
-  size_t factor_property_offset = sizeof(Factor);
-  size_t factor_allocation_size = sizeof(Factor);
 
   Impl() = default;
   Impl(PropertyLayout argument_layout, PropertyLayout factor_layout)
     : argument_property_layout(argument_layout),
-      factor_property_layout(factor_layout) {
-    argument_property_offset = argument_property_layout.align_up(sizeof(Argument));
-    argument_allocation_size = argument_property_offset + argument_property_layout.size;
-    factor_property_offset = factor_property_layout.align_up(sizeof(Factor));
-    factor_allocation_size = factor_property_offset + factor_property_layout.size;
-  }
-
-  void* argument_property(Argument* argument) const {
-    return reinterpret_cast<char*>(argument) + argument_property_offset;
-  }
-
-  const void* argument_property(const Argument* argument) const {
-    return reinterpret_cast<const char*>(argument) + argument_property_offset;
-  }
-
-  void* factor_property(Factor* factor) const {
-    return reinterpret_cast<char*>(factor) + factor_property_offset;
-  }
-
-  const void* factor_property(const Factor* factor) const {
-    return reinterpret_cast<const char*>(factor) + factor_property_offset;
-  }
+      factor_property_layout(factor_layout) {}
 
   Argument* allocate_argument() const {
-    void* buffer = ::operator new(argument_allocation_size);
-    Argument* argument = new (buffer) Argument();
-    if (argument_property_layout.size != 0) {
-      assert(argument_property_layout.default_constructor);
-      argument_property_layout.default_constructor(argument_property(argument));
-    }
-    return argument;
+    return argument_property_layout.allocate<Argument>();
   }
 
   Argument* add_argument(Arg u) {
@@ -112,31 +81,15 @@ struct FactorGraph::Impl {
   }
 
   Factor* allocate_factor(Domain arguments, Impl* impl) const {
-    void* buffer = ::operator new(factor_allocation_size);
-    Factor* factor = new (buffer) Factor(std::move(arguments), impl);
-    if (factor_property_layout.size != 0) {
-      assert(factor_property_layout.default_constructor);
-      factor_property_layout.default_constructor(factor_property(factor));
-    }
-    return factor;
+    return factor_property_layout.allocate<Factor>(std::move(arguments), impl);
   }
 
   void free_argument(Argument* argument) const {
-    if (argument_property_layout.size != 0) {
-      assert(argument_property_layout.deleter);
-      argument_property_layout.deleter(argument_property(argument));
-    }
-    argument->~Argument();
-    ::operator delete(argument);
+    argument_property_layout.free(argument);
   }
 
   void free_factor(Factor* factor) const {
-    if (factor_property_layout.size != 0) {
-      assert(factor_property_layout.deleter);
-      factor_property_layout.deleter(factor_property(factor));
-    }
-    factor->~Factor();
-    ::operator delete(factor);
+    factor_property_layout.free(factor);
   }
 
   Factor* add_factor(Domain arguments) {
@@ -175,14 +128,12 @@ struct FactorGraph::Impl {
     for (auto [u, src] : arguments) {
       Argument* dst = result->add_argument(u);
       assert(dst);
-      argument_property_layout.destroy_and_copy_construct(result->argument_property(dst),
-                                                         argument_property(src));
+      argument_property_layout.destroy_and_copy_construct(dst, src);
     }
 
     for (Factor* src : factors) {
       Factor* dst = result->add_factor(src->arguments);
-      factor_property_layout.destroy_and_copy_construct(result->factor_property(dst),
-                                                       factor_property(src));
+      factor_property_layout.destroy_and_copy_construct(dst, src);
     }
 
     return result;
@@ -338,21 +289,19 @@ size_t FactorGraph::num_factors() const {
 }
 
 OpaqueRef FactorGraph::property(Arg u) {
-  return {impl().argument_property_layout.type_info,
-          impl().argument_property(impl().arguments.at(u))};
+  return impl().argument_property_layout.get(impl().arguments.at(u));
 }
 
 OpaqueCref FactorGraph::property(Arg u) const {
-  return {impl().argument_property_layout.type_info,
-          impl().argument_property(impl().arguments.at(u))};
+  return impl().argument_property_layout.get(static_cast<const Argument*>(impl().arguments.at(u)));
 }
 
 OpaqueRef FactorGraph::property(Factor* u) {
-  return {impl().factor_property_layout.type_info, impl().factor_property(u)};
+  return impl().factor_property_layout.get(u);
 }
 
 OpaqueCref FactorGraph::property(Factor* u) const {
-  return {impl().factor_property_layout.type_info, impl().factor_property(u)};
+  return impl().factor_property_layout.get(static_cast<const Factor*>(u));
 }
 
 std::ostream& operator<<(std::ostream& out, const FactorGraph& g) {

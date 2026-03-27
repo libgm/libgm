@@ -172,53 +172,13 @@ struct ClusterGraph::Impl {
 
   PropertyLayout vertex_property_layout;
   PropertyLayout edge_property_layout;
-  size_t vertex_property_offset = sizeof(Vertex);
-  size_t edge_property_offset = sizeof(Edge);
-  size_t vertex_allocation_size = sizeof(Vertex);
-  size_t edge_allocation_size = sizeof(Edge);
-
-  void initialize_layout() {
-    vertex_property_offset = vertex_property_layout.align_up(sizeof(Vertex));
-    vertex_allocation_size = vertex_property_offset + vertex_property_layout.size;
-
-    edge_property_offset = edge_property_layout.align_up(sizeof(Edge));
-    edge_allocation_size = edge_property_offset + edge_property_layout.size;
-  }
-
-  void* vertex_property(Vertex* v) const {
-    return reinterpret_cast<char*>(v) + vertex_property_offset;
-  }
-
-  const void* vertex_property(const Vertex* v) const {
-    return reinterpret_cast<const char*>(v) + vertex_property_offset;
-  }
-
-  void* edge_property(Edge* e) const {
-    return reinterpret_cast<char*>(e) + edge_property_offset;
-  }
-
-  const void* edge_property(const Edge* e) const {
-    return reinterpret_cast<const char*>(e) + edge_property_offset;
-  }
 
   Vertex* allocate_vertex(Domain cluster) const {
-    void* buffer = ::operator new(vertex_allocation_size);
-    Vertex* v = new (buffer) Vertex(std::move(cluster), const_cast<Impl*>(this));
-    if (vertex_property_layout.size != 0) {
-      assert(vertex_property_layout.default_constructor);
-      vertex_property_layout.default_constructor(vertex_property(v));
-    }
-    return v;
+    return vertex_property_layout.allocate<Vertex>(std::move(cluster), const_cast<Impl*>(this));
   }
 
   Edge* allocate_edge(Vertex* u, Vertex* v, Domain separator) const {
-    void* buffer = ::operator new(edge_allocation_size);
-    Edge* e = new (buffer) Edge(u, v, std::move(separator), const_cast<Impl*>(this));
-    if (edge_property_layout.size != 0) {
-      assert(edge_property_layout.default_constructor);
-      edge_property_layout.default_constructor(edge_property(e));
-    }
-    return e;
+    return edge_property_layout.allocate<Edge>(u, v, std::move(separator), const_cast<Impl*>(this));
   }
 
   Vertex* add_vertex(Domain cluster) {
@@ -242,21 +202,11 @@ struct ClusterGraph::Impl {
   }
 
   void free_vertex(Vertex* v) const {
-    if (vertex_property_layout.size != 0) {
-      assert(vertex_property_layout.deleter);
-      vertex_property_layout.deleter(vertex_property(v));
-    }
-    v->~Vertex();
-    ::operator delete(v);
+    vertex_property_layout.free(v);
   }
 
   void free_edge(Edge* e) const {
-    if (edge_property_layout.size != 0) {
-      assert(edge_property_layout.deleter);
-      edge_property_layout.deleter(edge_property(e));
-    }
-    e->~Edge();
-    ::operator delete(e);
+    edge_property_layout.free(e);
   }
 
   template <typename Archive>
@@ -321,9 +271,7 @@ struct ClusterGraph::Impl {
   Impl() = default;
   Impl(PropertyLayout vertex_layout, PropertyLayout edge_layout)
     : vertex_property_layout(vertex_layout),
-      edge_property_layout(edge_layout) {
-    initialize_layout();
-  }
+      edge_property_layout(edge_layout) {}
 
   ~Impl() {
     clear();
@@ -339,7 +287,7 @@ struct ClusterGraph::Impl {
       Vertex* dst = result->add_vertex(src->cluster);
       dst->color = src->color;
       dst->marked = src->marked;
-      vertex_property_layout.destroy_and_copy_construct(result->vertex_property(dst), vertex_property(src));
+      vertex_property_layout.destroy_and_copy_construct(dst, src);
       vmap.emplace(src, dst);
     }
 
@@ -350,7 +298,7 @@ struct ClusterGraph::Impl {
       dst->reachable[0] = src->reachable[0];
       dst->reachable[1] = src->reachable[1];
       dst->marked = src->marked;
-      edge_property_layout.destroy_and_copy_construct(result->edge_property(dst), edge_property(src));
+      edge_property_layout.destroy_and_copy_construct(dst, src);
     }
 
     return result;
@@ -476,19 +424,19 @@ ClusterGraph::Vertex* ClusterGraph::root() const {
 }
 
 OpaqueRef ClusterGraph::property(Vertex* u) {
-  return {impl().vertex_property_layout.type_info, impl().vertex_property(u)};
+  return impl().vertex_property_layout.get(u);
 }
 
 OpaqueCref ClusterGraph::property(Vertex* u) const {
-  return {impl().vertex_property_layout.type_info, impl().vertex_property(u)};
+  return impl().vertex_property_layout.get(static_cast<const Vertex*>(u));
 }
 
 OpaqueRef ClusterGraph::property(edge_descriptor e) {
-  return {impl().edge_property_layout.type_info, impl().edge_property(e.get())};
+  return impl().edge_property_layout.get(e.get());
 }
 
 OpaqueCref ClusterGraph::property(edge_descriptor e) const {
-  return {impl().edge_property_layout.type_info, impl().edge_property(e.get())};
+  return impl().edge_property_layout.get(static_cast<const Edge*>(e.get()));
 }
 
 std::ranges::subrange<ClusterGraph::argument_iterator> ClusterGraph::arguments() const {
@@ -858,7 +806,7 @@ ClusterGraph::Vertex* ClusterGraph::merge(edge_descriptor e) {
   for (edge_descriptor out : u->adjacency) {
     if (out.target() != v) {
       edge_descriptor new_edge = add_edge(v, out.target(), std::move(out->separator));
-      impl().edge_property_layout.destroy_and_copy_construct(property(new_edge).ptr, property(out).ptr);
+      impl().edge_property_layout.destroy_and_copy_construct(new_edge.get(), out.get());
     }
   }
 

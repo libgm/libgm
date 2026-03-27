@@ -19,39 +19,13 @@ struct MarkovNetwork::Impl {
   size_t num_edges = 0;
   PropertyLayout vertex_property_layout;
   PropertyLayout edge_property_layout;
-  size_t vertex_property_offset = sizeof(VertexData);
-  size_t vertex_allocation_size = sizeof(VertexData);
-
-  void initialize_layout() {
-    vertex_property_offset = vertex_property_layout.align_up(sizeof(VertexData));
-    vertex_allocation_size = vertex_property_offset + vertex_property_layout.size;
-  }
-
-  void* vertex_property(VertexData* vertex) const {
-    return reinterpret_cast<char*>(vertex) + vertex_property_offset;
-  }
-
-  const void* vertex_property(const VertexData* vertex) const {
-    return reinterpret_cast<const char*>(vertex) + vertex_property_offset;
-  }
 
   VertexData* allocate_vertex() const {
-    void* buffer = ::operator new(vertex_allocation_size);
-    VertexData* vertex = new (buffer) VertexData;
-    if (vertex_property_layout.size != 0) {
-      assert(vertex_property_layout.default_constructor);
-      vertex_property_layout.default_constructor(vertex_property(vertex));
-    }
-    return vertex;
+    return vertex_property_layout.allocate<VertexData>();
   }
 
   void free_vertex(VertexData* vertex) const {
-    if (vertex_property_layout.size != 0) {
-      assert(vertex_property_layout.deleter);
-      vertex_property_layout.deleter(vertex_property(vertex));
-    }
-    vertex->~VertexData();
-    ::operator delete(vertex);
+    vertex_property_layout.free(vertex);
   }
 
   template <typename Archive>
@@ -107,9 +81,7 @@ struct MarkovNetwork::Impl {
   explicit Impl(size_t count, PropertyLayout vertex_layout = {}, PropertyLayout edge_layout = {})
     : data(count),
       vertex_property_layout(vertex_layout),
-      edge_property_layout(edge_layout) {
-    initialize_layout();
-  }
+      edge_property_layout(edge_layout) {}
 
   ~Impl() {
     free_edge_data();
@@ -122,8 +94,7 @@ struct MarkovNetwork::Impl {
 
     for (auto [u, vertex] : data) {
       VertexData* dst = result->allocate_vertex();
-      vertex_property_layout.destroy_and_copy_construct(result->vertex_property(dst),
-                                                       vertex_property(vertex));
+      vertex_property_layout.destroy_and_copy_construct(dst, vertex);
       result->data.emplace(u, dst);
     }
 
@@ -300,13 +271,11 @@ size_t MarkovNetwork::num_edges() const {
 }
 
 OpaqueRef MarkovNetwork::property(Arg u) {
-  return {impl().vertex_property_layout.type_info,
-          impl().vertex_property(impl().data.at(u))};
+  return impl().vertex_property_layout.get(impl().data.at(u));
 }
 
 OpaqueCref MarkovNetwork::property(Arg u) const {
-  return {impl().vertex_property_layout.type_info,
-          impl().vertex_property(impl().data.at(u))};
+  return impl().vertex_property_layout.get(static_cast<const VertexData*>(impl().data.at(u)));
 }
 
 OpaqueRef MarkovNetwork::property(const UndirectedEdge<Arg>& e) {

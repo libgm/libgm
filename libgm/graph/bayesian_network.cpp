@@ -25,43 +25,13 @@ struct BayesianNetwork::Impl {
   VertexDataMap data;
   size_t num_edges = 0;
   PropertyLayout property_layout;
-  size_t property_offset = sizeof(VertexData);
-  size_t vertex_allocation_size = sizeof(VertexData);
-
-  void initialize_layout() {
-    property_offset = property_layout.align_up(sizeof(VertexData));
-    vertex_allocation_size = property_offset + property_layout.size;
-  }
-
-  void* property(VertexData* ptr) const {
-    return reinterpret_cast<char*>(ptr) + property_offset;
-  }
-
-  const void* property(const VertexData* ptr) const {
-    return reinterpret_cast<const char*>(ptr) + property_offset;
-  }
 
   VertexData* allocate_vertex() const {
-    void* buffer = ::operator new(vertex_allocation_size);
-    VertexData* vertex_data = new (buffer) VertexData;
-    if (property_layout.size != 0) {
-      assert(property_layout.default_constructor);
-      property_layout.default_constructor(property(vertex_data));
-    }
-    return vertex_data;
-  }
-
-  void destroy_property(VertexData* ptr) const {
-    if (property_layout.size != 0) {
-      assert(property_layout.deleter);
-      property_layout.deleter(property(ptr));
-    }
+    return property_layout.allocate<VertexData>();
   }
 
   void free_vertex(VertexData* ptr) const {
-    destroy_property(ptr);
-    ptr->~VertexData();
-    ::operator delete(ptr);
+    property_layout.free(ptr);
   }
 
   template <typename Archive>
@@ -103,9 +73,7 @@ struct BayesianNetwork::Impl {
   explicit Impl(size_t count, PropertyLayout layout = {})
     : data(count),
       num_edges(0),
-      property_layout(layout) {
-    initialize_layout();
-  }
+      property_layout(layout) {}
 
   ~Impl() { clear(); }
 
@@ -116,7 +84,7 @@ struct BayesianNetwork::Impl {
       VertexData* dst = result->allocate_vertex();
       dst->parents = src->parents;
       dst->children = src->children;
-      property_layout.destroy_and_copy_construct(result->property(dst), property(src));
+      property_layout.destroy_and_copy_construct(dst, src);
       result->data.emplace(u, dst);
     }
     return result;
@@ -275,11 +243,11 @@ const Domain& BayesianNetwork::parents(Arg u) const {
 }
 
 OpaqueRef BayesianNetwork::property(Arg u) {
-  return {impl().property_layout.type_info, impl().property(impl().data.at(u))};
+  return impl().property_layout.get(impl().data.at(u));
 }
 
 OpaqueCref BayesianNetwork::property(Arg u) const {
-  return {impl().property_layout.type_info, impl().property(impl().data.at(u))};
+  return impl().property_layout.get(static_cast<const VertexData*>(impl().data.at(u)));
 }
 
 MarkovNetwork BayesianNetwork::markov_network() const {

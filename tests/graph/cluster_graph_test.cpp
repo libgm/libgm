@@ -102,6 +102,21 @@ BOOST_AUTO_TEST_CASE(test_constructors_and_copy_move) {
   BOOST_CHECK_EQUAL(g5.num_edges(), 1);
 }
 
+BOOST_AUTO_TEST_CASE(base_cluster_graph_uses_null_property_pointers) {
+  ClusterGraph cg;
+  Arg a = make_arg("prop_a");
+  Arg b = make_arg("prop_b");
+
+  auto* v1 = cg.add_vertex({a});
+  auto* v2 = cg.add_vertex({a, b});
+  auto e = cg.add_edge(v1, v2);
+
+  BOOST_CHECK(cg.property(v1).type_info == typeid(void));
+  BOOST_CHECK_EQUAL(cg.property(v1).ptr, nullptr);
+  BOOST_CHECK(cg.property(e).type_info == typeid(void));
+  BOOST_CHECK_EQUAL(cg.property(e).ptr, nullptr);
+}
+
 BOOST_FIXTURE_TEST_CASE(test_graph_accessors, Fixture) {
   BOOST_CHECK(cg.contains(v1));
   BOOST_CHECK(cg.contains(v2));
