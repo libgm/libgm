@@ -20,7 +20,6 @@ subdirs(
   math
   parallel
 #[[
-  serialization
   traits
 ]]
   )
