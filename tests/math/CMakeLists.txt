@@ -1,6 +1,6 @@
 subdirs(eigen
 #        likelihood
-#        random
+        random
 )
 
 add_executable(exp exp_test.cpp)
