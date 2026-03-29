@@ -1,4 +1,4 @@
-bin_dir=../release/timing
+bin_dir=../cmake-build-release/timing
 
 factor: FORCE
 	${bin_dir}/factor/table_timing --num-values 2 --max-arity 10 --num-reps 50000
@@ -7,6 +7,9 @@ factor: FORCE
 	${bin_dir}/factor/matrix_timing --step-size 10 --max-values 32 --num-reps=100000
 	${bin_dir}/factor/moment_gaussian_timing --max-dims 50 --step-size 5 --num-reps=10000
 	${bin_dir}/factor/canonical_gaussian_timing --max-dims 50 --step-size 5 --num-reps=10000
+
+graph: FORCE
+	${bin_dir}/graph/markov_network_eliminate_timing --max-side 20 --step-size 1 --num-reps=100
 
 factor-experimental: FORCE
 	${bin_dir}/factor/experimental/table_experimental_timing --num-values 2 --max-arity 9 --num-reps 50000
