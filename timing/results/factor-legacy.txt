@@ -1,0 +1,321 @@
+../release/timing/factor/table_timing --num-values 2 --max-arity 10 --num-reps 50000
+Measuring table factors with num_values=2 max_arity=10 num_reps=50000
+
+table * constant
+probability 3.592e-08 1.285e-07 1.280e-07 1.285e-07 1.218e-07 1.258e-07 1.221e-07 1.335e-07 1.222e-07 1.497e-07
+canonical   2.122e-08 7.484e-08 8.210e-08 8.592e-08 9.002e-08 9.276e-08 1.028e-07 1.102e-07 1.009e-07 1.251e-07
+
+table + table
+probability 1.694e-08 6.174e-08 7.550e-08 8.014e-08 7.614e-08 8.464e-08 9.512e-08 1.075e-07 1.021e-07 1.437e-07
+canonical   2.186e-08 7.340e-08 9.040e-08 1.173e-07 1.560e-07 2.393e-07 4.039e-07 7.140e-07 1.327e-06 2.556e-06
+
+table + table + table
+probability 3.904e-08 1.318e-07 1.418e-07 1.562e-07 1.511e-07 1.776e-07 2.002e-07 2.167e-07 2.181e-07 2.709e-07
+canonical   5.206e-08 1.615e-07 1.921e-07 2.472e-07 3.141e-07 4.975e-07 8.310e-07 1.506e-06 2.720e-06 5.214e-06
+
+table * table
+probability 1.903e-07 2.134e-07 2.399e-07 2.440e-07 2.963e-07 3.385e-07 4.209e-07 5.966e-07
+canonical   1.730e-07 1.993e-07 2.215e-07 2.480e-07 2.752e-07 3.242e-07 4.126e-07 6.034e-07
+
+table / table
+probability 1.774e-07 1.913e-07 2.202e-07 2.467e-07 2.889e-07 3.598e-07 4.588e-07 7.196e-07
+canonical   1.727e-07 1.971e-07 2.173e-07 2.387e-07 2.782e-07 3.234e-07 4.016e-07 6.125e-07
+
+table.marginal(dom)
+probability 4.122e-08 1.243e-07 1.473e-07 1.644e-07 1.835e-07 2.081e-07 2.587e-07 3.602e-07 5.296e-07
+canonical   4.764e-08 1.366e-07 1.613e-07 2.063e-07 2.567e-07 3.744e-07 6.055e-07 1.059e-06 1.969e-06
+
+table.maximum(dom)
+probability 4.238e-08 1.204e-07 1.394e-07 1.602e-07 1.787e-07 2.085e-07 2.640e-07 3.608e-07 5.363e-07
+canonical   4.438e-08 1.318e-07 1.545e-07 1.646e-07 1.845e-07 2.108e-07 2.535e-07 3.615e-07 5.395e-07
+
+(table * table).marginal(dom)
+probability 3.054e-07 3.323e-07 3.666e-07 4.162e-07 5.097e-07 6.660e-07 9.964e-07 1.650e-06
+canonical   2.989e-07 3.385e-07 3.760e-07 4.543e-07 5.822e-07 7.976e-07 1.214e-06 2.078e-06
+
+(table * table).maximum(dom)
+probability 3.006e-07 3.339e-07 3.733e-07 4.136e-07 5.135e-07 6.727e-07 1.003e-06 1.722e-06
+canonical   3.028e-07 3.356e-07 3.638e-07 4.210e-07 5.237e-07 6.883e-07 1.001e-06 1.662e-06
+
+(table * table).marginal()
+probability 1.721e-07 1.925e-07 2.162e-07 2.407e-07 2.806e-07 3.320e-07 3.942e-07 5.795e-07
+canonical   1.973e-07 2.316e-07 2.684e-07 3.381e-07 4.244e-07 6.033e-07 9.580e-07 1.623e-06
+
+(table * table).maximum()
+probability 1.620e-07 1.914e-07 2.124e-07 2.258e-07 2.803e-07 3.234e-07 4.032e-07 6.233e-07
+canonical   1.788e-07 1.942e-07 2.249e-07 2.560e-07 3.106e-07 3.829e-07 5.208e-07 8.483e-07
+
+table.restrict(a) -- general
+probability 5.478e-08 1.195e-07 1.531e-07 1.867e-07 1.848e-07 2.052e-07 2.282e-07 2.732e-07 2.973e-07
+canonical   5.434e-08 1.160e-07 1.503e-07 1.850e-07 1.949e-07 2.169e-07 2.491e-07 2.816e-07 3.045e-07
+
+table.restrict(a) -- prefix
+probability 5.132e-08 1.755e-07 2.277e-07 2.479e-07 2.650e-07 2.919e-07 3.168e-07 3.837e-07 4.630e-07
+canonical   5.510e-08 1.717e-07 2.038e-07 2.350e-07 2.572e-07 2.931e-07 3.312e-07 3.884e-07 4.637e-07
+
+table *= table
+probability 1.728e-08 3.864e-08 4.376e-08 5.182e-08 6.496e-08 8.508e-08 1.230e-07 2.113e-07 3.544e-07
+canonical   1.762e-08 3.472e-08 4.132e-08 5.046e-08 6.726e-08 9.302e-08 1.419e-07 2.451e-07 4.222e-07
+
+table /= table
+probability 1.750e-08 3.496e-08 4.218e-08 5.402e-08 7.298e-08 1.005e-07 1.597e-07 2.701e-07 4.877e-07
+canonical   1.864e-08 3.628e-08 4.370e-08 5.200e-08 6.934e-08 9.042e-08 1.301e-07 2.189e-07 3.998e-07
+
+table *= table.restrict(a)
+probability 7.010e-08 1.549e-07 1.914e-07 2.363e-07 2.576e-07 3.103e-07 3.763e-07 4.926e-07 6.820e-07
+canonical   6.868e-08 1.471e-07 1.865e-07 2.455e-07 2.650e-07 3.136e-07 4.012e-07 5.404e-07 7.569e-07
+../release/timing/factor/table_timing --num-values 5 --max-arity 8 --num-reps 1000
+Measuring table factors with num_values=5 max_arity=8 num_reps=1000
+
+table * constant
+probability 2.500e-08 9.800e-08 9.700e-08 1.210e-07 1.390e-07 5.100e-07 1.835e-06 1.050e-05
+canonical   2.100e-08 9.100e-08 1.040e-07 1.570e-07 1.450e-07 4.600e-07 1.968e-06 1.070e-05
+
+table + table
+probability 2.500e-08 1.030e-07 1.060e-07 1.300e-07 1.710e-07 5.350e-07 3.724e-06 1.632e-05
+canonical   3.100e-08 1.180e-07 2.250e-07 7.480e-07 3.202e-06 1.573e-05 7.895e-05 3.946e-04
+
+table + table + table
+probability 5.300e-08 1.930e-07 1.860e-07 2.750e-07 3.230e-07 1.145e-06 7.494e-06 3.261e-05
+canonical   5.300e-08 2.300e-07 4.170e-07 1.553e-06 6.499e-06 3.115e-05 1.573e-04 7.914e-04
+
+table * table
+probability 2.470e-07 2.830e-07 5.050e-07 1.338e-06 5.921e-06 2.720e-05
+canonical   2.250e-07 3.180e-07 5.090e-07 1.446e-06 5.780e-06 2.697e-05
+
+table / table
+probability 2.400e-07 3.670e-07 6.360e-07 2.206e-06 9.641e-06 4.110e-05
+canonical   2.150e-07 2.830e-07 4.330e-07 1.307e-06 5.886e-06 2.691e-05
+
+table.marginal(dom)
+probability 6.600e-08 1.470e-07 2.030e-07 3.730e-07 1.268e-06 5.835e-06 2.804e-05
+canonical   6.000e-08 2.070e-07 4.480e-07 1.846e-06 8.134e-06 4.139e-05 2.620e-04
+
+table.maximum(dom)
+probability 4.300e-08 1.310e-07 1.910e-07 3.870e-07 1.300e-06 5.939e-06 2.814e-05
+canonical   4.400e-08 1.360e-07 1.790e-07 3.700e-07 1.267e-06 5.862e-06 2.821e-05
+
+(table * table).marginal(dom)
+probability 3.500e-07 5.170e-07 1.087e-06 3.866e-06 1.870e-05 8.671e-05
+canonical   3.690e-07 6.840e-07 1.972e-06 8.154e-06 4.131e-05 2.024e-04
+
+(table * table).maximum(dom)
+probability 3.440e-07 5.160e-07 1.093e-06 3.954e-06 1.869e-05 8.809e-05
+canonical   3.190e-07 4.680e-07 1.044e-06 3.757e-06 1.785e-05 8.792e-05
+
+(table * table).marginal()
+probability 2.270e-07 2.780e-07 5.020e-07 1.368e-06 5.832e-06 2.725e-05
+canonical   2.830e-07 5.750e-07 1.748e-06 7.699e-06 3.747e-05 1.846e-04
+
+(table * table).maximum()
+probability 2.430e-07 2.890e-07 4.770e-07 1.352e-06 6.082e-06 2.686e-05
+canonical   1.980e-07 3.070e-07 7.130e-07 2.708e-06 1.319e-05 6.400e-05
+
+table.restrict(a) -- general
+probability 6.000e-08 1.320e-07 1.570e-07 2.470e-07 4.000e-07 1.062e-06 6.811e-06
+canonical   6.200e-08 1.310e-07 1.590e-07 2.370e-07 4.270e-07 1.057e-06 6.694e-06
+
+table.restrict(a) -- prefix
+probability 7.800e-08 1.680e-07 2.390e-07 2.880e-07 4.670e-07 1.218e-06 5.119e-06
+canonical   5.500e-08 1.770e-07 2.390e-07 3.010e-07 4.440e-07 1.240e-06 4.879e-06
+
+table *= table
+probability 1.900e-08 4.500e-08 7.200e-08 2.550e-07 1.075e-06 5.301e-06 2.719e-05
+canonical   2.400e-08 6.600e-08 8.100e-08 2.520e-07 1.109e-06 5.386e-06 2.675e-05
+
+table /= table
+probability 2.000e-08 4.900e-08 1.010e-07 3.510e-07 1.494e-06 7.372e-06 3.479e-05
+canonical   2.200e-08 4.400e-08 7.600e-08 2.600e-07 1.134e-06 5.641e-06 2.666e-05
+
+table *= table.restrict(a)
+probability 7.300e-08 1.490e-07 2.530e-07 4.840e-07 1.399e-06 6.654e-06 3.230e-05
+canonical   6.600e-08 1.520e-07 2.480e-07 4.860e-07 1.565e-06 7.245e-06 3.359e-05
+../release/timing/factor/vector_timing --step-size 10 --max-values 101 --num-reps=100000
+Measuring vector factors with  min_values=1 max_values=101 step_size=10 num_reps=100000
+
+vector * constant
+probability 1.369e-08 1.537e-08 1.689e-08 1.854e-08 2.439e-08 2.607e-08 2.641e-08 2.950e-08 3.115e-08 3.069e-08 3.425e-08
+canonical   1.351e-08 1.442e-08 1.580e-08 1.924e-08 2.291e-08 2.501e-08 2.726e-08 2.924e-08 3.162e-08 3.212e-08 3.334e-08
+
+vector + vector
+probability 1.214e-08 1.450e-08 1.686e-08 1.940e-08 2.388e-08 2.494e-08 2.644e-08 2.753e-08 3.002e-08 3.132e-08 3.343e-08
+canonical   1.769e-08 6.471e-08 1.162e-07 1.613e-07 2.198e-07 2.654e-07 3.202e-07 3.710e-07 4.203e-07 4.670e-07 5.260e-07
+
+vector * vector * vector
+probability 2.240e-08 2.707e-08 3.089e-08 3.778e-08 4.585e-08 5.038e-08 5.274e-08 5.697e-08 6.110e-08 6.391e-08 6.901e-08
+canonical   2.106e-08 2.654e-08 2.961e-08 3.700e-08 4.552e-08 5.030e-08 5.114e-08 5.543e-08 6.033e-08 6.340e-08 6.844e-08
+
+vector.marginal()
+probability 9.000e-10 1.160e-09 1.730e-09 2.640e-09 3.200e-09 3.890e-09 4.620e-09 5.330e-09 6.740e-09 6.550e-09 8.540e-09
+canonical   4.240e-09 2.119e-08 3.768e-08 5.545e-08 7.118e-08 8.816e-08 1.039e-07 1.205e-07 1.364e-07 1.487e-07 1.679e-07
+
+vector.maximum()
+probability 8.400e-10 9.400e-10 2.230e-09 2.470e-09 2.720e-09 3.710e-09 4.460e-09 5.470e-09 6.280e-09 6.820e-09 8.030e-09
+canonical   5.700e-10 9.900e-10 1.480e-09 2.400e-09 2.720e-09 3.880e-09 5.080e-09 5.140e-09 6.040e-09 6.300e-09 7.340e-09
+
+vector.minimum()
+probability 8.500e-10 9.200e-10 1.400e-09 2.470e-09 3.630e-09 3.850e-09 4.590e-09 5.540e-09 6.570e-09 6.970e-09 8.000e-09
+canonical   5.900e-10 9.400e-10 1.380e-09 2.480e-09 3.820e-09 4.110e-09 5.070e-09 5.330e-09 6.300e-09 7.050e-09 7.320e-09
+
+vector.maximum(a)
+probability 2.650e-09 5.390e-09 8.320e-09 1.069e-08 1.289e-08 1.583e-08 1.822e-08 2.072e-08 2.418e-08 2.802e-08 3.799e-08
+canonical   2.410e-09 5.610e-09 8.910e-09 1.065e-08 1.315e-08 1.560e-08 1.790e-08 2.065e-08 2.450e-08 2.816e-08 3.179e-08
+
+vector.minimum(a)
+probability 2.430e-09 5.780e-09 8.100e-09 1.258e-08 1.867e-08 2.432e-08 3.059e-08 3.788e-08 4.681e-08 5.484e-08 6.196e-08
+canonical   2.650e-09 5.550e-09 8.240e-09 1.069e-08 1.283e-08 1.545e-08 1.786e-08 2.033e-08 2.444e-08 2.829e-08 3.158e-08
+../release/timing/factor/matrix_timing --step-size 10 --max-values 32 --num-reps=100000
+Measuring matrix factors with  min_values=2 max_values=32 step_size=10 num_reps=100000
+
+matrix * constant
+probability 1.332e-08 3.442e-08 8.721e-08 1.648e-07
+canonical   1.465e-08 3.502e-08 8.597e-08 1.592e-07
+
+matrix + matrix
+probability 1.268e-08 3.410e-08 1.112e-07 1.653e-07
+canonical   3.120e-08 7.201e-07 2.392e-06 4.973e-06
+
+matrix * matrix -- direct
+probability 1.412e-08 3.494e-08 8.843e-08 1.733e-07
+canonical   1.406e-08 3.698e-08 9.251e-08 1.781e-07
+
+matrix * matrix -- transposed
+probability 1.755e-08 6.825e-08 1.681e-07 3.267e-07
+canonical   1.653e-08 6.676e-08 1.666e-07 3.212e-07
+
+matrix * vector -- direct
+probability 1.511e-08 3.825e-08 8.952e-08 1.383e-07
+canonical   1.581e-08 3.808e-08 8.161e-08 1.348e-07
+
+matrix * vector -- transposed
+probability 1.558e-08 3.611e-08 7.885e-08 1.035e-07
+canonical   1.558e-08 3.620e-08 7.575e-08 1.163e-07
+
+vector * matrix -- direct
+probability 1.605e-08 3.837e-08 8.325e-08 1.330e-07
+canonical   1.606e-08 3.883e-08 8.272e-08 1.269e-07
+
+vector * matrix -- transposed
+probability 1.635e-08 6.470e-08 1.689e-07 3.255e-07
+canonical   1.639e-08 6.670e-08 1.662e-07 3.235e-07
+
+matrix * vector * vector -- outer
+probability 3.050e-08 7.640e-08 1.637e-07 2.347e-07
+canonical   3.076e-08 7.770e-08 1.659e-07 2.480e-07
+
+matrix.marginal(dom) -- row-wise
+probability 1.533e-08 2.730e-08 4.309e-08 1.013e-07
+canonical   2.670e-08 2.342e-07 6.576e-07 1.286e-06
+
+matrix.marginal(dom) -- column-wise
+probability 1.434e-08 3.519e-08 6.595e-08 1.145e-07
+canonical   2.820e-08 2.320e-07 6.617e-07 1.322e-06
+
+matrix.maximum(a)
+probability 6.070e-09 1.038e-07 4.115e-07 9.004e-07
+canonical   6.110e-09 6.664e-08 2.258e-07 4.738e-07
+
+(matrix * vector).marginal(dom) -- right
+probability 2.829e-08 6.557e-08 1.199e-07 1.956e-07
+canonical   5.410e-08 2.665e-07 7.475e-07 1.453e-06
+
+(matrix * vector).marginal(dom) -- left
+probability 3.014e-08 7.584e-08 1.498e-07 2.399e-07
+canonical   4.680e-08 2.832e-07 7.468e-07 1.414e-06
+
+(matrix * vector).maximum(dom) -- right
+probability 2.833e-08 6.477e-08 1.156e-07 2.011e-07
+canonical   2.989e-08 6.289e-08 1.164e-07 1.970e-07
+
+(matrix * vector).maximum(dom) -- left
+probability 2.878e-08 7.380e-08 1.643e-07 2.387e-07
+canonical   3.136e-08 7.547e-08 1.605e-07 2.414e-07
+
+matrix.restrict(a) -- row-wise
+probability 1.500e-08 2.260e-08 2.665e-08 3.086e-08
+canonical   1.586e-08 2.102e-08 2.561e-08 2.521e-08
+
+matrix.restrict(a) -- column-wise
+probability 1.496e-08 1.756e-08 2.375e-08 2.380e-08
+canonical   1.619e-08 1.704e-08 2.004e-08 2.062e-08
+
+vector *= matrix.restrict(a) -- row-wise
+probability 1.663e-08 2.901e-08 3.235e-08 3.339e-08
+canonical   1.721e-08 2.927e-08 3.355e-08 3.370e-08
+
+vector *= matrix.restrict(a) -- column-wise
+probability 1.704e-08 2.017e-08 2.563e-08 2.887e-08
+canonical   1.693e-08 2.007e-08 2.738e-08 3.011e-08
+../release/timing/factor/moment_gaussian_timing --max-dims 50 --step-size 5 --num-reps=10000
+Measuring matrix factors with  min_dims=2 max_dims=50 step_size=5 num_reps=10000
+
+mg * constant
+ 2.282e-07 2.251e-07 2.293e-07 2.370e-07 2.776e-07 3.044e-07 3.594e-07 3.765e-07 4.008e-07 4.339e-07
+
+mg.head() * mg.tail() -- span
+ 5.239e-07 7.474e-07 9.149e-07 1.370e-06 1.612e-06 1.842e-06 2.158e-06 3.155e-06 3.642e-06 4.278e-06
+
+mg.head() * mg.tail() -- iref
+ 3.058e-07 5.282e-07 7.578e-07 1.152e-06 1.464e-06 1.788e-06 2.048e-06 3.075e-06 3.521e-06 4.350e-06
+
+mg.marginal(dom) -- span
+ 1.373e-07 1.317e-07 1.227e-07 1.284e-07 1.290e-07 1.313e-07 1.407e-07 1.339e-07 1.392e-07 1.421e-07
+
+mg.marginal(dom) -- iref
+ 1.221e-07 1.224e-07 1.272e-07 1.264e-07 1.269e-07 1.331e-07 1.350e-07 1.333e-07 1.388e-07 1.363e-07
+
+mg.head().sum(dom) -- span
+ 2.040e-08 3.226e-07 4.257e-07 4.592e-07 6.229e-07 7.648e-07 9.314e-07 1.137e-06 1.323e-06 1.604e-06
+
+mg.head().sum(dom) -- iref
+ 1.990e-08 2.557e-07 3.580e-07 4.479e-07 6.278e-07 7.583e-07 8.968e-07 1.256e-06 1.381e-06 1.679e-06
+
+mg.restrict_head() -- span
+ 1.869e-07 5.543e-07 7.337e-07 8.844e-07 1.042e-06 1.227e-06 1.419e-06 1.765e-06 1.963e-06 2.306e-06
+
+mg.restrict_head() -- iref
+ 1.823e-07 5.291e-07 6.955e-07 8.492e-07 1.016e-06 1.208e-06 1.428e-06 1.766e-06 1.968e-06 2.465e-06
+
+mg.restrict_tail() -- span
+ 2.292e-07 4.441e-07 5.788e-07 7.316e-07 9.823e-07 1.152e-06 1.318e-06 1.697e-06 1.949e-06 2.357e-06
+
+mg.restrict_tail() -- iref
+ 2.408e-07 4.369e-07 5.708e-07 7.489e-07 1.010e-06 1.235e-06 1.338e-06 1.712e-06 1.968e-06 2.281e-06
+../release/timing/factor/canonical_gaussian_timing --max-dims 50 --step-size 5 --num-reps=10000
+Measuring matrix factors with  min_dims=2 max_dims=50 step_size=5 num_reps=10000
+
+cg * constant
+ 1.981e-07 2.164e-07 2.311e-07 2.291e-07 2.552e-07 3.175e-07 3.446e-07 3.633e-07 4.381e-07 4.233e-07
+
+cg * cg -- direct
+ 2.245e-07 3.349e-07 5.211e-07 7.044e-07 9.667e-07 1.201e-06 1.404e-06 1.736e-06 2.115e-06 2.570e-06
+
+cg * cg -- span
+ 1.299e-07 2.886e-07 5.164e-07 7.252e-07 1.018e-06 1.386e-06 1.883e-06 2.877e-06 3.572e-06 4.370e-06
+
+cg * cg -- iref
+ 1.189e-07 2.489e-07 4.506e-07 7.132e-07 1.011e-06 1.381e-06 1.843e-06 2.906e-06 3.642e-06 4.403e-06
+
+cg *= cg -- span
+ 1.470e-08 5.390e-08 9.220e-08 1.645e-07 2.367e-07 3.146e-07 4.139e-07 5.483e-07 6.891e-07 1.001e-06
+
+cg *= cg -- iref
+ 1.780e-08 4.950e-08 9.490e-08 1.569e-07 2.296e-07 3.149e-07 4.191e-07 5.634e-07 6.814e-07 9.761e-07
+
+cg.marginal(dom) -- span
+ 1.185e-07 5.831e-07 9.373e-07 1.256e-06 1.803e-06 2.425e-06 2.958e-06 5.121e-06 5.789e-06 7.381e-06
+
+cg.marginal(dom) -- iref
+ 1.200e-07 5.161e-07 8.825e-07 1.210e-06 1.833e-06 2.427e-06 2.991e-06 5.148e-06 5.746e-06 7.423e-06
+
+cg.head().sum() -- span
+ 1.448e-07 4.065e-07 5.180e-07 6.745e-07 8.643e-07 1.017e-06 1.229e-06 1.521e-06 1.760e-06 2.096e-06
+
+cg.dims().sum() -- iref
+ 1.650e-07 5.179e-07 6.370e-07 7.777e-07 9.479e-07 1.120e-06 1.351e-06 1.673e-06 1.909e-06 2.413e-06
+
+cg.restrict() -- span
+ 1.138e-07 3.305e-07 4.336e-07 5.098e-07 6.500e-07 7.281e-07 8.689e-07 1.030e-06 1.201e-06 1.489e-06
+
+cg.restrict() -- iref
+ 1.174e-07 3.333e-07 4.161e-07 5.100e-07 6.398e-07 7.656e-07 8.836e-07 1.030e-06 1.183e-06 1.333e-06
