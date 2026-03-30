@@ -1,0 +1,7 @@
+add_executable(bayesian_network bayesian_network_test.cpp)
+add_executable(cluster_graph cluster_graph_test.cpp)
+add_executable(factor_graph factor_graph_test.cpp)
+
+add_test(bayesian_network bayesian_network)
+add_test(cluster_graph cluster_graph)
+add_test(factor_graph factor_graph)

@@ -19,7 +19,7 @@ struct Fixture {
   using PTable = ProbabilityTable<double>;
   using PMatrix = ProbabilityMatrix<double>;
   using PVector = ProbabilityVector<double>;
-  using Factor = FactorGraph::Factor;
+  using Factor = typename FactorGraph<PTable, PTable>::Factor;
 
   Fixture(size_t rows = 5, size_t cols = 4, unsigned seed = 17)
     : rows(rows),
@@ -46,7 +46,7 @@ struct Fixture {
   }
 
   PTable expected_belief(const Domain& retain, bool normalize) const {
-    FactorGraphT<PTable, PTable> fg(mn, [](auto&& factor) { return factor.table(); });
+    FactorGraph<PTable, PTable> fg(mn, [](auto&& factor) { return factor.table(); });
     VariableElimination<PTable> ve(shape_map, min_fill, sum_product);
     PTable expected = ve.eliminate_join(fg, retain);
     if (normalize) {

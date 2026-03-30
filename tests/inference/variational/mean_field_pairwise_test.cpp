@@ -6,7 +6,7 @@
 #include <libgm/factor/probability_matrix.hpp>
 #include <libgm/factor/probability_table.hpp>
 #include <libgm/factor/probability_vector.hpp>
-#include <libgm/graph/factor_graph.hpp>
+#include <libgm/model/factor_graph.hpp>
 #include <libgm/graph/special/grid_graph.hpp>
 #include <libgm/graph/algorithm/elimination_strategies.hpp>
 #include <libgm/inference/exact/sum_product_calibrate.hpp>

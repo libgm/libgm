@@ -1,9 +1,9 @@
 #pragma once
 
 #include <libgm/factor/concepts.hpp>
-#include <libgm/graph/cluster_graph.hpp>
 #include <libgm/graph/util/bidirectional.hpp>
 #include <libgm/inference/exact/junction_tree_engine.hpp>
+#include <libgm/model/cluster_graph.hpp>
 
 namespace libgm {
 
@@ -17,8 +17,8 @@ template <typename F>
 class SumProductCalibrate : public JunctionTreeEngine<F> {
 public:
   // Descriptors
-  using vertex_descriptor = ClusterGraph::vertex_descriptor;
-  using edge_descriptor   = ClusterGraph::edge_descriptor;
+  using vertex_descriptor = typename ClusterGraph<>::vertex_descriptor;
+  using edge_descriptor   = typename ClusterGraph<>::edge_descriptor;
 
   /// Default constructor. Constructs a sum-product algorithm with no model.
   SumProductCalibrate() = default;
@@ -26,7 +26,7 @@ public:
   /// Initializes the algorithm to the given junction tree that defines adistribution via the product of the vertex
   /// properties.
   template <typename Other>
-  void reset(const ClusterGraphT<F, Other>& cg) {
+  void reset(const ClusterGraph<F, Other>& cg) {
     calibrated_ = false;
     jt_.clear();
 
@@ -133,7 +133,7 @@ public:
   //--------------------------------------------------------------------------
 
   /// Returns the underlying junction tree.
-  const ClusterGraph& jt() const {
+  const ClusterGraph<F, Bidirectional<F>>& jt() const {
     return jt_;
   }
 
@@ -189,7 +189,7 @@ public:
 
 private:
   /// The junction tree used to store the factors and messages
-  ClusterGraphT<F, Bidirectional<F>> jt_;
+  ClusterGraph<F, Bidirectional<F>> jt_;
 
   /// True if the inference has been performed
   bool calibrated_;

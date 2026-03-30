@@ -3,9 +3,9 @@ subdirs(algorithm)
 target_sources(
   libgm
   PRIVATE
-  bayesian_network.cpp
-  cluster_graph.cpp
-  factor_graph.cpp
+  bipartite_graph.cpp
+  directed_graph.cpp
   markov_network.cpp
+  undirected_graph.cpp
   special/grid_graph.cpp
 )

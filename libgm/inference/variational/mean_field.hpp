@@ -4,7 +4,7 @@
 
 #include <numeric>
 
-#include <libgm/graph/factor_graph.hpp>
+#include <libgm/model/factor_graph.hpp>
 #include <libgm/parallel/map_processor.hpp>
 
 namespace libgm {
@@ -21,21 +21,23 @@ public:
   using real_type = typename ArgumentF::real_type;
   using belief_type = typename ArgumentF::probability_type;
 
-  using graph_type = FactorGraphT<ArgumentF, FactorF>;
-  using edge_descriptor = typename graph_type::fa_edge_descriptor;
+  using graph_type = FactorGraph<ArgumentF, FactorF>;
+  using edge_descriptor = typename graph_type::edge21_descriptor;
   using Factor = typename graph_type::Factor;
+  using Argument = typename graph_type::Argument;
 
   /// Creates a mean field engine for the given graph.
   /// The graph vertices must not change after initialization (the potentials may).
   /// \param num_threads the number of worker threads
   explicit MeanField(const graph_type& graph, ShapeMap shape_map, size_t nthreads = 1)
     : graph_(graph), nthreads_(nthreads) {
-    for (Arg arg : graph_.arguments()) {
+    for (Argument* vertex : graph_.vertices1()) {
+      Arg arg = graph_.argument(vertex);
       size_t shape = shape_map(arg);
       belief_type belief(shape, real_type(1));
       belief.normalize();
       beliefs_.emplace(arg, std::move(belief));
-      for (edge_descriptor e : graph_.in_edges(arg)) {
+      for (edge_descriptor e : graph_.in_edges(vertex)) {
         messages_.emplace(e, ArgumentF(shape));
       }
     }
@@ -68,19 +70,20 @@ public:
 private:
   void update_message(edge_descriptor e, ArgumentF& result) const {
     const Domain& domain = graph_.arguments(e.source());
+    Arg target = graph_.argument(e.target());
     std::vector<belief_type> beliefs;
     for (Arg arg : domain) {
-      if (arg != e.target()) {
+      if (arg != target) {
         beliefs.push_back(beliefs_.at(arg));
       }
     }
 
-    result = graph_[e.source()].expected_log_dim(beliefs, domain.index(e.target()));
+    result = graph_[e.source()].expected_log_dim(beliefs, domain.index(target));
   }
 
   real_type update_belief(Arg arg, belief_type& belief) const {
     ArgumentF result = graph_[arg];
-    for (edge_descriptor e : graph_.in_edges(arg)) {
+    for (edge_descriptor e : graph_.in_edges(graph_.vertex(arg))) {
       result *= messages_.at(e);
     }
     result /= result.maximum();

@@ -18,5 +18,6 @@ subdirs(
   graph
   inference
   math
+  model
   parallel
 )

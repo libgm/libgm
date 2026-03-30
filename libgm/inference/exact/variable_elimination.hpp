@@ -5,21 +5,21 @@
 #include <libgm/factor/utility/annotated.hpp>
 #include <libgm/factor/utility/commutative_semiring.hpp>
 #include <libgm/graph/elimination_strategy.hpp>
-#include <libgm/graph/factor_graph.hpp>
+#include <libgm/model/factor_graph.hpp>
 
 namespace libgm {
 
 template <typename F>
 class VariableElimination {
 public:
-  using Factor = FactorGraph::Factor;
+  using Factor = typename FactorGraph<F, F>::Factor;
 
   /// Constructs a variable elimination algorithm.
   VariableElimination(ShapeMap shape_map, const EliminationStrategy& strategy, const CommutativeSemiring<F>& csr)
     : shape_map_(std::move(shape_map)), strategy_(strategy), csr_(csr) {}
 
   /// Eliminates all variables other than the specified ones.
-  void eliminate(FactorGraphT<F, F>& fg, const Domain& retain) {
+  void eliminate(FactorGraph<F, F>& fg, const Domain& retain) {
     MarkovNetwork mn = fg.markov_network();
     mn.eliminate(strategy_, [&](Arg arg) {
       if (!retain.contains(arg)) {
@@ -51,7 +51,7 @@ public:
   }
 
   /// Joins all the factors in the product, with the given arguments, which must be a superset of fg.arguments().
-  F join(FactorGraphT<F, F>& fg, const Domain& domain) {
+  F join(FactorGraph<F, F>& fg, const Domain& domain) {
     F result = csr_.init(domain.shape(shape_map_));
     for (Arg arg : fg.arguments()) {
       csr_.combine_in(result, fg[arg], domain.dims({arg}));
@@ -63,7 +63,7 @@ public:
   }
 
   // Eliminates all variables other than the specified ones, and joins the rest.
-  F eliminate_join(FactorGraphT<F, F>& fg, const Domain& retain) {
+  F eliminate_join(FactorGraph<F, F>& fg, const Domain& retain) {
     eliminate(fg, retain);
     return join(fg, retain);
   }

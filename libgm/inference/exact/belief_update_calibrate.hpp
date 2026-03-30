@@ -1,7 +1,7 @@
 #pragma once
 
-#include <libgm/graph/cluster_graph.hpp>
 #include <libgm/inference/exact/junction_tree_engine.hpp>
+#include <libgm/model/cluster_graph.hpp>
 
 namespace libgm {
 
@@ -17,8 +17,8 @@ template <typename F>
 class BeliefUpdateCalibrate : public JunctionTreeEngine<F> {
 public:
   // Graph types
-  using vertex_descriptor = ClusterGraph::vertex_descriptor;
-  using edge_descriptor = ClusterGraph::edge_descriptor;
+  using vertex_descriptor = typename ClusterGraph<>::vertex_descriptor;
+  using edge_descriptor = typename ClusterGraph<>::edge_descriptor;
 
   /// Initializes the algorithm to the given network.
   void reset(MarkovNetwork mn, const EliminationStrategy& strategy, const ShapeMap& shape_map) override {
@@ -83,7 +83,7 @@ public:
   }
 
   /// Returns the junction tree.
-  const ClusterGraphT<F>& jt() const { return jt_; }
+  const ClusterGraph<F>& jt() const { return jt_; }
 
   /// Returns the node belief.
   const F& belief(vertex_descriptor v) const { return jt_[v]; }
@@ -114,7 +114,7 @@ public:
   }
 
 private:
-  ClusterGraphT<F> jt_;
+  ClusterGraph<F> jt_;
 }; // class BeliefUpdateCalibrate
 
 } // namespace libgm

@@ -9,7 +9,7 @@
 #include <libgm/factor/probability_table.hpp>
 #include <libgm/factor/probability_vector.hpp>
 #include <libgm/graph/algorithm/elimination_strategies.hpp>
-#include <libgm/graph/factor_graph.hpp>
+#include <libgm/model/factor_graph.hpp>
 #include <libgm/graph/markov_network.hpp>
 #include <libgm/inference/exact/sum_product_calibrate.hpp>
 #include <libgm/inference/variational/mean_field.hpp>
@@ -50,7 +50,7 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   SumProductCalibrate<ProbTable> sp;
 
   MarkovNetworkT<ProbVector, ProbMatrix> exact_mn;
-  FactorGraphT<LogVector, LogTable> mf_fg;
+  FactorGraph<LogVector, LogTable> mf_fg;
   std::vector<Arg> xs;
   std::vector<Arg> ys;
 

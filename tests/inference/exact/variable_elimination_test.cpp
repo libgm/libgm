@@ -4,14 +4,14 @@
 #include <libgm/factor/probability_table.hpp>
 #include <libgm/factor/utility/commutative_semiring.hpp>
 #include <libgm/graph/algorithm/elimination_strategies.hpp>
-#include <libgm/graph/factor_graph.hpp>
+#include <libgm/model/factor_graph.hpp>
 #include <libgm/inference/exact/variable_elimination.hpp>
 #include "mn_fixture.hpp"
 
 namespace libgm {
 
 BOOST_FIXTURE_TEST_CASE(test_grid, Fixture) {
-  FactorGraphT<PTable, PTable> fg(mn, [](auto&& factor) { return factor.table(); });
+  FactorGraph<PTable, PTable> fg(mn, [](auto&& factor) { return factor.table(); });
   MinFillStrategy strategy;
   SumProduct<PTable> semiring;
   VariableElimination<PTable> ve(shape_map, min_fill, sum_product);
@@ -29,7 +29,7 @@ BOOST_FIXTURE_TEST_CASE(test_grid, Fixture) {
       Domain retain{e.source(), e.target()};
       BOOST_CHECK(retain.is_sorted());
 
-      FactorGraphT<PTable, PTable> reduced = fg;
+      FactorGraph<PTable, PTable> reduced = fg;
       PTable via_elimination = ve.eliminate_join(reduced, retain);
       PTable direct = joint.marginal_dims(arguments.dims(retain));
       BOOST_CHECK_SMALL(max_diff(via_elimination, direct), 1e-8);
