@@ -53,7 +53,7 @@ public:
 
   // Graph categories
   //--------------------------------------------------------------------------
-  using directed_category = boost::directed_tag;
+  using directed_category = boost::undirected_tag;
   using edge_parallel_category = boost::disallow_parallel_edge_tag;
   struct traversal_category :
     public virtual boost::vertex_list_graph_tag,
@@ -174,12 +174,6 @@ public:
   /// Returns the first vertex or the null vertex if the graph is empty.
   Vertex* root() const;
 
-  /// Returns the current mark bit for a vertex.
-  bool marked(Vertex* v) const;
-
-  /// Returns the current mark bit for an edge.
-  bool marked(edge_descriptor e) const;
-
   /// Returns an opaque reference to the property associated with a vertex.
   OpaqueRef property(Vertex* u);
 
@@ -243,8 +237,6 @@ protected:
   const Vertex& data(Vertex* u) const;
   Edge& data(edge_descriptor e);
   const Edge& data(edge_descriptor e) const;
-  void set_marked(Vertex* v, bool value);
-  void set_marked(edge_descriptor e, bool value);
 
 private:
   std::unique_ptr<Impl> impl_;

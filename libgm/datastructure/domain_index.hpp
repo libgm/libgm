@@ -2,6 +2,7 @@
 
 #include <libgm/argument/argument.hpp>
 #include <libgm/argument/domain.hpp>
+#include <libgm/datastructure/indexed_domain.hpp>
 #include <libgm/datastructure/intrusive_list.hpp>
 #include <libgm/datastructure/unordered_dense.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
@@ -15,20 +16,21 @@
 namespace libgm {
 
 /**
- * An index over domains that efficiently processes intersection and
- * superset queries. Each domain is associated with a pointer handle
- * that stores that domain.
+ * An index over `IndexedDomain<Item>` values that efficiently processes
+ * intersection and superset queries.
+ *
+ * The index stores adjacency lists over the indexed domains internally,
+ * but its lookup helpers expose the owning `Item*` handles.
  */
-template <typename T>
+template <typename Item>
 class DomainIndex {
   // Public types
   //==========================================================================
 public:
-  /// Maps each element to the vector of containing pointers.
-  using AdjacencyMap = ankerl::unordered_dense::map<Arg, IntrusiveList<T>>;
+  using value_type = IndexedDomain<Item>;
 
-  /// A vector of intrusive list hooks.
-  using HookArray = typename IntrusiveList<T>::HookArray;
+  /// Maps each element to the vector of containing pointers.
+  using AdjacencyMap = ankerl::unordered_dense::map<Arg, IntrusiveList<value_type>>;
 
   /// Iterators over arguments contained in this index.
   /// FIXME: eliminate dead arguments
@@ -60,7 +62,7 @@ public:
    * Returns the number of domains with the specified argument.
    */
   size_t count(Arg arg) const {
-    const IntrusiveList<T>& domains = adjacency(arg);
+    const IntrusiveList<value_type>& domains = adjacency(arg);
     return std::distance(domains.begin(), domains.end());
   }
 
@@ -76,12 +78,12 @@ public:
    * \return the handle or nullptr if no there is no domain containing the argument
    * \throw std::out_of_range if there is no such argument
    */
-  T* operator[](Arg arg) const {
-    return adjacency_.at(arg).front();
+  Item* operator[](Arg arg) const {
+    return adjacency_.at(arg).front()->item();
   }
 
-  const IntrusiveList<T>& adjacency(Arg arg) const {
-    static IntrusiveList<T> empty;
+  const IntrusiveList<value_type>& adjacency(Arg arg) const {
+    static IntrusiveList<value_type> empty;
     auto it = adjacency_.find(arg);
     if (it == adjacency_.end()) {
       return empty;
@@ -97,18 +99,18 @@ public:
    * Inserts a new domain in the index. This function is linear in the number of arguments of the
    * domain. The domain must not be empty, must not be present in the index.
    */
-  void insert(T* item, HookArray& hooks) {
-    const Domain& domain = item->domain();
+  void insert(value_type& item) {
+    const Domain& domain = item.domain();
     for (size_t i = 0; i < domain.size(); ++i) {
-      adjacency_[domain[i]].push_back(item, hooks[i]);
+      adjacency_[domain[i]].push_back(&item, item.hooks[i]);
     }
   }
 
   /// Removes the set with the given handle from the index.
-  void erase(T* item, HookArray& hooks) {
-    const Domain& domain = item->domain();
+  void erase(value_type& item) {
+    const Domain& domain = item.domain();
     for (size_t i = 0; i < domain.size(); ++i) {
-      adjacency_[domain[i]].erase(item, hooks[i]);
+      adjacency_[domain[i]].erase(&item, item.hooks[i]);
     }
   }
 
@@ -121,7 +123,7 @@ public:
   friend std::ostream& operator<<(std::ostream& out, const DomainIndex& index) {
     for (const auto& [arg, items] : index.adjacency_) {
       out << arg << " -->";
-      for (const T* item : items) {
+      for (const value_type* item : items) {
         out << ' ' << item;
       }
       out << std::endl;

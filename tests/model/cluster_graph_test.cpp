@@ -195,21 +195,31 @@ BOOST_FIXTURE_TEST_CASE(test_domain_accessors_and_queries, Fixture) {
 }
 
 BOOST_FIXTURE_TEST_CASE(test_updates_and_removals, Fixture) {
-  cg.update_cluster(v4, {d, e, f});
-  BOOST_CHECK(cg.cluster(v4) == Domain({d, e, f}));
+  cg.update_cluster(v4, {e, f});
+  BOOST_CHECK(cg.cluster(v4) == Domain({e, f}));
+  BOOST_CHECK(!cg.find_cluster_cover({d, f}));
 
-  cg.update_separator(e24, {d});
-  BOOST_CHECK(cg.separator(e24) == Domain({d}));
+  cg.update_separator(e24, {});
+  BOOST_CHECK(cg.separator(e24) == Domain());
+  std::unordered_set<edge_descriptor> separators_with_d = {e23};
+  cg.intersecting_separators({d}, [&](edge_descriptor e) {
+    BOOST_CHECK_EQUAL(separators_with_d.erase(e), 1);
+  });
+  BOOST_CHECK(separators_with_d.empty());
 
   BOOST_CHECK_EQUAL(cg.remove_edge(v1, v3), 0);
   BOOST_CHECK_EQUAL(cg.remove_edge(v1, v2), 1);
   BOOST_CHECK_EQUAL(cg.num_edges(), 2);
+  BOOST_CHECK(!cg.find_separator_cover({b}));
+  BOOST_CHECK(cg.find_separator_cover({c, d}));
 
   cg.clear_vertex(v2);
   BOOST_CHECK_EQUAL(cg.num_edges(), 0);
+  BOOST_CHECK(!cg.find_separator_cover({d}));
 
   cg.remove_vertex(v1);
   BOOST_CHECK_EQUAL(cg.num_vertices(), 3);
+  BOOST_CHECK(!cg.find_cluster_cover({a, b}));
 
   cg.clear();
   BOOST_CHECK(cg.empty());
@@ -245,30 +255,13 @@ BOOST_FIXTURE_TEST_CASE(test_find_and_intersection_queries, Fixture) {
   BOOST_CHECK(seps_with_d.empty());
 }
 
-BOOST_FIXTURE_TEST_CASE(test_merge_and_reachable, Fixture) {
+BOOST_FIXTURE_TEST_CASE(test_merge, Fixture) {
   Fixture::vertex_descriptor retained = cg.merge(e12);
   BOOST_CHECK(retained != nullptr);
   BOOST_CHECK_EQUAL(cg.degree(retained), 2);
   BOOST_CHECK_EQUAL(cg.num_vertices(), 3);
   BOOST_CHECK_EQUAL(cg.num_edges(), 2);
   BOOST_CHECK(cg.cluster(retained) == Domain({a, b, c, d}));
-
-  Arg g = make_arg("g");
-  Arg h = make_arg("h");
-  auto* v5 = cg.add_vertex({g, h});
-  auto e45 = cg.add_edge(v4, v5);
-
-  cg.compute_reachable(false);
-  BOOST_CHECK_EQUAL(cg.reachable(e45), Domain());
-  BOOST_CHECK_EQUAL(cg.reachable(e45.reverse()), Domain());
-
-  cg.compute_reachable(true, {a, g});
-  BOOST_CHECK_EQUAL(cg.reachable(e45), Domain({a}));
-  BOOST_CHECK_EQUAL(cg.reachable(e45.reverse()), Domain({g}));
-
-  cg.mark_subtree_cover({a, g}, true);
-  BOOST_CHECK(cg.marked(v5));
-  BOOST_CHECK(cg.is_tree());
 }
 
 BOOST_AUTO_TEST_CASE(test_triangulated_from_cliques) {

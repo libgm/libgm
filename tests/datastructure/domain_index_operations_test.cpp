@@ -3,6 +3,7 @@
 
 #include <libgm/argument/named_argument.hpp>
 #include <libgm/datastructure/domain_index.hpp>
+#include <libgm/datastructure/indexed_domain.hpp>
 #include <libgm/datastructure/domain_index_operations.hpp>
 
 #include <algorithm>
@@ -18,16 +19,16 @@ constexpr std::size_t n = 100;
 
 struct Item {
   int id;
-  Domain args;
-  IntrusiveList<Item>::HookArray index_hooks;
+  IndexedDomain<Item> index;
 
   Item(int id, Domain args)
     : id(id)
-    , args(std::move(args))
-    , index_hooks(this->args.size()) {}
+    , index(std::move(args)) {
+    index.owner = this;
+  }
 
   const Domain& domain() const {
-    return args;
+    return index.domain();
   }
 };
 
@@ -63,7 +64,7 @@ struct fixture {
     for (size_t i = 0; i < n; ++i) {
       Domain domain = make_random_domain(rng, pool);
       auto item = std::make_unique<Item>(static_cast<int>(i), domain);
-      index.insert(item.get(), item->index_hooks);
+      index.insert(item->index);
       domains.push_back(domain);
       items.push_back(std::move(item));
     }

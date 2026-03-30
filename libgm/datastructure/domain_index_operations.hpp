@@ -4,52 +4,54 @@
 
 namespace libgm {
 
-template <typename T, typename VISITOR>
-void visit_covers(const DomainIndex<T>& index, const Domain& args, VISITOR visitor) {
+template <typename Item, typename VISITOR>
+void visit_covers(const DomainIndex<Item>& index, const Domain& args, VISITOR visitor) {
   assert(!args.empty());
 
   // pick one value and iterate over all domains that contain that value
-  for (T* item : index.adjacency(args.front())) {
-    if (is_subset(args, item->domain())) {
-      visitor(item);
+  for (IndexedDomain<Item>* indexed : index.adjacency(args.front())) {
+    if (is_subset(args, indexed->domain())) {
+      visitor(indexed->item());
     }
   }
 }
 
-template <typename T, typename VISITOR>
-void visit_intersections(const DomainIndex<T>& index, const Domain& args, VISITOR visitor) {
-  ankerl::unordered_dense::set<T*> result;
+template <typename Item, typename VISITOR>
+void visit_intersections(const DomainIndex<Item>& index, const Domain& args, VISITOR visitor) {
+  ankerl::unordered_dense::set<Item*> result;
   for (Arg arg : args) {
-    const auto& items = index.adjacency(arg);
-    result.insert(items.begin(), items.end());
+    for (IndexedDomain<Item>* indexed : index.adjacency(arg)) {
+      result.insert(indexed->item());
+    }
   }
 
-  for (T* item : result) {
+  for (Item* item : result) {
     visitor(item);
   }
 }
 
-template <typename T>
-T* find_max_intersection(const DomainIndex<T>& index, const Domain& args) {
+template <typename Item>
+Item* find_max_intersection(const DomainIndex<Item>& index, const Domain& args) {
   assert(!args.empty());
 
   // A marker of all previously seen items.
-  ankerl::unordered_dense::set<T*> visited;
+  ankerl::unordered_dense::set<Item*> visited;
 
   // determine the maximum intersection
-  T* result = nullptr;
+  Item* result = nullptr;
   size_t max_meet = 0;
   size_t min_size = std::numeric_limits<size_t>::max();
   for (Arg arg : args) {
-    for (T* item : index.adjacency(arg)) {
+    for (IndexedDomain<Item>* indexed : index.adjacency(arg)) {
+      Item* item = indexed->item();
       if (visited.contains(item)) continue;
       visited.insert(item);
 
-      size_t intersection = intersection_size(item->domain(), args);
+      size_t intersection = intersection_size(indexed->domain(), args);
       if (intersection > max_meet ||
-          (intersection == max_meet && item->domain().size() < min_size)) {
+          (intersection == max_meet && indexed->domain().size() < min_size)) {
         max_meet = intersection;
-        min_size = item->domain().size();
+        min_size = indexed->domain().size();
         result = item;
       }
     }
@@ -58,28 +60,28 @@ T* find_max_intersection(const DomainIndex<T>& index, const Domain& args) {
   return result;
 }
 
-template <typename T>
-T* find_min_cover(const DomainIndex<T>& index, const Domain& args) {
+template <typename Item>
+Item* find_min_cover(const DomainIndex<Item>& index, const Domain& args) {
   assert(!args.empty());
 
   size_t min_size = std::numeric_limits<size_t>::max();
-  T* result = nullptr;
-  for (T* item : index.adjacency(args.front())) {
-    if (item->domain().size() < min_size && is_subset(args, item->domain())) {
-      min_size = item->domain().size();
-      result = item;
+  Item* result = nullptr;
+  for (IndexedDomain<Item>* indexed : index.adjacency(args.front())) {
+    if (indexed->domain().size() < min_size && is_subset(args, indexed->domain())) {
+      min_size = indexed->domain().size();
+      result = indexed->item();
     }
   }
   return result;
 }
 
-template <typename T>
-bool is_maximal(const DomainIndex<T>& index, const Domain& args) {
+template <typename Item>
+bool is_maximal(const DomainIndex<Item>& index, const Domain& args) {
   assert(!args.empty());
 
   // pick one argument and iterate over all sets that contain that argument
-  for (T* item : index.adjacency(args.front())) {
-    if (is_subset(args, item->domain())) {
+  for (IndexedDomain<Item>* indexed : index.adjacency(args.front())) {
+    if (is_subset(args, indexed->domain())) {
       return false;
     }
   }

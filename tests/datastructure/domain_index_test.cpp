@@ -3,6 +3,7 @@
 
 #include <libgm/argument/named_argument.hpp>
 #include <libgm/datastructure/domain_index.hpp>
+#include <libgm/datastructure/indexed_domain.hpp>
 
 #include <algorithm>
 #include <stdexcept>
@@ -14,16 +15,12 @@ namespace {
 
 struct Item {
   int id;
-  Domain args;
-  IntrusiveList<Item>::HookArray index_hooks;
+  IndexedDomain<Item> index;
 
   Item(int id, Domain args)
     : id(id)
-    , args(std::move(args))
-    , index_hooks(this->args.size()) {}
-
-  const Domain& domain() const {
-    return args;
+    , index(std::move(args)) {
+    index.owner = this;
   }
 };
 
@@ -44,9 +41,9 @@ BOOST_AUTO_TEST_CASE(test_domain_index_class_basics) {
   Item z(3, Domain({c}));
 
   DomainIndex<Item> index;
-  index.insert(&x, x.index_hooks);
-  index.insert(&y, y.index_hooks);
-  index.insert(&z, z.index_hooks);
+  index.insert(x.index);
+  index.insert(y.index);
+  index.insert(z.index);
 
   BOOST_CHECK_EQUAL(index.count(a), 1);
   BOOST_CHECK_EQUAL(index.count(b), 2);
@@ -59,8 +56,8 @@ BOOST_AUTO_TEST_CASE(test_domain_index_class_basics) {
 
   {
     std::vector<int> ids;
-    for (const Item* item : index.adjacency(b)) {
-      ids.push_back(item->id);
+    for (const IndexedDomain<Item>* indexed : index.adjacency(b)) {
+      ids.push_back(indexed->item()->id);
     }
     std::sort(ids.begin(), ids.end());
     BOOST_CHECK(ids == std::vector<int>({1, 2}));
@@ -73,14 +70,14 @@ BOOST_AUTO_TEST_CASE(test_domain_index_class_basics) {
     BOOST_CHECK(args == Domain({a, b, c}));
   }
 
-  index.erase(&y, y.index_hooks);
+  index.erase(y.index);
   BOOST_CHECK_EQUAL(index.count(b), 1);
   BOOST_CHECK_EQUAL(index.count(c), 1);
 
   {
     std::vector<int> ids;
-    for (const Item* item : index.adjacency(b)) {
-      ids.push_back(item->id);
+    for (const IndexedDomain<Item>* indexed : index.adjacency(b)) {
+      ids.push_back(indexed->item()->id);
     }
     BOOST_CHECK(ids == std::vector<int>({1}));
   }
@@ -102,9 +99,9 @@ BOOST_AUTO_TEST_CASE(test_domain_index_swap_and_empty_domain_insert) {
 
   DomainIndex<Item> left;
   DomainIndex<Item> right;
-  left.insert(&x, x.index_hooks);
-  right.insert(&y, y.index_hooks);
-  left.insert(&e, e.index_hooks); // Empty domain: no adjacency entries.
+  left.insert(x.index);
+  right.insert(y.index);
+  left.insert(e.index); // Empty domain: no adjacency entries.
 
   BOOST_CHECK_EQUAL(left.count(a), 1);
   BOOST_CHECK_EQUAL(right.count(c), 1);

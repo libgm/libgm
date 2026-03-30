@@ -15,7 +15,6 @@ struct UndirectedGraph::Vertex {
   const Impl* impl;
   size_t index = static_cast<size_t>(-1);
   boost::default_color_type color = boost::white_color;
-  bool marked = false;
   size_t degree = 0;
   IntrusiveList<Edge> adjacency;
   IntrusiveList<Vertex>::Hook hook;
@@ -28,14 +27,13 @@ struct UndirectedGraph::Vertex {
 };
 
 std::ostream& operator<<(std::ostream& out, UndirectedGraph::Vertex* v) {
-  out << static_cast<void*>(v) << '(' << v->marked << ')';
+  out << static_cast<void*>(v);
   return out;
 }
 
 struct UndirectedGraph::Edge {
   IntrusiveEdge<Vertex, Edge>::Connectivity connectivity;
   Impl* impl;
-  bool marked = false;
   IntrusiveList<Edge>::Hook hook;
 
   template <typename Archive>
@@ -63,7 +61,7 @@ struct UndirectedGraph::Edge {
 };
 
 std::ostream& operator<<(std::ostream& out, UndirectedGraph::Edge* e) {
-  out << static_cast<void*>(e) << '(' << e->marked << ')';
+  out << static_cast<void*>(e);
   return out;
 }
 
@@ -184,7 +182,6 @@ struct UndirectedGraph::Impl {
     for (Vertex* src : vertices) {
       Vertex* dst = result->add_vertex();
       dst->color = src->color;
-      dst->marked = src->marked;
       vertex_property_layout.destroy_and_copy_construct(dst, src);
       vmap.emplace(src, dst);
     }
@@ -193,7 +190,6 @@ struct UndirectedGraph::Impl {
       Vertex* u = vmap.at(src->u());
       Vertex* v = vmap.at(src->v());
       Edge* dst = result->add_edge(u, v);
-      dst->marked = src->marked;
       edge_property_layout.destroy_and_copy_construct(dst, src);
     }
 
@@ -261,14 +257,6 @@ UndirectedGraph::Edge& UndirectedGraph::data(edge_descriptor e) {
 const UndirectedGraph::Edge& UndirectedGraph::data(edge_descriptor e) const {
   assert(e);
   return *e.get();
-}
-
-void UndirectedGraph::set_marked(Vertex* v, bool value) {
-  v->marked = value;
-}
-
-void UndirectedGraph::set_marked(edge_descriptor e, bool value) {
-  e->marked = value;
 }
 
 UndirectedGraph::VertexIndexMap UndirectedGraph::vertex_index_map() {
@@ -342,14 +330,6 @@ size_t UndirectedGraph::degree(Vertex* u) const {
 
 UndirectedGraph::Vertex* UndirectedGraph::root() const {
   return empty() ? nullptr : *vertices().begin();
-}
-
-bool UndirectedGraph::marked(Vertex* v) const {
-  return v->marked;
-}
-
-bool UndirectedGraph::marked(edge_descriptor e) const {
-  return e->marked;
 }
 
 OpaqueRef UndirectedGraph::property(Vertex* u) {

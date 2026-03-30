@@ -3,6 +3,7 @@
 #include <libgm/argument/domain.hpp>
 #include <libgm/datastructure/domain_index.hpp>
 #include <libgm/datastructure/domain_index_operations.hpp>
+#include <libgm/datastructure/indexed_domain.hpp>
 #include <libgm/factor/utility/annotated.hpp>
 #include <libgm/graph/algorithm/elimination_strategies.hpp>
 #include <libgm/graph/markov_network.hpp>
@@ -19,7 +20,6 @@
 #include <boost/property_map/function_property_map.hpp>
 
 #include <algorithm>
-#include <array>
 #include <cassert>
 #include <ranges>
 #include <stdexcept>
@@ -29,65 +29,12 @@
 
 namespace libgm {
 
-template <typename Item>
-struct IndexedDomain {
-  /// The owning graph item.
-  Item* owner = nullptr;
-
-  /// The stored domain.
-  Domain args;
-
-  /// Hooks used by the domain index.
-  typename IntrusiveList<IndexedDomain<Item>>::HookArray hooks;
-
-  IndexedDomain() = default;
-
-  explicit IndexedDomain(Domain args)
-    : args(std::move(args)),
-      hooks(this->args.size()) {}
-
-  IndexedDomain(const IndexedDomain& other)
-    : owner(other.owner),
-      args(other.args),
-      hooks(args.size()) {}
-
-  IndexedDomain& operator=(const IndexedDomain& other) {
-    if (this != &other) {
-      owner = other.owner;
-      args = other.args;
-      hooks.reset(args.size());
-    }
-    return *this;
-  }
-
-  IndexedDomain(IndexedDomain&&) noexcept = default;
-  IndexedDomain& operator=(IndexedDomain&&) noexcept = default;
-
-  const Domain& domain() const {
-    return args;
-  }
-
-  void reset(Domain new_args) {
-    args = std::move(new_args);
-    hooks.reset(args.size());
-  }
-
-  template <typename Archive>
-  void serialize(Archive& ar) {
-    ar(cereal::make_nvp("domain", args));
-    if constexpr (Archive::is_loading::value) {
-      hooks.reset(args.size());
-    }
-  }
-};
-
 template <typename VP = void, typename EP = VP>
 class ClusterGraph : private UndirectedGraph {
   using VertexDomain = IndexedDomain<UndirectedGraph::Vertex>;
   using EdgeDomain = IndexedDomain<UndirectedGraph::Edge>;
   using VertexAnnotation = Annotated<VertexDomain, VP>;
   using EdgeAnnotation = Annotated<EdgeDomain, EP>;
-  using ReachableMap = ankerl::unordered_dense::map<UndirectedGraph::Edge*, std::array<Domain, 2>>;
 
 public:
   /// The underlying graph vertex type.
@@ -114,7 +61,6 @@ public:
   using UndirectedGraph::in_edges;
   using UndirectedGraph::is_connected;
   using UndirectedGraph::is_tree;
-  using UndirectedGraph::marked;
   using UndirectedGraph::mpp_traversal;
   using UndirectedGraph::null_vertex;
   using UndirectedGraph::num_edges;
@@ -125,6 +71,9 @@ public:
   using UndirectedGraph::post_order_traversal;
   using UndirectedGraph::pre_order_traversal;
   using UndirectedGraph::property;
+  using UndirectedGraph::remove_edge;
+  using UndirectedGraph::remove_edges;
+  using UndirectedGraph::remove_vertex;
   using UndirectedGraph::root;
   using UndirectedGraph::traversal_category;
   using UndirectedGraph::vertex_color_map;
@@ -133,8 +82,9 @@ public:
   using UndirectedGraph::vertex_iterator;
   using UndirectedGraph::vertices_size_type;
   using UndirectedGraph::vertices;
+  using UndirectedGraph::clear_vertex;
   /// Iterator over arguments present in the cluster index.
-  using argument_iterator = DomainIndex<VertexDomain>::argument_iterator;
+  using argument_iterator = DomainIndex<Vertex>::argument_iterator;
 
   /// Visitor over cluster vertices.
   using VertexVisitor = std::function<void(vertex_descriptor)>;
@@ -160,7 +110,6 @@ public:
   ClusterGraph(const ClusterGraph& other)
     : UndirectedGraph(other) {
     rebuild_indices();
-    copy_reachable(other);
   }
 
   ClusterGraph(ClusterGraph&& other) noexcept = default;
@@ -169,7 +118,6 @@ public:
     if (this != &other) {
       UndirectedGraph::operator=(other);
       rebuild_indices();
-      copy_reachable(other);
     }
     return *this;
   }
@@ -201,11 +149,6 @@ public:
   /// Returns the separator domain associated with an edge.
   const Domain& separator(edge_descriptor e) const {
     return edge_annotation(e).value.domain();
-  }
-
-  /// Returns the cached reachable domain in the direction of `e`.
-  const Domain& reachable(edge_descriptor e) const {
-    return reachable_.at(e.get())[e.index()];
   }
 
   /// Returns the shape of the cluster at a vertex.
@@ -278,7 +221,7 @@ public:
 
     for (Arg x : cluster_index_.arguments()) {
       size_t n = cluster_index_.count(x);
-      Vertex* v = cluster_index_[x]->owner;
+      Vertex* v = cluster_index_[x];
 
       size_t nreachable = 0;
       struct Visitor : boost::default_bfs_visitor {
@@ -332,96 +275,36 @@ public:
 
   /// Returns a cluster whose domain covers `dom`, or the null vertex.
   Vertex* find_cluster_cover(const Domain& dom) const {
-    VertexDomain* domain = find_min_cover(cluster_index_, dom);
-    return domain ? domain->owner : nullptr;
+    return find_min_cover(cluster_index_, dom);
   }
 
   /// Returns a separator whose domain covers `dom`, or the null edge.
   edge_descriptor find_separator_cover(const Domain& dom) const {
-    EdgeDomain* domain = find_min_cover(separator_index_, dom);
-    return domain ? edge_descriptor(domain->owner) : edge_descriptor();
+    Edge* edge = find_min_cover(separator_index_, dom);
+    return edge ? edge_descriptor(edge) : edge_descriptor();
   }
 
   /// Returns a cluster whose domain best intersects `dom`.
   Vertex* find_cluster_meets(const Domain& dom) const {
-    VertexDomain* domain = find_max_intersection(cluster_index_, dom);
-    return domain ? domain->owner : nullptr;
+    return find_max_intersection(cluster_index_, dom);
   }
 
   /// Returns a separator whose domain best intersects `dom`.
   edge_descriptor find_separator_meets(const Domain& dom) const {
-    EdgeDomain* domain = find_max_intersection(separator_index_, dom);
-    return domain ? edge_descriptor(domain->owner) : edge_descriptor();
+    Edge* edge = find_max_intersection(separator_index_, dom);
+    return edge ? edge_descriptor(edge) : edge_descriptor();
   }
 
   /// Visits all clusters intersecting `dom`.
   void intersecting_clusters(const Domain& dom, VertexVisitor visitor) const {
-    visit_intersections(cluster_index_, dom, [&](VertexDomain* domain) {
-      visitor(domain->owner);
-    });
+    visit_intersections(cluster_index_, dom, std::move(visitor));
   }
 
   /// Visits all separators intersecting `dom`.
   void intersecting_separators(const Domain& dom, ModelEdgeVisitor visitor) const {
-    visit_intersections(separator_index_, dom, [&](EdgeDomain* domain) {
-      visitor(edge_descriptor(domain->owner));
+    visit_intersections(separator_index_, dom, [&](Edge* edge) {
+      visitor(edge_descriptor(edge));
     });
-  }
-
-  /// Computes reachable domains on a tree, optionally stopping at empty separators.
-  void compute_reachable(bool past_empty) {
-    mpp_traversal(root(), ReachableVisitor(*this, past_empty));
-  }
-
-  /// Computes reachable domains and intersects them with `filter`.
-  void compute_reachable(bool past_empty, const Domain& filter) {
-    ankerl::unordered_dense::set<Arg> set(filter.begin(), filter.end());
-    mpp_traversal(root(), ReachableVisitor(*this, past_empty, &set));
-  }
-
-  /// Marks the smallest subtree or subforest covering `domain`.
-  void mark_subtree_cover(const Domain& domain, bool force_continuous) {
-    if (empty()) {
-      return;
-    }
-
-    for (Vertex* v : vertices()) {
-      set_marked(v, false);
-    }
-    for (edge_descriptor e : edges()) {
-      set_marked(e, false);
-    }
-
-    compute_reachable(force_continuous, domain);
-
-    ankerl::unordered_dense::set<Arg> cover;
-    for (edge_descriptor e : edges()) {
-      Vertex* u = e.source();
-      Vertex* v = e.target();
-      const Domain& r1 = reachable(e);
-      const Domain& r2 = reachable(e.reverse());
-      if (!is_subset(r1, r2) && !is_subset(r2, r1)) {
-        set_marked(e, true);
-        set_marked(u, true);
-        set_marked(v, true);
-        cover.insert(cluster(u).begin(), cluster(u).end());
-        cover.insert(cluster(v).begin(), cluster(v).end());
-      }
-    }
-
-    Domain uncovered;
-    for (Arg x : domain) {
-      if (!cover.count(x)) {
-        uncovered.push_back(x);
-      }
-    }
-
-    while (!uncovered.empty()) {
-      Vertex* v = find_cluster_meets(uncovered);
-      assert(v);
-      uncovered -= cluster(v);
-      set_marked(v, true);
-    }
   }
 
   // Modifications
@@ -432,7 +315,7 @@ public:
     Vertex* v = UndirectedGraph::add_vertex();
     vertex_annotation(v).value.owner = v;
     vertex_annotation(v).value.reset(std::move(cluster));
-    cluster_index_.insert(&vertex_annotation(v).value, vertex_annotation(v).value.hooks);
+    cluster_index_.insert(vertex_annotation(v).value);
     return v;
   }
 
@@ -453,8 +336,7 @@ public:
     edge_descriptor e = UndirectedGraph::add_edge(u, v);
     edge_annotation(e).value.owner = e.get();
     edge_annotation(e).value.reset(std::move(separator));
-    separator_index_.insert(&edge_annotation(e).value, edge_annotation(e).value.hooks);
-    reachable_.emplace(e.get(), std::array<Domain, 2>{});
+    separator_index_.insert(edge_annotation(e).value);
     return e;
   }
 
@@ -482,20 +364,18 @@ public:
   /// Updates the cluster domain associated with a vertex.
   void update_cluster(Vertex* u, const Domain& cluster) {
     if (this->cluster(u) != cluster) {
-      cluster_index_.erase(&vertex_annotation(u).value, vertex_annotation(u).value.hooks);
       vertex_annotation(u).value.owner = u;
       vertex_annotation(u).value.reset(cluster);
-      cluster_index_.insert(&vertex_annotation(u).value, vertex_annotation(u).value.hooks);
+      cluster_index_.insert(vertex_annotation(u).value);
     }
   }
 
   /// Updates the separator domain associated with an edge.
   void update_separator(edge_descriptor e, const Domain& separator) {
     if (this->separator(e) != separator) {
-      separator_index_.erase(&edge_annotation(e).value, edge_annotation(e).value.hooks);
       edge_annotation(e).value.owner = e.get();
       edge_annotation(e).value.reset(separator);
-      separator_index_.insert(&edge_annotation(e).value, edge_annotation(e).value.hooks);
+      separator_index_.insert(edge_annotation(e).value);
     }
   }
 
@@ -518,58 +398,11 @@ public:
     return v;
   }
 
-  /// Removes a vertex and its associated cluster.
-  void remove_vertex(Vertex* u) {
-    cluster_index_.erase(&vertex_annotation(u).value, vertex_annotation(u).value.hooks);
-    clear_vertex(u);
-    UndirectedGraph::remove_vertex(u);
-  }
-
-  /// Removes an edge and its associated separator. Returns 1 if removed.
-  size_t remove_edge(edge_descriptor e) {
-    if (!contains(e)) {
-      return 0;
-    }
-    separator_index_.erase(&edge_annotation(e).value, edge_annotation(e).value.hooks);
-    reachable_.erase(e.get());
-    return UndirectedGraph::remove_edge(e);
-  }
-
-  /// Removes the edge between `u` and `v`. Returns 1 if removed.
-  size_t remove_edge(Vertex* u, Vertex* v) {
-    if (!contains(u) || !contains(v)) {
-      return 0;
-    }
-    for (edge_descriptor e : out_edges(u)) {
-      if (e.target() == v) {
-        return remove_edge(e);
-      }
-    }
-    return 0;
-  }
-
-  /// Removes all separators incident to `u`.
-  void clear_vertex(Vertex* u) {
-    std::vector<edge_descriptor> incident(out_edges(u).begin(), out_edges(u).end());
-    for (edge_descriptor e : incident) {
-      remove_edge(e);
-    }
-  }
-
-  /// Removes all separators from the graph.
-  void remove_edges() {
-    std::vector<edge_descriptor> all_edges(edges().begin(), edges().end());
-    for (edge_descriptor e : all_edges) {
-      remove_edge(e);
-    }
-  }
-
   /// Removes all clusters, separators, and index state.
   void clear() {
     UndirectedGraph::clear();
     cluster_index_.clear();
     separator_index_.clear();
-    reachable_.clear();
   }
 
   // Triangulation
@@ -640,7 +473,7 @@ public:
 
     ar(cereal::make_size_tag(num_vertices()));
     for (Vertex* v : vertices()) {
-      ar(cereal::make_nvp("cluster", vertex_annotation(v).value));
+      ar(vertex_annotation(v).value);
       if constexpr (!std::is_void_v<VP>) {
         ar(cereal::make_nvp("property", operator[](v)));
       }
@@ -648,7 +481,7 @@ public:
 
     ar(cereal::make_size_tag(num_edges()));
     for (edge_descriptor e : edges()) {
-      ar(cereal::make_nvp("separator", edge_annotation(e).value));
+      ar(edge_annotation(e).value);
       if constexpr (!std::is_void_v<EP>) {
         ar(cereal::make_nvp("property", operator[](e)));
       }
@@ -665,9 +498,10 @@ public:
 
     cluster_index_.clear();
     for (Vertex* v : vertices()) {
-      ar(cereal::make_nvp("cluster", vertex_annotation(v).value));
-      vertex_annotation(v).value.owner = v;
-      cluster_index_.insert(&vertex_annotation(v).value, vertex_annotation(v).value.hooks);
+      VertexDomain& indexed_cluster = vertex_annotation(v).value;
+      ar(indexed_cluster);
+      indexed_cluster.owner = v;
+      cluster_index_.insert(indexed_cluster);
       if constexpr (!std::is_void_v<VP>) {
         ar(cereal::make_nvp("property", operator[](v)));
       }
@@ -678,12 +512,11 @@ public:
     assert(edge_count == num_edges());
 
     separator_index_.clear();
-    reachable_.clear();
     for (edge_descriptor e : edges()) {
-      ar(cereal::make_nvp("separator", edge_annotation(e).value));
-      edge_annotation(e).value.owner = e.get();
-      separator_index_.insert(&edge_annotation(e).value, edge_annotation(e).value.hooks);
-      reachable_.emplace(e.get(), std::array<Domain, 2>{});
+      EdgeDomain& indexed_separator = edge_annotation(e).value;
+      ar(indexed_separator);
+      indexed_separator.owner = e.get();
+      separator_index_.insert(indexed_separator);
       if constexpr (!std::is_void_v<EP>) {
         ar(cereal::make_nvp("property", operator[](e)));
       }
@@ -691,39 +524,6 @@ public:
   }
 
 private:
-  class ReachableVisitor {
-  public:
-    ReachableVisitor(ClusterGraph& graph, bool propagate_past_empty, const ankerl::unordered_dense::set<Arg>* filter = nullptr)
-      : graph_(graph),
-        propagate_past_empty_(propagate_past_empty),
-        filter_(filter) {}
-
-    void operator()(edge_descriptor e) const {
-      Domain r;
-      if (!graph_.separator(e).empty() || propagate_past_empty_) {
-        for (Arg x : graph_.cluster(e.source())) {
-          if (!filter_ || filter_->count(x)) {
-            r.push_back(x);
-          }
-        }
-
-        for (edge_descriptor out : graph_.out_edges(e.source())) {
-          if (out.target() != e.target()) {
-            r.append(graph_.reachable_.at(out.get())[!out.index()]);
-          }
-        }
-        r.unique();
-      }
-
-      graph_.reachable_[e.get()][e.index()] = std::move(r);
-    }
-
-  private:
-    ClusterGraph& graph_;
-    bool propagate_past_empty_;
-    const ankerl::unordered_dense::set<Arg>* filter_;
-  };
-
   VertexAnnotation& vertex_annotation(Vertex* v) {
     return opaque_cast<VertexAnnotation>(UndirectedGraph::property(v));
   }
@@ -743,30 +543,19 @@ private:
   void rebuild_indices() {
     cluster_index_.clear();
     separator_index_.clear();
-    reachable_.clear();
 
     for (Vertex* v : vertices()) {
       vertex_annotation(v).value.owner = v;
-      cluster_index_.insert(&vertex_annotation(v).value, vertex_annotation(v).value.hooks);
+      cluster_index_.insert(vertex_annotation(v).value);
     }
     for (edge_descriptor e : edges()) {
       edge_annotation(e).value.owner = e.get();
-      separator_index_.insert(&edge_annotation(e).value, edge_annotation(e).value.hooks);
-      reachable_.emplace(e.get(), std::array<Domain, 2>{});
+      separator_index_.insert(edge_annotation(e).value);
     }
   }
 
-  void copy_reachable(const ClusterGraph& other) {
-    auto src = other.edges().begin();
-    auto dst = edges().begin();
-    for (; src != other.edges().end() && dst != edges().end(); ++src, ++dst) {
-      reachable_[*dst] = other.reachable_.at(*src);
-    }
-  }
-
-  DomainIndex<VertexDomain> cluster_index_;
-  DomainIndex<EdgeDomain> separator_index_;
-  ReachableMap reachable_;
+  DomainIndex<Vertex> cluster_index_;
+  DomainIndex<Edge> separator_index_;
 };
 
 } // namespace libgm
