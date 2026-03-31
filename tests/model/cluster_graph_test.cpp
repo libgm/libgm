@@ -183,7 +183,7 @@ BOOST_FIXTURE_TEST_CASE(test_domain_accessors_and_queries, Fixture) {
   BOOST_CHECK(cg.has_running_intersection());
   BOOST_CHECK(cg.is_triangulated());
 
-  MarkovNetwork mn = cg.markov_network();
+  MarkovNetwork<void> mn = cg.markov_network();
   BOOST_CHECK_EQUAL(mn.num_vertices(), 6);
   BOOST_CHECK(mn.contains(a, b));
   BOOST_CHECK(mn.contains(b, c));
@@ -295,7 +295,7 @@ BOOST_AUTO_TEST_CASE(test_triangulated_from_markov_network) {
   std::vector<Arg> vertices = {a, b, c, d, e, f};
   std::vector<std::pair<Arg, Arg>> edges = {{a, b}, {b, c}, {c, d}, {a, d}, {d, e}, {d, f}, {e, f}};
 
-  MarkovNetwork mn;
+  MarkovNetwork<void> mn;
   for (Arg v : vertices) {
     mn.add_vertex(v);
   }
@@ -304,7 +304,8 @@ BOOST_AUTO_TEST_CASE(test_triangulated_from_markov_network) {
   }
 
   ClusterGraph<> jt;
-  jt.triangulated(mn, MinDegreeStrategy());
+  MarkovStructure mg = mn.structure();
+  jt.triangulated(mg, MinDegreeStrategy());
 
   BOOST_CHECK(jt.num_vertices() > 0);
   BOOST_CHECK_EQUAL(jt.num_edges(), jt.num_vertices() - 1);

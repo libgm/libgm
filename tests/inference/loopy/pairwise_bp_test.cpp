@@ -27,7 +27,7 @@ using BP = PairwiseBeliefPropagation<ProbVector, ProbMatrix>;
 void test(
     PairwiseBeliefSchedule<ProbVector>& schedule,
     BP& engine,
-    const MarkovNetworkT<ProbVector, ProbMatrix>& mn,
+    const MarkovNetwork<ProbVector, ProbMatrix>& mn,
     const SumProductCalibrate<ProbTable>& sp,
     size_t niters,
     double residual_error,
@@ -41,28 +41,26 @@ void test(
   BOOST_CHECK_LT(residual, residual_error);
 
   double node_diff = 0.0;
-  for (Arg u : mn.vertices()) {
+  for (auto* v : mn.vertices()) {
+    Arg u = mn.argument(v);
     ProbVector exact = sp.belief(Domain{u}).vector();
     node_diff += engine.belief(u).sum_diff(exact);
   }
   BOOST_CHECK_LT(node_diff / mn.num_vertices(), node_error);
 
   double edge_diff = 0.0;
-  for (Arg u : mn.vertices()) {
-    for (auto e : mn.out_edges(u)) {
-      if (e.is_nominal()) {
-        ProbMatrix exact = sp.belief(Domain{e.source(), e.target()}).matrix();
-        edge_diff += engine.belief(e).sum_diff(exact);
-      }
-    }
+  for (auto e : mn.edges()) {
+    ProbMatrix exact = sp.belief(mn.domain(e)).matrix();
+    edge_diff += engine.belief(e).sum_diff(exact);
   }
   BOOST_CHECK_LT(edge_diff / mn.num_edges(), edge_error);
 
   double consistency_diff = 0.0;
   size_t consistency_terms = 0;
-  for (Arg u : mn.vertices()) {
+  for (auto* v : mn.vertices()) {
+    Arg u = mn.argument(v);
     ProbVector node_belief = engine.belief(u);
-    for (auto e : mn.in_edges(u)) {
+    for (auto e : mn.in_edges(v)) {
       ProbVector edge_belief = engine.belief(e).marginal_back(1);
       consistency_diff += node_belief.sum_diff(edge_belief);
       ++consistency_terms;
@@ -83,7 +81,7 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
 
   auto mn = make_grid_graph<ProbVector, ProbMatrix>(rows, cols, make_argument);
   SumProductCalibrate<ProbTable> sp;
-  sp.reset(mn.without_properties(), strategy, shape_map);
+  sp.reset(mn.structure(), strategy, shape_map);
 
   UniformVectorGenerator<double> unary_gen(0.1, 1.0);
   mn.init_vertices([&](Arg arg) {
@@ -93,9 +91,9 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   });
 
   DiagonalMatrixGenerator<std::uniform_real_distribution<double>> pairwise_gen(0.1, 0.2, 1.0);
-  mn.init_edges([&](UndirectedEdge<Arg> e) {
+  mn.init_edges([&](auto e) {
     ProbMatrix factor(pairwise_gen(2, rng));
-    sp.multiply_in({e.source(), e.target()}, factor.table());
+    sp.multiply_in(mn.domain(e), factor.table());
     return factor;
   });
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <libgm/datastructure/mutable_queue.hpp>
-#include <libgm/graph/markov_network.hpp>
+#include <libgm/model/markov_network.hpp>
 #include <libgm/inference/belief_defs.hpp>
 #include <libgm/inference/loopy/pairwise_bp.hpp>
 
@@ -33,6 +33,7 @@ template <typename F>
 class SynchronousPropagationSchedule : public PairwiseBeliefSchedule<F> {
 public:
   using real_type = typename F::real_type;
+  using edge_descriptor = typename PairwiseBeliefState<F>::edge_descriptor;
 
   explicit SynchronousPropagationSchedule(PairwiseBeliefState<F>& state, BeliefUpdate<F> update, BeliefDiff<F> diff)
     : state_(state), update_(std::move(update)), diff_(std::move(diff)) {}
@@ -51,9 +52,9 @@ public:
 
   real_type iterate() override {
     real_type residual(0);
-    const MarkovNetwork& mn = state_.graph();
-    for (Arg arg : mn.vertices()) {
-      for (auto e : mn.in_edges(arg)) {
+    const UndirectedGraph& graph = state_.graph();
+    for (auto v : graph.vertices()) {
+      for (auto e : graph.in_edges(v)) {
         F& cur_message = messages_[e];
         F new_message = state_.compute_message(e);
         residual += diff_(cur_message, new_message);
@@ -61,14 +62,14 @@ public:
       }
     }
     state_.swap(messages_);
-    return residual / mn.num_edges() / 2;
+    return residual / graph.num_edges() / 2;
   }
 
 private:
   PairwiseBeliefState<F>& state_;
   BeliefUpdate<F> update_;
   BeliefDiff<F> diff_;
-  ankerl::unordered_dense::map<UndirectedEdge<Arg>, F> messages_;
+  ankerl::unordered_dense::map<edge_descriptor, F> messages_;
 };
 
 /**
@@ -77,6 +78,7 @@ private:
 template <typename F>
 struct AsynchronousPropagationSchedule : PairwiseBeliefSchedule<F> {
   using real_type = typename F::real_type;
+  using edge_descriptor = typename PairwiseBeliefState<F>::edge_descriptor;
 
   explicit AsynchronousPropagationSchedule(PairwiseBeliefState<F>& state, BeliefUpdate<F> update, BeliefDiff<F> diff)
     : state_(state), update_(std::move(update)), diff_(std::move(diff)) {}
@@ -91,16 +93,16 @@ struct AsynchronousPropagationSchedule : PairwiseBeliefSchedule<F> {
 
   real_type iterate() override {
     real_type residual(0);
-    const MarkovNetwork& mn = state_.graph();
-    for (Arg arg : mn.vertices()) {
-      for (auto e : mn.in_edges(arg)) {
+    const UndirectedGraph& graph = state_.graph();
+    for (auto v : graph.vertices()) {
+      for (auto e : graph.in_edges(v)) {
         F& cur_message = state_.message(e);
         F new_message = state_.compute_message(e);
         residual += diff_(cur_message, new_message);
         update_(cur_message, std::move(new_message));
       }
     }
-    return residual / mn.num_edges() / 2;
+    return residual / graph.num_edges() / 2;
   }
 
   PairwiseBeliefState<F>& state_;
@@ -114,6 +116,7 @@ struct AsynchronousPropagationSchedule : PairwiseBeliefSchedule<F> {
 template <typename F>
 struct ResidualPropagationSchedule : PairwiseBeliefSchedule<F> {
   using real_type = typename F::real_type;
+  using edge_descriptor = typename PairwiseBeliefState<F>::edge_descriptor;
 
   explicit ResidualPropagationSchedule(PairwiseBeliefState<F>& state, BeliefUpdate<F> update, BeliefDiff<F> diff)
     : state_(state), update_(std::move(update)), diff_(std::move(diff)) {}
@@ -132,7 +135,7 @@ struct ResidualPropagationSchedule : PairwiseBeliefSchedule<F> {
     if (residuals_.empty()) return real_type(0);
 
     // extract the leading candidate edge
-    UndirectedEdge<Arg> e = residuals_.pop().first;
+    edge_descriptor e = residuals_.pop().first;
 
     // update the message
     F& cur_message = state_.message(e);
@@ -157,9 +160,9 @@ struct ResidualPropagationSchedule : PairwiseBeliefSchedule<F> {
   real_type expected_residual(real_type n = real_type(0)) const {
     real_type numer(0);
     real_type denom(0);
-    const MarkovNetwork& mn = state_.graph();
-    for (Arg arg : mn.vertices()) {
-      for (auto e : mn.out_edges(arg)) {
+    const UndirectedGraph& graph = state_.graph();
+    for (auto v : graph.vertices()) {
+      for (auto e : graph.out_edges(v)) {
         real_type r = residual(e);
         numer += std::pow(r, n + 1);
         denom += std::pow(r, n);
@@ -173,9 +176,9 @@ struct ResidualPropagationSchedule : PairwiseBeliefSchedule<F> {
    */
   real_type maximum_residual() const {
     real_type result(0);
-    const MarkovNetwork& mn = state_.graph();
-    for (Arg arg : mn.vertices()) {
-      for (auto e : mn.out_edges(arg)) {
+    const UndirectedGraph& graph = state_.graph();
+    for (auto v : graph.vertices()) {
+      for (auto e : graph.out_edges(v)) {
         result = std::max(result, residual(e));
       }
     }
@@ -184,24 +187,24 @@ struct ResidualPropagationSchedule : PairwiseBeliefSchedule<F> {
 
 private:
   void initialize_residuals() {
-    const MarkovNetwork& mn = state_.graph();
+    const UndirectedGraph& graph = state_.graph();
 
     // Pass the flow along each directed edge
-    for (Arg arg : mn.vertices()) {
-      for (auto e : mn.in_edges(arg)) {
+    for (auto v : graph.vertices()) {
+      for (auto e : graph.in_edges(v)) {
         state_.message(e) = state_.compute_message(e);
       }
     }
 
     // Compute the residuals
-    for (Arg arg : mn.vertices()) {
-      for (auto e : mn.in_edges(arg)) {
+    for (auto v : graph.vertices()) {
+      for (auto e : graph.in_edges(v)) {
         update_residual(e);
       }
     }
   }
 
-  void update_residual(UndirectedEdge<Arg> e) {
+  void update_residual(edge_descriptor e) {
     real_type r = diff_(state_.message(e), state_.compute_message(e));
     if (!residuals_.contains(e)) {
       residuals_.push(e, r);
@@ -210,14 +213,14 @@ private:
     }
   }
 
-  real_type residual(UndirectedEdge<Arg> e) const {
+  real_type residual(edge_descriptor e) const {
     return residuals_.contains(e) ? residuals_.get(e) : real_type(0);
   }
 
   PairwiseBeliefState<F>& state_;
   BeliefUpdate<F> update_;
   BeliefDiff<F> diff_;
-  MutableQueue<UndirectedEdge<Arg>, real_type> residuals_;
+  MutableQueue<edge_descriptor, real_type> residuals_;
 };
 
 }

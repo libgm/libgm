@@ -1,7 +1,7 @@
 #pragma once
 
 #include <libgm/argument/argument.hpp>
-#include <libgm/graph/markov_network.hpp>
+#include <libgm/model/markov_network.hpp>
 
 #include <cstddef>
 #include <functional>
@@ -12,11 +12,11 @@ namespace libgm {
 Arg make_argument(size_t row, size_t col);
 
 template <typename VP, typename EP = VP>
-MarkovNetworkT<VP, EP> make_grid_graph(
+MarkovNetwork<VP, EP> make_grid_graph(
     size_t rows,
     size_t cols,
     const std::function<Arg(size_t, size_t)>& make_argument) {
-  MarkovNetworkT<VP, EP> graph(rows * cols);
+  MarkovNetwork<VP, EP> graph(rows * cols);
   std::vector<Arg> args(rows * cols);
 
   for (size_t row = 0; row < rows; ++row) {
@@ -27,10 +27,10 @@ MarkovNetworkT<VP, EP> make_grid_graph(
       graph.add_vertex(u);
 
       if (row > 0) {
-        graph.add_edge(u, args[(row - 1) * cols + col]);
+        graph.add_edge(args[(row - 1) * cols + col], u);
       }
       if (col > 0) {
-        graph.add_edge(u, args[idx - 1]);
+        graph.add_edge(args[idx - 1], u);
       }
     }
   }

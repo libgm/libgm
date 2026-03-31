@@ -6,7 +6,8 @@
 #include <libgm/datastructure/indexed_domain.hpp>
 #include <libgm/factor/utility/annotated.hpp>
 #include <libgm/graph/algorithm/elimination_strategies.hpp>
-#include <libgm/graph/markov_network.hpp>
+#include <libgm/model/markov_structure.hpp>
+#include <libgm/model/markov_network.hpp>
 #include <libgm/graph/undirected_graph.hpp>
 
 #include <ankerl/unordered_dense.h>
@@ -204,8 +205,8 @@ public:
   // Queries
   //--------------------------------------------------------------------------
   /// Computes the Markov network induced by the clusters.
-  MarkovNetwork markov_network() const {
-    MarkovNetwork mn;
+  MarkovNetwork<void> markov_network() const {
+    MarkovNetwork<void> mn;
     for (Vertex* v : vertices()) {
       mn.add_clique(cluster(v));
     }
@@ -408,11 +409,11 @@ public:
   // Triangulation
   //--------------------------------------------------------------------------
   /// Initializes this graph to the triangulation of a Markov network.
-  void triangulated(MarkovNetwork& mn, const EliminationStrategy& strategy) {
+  void triangulated(MarkovStructure& mg, const EliminationStrategy& strategy) {
     clear();
-    mn.eliminate(strategy, [&](MarkovNetwork::vertex_descriptor v) {
-      Domain clique(mn.adjacent_vertices(v));
-      clique.push_back(v);
+    mg.eliminate(strategy, [&](size_t v) {
+      Domain clique = mg.adjacent_arguments(v);
+      clique.push_back(mg.argument(v));
       clique.sort();
       if (is_maximal(cluster_index_, clique)) {
         add_vertex(std::move(clique));

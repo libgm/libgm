@@ -1,6 +1,6 @@
-../cmake-build-release/timing/graph/markov_network_eliminate_timing --max-side 20 --step-size 1 --num-reps=100
-Measuring MarkovNetwork::eliminate on square grid graphs with min_side=1 max_side=20 step_size=1 num_reps=100
+../cmake-build-release/timing/graph/vector_graph_eliminate_timing --max-side 20 --step-size 1 --num-reps=100
+Measuring VectorGraph::eliminate on square grid graphs with min_side=1 max_side=20 step_size=1 num_reps=100
 
-markov_network.eliminate(strategy)
-min-degree 2.421e-07 1.632e-06 5.039e-06 1.349e-05 2.137e-05 3.183e-05 4.673e-05 6.185e-05 8.064e-05 9.713e-05 1.165e-04 1.314e-04 1.645e-04 2.229e-04 2.798e-04 3.043e-04 4.717e-04 5.483e-04 8.044e-04 1.033e-03
-min-fill 1.013e-07 1.113e-06 4.336e-06 1.341e-05 2.468e-05 4.923e-05 9.021e-05 1.479e-04 2.497e-04 4.745e-04 5.635e-04 1.280e-03 1.481e-03 3.030e-03 3.368e-03 5.230e-03 5.849e-03 9.362e-03 1.002e-02 1.569e-02
+vector_graph.eliminate(strategy)
+min-degree 1.825e-07 7.708e-07 2.143e-06 5.058e-06 8.670e-06 1.359e-05 2.061e-05 3.014e-05 4.055e-05 5.337e-05 6.244e-05 7.712e-05 9.844e-05 1.201e-04 1.371e-04 1.713e-04 2.035e-04 2.587e-04 2.967e-04 3.610e-04
+min-fill 7.959e-08 4.867e-07 1.655e-06 4.287e-06 9.261e-06 1.843e-05 3.414e-05 6.345e-05 9.827e-05 1.741e-04 2.362e-04 4.538e-04 5.825e-04 1.066e-03 1.532e-03 2.407e-03 2.839e-03 3.968e-03 4.854e-03 6.566e-03

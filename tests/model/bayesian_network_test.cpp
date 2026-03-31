@@ -130,15 +130,31 @@ BOOST_FIXTURE_TEST_CASE(test_remove_and_clear_update_mapping, Fixture) {
   BOOST_CHECK(!bn.contains(x0));
 }
 
-BOOST_FIXTURE_TEST_CASE(test_markov_network_uses_argument_mapping, Fixture) {
-  MarkovNetwork mn = bn.markov_network();
+BOOST_FIXTURE_TEST_CASE(test_markov_structure_uses_directed_graph_indices, Fixture) {
+  MarkovStructure mg = bn.markov_structure();
 
-  BOOST_CHECK_EQUAL(mn.num_vertices(), 5);
-  BOOST_CHECK_EQUAL(mn.num_edges(), 6);
-  BOOST_CHECK(mn.contains(x1, x2));
-  BOOST_CHECK(mn.contains(x1, x3));
-  BOOST_CHECK(mn.contains(x2, x3));
-  BOOST_CHECK(mn.contains(x0, x3));
-  BOOST_CHECK(mn.contains(x0, x4));
-  BOOST_CHECK(mn.contains(x3, x4));
+  BOOST_CHECK_EQUAL(mg.num_vertices(), 5);
+
+  BOOST_CHECK_EQUAL(mg.argument(bn.index(v0)), x0);
+  BOOST_CHECK_EQUAL(mg.argument(bn.index(v1)), x1);
+  BOOST_CHECK_EQUAL(mg.argument(bn.index(v2)), x2);
+  BOOST_CHECK_EQUAL(mg.argument(bn.index(v3)), x3);
+  BOOST_CHECK_EQUAL(mg.argument(bn.index(v4)), x4);
+
+  BOOST_CHECK(bn.indices(v0) == std::vector<size_t>({bn.index(v0)}));
+  BOOST_CHECK(bn.indices(v2) == std::vector<size_t>({bn.index(v2), bn.index(v1)}));
+  BOOST_CHECK(bn.indices(v3) == std::vector<size_t>({bn.index(v3), bn.index(v1), bn.index(v2)}));
+  BOOST_CHECK(bn.indices(v4) == std::vector<size_t>({bn.index(v4), bn.index(v0), bn.index(v3)}));
+
+  BOOST_CHECK(bn.arguments(v0) == Domain({x0}));
+  BOOST_CHECK(bn.arguments(v2) == Domain({x2, x1}));
+  BOOST_CHECK(bn.arguments(v3) == Domain({x3, x1, x2}));
+  BOOST_CHECK(bn.arguments(v4) == Domain({x4, x0, x3}));
+
+  BOOST_CHECK(mg.contains(bn.index(v1), bn.index(v2)));
+  BOOST_CHECK(mg.contains(bn.index(v1), bn.index(v3)));
+  BOOST_CHECK(mg.contains(bn.index(v2), bn.index(v3)));
+  BOOST_CHECK(mg.contains(bn.index(v0), bn.index(v3)));
+  BOOST_CHECK(mg.contains(bn.index(v0), bn.index(v4)));
+  BOOST_CHECK(mg.contains(bn.index(v3), bn.index(v4)));
 }

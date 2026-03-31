@@ -10,7 +10,7 @@
 #include <libgm/factor/probability_vector.hpp>
 #include <libgm/graph/algorithm/elimination_strategies.hpp>
 #include <libgm/model/factor_graph.hpp>
-#include <libgm/graph/markov_network.hpp>
+#include <libgm/model/markov_network.hpp>
 #include <libgm/inference/exact/sum_product_calibrate.hpp>
 #include <libgm/inference/variational/mean_field.hpp>
 #include <libgm/math/generator/matrix_generator.hpp>
@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   MinFillStrategy strategy;
   SumProductCalibrate<ProbTable> sp;
 
-  MarkovNetworkT<ProbVector, ProbMatrix> exact_mn;
+  MarkovNetwork<ProbVector, ProbMatrix> exact_mn;
   FactorGraph<LogVector, LogTable> mf_fg;
   std::vector<Arg> xs;
   std::vector<Arg> ys;
@@ -86,14 +86,12 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
     mf_fg.add_factor(domain, pairwise.logarithmic().table());
   }
 
-  sp.reset(exact_mn.without_properties(), strategy, shape_map);
-  for (Arg u : exact_mn.vertices()) {
-    sp.multiply_in(Domain{u}, exact_mn[u].table());
-    for (UndirectedEdge<Arg> e : exact_mn.out_edges(u)) {
-      if (e.is_nominal()) {
-        sp.multiply_in(Domain{e.source(), e.target()}, exact_mn[e].table());
-      }
-    }
+  sp.reset(exact_mn.structure(), strategy, shape_map);
+  for (auto* v : exact_mn.vertices()) {
+    sp.multiply_in(Domain{exact_mn.argument(v)}, exact_mn[v].table());
+  }
+  for (auto e : exact_mn.edges()) {
+    sp.multiply_in(exact_mn.domain(e), exact_mn[e].table());
   }
   sp.calibrate();
   sp.normalize();
@@ -106,7 +104,8 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   BOOST_CHECK_LT(diff, 1e-4);
 
   double kl = 0.0;
-  for (Arg u : exact_mn.vertices()) {
+  for (auto* v : exact_mn.vertices()) {
+    Arg u = exact_mn.argument(v);
     ProbVector exact = sp.belief(Domain{u}).vector();
     kl += exact.kl_divergence(mf.belief(u));
   }

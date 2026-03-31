@@ -1,34 +1,27 @@
 #include "elimination_strategies.hpp"
 
-#include <libgm/graph/markov_network.hpp>
-#include <libgm/graph/util/bgl.hpp>
-
-#include <ankerl/unordered_dense.h>
-
-#include <algorithm>
-#include <iterator>
-#include <tuple>
+#include <libgm/graph/vector_graph.hpp>
 
 namespace libgm {
 
-ptrdiff_t MinDegreeStrategy::priority(Arg u, const MarkovNetwork& g) const {
+ptrdiff_t MinDegreeStrategy::priority(size_t u, const VectorGraph& g) const {
   return -static_cast<ptrdiff_t>(g.degree(u));
 }
 
-void MinDegreeStrategy::updated(Arg u, const MarkovNetwork& g, std::vector<Arg>& out) const {
-  std::copy(g.adjacent_vertices(u).begin(),
-            g.adjacent_vertices(u).end(),
-            std::back_inserter(out));
+void MinDegreeStrategy::updated(size_t u,
+                                const VectorGraph& g,
+                                std::vector<size_t>& out) const {
+  for (size_t v : g.adjacent_vertices(u)) {
+    out.push_back(v);
+  }
 }
 
-ptrdiff_t MinFillStrategy::priority(Arg u, const MarkovNetwork& g) const {
-  using adjacency_iterator = MarkovNetwork::adjacency_iterator;
-
+ptrdiff_t MinFillStrategy::priority(size_t u, const VectorGraph& g) const {
   ptrdiff_t new_edges = 0;
-  adjacency_iterator it1, end;
-  for (std::tie(it1, end) = adjacent_vertices(u, g); it1 != end; ++it1) {
-    adjacency_iterator it2 = it1;
-    while (++it2 != end) {
+  auto neighbors = g.adjacent_vertices(u);
+  for (auto it1 = neighbors.begin(); it1 != neighbors.end(); ++it1) {
+    auto it2 = it1;
+    while (++it2 != neighbors.end()) {
       if (!g.contains(*it1, *it2)) {
         ++new_edges;
       }
@@ -37,19 +30,15 @@ ptrdiff_t MinFillStrategy::priority(Arg u, const MarkovNetwork& g) const {
   return -new_edges;
 }
 
-void MinFillStrategy::updated(Arg u, const MarkovNetwork& g, std::vector<Arg>& out) const {
-  using adjacency_iterator = MarkovNetwork::adjacency_iterator;
-
-  // It is faster to store the values in a set than to output them
-  // multiple times (which causes further priority updates)
-  ankerl::unordered_dense::set<Arg> update_set;
-  for (Arg v : g.adjacent_vertices(u)) {
-    update_set.insert(v);
-    adjacency_iterator it, end;
-    std::tie(it, end) = adjacent_vertices(v, g);
-    update_set.insert(it, end);
+void MinFillStrategy::updated(size_t u,
+                              const VectorGraph& g,
+                              std::vector<size_t>& out) const {
+  for (size_t v : g.adjacent_vertices(u)) {
+    out.push_back(v);
+    for (size_t w : g.adjacent_vertices(v)) {
+      out.push_back(w);
+    }
   }
-  std::copy(update_set.begin(), update_set.end(), std::back_inserter(out));
 }
 
 } // namespace libgm

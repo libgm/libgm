@@ -221,6 +221,10 @@ std::ranges::subrange<DirectedGraph::vertex_iterator> DirectedGraph::vertices() 
   return {impl().vertices.begin(), impl().vertices.end()};
 }
 
+void DirectedGraph::compute_indices() const {
+  impl().compute_indices();
+}
+
 bool DirectedGraph::contains(Vertex* u) const {
   return u && u->impl == impl_.get();
 }
@@ -266,6 +270,21 @@ size_t DirectedGraph::num_edges() const {
 
 const std::vector<DirectedGraph::Vertex*>& DirectedGraph::parents(Vertex* u) const {
   return data(u).parents;
+}
+
+size_t DirectedGraph::index(Vertex* u) const {
+  return data(u).index;
+}
+
+std::vector<size_t> DirectedGraph::indices(Vertex* u) const {
+  const Vertex& vertex = data(u);
+  std::vector<size_t> result;
+  result.reserve(vertex.parents.size() + 1);
+  result.push_back(vertex.index);
+  for (Vertex* parent : vertex.parents) {
+    result.push_back(parent->index);
+  }
+  return result;
 }
 
 OpaqueRef DirectedGraph::property(Vertex* u) {

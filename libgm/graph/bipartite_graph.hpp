@@ -98,6 +98,12 @@ public:
   /// Returns the `Vertex1` neighbors adjacent to `u`.
   const std::vector<Vertex1*>& neighbors(Vertex2* u) const;
 
+  /// Returns the index assigned to a left-side vertex.
+  size_t index(Vertex1* u) const;
+
+  /// Returns the indices of the `Vertex1` neighbors adjacent to `u`.
+  std::vector<size_t> indices(Vertex2* u) const;
+
   /// Returns the outgoing edges from a `Vertex1`.
   std::ranges::subrange<out_edge1_iterator> out_edges(Vertex1* u) const;
 
@@ -166,6 +172,9 @@ public:
 protected:
   Impl& impl();
   const Impl& impl() const;
+
+  /// Assigns consecutive indices to all left-side vertices.
+  void compute_vertex1_indices() const;
 
 private:
   std::unique_ptr<Impl> impl_;

@@ -191,11 +191,26 @@ BOOST_FIXTURE_TEST_CASE(test_in_and_out_edges, Fixture) {
 }
 
 BOOST_FIXTURE_TEST_CASE(test_markov_network, Fixture) {
-  MarkovNetwork mn = fg.markov_network();
+  MarkovNetwork<void> mn = fg.markov_network();
   BOOST_CHECK_EQUAL(mn.num_vertices(), 5);
   BOOST_CHECK(mn.contains(a, b));
   BOOST_CHECK(mn.contains(b, c));
   BOOST_CHECK(mn.contains(c, d));
+}
+
+BOOST_FIXTURE_TEST_CASE(test_markov_graph, Fixture) {
+  MarkovStructure mg = fg.markov_graph();
+
+  BOOST_CHECK_EQUAL(mg.num_vertices(), 5);
+  BOOST_CHECK_EQUAL(mg.argument(fg.index(va)), a);
+  BOOST_CHECK_EQUAL(mg.argument(fg.index(vb)), b);
+  BOOST_CHECK_EQUAL(mg.argument(fg.index(vc)), c);
+  BOOST_CHECK_EQUAL(mg.argument(fg.index(vd)), d);
+  BOOST_CHECK_EQUAL(mg.argument(fg.index(ve)), e);
+  BOOST_CHECK(mg.contains(fg.index(va), fg.index(vb)));
+  BOOST_CHECK(mg.contains(fg.index(vb), fg.index(vc)));
+  BOOST_CHECK(mg.contains(fg.index(vc), fg.index(vd)));
+  BOOST_CHECK(mg.contains(fg.index(vc), fg.index(ve)));
 }
 
 BOOST_FIXTURE_TEST_CASE(test_updates_and_removals, Fixture) {
@@ -220,12 +235,10 @@ BOOST_AUTO_TEST_CASE(argument_and_factor_property_addresses_and_lifetime) {
   fg.add_argument(b, ArgumentProperty(20));
   BOOST_CHECK_EQUAL(ArgumentProperty::alive_count, 2);
   BOOST_CHECK_EQUAL(fg[a].value, 10);
-  BOOST_CHECK_EQUAL(static_cast<void*>(&fg[a]), fg.property(va).ptr);
 
   auto* f = fg.add_factor({a, b}, FactorProperty(30));
   BOOST_CHECK_EQUAL(FactorProperty::alive_count, 1);
   BOOST_CHECK_EQUAL(fg[f].value, 30);
-  BOOST_CHECK_EQUAL(static_cast<void*>(&fg[f]), fg.property(f).ptr);
 
   fg.clear();
   BOOST_CHECK_EQUAL(ArgumentProperty::alive_count, 0);

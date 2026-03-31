@@ -227,6 +227,10 @@ const BipartiteGraph::Impl& BipartiteGraph::impl() const {
   return *impl_;
 }
 
+void BipartiteGraph::compute_vertex1_indices() const {
+  impl().compute_vertex1_indices();
+}
+
 std::ranges::subrange<BipartiteGraph::vertex1_iterator> BipartiteGraph::vertices1() const {
   return {impl().vertices1.begin(), impl().vertices1.end()};
 }
@@ -243,6 +247,21 @@ const IntrusiveList<BipartiteGraph::Vertex2>& BipartiteGraph::neighbors(Vertex1*
 const std::vector<BipartiteGraph::Vertex1*>& BipartiteGraph::neighbors(Vertex2* u) const {
   assert(contains(u));
   return u->neighbors;
+}
+
+size_t BipartiteGraph::index(Vertex1* u) const {
+  assert(contains(u));
+  return u->index;
+}
+
+std::vector<size_t> BipartiteGraph::indices(Vertex2* u) const {
+  assert(contains(u));
+  std::vector<size_t> result;
+  result.reserve(u->neighbors.size());
+  for (Vertex1* neighbor : u->neighbors) {
+    result.push_back(neighbor->index);
+  }
+  return result;
 }
 
 std::ranges::subrange<BipartiteGraph::out_edge1_iterator> BipartiteGraph::out_edges(Vertex1* u) const {

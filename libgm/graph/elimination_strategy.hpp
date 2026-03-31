@@ -1,16 +1,25 @@
 #pragma once
 
-#include <libgm/argument/argument.hpp>
-
+#include <cstddef>
 #include <vector>
 
 namespace libgm {
 
-class MarkovNetwork;
+class VectorGraph;
 
 struct EliminationStrategy {
-  virtual ptrdiff_t priority(Arg u, const MarkovNetwork& g) const = 0;
-  virtual void updated(Arg u, const MarkovNetwork& g, std::vector<Arg>& output) const = 0;
+  virtual ~EliminationStrategy() = default;
+
+  virtual ptrdiff_t priority(size_t u, const VectorGraph& g) const = 0;
+
+  /**
+   * Stores vertices whose priority may need to be recomputed after eliminating
+   * `u`. Implementations may output duplicates; `VectorGraph::eliminate()`
+   * deduplicates the updates internally.
+   */
+  virtual void updated(size_t u,
+                       const VectorGraph& g,
+                       std::vector<size_t>& output) const = 0;
 };
 
-}
+} // namespace libgm

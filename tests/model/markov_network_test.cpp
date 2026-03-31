@@ -2,7 +2,7 @@
 #include <boost/test/unit_test.hpp>
 
 #include <libgm/argument/named_argument.hpp>
-#include <libgm/graph/markov_network.hpp>
+#include <libgm/model/markov_network.hpp>
 
 #include <string>
 #include <unordered_set>
@@ -21,14 +21,31 @@ Arg make_arg(size_t i) {
   return NamedFactory::default_factory().make("v" + std::to_string(i));
 }
 
-void add_vertices(MarkovNetwork& g, const std::vector<Arg>& vertices) {
+struct VertexProperty {
+  int value = 0;
+
+  explicit VertexProperty(int v = 0)
+    : value(v) {}
+};
+
+struct EdgeProperty {
+  int value = 0;
+
+  explicit EdgeProperty(int v = 0)
+    : value(v) {}
+};
+
+void add_vertices(MarkovNetwork<void>& g, const std::vector<Arg>& vertices) {
   for (Arg v : vertices) {
     g.add_vertex(v);
   }
 }
 
-void add_edges(MarkovNetwork& g, const std::vector<std::pair<Arg, Arg>>& edges) {
+void add_edges(MarkovNetwork<void>& g, const std::vector<std::pair<Arg, Arg>>& edges) {
   for (auto [u, v] : edges) {
+    if (v < u) {
+      std::swap(u, v);
+    }
     auto [e, inserted] = g.add_edge(u, v);
     BOOST_CHECK(inserted);
     BOOST_CHECK(g.contains(e));
@@ -38,20 +55,23 @@ void add_edges(MarkovNetwork& g, const std::vector<std::pair<Arg, Arg>>& edges) 
 } // namespace
 
 BOOST_AUTO_TEST_CASE(test_edge_descriptor_basics) {
-  using edge_type = MarkovNetwork::edge_descriptor;
+  using edge_type = MarkovNetwork<void>::edge_descriptor;
+  MarkovNetwork g;
   Arg a = make_arg("a");
   Arg b = make_arg("b");
+  add_vertices(g, {a, b});
+  auto [e, inserted] = g.add_edge(a, b);
+  BOOST_CHECK(inserted);
 
   edge_type empty;
   BOOST_CHECK(!empty);
 
-  edge_type e(a, b);
   BOOST_CHECK(e);
-  BOOST_CHECK_EQUAL(e.source(), a);
-  BOOST_CHECK_EQUAL(e.target(), b);
-  BOOST_CHECK_EQUAL(e.reverse().source(), b);
-  BOOST_CHECK_EQUAL(e.reverse().target(), a);
-  BOOST_CHECK(e.unordered_pair() == std::minmax(a, b));
+  BOOST_CHECK_EQUAL(g.argument(e.source()), a);
+  BOOST_CHECK_EQUAL(g.argument(e.target()), b);
+  BOOST_CHECK_EQUAL(g.argument(e.reverse().source()), b);
+  BOOST_CHECK_EQUAL(g.argument(e.reverse().target()), a);
+  BOOST_CHECK_EQUAL(g.domain(e), Domain({a, b}));
 }
 
 BOOST_AUTO_TEST_CASE(test_constructors) {
@@ -118,8 +138,8 @@ BOOST_AUTO_TEST_CASE(test_vertices) {
   }
 
   std::unordered_set<Arg> expected(vertices.begin(), vertices.end());
-  for (Arg v : g.vertices()) {
-    BOOST_CHECK_EQUAL(expected.erase(v), 1);
+  for (auto* v : g.vertices()) {
+    BOOST_CHECK_EQUAL(expected.erase(g.argument(v)), 1);
   }
   BOOST_CHECK(expected.empty());
 }
@@ -135,14 +155,14 @@ BOOST_AUTO_TEST_CASE(test_adjacent_vertices) {
   add_edges(g, {{c, a}, {c, b}, {c, d}, {e, c}});
 
   std::unordered_set<Arg> neighbors = {a, b, d, e};
-  for (Arg v : g.adjacent_vertices(c)) {
-    BOOST_CHECK_EQUAL(neighbors.erase(v), 1);
+  for (auto* v : g.adjacent_vertices(c)) {
+    BOOST_CHECK_EQUAL(neighbors.erase(g.argument(v)), 1);
   }
   BOOST_CHECK(neighbors.empty());
 }
 
 BOOST_AUTO_TEST_CASE(test_in_and_out_edges) {
-  using edge_type = MarkovNetwork::edge_descriptor;
+  using edge_type = MarkovNetwork<void>::edge_descriptor;
 
   MarkovNetwork g;
   Arg c = make_arg("c");
@@ -153,15 +173,19 @@ BOOST_AUTO_TEST_CASE(test_in_and_out_edges) {
   add_vertices(g, {a, b, c, d, e});
   add_edges(g, {{c, a}, {c, b}, {c, d}, {e, c}});
 
-  std::unordered_set<edge_type> expected_out = {{c, a}, {c, b}, {c, d}, {c, e}};
+  std::unordered_set<Domain> expected_out = {
+    Domain({c, a}), Domain({c, b}), Domain({c, d}), Domain({c, e})
+  };
   for (edge_type oe : g.out_edges(c)) {
-    BOOST_CHECK_EQUAL(expected_out.erase(oe), 1);
+    BOOST_CHECK_EQUAL(expected_out.erase(g.domain(oe)), 1);
   }
   BOOST_CHECK(expected_out.empty());
 
-  std::unordered_set<edge_type> expected_in = {{a, c}, {b, c}, {d, c}, {e, c}};
+  std::unordered_set<Domain> expected_in = {
+    Domain({a, c}), Domain({b, c}), Domain({d, c}), Domain({e, c})
+  };
   for (edge_type ie : g.in_edges(c)) {
-    BOOST_CHECK_EQUAL(expected_in.erase(ie), 1);
+    BOOST_CHECK_EQUAL(expected_in.erase(g.domain(ie)), 1);
   }
   BOOST_CHECK(expected_in.empty());
 }
@@ -187,10 +211,10 @@ BOOST_AUTO_TEST_CASE(test_contains_and_edge) {
 
   auto eab = g.edge(a, b);
   auto eba = g.edge(b, a);
-  BOOST_CHECK_EQUAL(eab.source(), a);
-  BOOST_CHECK_EQUAL(eab.target(), b);
-  BOOST_CHECK_EQUAL(eba.source(), b);
-  BOOST_CHECK_EQUAL(eba.target(), a);
+  BOOST_CHECK_EQUAL(g.argument(eab.source()), a);
+  BOOST_CHECK_EQUAL(g.argument(eab.target()), b);
+  BOOST_CHECK_EQUAL(g.argument(eba.source()), b);
+  BOOST_CHECK_EQUAL(g.argument(eba.target()), a);
   BOOST_CHECK(g.contains(eab));
   BOOST_CHECK(g.contains(eba));
 }
@@ -278,4 +302,122 @@ BOOST_AUTO_TEST_CASE(test_add_clique_and_add_edges) {
 
   BOOST_CHECK_EQUAL(g.num_vertices(), 4);
   BOOST_CHECK_EQUAL(g.num_edges(), 5);
+}
+
+BOOST_AUTO_TEST_CASE(test_add_edge_requires_canonical_order) {
+  MarkovNetwork mn;
+  Arg a = make_arg("a");
+  Arg b = make_arg("b");
+
+  BOOST_CHECK_THROW(mn.add_edge(b, a), std::invalid_argument);
+}
+
+BOOST_AUTO_TEST_CASE(test_add_edge_with_property_requires_canonical_order) {
+  MarkovNetwork<VertexProperty, EdgeProperty> mn;
+  Arg a = make_arg("a");
+  Arg b = make_arg("b");
+
+  BOOST_CHECK_THROW(mn.add_edge(b, a, EdgeProperty(7)), std::invalid_argument);
+}
+
+BOOST_AUTO_TEST_CASE(test_untyped_edge_property_is_null) {
+  MarkovNetwork mn;
+  Arg a = make_arg("typed_a");
+  Arg b = make_arg("typed_b");
+
+  BOOST_CHECK(mn.add_vertex(a));
+  BOOST_CHECK(mn.add_vertex(b));
+
+  auto [e, inserted] = mn.add_edge(a, b);
+  BOOST_CHECK(inserted);
+  BOOST_CHECK_EQUAL(mn.property(e).ptr, nullptr);
+}
+
+BOOST_AUTO_TEST_CASE(test_typed_vertex_and_edge_properties) {
+  MarkovNetwork<VertexProperty, EdgeProperty> mn;
+  Arg a = make_arg("typed_a");
+  Arg b = make_arg("typed_b");
+
+  BOOST_CHECK(mn.add_vertex(a, VertexProperty(10)));
+  BOOST_CHECK(mn.add_vertex(b, VertexProperty(20)));
+  BOOST_CHECK_EQUAL(mn[a].value, 10);
+  BOOST_CHECK_EQUAL(mn[b].value, 20);
+
+  auto [e, inserted] = mn.add_edge(a, b, EdgeProperty(30));
+  BOOST_CHECK(inserted);
+  BOOST_CHECK_EQUAL(mn[e].value, 30);
+}
+
+BOOST_AUTO_TEST_CASE(test_typed_default_constructed_properties_and_clear) {
+  MarkovNetwork<VertexProperty, EdgeProperty> mn;
+  Arg a = make_arg("default_a");
+  Arg b = make_arg("default_b");
+
+  BOOST_CHECK(mn.add_vertex(a));
+  BOOST_CHECK(mn.add_vertex(b));
+  auto [e, inserted] = mn.add_edge(a, b);
+  BOOST_CHECK(inserted);
+
+  BOOST_CHECK_EQUAL(mn[a].value, 0);
+  BOOST_CHECK_EQUAL(mn[b].value, 0);
+  BOOST_CHECK_EQUAL(mn[e].value, 0);
+
+  mn.clear();
+  BOOST_CHECK(mn.empty());
+}
+
+BOOST_AUTO_TEST_CASE(test_typed_add_edge_does_not_overwrite_existing_property) {
+  MarkovNetwork<VertexProperty, EdgeProperty> mn;
+  Arg a = make_arg("edge_a");
+  Arg b = make_arg("edge_b");
+
+  BOOST_CHECK(mn.add_vertex(a));
+  BOOST_CHECK(mn.add_vertex(b));
+
+  auto [e1, inserted1] = mn.add_edge(a, b, EdgeProperty(1));
+  BOOST_CHECK(inserted1);
+  BOOST_CHECK_EQUAL(mn[e1].value, 1);
+
+  auto [e2, inserted2] = mn.add_edge(a, b, EdgeProperty(9));
+  BOOST_CHECK(!inserted2);
+  BOOST_CHECK_EQUAL(mn[e2].value, 1);
+}
+
+BOOST_AUTO_TEST_CASE(test_typed_init_vertex_and_edge_properties) {
+  MarkovNetwork<VertexProperty, EdgeProperty> mn;
+  Arg a = make_arg("init_a");
+  Arg b = make_arg("init_b");
+  Arg c = make_arg("init_c");
+
+  BOOST_CHECK(mn.add_vertex(a));
+  BOOST_CHECK(mn.add_vertex(b));
+  BOOST_CHECK(mn.add_vertex(c));
+  BOOST_CHECK(mn.add_edge(a, b).second);
+  BOOST_CHECK(mn.add_edge(b, c).second);
+
+  int vertex_calls = 0;
+  mn.init_vertices([&](Arg u) {
+    ++vertex_calls;
+    if (u == a) return VertexProperty(11);
+    if (u == b) return VertexProperty(22);
+    return VertexProperty(33);
+  });
+
+  BOOST_CHECK_EQUAL(vertex_calls, 3);
+  BOOST_CHECK_EQUAL(mn[a].value, 11);
+  BOOST_CHECK_EQUAL(mn[b].value, 22);
+  BOOST_CHECK_EQUAL(mn[c].value, 33);
+
+  int edge_calls = 0;
+  mn.init_edges([&](auto e) {
+    ++edge_calls;
+    if (mn.domain(e) == Domain({a, b})) {
+      return EdgeProperty(44);
+    }
+    return EdgeProperty(55);
+  });
+
+  BOOST_CHECK_EQUAL(edge_calls, 2);
+  BOOST_CHECK_EQUAL(mn[mn.edge(a, b)].value, 44);
+  BOOST_CHECK_EQUAL(mn[mn.edge(b, c)].value, 55);
 }

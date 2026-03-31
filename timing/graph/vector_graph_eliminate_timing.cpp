@@ -1,5 +1,5 @@
 #include <libgm/graph/algorithm/elimination_strategies.hpp>
-#include <libgm/graph/markov_network.hpp>
+#include <libgm/model/markov_structure.hpp>
 #include <libgm/graph/special/grid_graph.hpp>
 #include <timing/timer.hpp>
 
@@ -22,13 +22,13 @@ void time_eliminate(const char* label, const Strategy& strategy) {
   Timer t;
   std::cout << label << std::flush;
   for (size_t side : side_lengths) {
-    MarkovNetwork base_graph = make_grid_graph<int>(side, side, make_argument).without_properties();
-    std::vector<MarkovNetwork> graphs(num_reps, base_graph);
+    MarkovStructure base_graph = make_grid_graph<int>(side, side, make_argument).structure();
+    std::vector<MarkovStructure> graphs(num_reps, base_graph);
     std::size_t eliminated = 0;
 
     t.restart();
-    for (MarkovNetwork& graph : graphs) {
-      graph.eliminate(strategy, [&](Arg) { ++eliminated; });
+    for (MarkovStructure& graph : graphs) {
+      graph.eliminate(strategy, [&](size_t) { ++eliminated; });
     }
 
     std::cout << " " << t.elapsed() / num_reps << std::flush;
@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  std::cout << "Measuring MarkovNetwork::eliminate on square grid graphs with"
+  std::cout << "Measuring VectorGraph::eliminate on square grid graphs with"
             << " min_side=" << min_side
             << " max_side=" << max_side
             << " step_size=" << step_size
@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
 
   std::cout << std::scientific << std::setprecision(3);
 
-  std::cout << std::endl << "markov_network.eliminate(strategy)" << std::endl;
+  std::cout << std::endl << "vector_graph.eliminate(strategy)" << std::endl;
   time_eliminate("min-degree", MinDegreeStrategy());
   time_eliminate("min-fill", MinFillStrategy());
 

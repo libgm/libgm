@@ -5,7 +5,7 @@
 #include <libgm/datastructure/unordered_dense.hpp>
 #include <libgm/factor/utility/annotated.hpp>
 #include <libgm/graph/directed_graph.hpp>
-#include <libgm/graph/markov_network.hpp>
+#include <libgm/model/markov_structure.hpp>
 
 #include <cereal/cereal.hpp>
 #include <cereal/types/base_class.hpp>
@@ -28,13 +28,16 @@ public:
   using DirectedGraph::adjacency_iterator;
   using DirectedGraph::adjacent_vertices;
   using DirectedGraph::contains;
+  using DirectedGraph::compute_indices;
   using DirectedGraph::degree;
   using DirectedGraph::edge;
   using DirectedGraph::edge_descriptor;
   using DirectedGraph::empty;
+  using DirectedGraph::index;
   using DirectedGraph::in_degree;
   using DirectedGraph::in_edges;
   using DirectedGraph::in_edge_iterator;
+  using DirectedGraph::indices;
   using DirectedGraph::null_vertex;
   using DirectedGraph::num_edges;
   using DirectedGraph::num_vertices;
@@ -82,6 +85,16 @@ public:
 
   Arg argument(Vertex* u) const {
     return annotated(u).value;
+  }
+
+  Domain arguments(Vertex* u) const {
+    Domain result;
+    result.reserve(DirectedGraph::parents(u).size() + 1);
+    result.push_back(argument(u));
+    for (Vertex* parent : DirectedGraph::parents(u)) {
+      result.push_back(argument(parent));
+    }
+    return result;
   }
 
   property_reference operator[](Vertex* u) {
@@ -173,20 +186,16 @@ public:
     vertices_.clear();
   }
 
-  MarkovNetwork markov_network() const {
-    MarkovNetwork mn;
-    Domain parent_args;
+  MarkovStructure markov_structure() const {
+    MarkovStructure mg;
+    compute_indices();
     for (Vertex* v : vertices()) {
-      Arg u = argument(v);
-      parent_args.clear();
-      for (Vertex* parent : DirectedGraph::parents(v)) {
-        parent_args.push_back(argument(parent));
-      }
-      mn.add_vertex(u);
-      mn.add_clique(parent_args);
-      mn.add_edges(u, parent_args);
+      mg.add_vertex(argument(v));
     }
-    return mn;
+    for (Vertex* v : vertices()) {
+      mg.add_clique(indices(v));
+    }
+    return mg;
   }
 
   template <typename Archive>

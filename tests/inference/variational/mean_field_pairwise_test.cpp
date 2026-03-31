@@ -39,7 +39,7 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
 
   auto mn = make_grid_graph<LogVector, LogMatrix>(rows, cols, make_argument);
   SumProductCalibrate<ProbTable> sp;
-  sp.reset(mn.without_properties(), strategy, shape_map);
+  sp.reset(mn.structure(), strategy, shape_map);
 
   UniformVectorGenerator<double> unary_gen(0.1, 1.0);
   mn.init_vertices([&](Arg u) {
@@ -49,9 +49,9 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   });
 
   DiagonalMatrixGenerator<std::uniform_real_distribution<double>> pairwise_gen(0.1, 0.2, 1.0);
-  mn.init_edges([&](UndirectedEdge<Arg> e) {
+  mn.init_edges([&](auto e) {
     ProbMatrix factor(pairwise_gen(2, rng));
-    sp.multiply_in(Domain{e.source(), e.target()}, factor.table());
+    sp.multiply_in(mn.domain(e), factor.table());
     return factor.logarithmic();
   });
 
@@ -66,7 +66,8 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   BOOST_CHECK_LT(diff, 1e-4);
 
   double kl = 0.0;
-  for (Arg u : mn.vertices()) {
+  for (auto* v : mn.vertices()) {
+    Arg u = mn.argument(v);
     ProbVector exact = sp.belief(Domain{u}).vector();
     kl += exact.kl_divergence(mf.belief(u));
   }

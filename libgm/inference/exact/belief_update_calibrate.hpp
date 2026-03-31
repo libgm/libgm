@@ -21,9 +21,9 @@ public:
   using edge_descriptor = typename ClusterGraph<>::edge_descriptor;
 
   /// Initializes the algorithm to the given network.
-  void reset(MarkovNetwork mn, const EliminationStrategy& strategy, const ShapeMap& shape_map) override {
+  void reset(MarkovStructure mg, const EliminationStrategy& strategy, const ShapeMap& shape_map) override {
     // compute the junction tree for the given factors
-    jt_.triangulated(mn, strategy);
+    jt_.triangulated(mg, strategy);
 
     // intialize the clique and separator potentials to unity
     for (vertex_descriptor v : jt_.vertices()) {

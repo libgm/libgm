@@ -29,19 +29,18 @@ struct Fixture {
     UniformVectorGenerator<double> unary_gen(0.1, 1.0);
     DiagonalMatrixGenerator<std::uniform_real_distribution<double>> binary_gen(0.1, 0.2, 1.0);
     mn.init_vertices([&](Arg) { return unary_gen(2, rng); });
-    mn.init_edges([&](UndirectedEdge<Arg>) { return binary_gen(2, rng); });
+    mn.init_edges([&](auto) { return binary_gen(2, rng); });
   }
 
   void init_engine(JunctionTreeEngine<PTable>& engine) {
-    engine.reset(mn.without_properties(), min_fill, shape_map);
-    for (Arg arg : mn.vertices()) {
+    engine.reset(mn.structure(), min_fill, shape_map);
+    for (auto* v : mn.vertices()) {
+      Arg arg = mn.argument(v);
       // TODO: multiply by unary factor directly without constructing a temporary table
       engine.multiply_in({arg}, mn[arg].table());
-      for (UndirectedEdge<Arg> e : mn.out_edges(arg)) {
-        if (e.is_nominal()) {
-          engine.multiply_in({e.source(), e.target()}, mn[e].table());
-        }
-      }
+    }
+    for (auto e : mn.edges()) {
+      engine.multiply_in(mn.domain(e), mn[e].table());
     }
   }
 
@@ -61,7 +60,7 @@ struct Fixture {
   ShapeMap shape_map = [](Arg) { return size_t(2); };
   SumProduct<PTable> sum_product;
   MinFillStrategy min_fill;
-  MarkovNetworkT<PVector, PMatrix> mn;
+  MarkovNetwork<PVector, PMatrix> mn;
   DiscreteAssignment evidence = {
     {make_argument(1, 1), 0},
     {make_argument(0, 3), 1},

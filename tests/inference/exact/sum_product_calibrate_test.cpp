@@ -27,15 +27,11 @@ BOOST_FIXTURE_TEST_CASE(test_calibrate, Fixture) {
     BOOST_CHECK_SMALL(max_diff(engine.belief(v), expected), 1e-8);
   }
 
-  for (Arg u : mn.vertices()) {
-    for (UndirectedEdge<Arg> e : mn.out_edges(u)) {
-      if (e.source() <= e.target()) {
-        Domain retain{e.source(), e.target()};
-        BOOST_CHECK(retain.is_sorted());
-        PTable belief = engine.belief(retain);
-        BOOST_CHECK(!belief.param().empty());
-      }
-    }
+  for (auto e : mn.edges()) {
+    Domain retain = mn.domain(e);
+    BOOST_CHECK(retain.is_sorted());
+    PTable belief = engine.belief(retain);
+    BOOST_CHECK(!belief.param().empty());
   }
 }
 

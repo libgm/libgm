@@ -10,15 +10,12 @@ namespace libgm {
  * with fewer neighbors. Whenever a vertex is eliminated, the
  * priorities of its neighbors need to be recomputed.
  *
- * \ingroup graph_types
  */
 struct MinDegreeStrategy : EliminationStrategy {
-  /// Computes the priority of a vertex, which is its negative degree.
-  ptrdiff_t priority(Arg u, const MarkovNetwork& g) const override;
+  ptrdiff_t priority(size_t u, const VectorGraph& g) const override;
 
-  /// Stores the vertices whose priority needs to be recomputed.
-  void updated(Arg u, const MarkovNetwork& g, std::vector<Arg>& out) const override;
-}; // struct MinDegreeStrategy
+  void updated(size_t u, const VectorGraph& g, std::vector<size_t>& out) const override;
+};
 
 /**
  * A class that represents a min-fill elimination strategy.
@@ -26,14 +23,11 @@ struct MinDegreeStrategy : EliminationStrategy {
  * smaller number of edges to be introduced as a result of elimination.
  * Whenever a vertex is eliminated, the priority needs to be recomputed
  * for all the vertices within distance 2 of this vertex.
- *
  */
 struct MinFillStrategy : EliminationStrategy {
-  /// Computes the priority of a vertex, which is the negative of the fill-in.
-  ptrdiff_t priority(Arg u, const MarkovNetwork& g) const override;
+  ptrdiff_t priority(size_t u, const VectorGraph& g) const override;
 
-  /// Stores the vertices whose priority needs to be recomputed.
-  void updated(Arg u, const MarkovNetwork& g, std::vector<Arg>& out) const override;
+  void updated(size_t u, const VectorGraph& g, std::vector<size_t>& out) const override;
 };
 
 } // namespace libgm

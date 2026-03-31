@@ -5,7 +5,8 @@
 #include <libgm/datastructure/unordered_dense.hpp>
 #include <libgm/factor/utility/annotated.hpp>
 #include <libgm/graph/bipartite_graph.hpp>
-#include <libgm/graph/markov_network.hpp>
+#include <libgm/model/markov_structure.hpp>
+#include <libgm/model/markov_network.hpp>
 #include <libgm/iterator/bind1_iterator.hpp>
 #include <libgm/iterator/bind2_iterator.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
@@ -40,6 +41,7 @@ public:
   using BipartiteGraph::edge12_descriptor;
   using BipartiteGraph::edge21_descriptor;
   using BipartiteGraph::empty;
+  using BipartiteGraph::index;
   using BipartiteGraph::in_edges;
   using BipartiteGraph::in_edge1_iterator;
   using BipartiteGraph::in_edge2_iterator;
@@ -86,40 +88,32 @@ public:
 
   FactorGraph& operator=(FactorGraph&& other) noexcept = default;
 
-  explicit FactorGraph(const MarkovNetworkT<AP, FP>& mn)
+  explicit FactorGraph(const MarkovNetwork<AP, FP>& mn)
     requires (!std::is_void_v<AP> && !std::is_void_v<FP>)
     : FactorGraph() {
-    for (Arg u : mn.vertices()) {
-      add_argument(u, mn[u]);
+    for (auto* v : mn.vertices()) {
+      add_argument(mn.argument(v), mn[v]);
     }
-    for (Arg u : mn.vertices()) {
-      for (UndirectedEdge<Arg> e : mn.out_edges(u)) {
-        if (e.is_nominal()) {
-          add_factor(Domain{e.source(), e.target()}, mn[e]);
-        }
-      }
+    for (auto e : mn.edges()) {
+      add_factor(mn.domain(e), mn[e]);
     }
   }
 
   template <typename AP2, typename FP2, typename Converter>
-  explicit FactorGraph(const MarkovNetworkT<AP2, FP2>& mn, Converter converter)
+  explicit FactorGraph(const MarkovNetwork<AP2, FP2>& mn, Converter converter)
     : FactorGraph() {
-    for (Arg u : mn.vertices()) {
+    for (auto* v : mn.vertices()) {
       if constexpr (!std::is_void_v<AP>) {
-        add_argument(u, converter(mn[u]));
+        add_argument(mn.argument(v), converter(mn[v]));
       } else {
-        add_argument(u);
+        add_argument(mn.argument(v));
       }
     }
-    for (Arg u : mn.vertices()) {
-      for (UndirectedEdge<Arg> e : mn.out_edges(u)) {
-        if (e.is_nominal()) {
-          if constexpr (!std::is_void_v<FP>) {
-            add_factor(Domain{e.source(), e.target()}, converter(mn[e]));
-          } else {
-            add_factor(Domain{e.source(), e.target()});
-          }
-        }
+    for (auto e : mn.edges()) {
+      if constexpr (!std::is_void_v<FP>) {
+        add_factor(mn.domain(e), converter(mn[e]));
+      } else {
+        add_factor(mn.domain(e));
       }
     }
   }
@@ -196,12 +190,24 @@ public:
 
   // Queries
   //--------------------------------------------------------------------------
-  MarkovNetwork markov_network() const {
-    MarkovNetwork mn;
+  MarkovNetwork<void> markov_network() const {
+    MarkovNetwork<void> mn;
     for (Factor* f : factors()) {
       mn.add_clique(arguments(f));
     }
     return mn;
+  }
+
+  MarkovStructure markov_graph() const {
+    MarkovStructure mg;
+    compute_vertex1_indices();
+    for (Argument* u : vertices1()) {
+      mg.add_vertex(argument(u));
+    }
+    for (Factor* f : factors()) {
+      mg.add_clique(indices(f));
+    }
+    return mg;
   }
 
   // Modifications

@@ -102,6 +102,9 @@ public:
   /// Returns the range of all vertices.
   std::ranges::subrange<vertex_iterator> vertices() const;
 
+  /// Assigns consecutive indices to vertices in iteration order.
+  void compute_indices() const;
+
   /// Returns true if the graph contains the given vertex.
   bool contains(Vertex* u) const;
 
@@ -134,6 +137,12 @@ public:
 
   /// Returns the parents of a vertex.
   const std::vector<Vertex*>& parents(Vertex* u) const;
+
+  /// Returns the index assigned to the vertex.
+  size_t index(Vertex* u) const;
+
+  /// Returns the index of the vertex followed by the indices of its parents.
+  std::vector<size_t> indices(Vertex* u) const;
 
   /// Returns an opaque reference to the vertex property.
   OpaqueRef property(Vertex* u);

@@ -20,8 +20,9 @@ public:
 
   /// Eliminates all variables other than the specified ones.
   void eliminate(FactorGraph<F, F>& fg, const Domain& retain) {
-    MarkovNetwork mn = fg.markov_network();
-    mn.eliminate(strategy_, [&](Arg arg) {
+    MarkovStructure mg = fg.markov_graph();
+    mg.eliminate(strategy_, [&](size_t v) {
+      Arg arg = mg.argument(v);
       if (!retain.contains(arg)) {
         // Determine the union of all adjacent factor domains.
         Domain domain;

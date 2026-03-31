@@ -5,7 +5,7 @@ target_sources(
   PRIVATE
   bipartite_graph.cpp
   directed_graph.cpp
-  markov_network.cpp
   undirected_graph.cpp
+  vector_graph.cpp
   special/grid_graph.cpp
 )

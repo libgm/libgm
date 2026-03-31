@@ -43,11 +43,11 @@ public:
 }
 
   /// Initializes the algorithm to the cliques obtained by eliminating given collection of factors.
-  void reset(MarkovNetwork mn, const EliminationStrategy& strategy, const ShapeMap& shape_map) override {
+  void reset(MarkovStructure mg, const EliminationStrategy& strategy, const ShapeMap& shape_map) override {
     calibrated_ = false;
 
     // initialize the junction tree
-    jt_.triangulated(mn, strategy);
+    jt_.triangulated(mg, strategy);
 
     // Initialize the clique Factors
     for (vertex_descriptor v : jt_.vertices()) {

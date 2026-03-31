@@ -8,22 +8,23 @@
 namespace libgm {
 
 template <typename T, typename Property = void>
-struct Annotated : Property {
+struct Annotated {
   T value;
+  Property property_;
 
   Annotated() = default;
 
   template <typename U, typename P>
   Annotated(U&& value, P&& property)
-    : Property(std::forward<P>(property)),
-      value(std::forward<U>(value)) {}
+    : value(std::forward<U>(value)),
+      property_(std::forward<P>(property)) {}
 
   Property& property() {
-    return *this;
+    return property_;
   }
 
   const Property& property() const {
-    return *this;
+    return property_;
   }
 };
 

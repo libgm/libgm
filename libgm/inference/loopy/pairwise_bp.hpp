@@ -1,7 +1,7 @@
 #pragma once
 
 #include <libgm/argument/argument.hpp>
-#include <libgm/graph/markov_network.hpp>
+#include <libgm/model/markov_network.hpp>
 #include <libgm/graph/undirected_edge.hpp>
 
 #include <ankerl/unordered_dense.h>
@@ -13,6 +13,8 @@ namespace libgm {
  */
 template <typename NodeF>
 struct PairwiseBeliefState {
+  using edge_descriptor = MarkovNetwork<void>::edge_descriptor;
+
   virtual ~PairwiseBeliefState() {}
 
   /// Initializes all the messages using the given generator (must be provided).
@@ -22,19 +24,19 @@ struct PairwiseBeliefState {
   virtual void initialize(const ShapeMap& map) = 0;
 
   /// Computes the message along an edge.
-  virtual NodeF compute_message(UndirectedEdge<Arg> e) const = 0;
+  virtual NodeF compute_message(edge_descriptor e) const = 0;
 
   /// Returns a message. Throws std::out_of_range if not already present.
-  virtual const NodeF& message(UndirectedEdge<Arg> e) const = 0;
+  virtual const NodeF& message(edge_descriptor e) const = 0;
 
   /// Returns a mutable reference ot the message.
-  virtual NodeF& message(UndirectedEdge<Arg> e) = 0;
+  virtual NodeF& message(edge_descriptor e) = 0;
 
-  /// Returns the underlying Markov network.
-  virtual const MarkovNetwork& graph() = 0;
+  /// Returns the underlying graph view.
+  virtual const UndirectedGraph& graph() const = 0;
 
   /// Swaps the underlying message map for another one.
-  virtual void swap(ankerl::unordered_dense::map<UndirectedEdge<Arg>, NodeF>& other) = 0;
+  virtual void swap(ankerl::unordered_dense::map<edge_descriptor, NodeF>& other) = 0;
 };
 
 /**
@@ -48,30 +50,32 @@ template <typename NodeF, typename EdgeF>
 class PairwiseBeliefPropagation : public PairwiseBeliefState<NodeF> {
 public:
   using real_type = typename NodeF::real_type;
+  using vertex_descriptor = typename MarkovNetwork<void>::vertex_descriptor;
+  using edge_descriptor = typename PairwiseBeliefState<NodeF>::edge_descriptor;
 
   /// Constructs a loopy bp engine for the given graph.
-  PairwiseBeliefPropagation(const MarkovNetworkT<NodeF, EdgeF>& graph)
+  PairwiseBeliefPropagation(const MarkovNetwork<NodeF, EdgeF>& graph)
     : graph_(graph) {}
 
   void initialize(std::function<NodeF(Arg)> gen) override {
-    for (Arg v : graph_.vertices()) {
+    for (vertex_descriptor v : graph_.vertices()) {
       for (auto e : graph_.in_edges(v)) {
-        message(e) = gen(v);
+        message(e) = gen(graph_.argument(v));
       }
     }
   }
 
   void initialize(const ShapeMap& shape_map) override {
-    for (Arg v : graph_.vertices()) {
+    for (vertex_descriptor v : graph_.vertices()) {
       for (auto e : graph_.in_edges(v)) {
-        message(e) = NodeF(shape_map(v));
+        message(e) = NodeF(shape_map(graph_.argument(v)));
       }
     }
   }
 
-  NodeF compute_message(UndirectedEdge<Arg> e) const override {
-    Arg u = e.source();
-    Arg v = e.target();
+  NodeF compute_message(edge_descriptor e) const override {
+    vertex_descriptor u = e.source();
+    vertex_descriptor v = e.target();
 
     // Compute the product of factor at u and messages into u.
     NodeF incoming = factor(u);
@@ -82,7 +86,7 @@ public:
     }
 
     // Sum-product over the edge
-    NodeF result = e.is_nominal()
+    NodeF result = graph_.is_nominal(e)
       ? graph_[e].multiply_front(incoming).marginal_back(1)
       : graph_[e].multiply_back(incoming).marginal_front(1);
 
@@ -91,25 +95,29 @@ public:
     return result;
   }
 
-  const NodeF& message(UndirectedEdge<Arg> e) const override {
+  const NodeF& message(edge_descriptor e) const override {
     return messages_.at(e);
   }
 
-  NodeF& message(UndirectedEdge<Arg> e) override {
+  NodeF& message(edge_descriptor e) override {
     return messages_[e];
   }
 
-  const MarkovNetwork& graph() override {
-    return graph_;
+  const UndirectedGraph& graph() const override {
+    return graph_.graph();
   }
 
-  void swap(ankerl::unordered_dense::map<UndirectedEdge<Arg>, NodeF>& other) override {
+  void swap(ankerl::unordered_dense::map<edge_descriptor, NodeF>& other) override {
     using std::swap;
     swap(messages_, other);;
   }
 
   /// Computes the node belief.
   NodeF belief(Arg u) const {
+    return belief(graph_.vertex(u));
+  }
+
+  NodeF belief(vertex_descriptor u) const {
     NodeF f = factor(u);
     for (auto e : graph_.in_edges(u)) {
       f *= message(e);
@@ -119,9 +127,9 @@ public:
   }
 
   /// Computes the edge belief.
-  EdgeF belief(UndirectedEdge<Arg> e) const {
-    Arg u = e.source();
-    Arg v = e.target();
+  EdgeF belief(edge_descriptor e) const {
+    vertex_descriptor u = e.source();
+    vertex_descriptor v = e.target();
     NodeF fu = factor(u);
     NodeF fv = factor(v);
     for (auto e : graph_.in_edges(u)) {
@@ -138,19 +146,19 @@ public:
   }
 
 private:
-  const NodeF& factor(Arg u) const {
+  const NodeF& factor(vertex_descriptor u) const {
     return graph_[u];
   }
 
-  EdgeF factor(UndirectedEdge<Arg> e) const {
-    return e.is_nominal() ? graph_[e] : graph_[e].transpose();
+  EdgeF factor(edge_descriptor e) const {
+    return graph_.is_nominal(e) ? graph_[e] : graph_[e].transpose();
   }
 
   /// A reference to the Markov network used in the computations.
-  const MarkovNetworkT<NodeF, EdgeF>& graph_;
+  const MarkovNetwork<NodeF, EdgeF>& graph_;
 
   /// The underlying state.
-  ankerl::unordered_dense::map<UndirectedEdge<Arg>, NodeF> messages_;
+  ankerl::unordered_dense::map<edge_descriptor, NodeF> messages_;
 };
 
 }
