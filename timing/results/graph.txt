@@ -1,6 +1,6 @@
-../cmake-build-release/timing/graph/vector_graph_eliminate_timing --max-side 20 --step-size 1 --num-reps=100
-Measuring VectorGraph::eliminate on square grid graphs with min_side=1 max_side=20 step_size=1 num_reps=100
+../cmake-build-release/timing/graph/vector_graph_eliminate_timing --max-side 20 --step-size 1 --num-reps=300
+Measuring VectorGraph::eliminate on square grid graphs with min_side=1 max_side=20 step_size=1 num_reps=300
 
 vector_graph.eliminate(strategy)
-min-degree 1.825e-07 7.708e-07 2.143e-06 5.058e-06 8.670e-06 1.359e-05 2.061e-05 3.014e-05 4.055e-05 5.337e-05 6.244e-05 7.712e-05 9.844e-05 1.201e-04 1.371e-04 1.713e-04 2.035e-04 2.587e-04 2.967e-04 3.610e-04
-min-fill 7.959e-08 4.867e-07 1.655e-06 4.287e-06 9.261e-06 1.843e-05 3.414e-05 6.345e-05 9.827e-05 1.741e-04 2.362e-04 4.538e-04 5.825e-04 1.066e-03 1.532e-03 2.407e-03 2.839e-03 3.968e-03 4.854e-03 6.566e-03
+min-degree 1.717e-07 9.246e-07 2.717e-06 6.403e-06 1.026e-05 1.672e-05 2.295e-05 2.964e-05 3.646e-05 4.605e-05 5.385e-05 6.771e-05 9.013e-05 1.125e-04 1.387e-04 1.748e-04 2.028e-04 2.534e-04 2.935e-04 3.459e-04
+min-fill 5.778e-08 4.724e-07 1.653e-06 4.346e-06 9.773e-06 1.912e-05 3.562e-05 6.419e-05 1.019e-04 1.785e-04 2.514e-04 4.866e-04 6.237e-04 1.152e-03 1.708e-03 2.574e-03 3.020e-03 4.187e-03 5.102e-03 6.866e-03
