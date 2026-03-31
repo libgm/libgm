@@ -1,36 +1,26 @@
 #pragma once
 
-#include <libgm/argument/argument.hpp>
+#include <libgm/argument/grid_argument.hpp>
 #include <libgm/model/markov_network.hpp>
 
 #include <cstddef>
-#include <functional>
-#include <vector>
 
 namespace libgm {
 
-Arg make_argument(size_t row, size_t col);
-
 template <typename VP, typename EP = VP>
-MarkovNetwork<VP, EP> make_grid_graph(
-    size_t rows,
-    size_t cols,
-    const std::function<Arg(size_t, size_t)>& make_argument) {
-  MarkovNetwork<VP, EP> graph(rows * cols);
-  std::vector<Arg> args(rows * cols);
+MarkovNetwork<GridArg, VP, EP> make_grid_graph(size_t rows, size_t cols) {
+  MarkovNetwork<GridArg, VP, EP> graph(rows * cols);
 
   for (size_t row = 0; row < rows; ++row) {
     for (size_t col = 0; col < cols; ++col) {
-      const size_t idx = row * cols + col;
-      Arg u = make_argument(row, col);
-      args[idx] = u;
+      GridArg u{row, col};
       graph.add_vertex(u);
 
       if (row > 0) {
-        graph.add_edge(args[(row - 1) * cols + col], u);
+        graph.add_edge(GridArg{row - 1, col}, u);
       }
       if (col > 0) {
-        graph.add_edge(args[idx - 1], u);
+        graph.add_edge(GridArg{row, col - 1}, u);
       }
     }
   }

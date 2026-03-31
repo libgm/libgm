@@ -35,7 +35,8 @@ template <typename T> class CanonicalGaussian;
 template <typename T>
 class MomentGaussian {
 public:
-  using assignment_type = VectorAssignment<T>;
+  template <Argument Arg>
+  using assignment_t = VectorAssignment<Arg, T>;
   using real_type = T;
   using result_type = Exp<T>;
   using value_list = Vector<T>;

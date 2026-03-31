@@ -9,12 +9,14 @@
 using namespace libgm;
 
 BOOST_AUTO_TEST_CASE(creates_expected_grid_connectivity) {
-  std::vector<std::vector<Arg>> args(3, std::vector<Arg>(4));
+  using Arg = GridArg;
 
-  MarkovNetwork<int, double> graph = make_grid_graph<int, double>(3, 4, make_argument);
+  std::vector<std::vector<GridArg>> args(3, std::vector<GridArg>(4));
+
+  libgm::MarkovNetwork<Arg, int, double> graph = make_grid_graph<int, double>(3, 4);
   for (size_t row = 0; row < 3; ++row) {
     for (size_t col = 0; col < 4; ++col) {
-      args[row][col] = make_argument(row, col);
+      args[row][col] = GridArg{row, col};
     }
   }
 
@@ -41,16 +43,11 @@ BOOST_AUTO_TEST_CASE(creates_expected_grid_connectivity) {
 }
 
 BOOST_AUTO_TEST_CASE(empty_when_dimension_is_zero) {
-  int call_count = 0;
-  std::function<Arg(size_t, size_t)> counted_make_argument = [&](size_t row, size_t col) {
-    ++call_count;
-    return make_argument(row, col);
-  };
+  using Arg = GridArg;
 
-  MarkovNetwork<int, int> graph1 = make_grid_graph<int, int>(0, 5, counted_make_argument);
-  MarkovNetwork<int, int> graph2 = make_grid_graph<int, int>(4, 0, counted_make_argument);
+  libgm::MarkovNetwork<Arg, int, int> graph1 = make_grid_graph<int, int>(0, 5);
+  libgm::MarkovNetwork<Arg, int, int> graph2 = make_grid_graph<int, int>(4, 0);
 
   BOOST_CHECK(graph1.empty());
   BOOST_CHECK(graph2.empty());
-  BOOST_CHECK_EQUAL(call_count, 0);
 }

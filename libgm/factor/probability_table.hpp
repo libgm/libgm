@@ -36,7 +36,8 @@ template <typename T>
 class ProbabilityTable {
 public:
   /// Result of evaluating this table on a vector.
-  using assignment_type = DiscreteAssignment;
+  template <Argument Arg>
+  using assignment_t = DiscreteAssignment<Arg>;
   using real_type = T;
   using result_type = T;
   using value_list = std::vector<size_t>;

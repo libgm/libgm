@@ -37,7 +37,8 @@ template <typename T>
 class LogarithmicMatrix {
 public:
   /// The result of applying this factor to an index.
-  using assignment_type = DiscreteAssignment;
+  template <Argument Arg>
+  using assignment_t = DiscreteAssignment<Arg>;
   using real_type = T;
   using result_type = Exp<T>;
   using value_list = std::vector<size_t>;

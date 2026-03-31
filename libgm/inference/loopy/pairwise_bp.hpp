@@ -1,8 +1,8 @@
 #pragma once
 
-#include <libgm/argument/argument.hpp>
+#include <libgm/argument/concepts/argument.hpp>
+#include <libgm/argument/shape.hpp>
 #include <libgm/model/markov_network.hpp>
-#include <libgm/graph/undirected_edge.hpp>
 
 #include <ankerl/unordered_dense.h>
 
@@ -11,17 +11,17 @@ namespace libgm {
 /**
  * An interface for storing the belief state and computing the messages and beliefs in pairwise belief propagation.
  */
-template <typename NodeF>
+template <Argument Arg, typename NodeF>
 struct PairwiseBeliefState {
-  using edge_descriptor = MarkovNetwork<void>::edge_descriptor;
+  using edge_descriptor = typename MarkovNetwork<Arg>::edge_descriptor;
 
-  virtual ~PairwiseBeliefState() {}
+  virtual ~PairwiseBeliefState() = default;
 
   /// Initializes all the messages using the given generator (must be provided).
   virtual void initialize(std::function<NodeF(Arg)> gen) = 0;
 
   /// Initializes all the messages by initializing them to identity using the provided shape_map.
-  virtual void initialize(const ShapeMap& map) = 0;
+  virtual void initialize(const ShapeMap<Arg>& map) = 0;
 
   /// Computes the message along an edge.
   virtual NodeF compute_message(edge_descriptor e) const = 0;
@@ -46,15 +46,16 @@ struct PairwiseBeliefState {
  *
  * \ingroup inference
  */
-template <typename NodeF, typename EdgeF>
-class PairwiseBeliefPropagation : public PairwiseBeliefState<NodeF> {
+template <Argument Arg, typename NodeF, typename EdgeF>
+class PairwiseBeliefPropagation : public PairwiseBeliefState<Arg, NodeF> {
 public:
   using real_type = typename NodeF::real_type;
-  using vertex_descriptor = typename MarkovNetwork<void>::vertex_descriptor;
-  using edge_descriptor = typename PairwiseBeliefState<NodeF>::edge_descriptor;
+  using graph_type = MarkovNetwork<Arg, NodeF, EdgeF>;
+  using vertex_descriptor = typename graph_type::vertex_descriptor;
+  using edge_descriptor = typename PairwiseBeliefState<Arg, NodeF>::edge_descriptor;
 
   /// Constructs a loopy bp engine for the given graph.
-  PairwiseBeliefPropagation(const MarkovNetwork<NodeF, EdgeF>& graph)
+  explicit PairwiseBeliefPropagation(const graph_type& graph)
     : graph_(graph) {}
 
   void initialize(std::function<NodeF(Arg)> gen) override {
@@ -65,7 +66,7 @@ public:
     }
   }
 
-  void initialize(const ShapeMap& shape_map) override {
+  void initialize(const ShapeMap<Arg>& shape_map) override {
     for (vertex_descriptor v : graph_.vertices()) {
       for (auto e : graph_.in_edges(v)) {
         message(e) = NodeF(shape_map(graph_.argument(v)));
@@ -109,7 +110,7 @@ public:
 
   void swap(ankerl::unordered_dense::map<edge_descriptor, NodeF>& other) override {
     using std::swap;
-    swap(messages_, other);;
+    swap(messages_, other);
   }
 
   /// Computes the node belief.
@@ -132,11 +133,11 @@ public:
     vertex_descriptor v = e.target();
     NodeF fu = factor(u);
     NodeF fv = factor(v);
-    for (auto e : graph_.in_edges(u)) {
-      if (e.source() != v) { fu *= message(e); }
+    for (auto in : graph_.in_edges(u)) {
+      if (in.source() != v) { fu *= message(in); }
     }
-    for (auto e : graph_.in_edges(v)) {
-      if (e.source() != u) { fv *= message(e); }
+    for (auto in : graph_.in_edges(v)) {
+      if (in.source() != u) { fv *= message(in); }
     }
     EdgeF result = factor(e);
     result.multiply_in_front(fu);
@@ -155,10 +156,10 @@ private:
   }
 
   /// A reference to the Markov network used in the computations.
-  const MarkovNetwork<NodeF, EdgeF>& graph_;
+  const graph_type& graph_;
 
   /// The underlying state.
   ankerl::unordered_dense::map<edge_descriptor, NodeF> messages_;
 };
 
-}
+} // namespace libgm

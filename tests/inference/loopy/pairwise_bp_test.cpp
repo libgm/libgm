@@ -15,20 +15,21 @@
 
 #include <random>
 
-using namespace libgm;
-
 namespace {
 
-using ProbMatrix = ProbabilityMatrix<double>;
-using ProbTable = ProbabilityTable<double>;
-using ProbVector = ProbabilityVector<double>;
-using BP = PairwiseBeliefPropagation<ProbVector, ProbMatrix>;
+using Arg = libgm::GridArg;
+using Domain = libgm::Domain<Arg>;
+using ShapeMap = libgm::ShapeMap<Arg>;
+using ProbMatrix = libgm::ProbabilityMatrix<double>;
+using ProbTable = libgm::ProbabilityTable<double>;
+using ProbVector = libgm::ProbabilityVector<double>;
+using BP = libgm::PairwiseBeliefPropagation<Arg, ProbVector, ProbMatrix>;
 
 void test(
-    PairwiseBeliefSchedule<ProbVector>& schedule,
+    libgm::PairwiseBeliefSchedule<Arg, ProbVector>& schedule,
     BP& engine,
-    const MarkovNetwork<ProbVector, ProbMatrix>& mn,
-    const SumProductCalibrate<ProbTable>& sp,
+    const libgm::MarkovNetwork<Arg, ProbVector, ProbMatrix>& mn,
+    const libgm::SumProductCalibrate<Arg, ProbTable>& sp,
     size_t niters,
     double residual_error,
     double node_error,
@@ -77,20 +78,20 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
 
   std::mt19937 rng(0);
   ShapeMap shape_map = [](Arg) { return size_t(2); };
-  MinFillStrategy strategy;
+  libgm::MinFillStrategy strategy;
 
-  auto mn = make_grid_graph<ProbVector, ProbMatrix>(rows, cols, make_argument);
-  SumProductCalibrate<ProbTable> sp;
+  auto mn = libgm::make_grid_graph<ProbVector, ProbMatrix>(rows, cols);
+  libgm::SumProductCalibrate<Arg, ProbTable> sp;
   sp.reset(mn.structure(), strategy, shape_map);
 
-  UniformVectorGenerator<double> unary_gen(0.1, 1.0);
+  libgm::UniformVectorGenerator<double> unary_gen(0.1, 1.0);
   mn.init_vertices([&](Arg arg) {
     ProbVector factor(unary_gen(2, rng));
     sp.multiply_in({arg}, factor.table());
     return factor;
   });
 
-  DiagonalMatrixGenerator<std::uniform_real_distribution<double>> pairwise_gen(0.1, 0.2, 1.0);
+  libgm::DiagonalMatrixGenerator<std::uniform_real_distribution<double>> pairwise_gen(0.1, 0.2, 1.0);
   mn.init_edges([&](auto e) {
     ProbMatrix factor(pairwise_gen(2, rng));
     sp.multiply_in(mn.domain(e), factor.table());
@@ -100,26 +101,26 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   sp.calibrate();
   sp.normalize();
 
-  BeliefUpdate<ProbVector> update = Assign<>();
-  BeliefDiff<ProbVector> diff = std::mem_fn(&ProbVector::sum_diff);
+  libgm::BeliefUpdate<ProbVector> update = libgm::Assign<>();
+  libgm::BeliefDiff<ProbVector> diff = std::mem_fn(&ProbVector::sum_diff);
 
   {
     BP engine(mn);
-    SynchronousPropagationSchedule<ProbVector> schedule(engine, update, diff);
+    libgm::SynchronousPropagationSchedule<Arg, ProbVector> schedule(engine, update, diff);
     schedule.initialize(shape_map);
     test(schedule, engine, mn, sp, 100, 1e-6, 1e-3, 1e-3, 1e-6);
   }
 
   {
     BP engine(mn);
-    AsynchronousPropagationSchedule<ProbVector> schedule(engine, update, diff);
+    libgm::AsynchronousPropagationSchedule<Arg, ProbVector> schedule(engine, update, diff);
     schedule.initialize(shape_map);
     test(schedule, engine, mn, sp, 100, 1e-6, 1e-3, 1e-3, 1e-6);
   }
 
   {
     BP engine(mn);
-    ResidualPropagationSchedule<ProbVector> schedule(engine, update, diff);
+    libgm::ResidualPropagationSchedule<Arg, ProbVector> schedule(engine, update, diff);
     schedule.initialize(shape_map);
     test(schedule, engine, mn, sp, rows * cols * 100, 1e-5, 2e-3, 2e-3, 1e-6);
   }

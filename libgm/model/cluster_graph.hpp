@@ -30,10 +30,10 @@
 
 namespace libgm {
 
-template <typename VP = void, typename EP = VP>
+template <Argument Arg, typename VP = void, typename EP = VP>
 class ClusterGraph : private UndirectedGraph {
-  using VertexDomain = IndexedDomain<UndirectedGraph::Vertex>;
-  using EdgeDomain = IndexedDomain<UndirectedGraph::Edge>;
+  using VertexDomain = IndexedDomain<UndirectedGraph::Vertex, Arg>;
+  using EdgeDomain = IndexedDomain<UndirectedGraph::Edge, Arg>;
   using VertexAnnotation = Annotated<VertexDomain, VP>;
   using EdgeAnnotation = Annotated<EdgeDomain, EP>;
 
@@ -85,7 +85,7 @@ public:
   using UndirectedGraph::vertices;
   using UndirectedGraph::clear_vertex;
   /// Iterator over arguments present in the cluster index.
-  using argument_iterator = DomainIndex<Vertex>::argument_iterator;
+  using argument_iterator = DomainIndex<Vertex, Arg>::argument_iterator;
 
   /// Visitor over cluster vertices.
   using VertexVisitor = std::function<void(vertex_descriptor)>;
@@ -125,7 +125,7 @@ public:
 
   ClusterGraph& operator=(ClusterGraph&& other) noexcept = default;
 
-  // Domain accessors
+  // Domain<Arg> accessors
   //--------------------------------------------------------------------------
   /// Returns the range of arguments present in any cluster.
   std::ranges::subrange<argument_iterator> arguments() const {
@@ -143,32 +143,32 @@ public:
   }
 
   /// Returns the cluster domain associated with a vertex.
-  const Domain& cluster(Vertex* v) const {
+  const Domain<Arg>& cluster(Vertex* v) const {
     return vertex_annotation(v).value.domain();
   }
 
   /// Returns the separator domain associated with an edge.
-  const Domain& separator(edge_descriptor e) const {
+  const Domain<Arg>& separator(edge_descriptor e) const {
     return edge_annotation(e).value.domain();
   }
 
   /// Returns the shape of the cluster at a vertex.
-  Shape shape(Vertex* v, const ShapeMap& map) const {
+  Shape shape(Vertex* v, const ShapeMap<Arg>& map) const {
     return cluster(v).shape(map);
   }
 
   /// Returns the shape of the separator at an edge.
-  Shape shape(edge_descriptor e, const ShapeMap& map) const {
+  Shape shape(edge_descriptor e, const ShapeMap<Arg>& map) const {
     return separator(e).shape(map);
   }
 
   /// Returns the index mapping from `dom` into the cluster at `v`.
-  Dims dims(Vertex* v, const Domain& dom) const {
+  Dims dims(Vertex* v, const Domain<Arg>& dom) const {
     return cluster(v).dims(dom);
   }
 
   /// Returns the index mapping from `dom` into the separator at `e`.
-  Dims dims(edge_descriptor e, const Domain& dom) const {
+  Dims dims(edge_descriptor e, const Domain<Arg>& dom) const {
     return separator(e).dims(dom);
   }
 
@@ -205,8 +205,8 @@ public:
   // Queries
   //--------------------------------------------------------------------------
   /// Computes the Markov network induced by the clusters.
-  MarkovNetwork<void> markov_network() const {
-    MarkovNetwork<void> mn;
+  MarkovNetwork<Arg> markov_network() const {
+    MarkovNetwork<Arg> mn;
     for (Vertex* v : vertices()) {
       mn.add_clique(cluster(v));
     }
@@ -275,34 +275,34 @@ public:
   }
 
   /// Returns a cluster whose domain covers `dom`, or the null vertex.
-  Vertex* find_cluster_cover(const Domain& dom) const {
+  Vertex* find_cluster_cover(const Domain<Arg>& dom) const {
     return find_min_cover(cluster_index_, dom);
   }
 
   /// Returns a separator whose domain covers `dom`, or the null edge.
-  edge_descriptor find_separator_cover(const Domain& dom) const {
+  edge_descriptor find_separator_cover(const Domain<Arg>& dom) const {
     Edge* edge = find_min_cover(separator_index_, dom);
     return edge ? edge_descriptor(edge) : edge_descriptor();
   }
 
   /// Returns a cluster whose domain best intersects `dom`.
-  Vertex* find_cluster_meets(const Domain& dom) const {
+  Vertex* find_cluster_meets(const Domain<Arg>& dom) const {
     return find_max_intersection(cluster_index_, dom);
   }
 
   /// Returns a separator whose domain best intersects `dom`.
-  edge_descriptor find_separator_meets(const Domain& dom) const {
+  edge_descriptor find_separator_meets(const Domain<Arg>& dom) const {
     Edge* edge = find_max_intersection(separator_index_, dom);
     return edge ? edge_descriptor(edge) : edge_descriptor();
   }
 
   /// Visits all clusters intersecting `dom`.
-  void intersecting_clusters(const Domain& dom, VertexVisitor visitor) const {
+  void intersecting_clusters(const Domain<Arg>& dom, VertexVisitor visitor) const {
     visit_intersections(cluster_index_, dom, std::move(visitor));
   }
 
   /// Visits all separators intersecting `dom`.
-  void intersecting_separators(const Domain& dom, ModelEdgeVisitor visitor) const {
+  void intersecting_separators(const Domain<Arg>& dom, ModelEdgeVisitor visitor) const {
     visit_intersections(separator_index_, dom, [&](Edge* edge) {
       visitor(edge_descriptor(edge));
     });
@@ -311,7 +311,7 @@ public:
   // Modifications
   //--------------------------------------------------------------------------
   /// Adds a cluster vertex with the supplied domain.
-  Vertex* add_vertex(Domain cluster) {
+  Vertex* add_vertex(Domain<Arg> cluster) {
     assert(cluster.is_sorted());
     Vertex* v = UndirectedGraph::add_vertex();
     vertex_annotation(v).value.owner = v;
@@ -322,14 +322,14 @@ public:
 
   /// Adds a cluster vertex with a typed property.
   template <typename T = VP>
-  Vertex* add_vertex(Domain cluster, T property) requires (!std::is_void_v<T>) {
+  Vertex* add_vertex(Domain<Arg> cluster, T property) requires (!std::is_void_v<T>) {
     Vertex* v = add_vertex(std::move(cluster));
     (*this)[v] = std::move(property);
     return v;
   }
 
   /// Adds an edge with the supplied separator.
-  edge_descriptor add_edge(Vertex* u, Vertex* v, Domain separator) {
+  edge_descriptor add_edge(Vertex* u, Vertex* v, Domain<Arg> separator) {
     assert(u != v);
     assert(separator.is_sorted());
     assert(is_subset(separator, cluster(u)));
@@ -348,7 +348,7 @@ public:
 
   /// Adds an edge with the supplied separator and typed property.
   template <typename T = EP>
-  edge_descriptor add_edge(Vertex* u, Vertex* v, Domain separator, T property) requires (!std::is_void_v<T>) {
+  edge_descriptor add_edge(Vertex* u, Vertex* v, Domain<Arg> separator, T property) requires (!std::is_void_v<T>) {
     edge_descriptor e = add_edge(u, v, std::move(separator));
     (*this)[e] = std::move(property);
     return e;
@@ -363,7 +363,7 @@ public:
   }
 
   /// Updates the cluster domain associated with a vertex.
-  void update_cluster(Vertex* u, const Domain& cluster) {
+  void update_cluster(Vertex* u, const Domain<Arg>& cluster) {
     if (this->cluster(u) != cluster) {
       vertex_annotation(u).value.owner = u;
       vertex_annotation(u).value.reset(cluster);
@@ -372,7 +372,7 @@ public:
   }
 
   /// Updates the separator domain associated with an edge.
-  void update_separator(edge_descriptor e, const Domain& separator) {
+  void update_separator(edge_descriptor e, const Domain<Arg>& separator) {
     if (this->separator(e) != separator) {
       edge_annotation(e).value.owner = e.get();
       edge_annotation(e).value.reset(separator);
@@ -409,10 +409,10 @@ public:
   // Triangulation
   //--------------------------------------------------------------------------
   /// Initializes this graph to the triangulation of a Markov network.
-  void triangulated(MarkovStructure& mg, const EliminationStrategy& strategy) {
+  void triangulated(MarkovStructure<Arg>& mg, const EliminationStrategy& strategy) {
     clear();
     mg.eliminate(strategy, [&](size_t v) {
-      Domain clique = mg.adjacent_arguments(v);
+      Domain<Arg> clique = mg.adjacent_arguments(v);
       clique.push_back(mg.argument(v));
       clique.sort();
       if (is_maximal(cluster_index_, clique)) {
@@ -423,11 +423,11 @@ public:
   }
 
   /// Initializes this graph from triangulated cliques and adds MST separators.
-  std::vector<Vertex*> triangulated(const std::vector<Domain>& cliques) {
+  std::vector<Vertex*> triangulated(const std::vector<Domain<Arg>>& cliques) {
     clear();
     std::vector<Vertex*> result;
     result.reserve(cliques.size());
-    for (const Domain& clique : cliques) {
+    for (const Domain<Arg>& clique : cliques) {
       result.push_back(add_vertex(clique));
     }
     mst_edges();
@@ -555,8 +555,8 @@ private:
     }
   }
 
-  DomainIndex<Vertex> cluster_index_;
-  DomainIndex<Edge> separator_index_;
+  DomainIndex<Vertex, Arg> cluster_index_;
+  DomainIndex<Edge, Arg> separator_index_;
 };
 
 } // namespace libgm

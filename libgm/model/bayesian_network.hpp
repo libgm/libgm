@@ -1,10 +1,11 @@
 #pragma once
 
-#include <libgm/argument/argument.hpp>
+#include <libgm/argument/concepts/argument.hpp>
 #include <libgm/argument/domain.hpp>
 #include <libgm/datastructure/unordered_dense.hpp>
 #include <libgm/factor/utility/annotated.hpp>
 #include <libgm/graph/directed_graph.hpp>
+#include <libgm/graph/util/property_layout.hpp>
 #include <libgm/model/markov_structure.hpp>
 
 #include <cereal/cereal.hpp>
@@ -18,33 +19,38 @@
 
 namespace libgm {
 
-template <typename VP = void>
+template <Argument Arg, typename VP = void>
 class BayesianNetwork : private DirectedGraph {
   using Annotation = Annotated<Arg, VP>;
-  using VertexMap = ankerl::unordered_dense::map<Arg, DirectedGraph::Vertex*>;
 
 public:
-  using DirectedGraph::Vertex;
+  using argument_type = Arg;
+  using domain_type = Domain<Arg>;
+  using structure_type = MarkovStructure<Arg>;
+  using Vertex = DirectedGraph::Vertex;
+  using VertexMap = ankerl::unordered_dense::map<Arg, Vertex*>;
+
   using DirectedGraph::adjacency_iterator;
   using DirectedGraph::adjacent_vertices;
-  using DirectedGraph::contains;
   using DirectedGraph::compute_indices;
+  using DirectedGraph::contains;
   using DirectedGraph::degree;
   using DirectedGraph::edge;
   using DirectedGraph::edge_descriptor;
   using DirectedGraph::empty;
-  using DirectedGraph::index;
   using DirectedGraph::in_degree;
-  using DirectedGraph::in_edges;
   using DirectedGraph::in_edge_iterator;
+  using DirectedGraph::in_edges;
+  using DirectedGraph::index;
   using DirectedGraph::indices;
   using DirectedGraph::null_vertex;
   using DirectedGraph::num_edges;
   using DirectedGraph::num_vertices;
   using DirectedGraph::out_degree;
-  using DirectedGraph::out_edges;
   using DirectedGraph::out_edge_iterator;
+  using DirectedGraph::out_edges;
   using DirectedGraph::parents;
+  using DirectedGraph::property;
   using DirectedGraph::vertex_descriptor;
   using DirectedGraph::vertex_iterator;
   using DirectedGraph::vertices;
@@ -73,8 +79,6 @@ public:
 
   BayesianNetwork& operator=(BayesianNetwork&& other) noexcept = default;
 
-  using DirectedGraph::property;
-
   bool contains(Arg u) const {
     return vertices_.contains(u);
   }
@@ -87,8 +91,8 @@ public:
     return annotated(u).value;
   }
 
-  Domain arguments(Vertex* u) const {
-    Domain result;
+  domain_type arguments(Vertex* u) const {
+    domain_type result;
     result.reserve(DirectedGraph::parents(u).size() + 1);
     result.push_back(argument(u));
     for (Vertex* parent : DirectedGraph::parents(u)) {
@@ -113,12 +117,12 @@ public:
     return operator[](vertex(u));
   }
 
-  Vertex* add_vertex(Arg u, const Domain& parents) {
+  Vertex* add_vertex(Arg u, const domain_type& parents) {
     if (contains(u)) {
       throw std::invalid_argument("BayesianNetwork::add_vertex: vertex already exists");
     }
 
-    for (Arg parent : parents) {
+    for (const Arg& parent : parents) {
       if (parent == u) {
         throw std::invalid_argument("BayesianNetwork::add_vertex: self-parent is not allowed");
       }
@@ -129,7 +133,7 @@ public:
 
     std::vector<Vertex*> parent_vertices;
     parent_vertices.reserve(parents.size());
-    for (Arg parent : parents) {
+    for (const Arg& parent : parents) {
       parent_vertices.push_back(vertex(parent));
     }
 
@@ -140,16 +144,16 @@ public:
   }
 
   template <typename T = VP>
-  Vertex* add_vertex(Arg u, const Domain& parents, T vp) requires (!std::is_void_v<T>) {
+  Vertex* add_vertex(Arg u, const domain_type& parents, T vp) requires (!std::is_void_v<T>) {
     Vertex* v = add_vertex(u, parents);
     (*this)[v] = std::move(vp);
     return v;
   }
 
-  void set_parents(Arg u, const Domain& parents) {
+  void set_parents(Arg u, const domain_type& parents) {
     Vertex* v = vertex(u);
 
-    for (Arg parent : parents) {
+    for (const Arg& parent : parents) {
       if (parent == u) {
         throw std::invalid_argument("BayesianNetwork::set_parents: self-parent is not allowed");
       }
@@ -160,7 +164,7 @@ public:
 
     std::vector<Vertex*> parent_vertices;
     parent_vertices.reserve(parents.size());
-    for (Arg parent : parents) {
+    for (const Arg& parent : parents) {
       parent_vertices.push_back(vertex(parent));
     }
 
@@ -186,8 +190,8 @@ public:
     vertices_.clear();
   }
 
-  MarkovStructure markov_structure() const {
-    MarkovStructure mg;
+  structure_type markov_structure() const {
+    structure_type mg;
     compute_indices();
     for (Vertex* v : vertices()) {
       mg.add_vertex(argument(v));

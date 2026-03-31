@@ -33,7 +33,8 @@ template <typename T> class ProbabilityVector;
 template <typename T>
 class LogarithmicTable {
 public:
-  using assignment_type = DiscreteAssignment;
+  template <Argument Arg>
+  using assignment_t = DiscreteAssignment<Arg>;
   using probability_type = ProbabilityTable<T>;
   using real_type = T;
   using result_type = Exp<T>;

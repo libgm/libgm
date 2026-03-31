@@ -43,8 +43,8 @@ struct Annotated<T, void> {
   void property() const {}
 };
 
-template <typename Factor>
-Annotated<std::decay_t<Factor>, Domain> annotate(Factor&& factor, Domain domain) {
+template <Argument Arg, typename Factor>
+Annotated<std::decay_t<Factor>, Domain<Arg>> annotate(Factor&& factor, Domain<Arg> domain) {
   return {std::forward<Factor>(factor), std::move(domain)};
 }
 

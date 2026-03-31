@@ -17,27 +17,25 @@ namespace {
 
 constexpr std::size_t n = 100;
 
+using Arg = NamedArg<16>;
+
 struct Item {
   int id;
-  IndexedDomain<Item> index;
+  IndexedDomain<Item, Arg> index;
 
-  Item(int id, Domain args)
+  Item(int id, libgm::Domain<Arg> args)
     : id(id)
     , index(std::move(args)) {
     index.owner = this;
   }
 
-  const Domain& domain() const {
+  const libgm::Domain<Arg>& domain() const {
     return index.domain();
   }
 };
 
-Arg make_arg(const std::string& name) {
-  return NamedFactory::default_factory().make(name);
-}
-
-Domain make_random_domain(std::mt19937& rng, const std::vector<Arg>& pool) {
-  Domain domain;
+libgm::Domain<Arg> make_random_domain(std::mt19937& rng, const std::vector<Arg>& pool) {
+  libgm::Domain<Arg> domain;
   size_t size = 1 + (rng() % 10);
   domain.reserve(size);
   for (size_t j = 0; j < size; ++j) {
@@ -48,21 +46,21 @@ Domain make_random_domain(std::mt19937& rng, const std::vector<Arg>& pool) {
 }
 
 struct fixture {
-  DomainIndex<Item> index;
+  DomainIndex<Item, Arg> index;
   std::vector<std::unique_ptr<Item>> items;
-  std::vector<Domain> domains;
+  std::vector<libgm::Domain<Arg>> domains;
 
   fixture() {
     std::mt19937 rng(13);
     std::vector<Arg> pool;
     for (int i = 0; i < 20; ++i) {
-      pool.push_back(make_arg("a" + std::to_string(i)));
+      pool.emplace_back("a" + std::to_string(i));
     }
 
     items.reserve(n);
     domains.reserve(n);
     for (size_t i = 0; i < n; ++i) {
-      Domain domain = make_random_domain(rng, pool);
+      libgm::Domain<Arg> domain = make_random_domain(rng, pool);
       auto item = std::make_unique<Item>(static_cast<int>(i), domain);
       index.insert(item->index);
       domains.push_back(domain);
@@ -75,7 +73,7 @@ struct fixture {
 
 BOOST_FIXTURE_TEST_CASE(test_visit_covers, fixture) {
   for (size_t i = 0; i < n; ++i) {
-    const Domain& query = domains[i];
+    const libgm::Domain<Arg>& query = domains[i];
     int found = 0;
 
     visit_covers(index, query, [&](Item* item) {
@@ -94,7 +92,7 @@ BOOST_FIXTURE_TEST_CASE(test_visit_covers, fixture) {
 
 BOOST_FIXTURE_TEST_CASE(test_visit_intersections, fixture) {
   for (size_t i = 0; i < n; ++i) {
-    const Domain& query = domains[i];
+    const libgm::Domain<Arg>& query = domains[i];
     int found = 0;
 
     visit_intersections(index, query, [&](Item* item) {
@@ -113,7 +111,7 @@ BOOST_FIXTURE_TEST_CASE(test_visit_intersections, fixture) {
 
 BOOST_FIXTURE_TEST_CASE(test_find_max_intersection, fixture) {
   for (size_t i = 0; i < n; ++i) {
-    const Domain& query = domains[i];
+    const libgm::Domain<Arg>& query = domains[i];
     Item* result = find_max_intersection(index, query);
     BOOST_REQUIRE(result != nullptr);
 
@@ -134,13 +132,13 @@ BOOST_FIXTURE_TEST_CASE(test_find_max_intersection, fixture) {
     BOOST_CHECK_EQUAL(result->domain().size(), expected_min_size);
   }
 
-  Domain query = {make_arg("__missing_arg__")};
+  libgm::Domain<Arg> query = {Arg("__missing_arg__")};
   BOOST_CHECK(find_max_intersection(index, query) == nullptr);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_find_min_cover, fixture) {
   for (size_t i = 0; i < n; ++i) {
-    const Domain& query = domains[i];
+    const libgm::Domain<Arg>& query = domains[i];
     Item* result = find_min_cover(index, query);
     BOOST_REQUIRE(result != nullptr);
     BOOST_CHECK(is_subset(query, result->domain()));
@@ -154,20 +152,20 @@ BOOST_FIXTURE_TEST_CASE(test_find_min_cover, fixture) {
     BOOST_CHECK_EQUAL(result->domain().size(), expected_min_size);
   }
 
-  Domain query = {make_arg("__missing_arg__")};
+  libgm::Domain<Arg> query = {Arg("__missing_arg__")};
   BOOST_CHECK(find_min_cover(index, query) == nullptr);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_is_maximal, fixture) {
-  const Domain& d0 = domains.front();
-  Domain covered_query = {d0.front()};
+  const libgm::Domain<Arg>& d0 = domains.front();
+  libgm::Domain<Arg> covered_query = {d0.front()};
   BOOST_CHECK(!is_maximal(index, covered_query));
 
-  Arg missing = make_arg("__missing_arg__");
-  Domain uncovered_query = {missing};
+  Arg missing("__missing_arg__");
+  libgm::Domain<Arg> uncovered_query = {missing};
   BOOST_CHECK(is_maximal(index, uncovered_query));
 
-  Domain mixed_query = covered_query;
+  libgm::Domain<Arg> mixed_query = covered_query;
   mixed_query.push_back(missing);
   mixed_query.sort();
   BOOST_CHECK(is_maximal(index, mixed_query));

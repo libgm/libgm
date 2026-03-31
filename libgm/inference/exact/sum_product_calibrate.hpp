@@ -13,56 +13,53 @@ namespace libgm {
  *
  * \ingroup inference
  */
-template <typename F>
-class SumProductCalibrate : public JunctionTreeEngine<F> {
+template <Argument Arg, typename F>
+class SumProductCalibrate : public JunctionTreeEngine<Arg, F> {
 public:
+  using assignment_type = typename JunctionTreeEngine<Arg, F>::assignment_type;
+
   // Descriptors
-  using vertex_descriptor = typename ClusterGraph<>::vertex_descriptor;
-  using edge_descriptor   = typename ClusterGraph<>::edge_descriptor;
+  using vertex_descriptor = typename ClusterGraph<Arg>::vertex_descriptor;
+  using edge_descriptor = typename ClusterGraph<Arg>::edge_descriptor;
 
   /// Default constructor. Constructs a sum-product algorithm with no model.
   SumProductCalibrate() = default;
 
-  /// Initializes the algorithm to the given junction tree that defines adistribution via the product of the vertex
+  /// Initializes the algorithm to the given junction tree that defines a distribution via the product of the vertex
   /// properties.
   template <typename Other>
-  void reset(const ClusterGraph<F, Other>& cg) {
+  void reset(const ClusterGraph<Arg, F, Other>& cg) {
     calibrated_ = false;
     jt_.clear();
 
-    // initialize the cliques and edges
     ankerl::unordered_dense::map<vertex_descriptor, vertex_descriptor> map;
     for (vertex_descriptor v : cg.vertices()) {
       map.emplace(v, jt_.add_vertex(cg.cluster(v), cg[v]));
     }
     for (edge_descriptor e : cg.edges()) {
-      edge_descriptor f = jt_.add_edge(map.at(e.source()), map.at(e.target()));
+      jt_.add_edge(map.at(e.source()), map.at(e.target()));
     }
 
     assert(jt_.is_tree());
-}
+  }
 
   /// Initializes the algorithm to the cliques obtained by eliminating given collection of factors.
-  void reset(MarkovStructure mg, const EliminationStrategy& strategy, const ShapeMap& shape_map) override {
+  void reset(MarkovStructure<Arg> mg, const EliminationStrategy& strategy, const ShapeMap<Arg>& shape_map) override {
     calibrated_ = false;
 
-    // initialize the junction tree
     jt_.triangulated(mg, strategy);
 
-    // Initialize the clique Factors
     for (vertex_descriptor v : jt_.vertices()) {
       jt_[v].reset(jt_.shape(v, shape_map));
     }
-
-    // Initialize the messages
     for (edge_descriptor e : jt_.edges()) {
-      jt_[e].forward.reset(jt_.shape(e, shape_map));;
+      jt_[e].forward.reset(jt_.shape(e, shape_map));
       jt_[e].reverse.reset(jt_.shape(e, shape_map));
     }
   }
 
   /// Multiplies in a factor.
-  void multiply_in(const Domain& domain, const F& factor) override {
+  void multiply_in(const Domain<Arg>& domain, const F& factor) override {
     vertex_descriptor v = jt_.find_cluster_cover(domain);
     assert(v);
     jt_[v].multiply_in(factor, jt_.dims(v, domain));
@@ -89,8 +86,7 @@ public:
   /// Ensures that all the beliefs are normalized. The underlying junction tree must be calibrated.
   void normalize() override {
     assert(calibrated_ && !jt_.empty());
-    // Compute the normalization constant z, and normalize the root
-    // and every message in the direction from the root
+
     vertex_descriptor root = jt_.root();
     auto z = belief(root).marginal();
     jt_[root] /= z;
@@ -100,23 +96,20 @@ public:
   }
 
   /**
-   * Conditions the inference on an assignment to one or more variables
-   * This is a mutable operation. Note that calibrate() needs to be called
-   * afterwards.
+   * Conditions the inference on an assignment to one or more variables.
+   * This is a mutable operation. Note that calibrate() needs to be called afterwards.
    */
-  void condition(const typename F::assignment_type& a) override {
-    // Extract the restricted arguments
-    Domain args = a.keys();
+  void condition(const assignment_type& a) override {
+    Domain<Arg> args = a.keys();
 
-    // Update the factors and messages
     jt_.intersecting_clusters(args, [&](vertex_descriptor v) {
-      Domain y, x; // restricted, retained
+      Domain<Arg> y, x;
       a.partition(jt_.cluster(v), y, x);
       jt_[v] = jt_[v].restrict_dims(jt_.dims(v, y), a.values(y));
       jt_.update_cluster(v, x);
     });
     jt_.intersecting_separators(args, [&](edge_descriptor e) {
-      Domain y, x; // restricted, retained
+      Domain<Arg> y, x;
       a.partition(jt_.separator(e), y, x);
       Dims dims = jt_.dims(e, y);
       typename F::value_list values = a.values(y);
@@ -125,7 +118,6 @@ public:
       jt_.update_separator(e, x);
     });
 
-    // The junction tree needs to be calibrated afterwards
     calibrated_ = false;
   }
 
@@ -133,7 +125,7 @@ public:
   //--------------------------------------------------------------------------
 
   /// Returns the underlying junction tree.
-  const ClusterGraph<F, Bidirectional<F>>& jt() const {
+  const ClusterGraph<Arg, F, Bidirectional<F>>& jt() const {
     return jt_;
   }
 
@@ -154,23 +146,20 @@ public:
   }
 
   /// Returns the belief for a set of variables.
-  ///\throw std::invalid_argument if the specified set is not covered by any clique
-  F belief(const Domain& domain) const {
+  /// \throw std::invalid_argument if the specified set is not covered by any clique
+  F belief(const Domain<Arg>& domain) const {
     assert(calibrated_);
 
-    // Try to find a separator that covers the variables
     edge_descriptor e = jt_.find_separator_cover(domain);
     if (e) {
       return belief(e).marginal_dims(jt_.dims(e, domain));
     }
 
-    // Next, look for a clique that covers the variables
     vertex_descriptor v = jt_.find_cluster_cover(domain);
     if (v) {
       return belief(v).marginal_dims(jt_.dims(v, domain));
     }
 
-    // Did not find a suitable clique / separator
     throw std::invalid_argument("SumProductCalibrate::belief: the domain is not covered by any clique or separator");
   }
 
@@ -189,11 +178,10 @@ public:
 
 private:
   /// The junction tree used to store the factors and messages
-  ClusterGraph<F, Bidirectional<F>> jt_;
+  ClusterGraph<Arg, F, Bidirectional<F>> jt_;
 
   /// True if the inference has been performed
-  bool calibrated_;
-
+  bool calibrated_ = false;
 }; // class SumProductCalibrate
 
-};
+} // namespace libgm

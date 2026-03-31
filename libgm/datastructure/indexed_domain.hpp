@@ -7,15 +7,15 @@
 
 namespace libgm {
 
-template <typename Item>
+template <typename Item, Argument Arg>
 struct IndexedDomain {
   Item* owner = nullptr;
-  Domain args;
-  typename IntrusiveList<IndexedDomain<Item>>::HookArray hooks;
+  Domain<Arg> args;
+  typename IntrusiveList<IndexedDomain<Item, Arg>>::HookArray hooks;
 
   IndexedDomain() = default;
 
-  explicit IndexedDomain(Domain args)
+  explicit IndexedDomain(Domain<Arg> args)
     : args(std::move(args)),
       hooks(this->args.size()) {}
 
@@ -40,11 +40,11 @@ struct IndexedDomain {
     return owner;
   }
 
-  const Domain& domain() const {
+  const Domain<Arg>& domain() const {
     return args;
   }
 
-  void reset(Domain new_args) {
+  void reset(Domain<Arg> new_args) {
     args = std::move(new_args);
     hooks.reset(args.size());
   }

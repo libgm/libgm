@@ -20,7 +20,8 @@ namespace libgm {
 template <typename F>
 class Mixture {
 public:
-  using assignment_type = typename F::assignment_type;
+  template <Argument Arg>
+  using assignment_t = typename F::template assignment_t<Arg>;
   using component_result_type = typename F::result_type;
   using real_type = typename F::real_type;
   using result_type = real_type;

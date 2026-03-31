@@ -1,15 +1,14 @@
 #pragma once
 
-#include <libgm/argument/argument.hpp>
+#include <libgm/argument/concepts/argument.hpp>
 #include <libgm/argument/domain.hpp>
 #include <libgm/datastructure/unordered_dense.hpp>
 #include <libgm/factor/utility/annotated.hpp>
 #include <libgm/graph/bipartite_graph.hpp>
-#include <libgm/model/markov_structure.hpp>
-#include <libgm/model/markov_network.hpp>
-#include <libgm/iterator/bind1_iterator.hpp>
-#include <libgm/iterator/bind2_iterator.hpp>
+#include <libgm/graph/util/property_layout.hpp>
 #include <libgm/iterator/map_key_iterator.hpp>
+#include <libgm/model/markov_network.hpp>
+#include <libgm/model/markov_structure.hpp>
 
 #include <cereal/cereal.hpp>
 #include <cereal/types/base_class.hpp>
@@ -24,13 +23,16 @@
 
 namespace libgm {
 
-template <typename AP = void, typename FP = void>
+template <Argument Arg, typename AP = void, typename FP = void>
 class FactorGraph : private BipartiteGraph {
   using ArgumentAnnotation = Annotated<Arg, AP>;
-  using FactorAnnotation = Annotated<Domain, FP>;
+  using FactorAnnotation = Annotated<Domain<Arg>, FP>;
   using ArgumentMap = ankerl::unordered_dense::map<Arg, BipartiteGraph::Vertex1*>;
 
 public:
+  using argument_type = Arg;
+  using domain_type = Domain<Arg>;
+  using markov_structure_type = MarkovStructure<Arg>;
   using Vertex1 = BipartiteGraph::Vertex1;
   using Vertex2 = BipartiteGraph::Vertex2;
   using Argument = Vertex1;
@@ -41,28 +43,27 @@ public:
   using BipartiteGraph::edge12_descriptor;
   using BipartiteGraph::edge21_descriptor;
   using BipartiteGraph::empty;
-  using BipartiteGraph::index;
-  using BipartiteGraph::in_edges;
   using BipartiteGraph::in_edge1_iterator;
   using BipartiteGraph::in_edge2_iterator;
+  using BipartiteGraph::in_edges;
+  using BipartiteGraph::index;
   using BipartiteGraph::neighbors;
   using BipartiteGraph::num_vertices1;
   using BipartiteGraph::num_vertices2;
-  using BipartiteGraph::out_edges;
   using BipartiteGraph::out_edge1_iterator;
   using BipartiteGraph::out_edge2_iterator;
+  using BipartiteGraph::out_edges;
   using BipartiteGraph::property;
   using BipartiteGraph::remove_vertex2;
   using BipartiteGraph::vertex1_descriptor;
-  using BipartiteGraph::vertex2_descriptor;
   using BipartiteGraph::vertex1_iterator;
+  using BipartiteGraph::vertex2_descriptor;
   using BipartiteGraph::vertex2_iterator;
   using BipartiteGraph::vertices1;
   using BipartiteGraph::vertices2;
 
   using argument_iterator = MapKeyIterator<ArgumentMap>;
   using factor_iterator = vertex2_iterator;
-
   using argument_property_reference = std::add_lvalue_reference_t<AP>;
   using const_argument_property_reference = std::add_lvalue_reference_t<std::add_const_t<AP>>;
   using factor_property_reference = std::add_lvalue_reference_t<FP>;
@@ -88,7 +89,7 @@ public:
 
   FactorGraph& operator=(FactorGraph&& other) noexcept = default;
 
-  explicit FactorGraph(const MarkovNetwork<AP, FP>& mn)
+  explicit FactorGraph(const MarkovNetwork<Arg, AP, FP>& mn)
     requires (!std::is_void_v<AP> && !std::is_void_v<FP>)
     : FactorGraph() {
     for (auto* v : mn.vertices()) {
@@ -100,7 +101,7 @@ public:
   }
 
   template <typename AP2, typename FP2, typename Converter>
-  explicit FactorGraph(const MarkovNetwork<AP2, FP2>& mn, Converter converter)
+  explicit FactorGraph(const MarkovNetwork<Arg, AP2, FP2>& mn, Converter converter)
     : FactorGraph() {
     for (auto* v : mn.vertices()) {
       if constexpr (!std::is_void_v<AP>) {
@@ -118,8 +119,6 @@ public:
     }
   }
 
-  // Accessors relying on Arg/Domain
-  //--------------------------------------------------------------------------
   std::ranges::subrange<argument_iterator> arguments() const {
     return {arguments_.begin(), arguments_.end()};
   }
@@ -132,7 +131,7 @@ public:
     return BipartiteGraph::neighbors(vertex(u));
   }
 
-  const Domain& arguments(Factor* u) const {
+  const domain_type& arguments(Factor* u) const {
     return factor_annotation(u).value;
   }
 
@@ -188,18 +187,8 @@ public:
     return factor_annotation(f).property();
   }
 
-  // Queries
-  //--------------------------------------------------------------------------
-  MarkovNetwork<void> markov_network() const {
-    MarkovNetwork<void> mn;
-    for (Factor* f : factors()) {
-      mn.add_clique(arguments(f));
-    }
-    return mn;
-  }
-
-  MarkovStructure markov_graph() const {
-    MarkovStructure mg;
+  markov_structure_type markov_graph() const {
+    markov_structure_type mg;
     compute_vertex1_indices();
     for (Argument* u : vertices1()) {
       mg.add_vertex(argument(u));
@@ -210,8 +199,6 @@ public:
     return mg;
   }
 
-  // Modifications
-  //--------------------------------------------------------------------------
   Argument* add_argument(Arg u) {
     if (contains(u)) {
       throw std::invalid_argument("FactorGraph::add_argument: argument already exists");
@@ -229,11 +216,11 @@ public:
     return v;
   }
 
-  Factor* add_factor(Domain args) {
+  Factor* add_factor(domain_type args) {
     assert(args.is_sorted());
     std::vector<Argument*> neighbors;
     neighbors.reserve(args.size());
-    for (Arg u : args) {
+    for (const Arg& u : args) {
       neighbors.push_back(vertex(u));
     }
     Factor* f = BipartiteGraph::add_vertex2(std::move(neighbors));
@@ -242,7 +229,7 @@ public:
   }
 
   template <typename T = FP>
-  Factor* add_factor(Domain args, T property) requires (!std::is_void_v<T>) {
+  Factor* add_factor(domain_type args, T property) requires (!std::is_void_v<T>) {
     Factor* f = add_factor(std::move(args));
     (*this)[f] = std::move(property);
     return f;
@@ -307,7 +294,7 @@ public:
     ar(cereal::make_size_tag(factor_count));
     assert(factor_count == num_factors());
     for (Factor* f : factors()) {
-      Domain domain;
+      domain_type domain;
       domain.reserve(BipartiteGraph::neighbors(f).size());
       for (Argument* u : BipartiteGraph::neighbors(f)) {
         domain.push_back(argument(u));
@@ -328,17 +315,17 @@ private:
     return opaque_cast<ArgumentAnnotation>(BipartiteGraph::property(u));
   }
 
-  FactorAnnotation& factor_annotation(Factor* u) {
-    return opaque_cast<FactorAnnotation>(BipartiteGraph::property(u));
+  FactorAnnotation& factor_annotation(Factor* f) {
+    return opaque_cast<FactorAnnotation>(BipartiteGraph::property(f));
   }
 
-  const FactorAnnotation& factor_annotation(Factor* u) const {
-    return opaque_cast<FactorAnnotation>(BipartiteGraph::property(u));
+  const FactorAnnotation& factor_annotation(Factor* f) const {
+    return opaque_cast<FactorAnnotation>(BipartiteGraph::property(f));
   }
 
   void rebuild_map() {
     arguments_.clear();
-    arguments_.reserve(num_arguments());
+    arguments_.reserve(num_vertices1());
     for (Argument* u : vertices1()) {
       arguments_.emplace(argument(u), u);
     }

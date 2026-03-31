@@ -13,9 +13,8 @@ using namespace libgm;
 
 namespace {
 
-Arg make_arg(const char* name) {
-  return NamedFactory::default_factory().make(name);
-}
+using Arg = NamedArg<16>;
+using Graph = FactorGraph<Arg>;
 
 struct ArgumentProperty {
   static int alive_count;
@@ -77,11 +76,11 @@ int FactorProperty::alive_count = 0;
 
 struct Fixture {
   Fixture() {
-    a = make_arg("a");
-    b = make_arg("b");
-    c = make_arg("c");
-    d = make_arg("d");
-    e = make_arg("e");
+    a = Arg("a");
+    b = Arg("b");
+    c = Arg("c");
+    d = Arg("d");
+    e = Arg("e");
 
     va = fg.add_argument(a);
     vb = fg.add_argument(b);
@@ -99,27 +98,27 @@ struct Fixture {
   Arg c;
   Arg d;
   Arg e;
-  FactorGraph<>::Argument* va = nullptr;
-  FactorGraph<>::Argument* vb = nullptr;
-  FactorGraph<>::Argument* vc = nullptr;
-  FactorGraph<>::Argument* vd = nullptr;
-  FactorGraph<>::Argument* ve = nullptr;
+  Graph::Argument* va = nullptr;
+  Graph::Argument* vb = nullptr;
+  Graph::Argument* vc = nullptr;
+  Graph::Argument* vd = nullptr;
+  Graph::Argument* ve = nullptr;
 
-  FactorGraph<> fg;
-  FactorGraph<>::Factor* f_ab = nullptr;
-  FactorGraph<>::Factor* f_bc = nullptr;
-  FactorGraph<>::Factor* f_cde = nullptr;
+  Graph fg;
+  Graph::Factor* f_ab = nullptr;
+  Graph::Factor* f_bc = nullptr;
+  Graph::Factor* f_cde = nullptr;
 };
 
 } // namespace
 
 BOOST_AUTO_TEST_CASE(test_edge_descriptor_basics) {
-  using lr_edge_type = FactorGraph<>::edge12_descriptor;
-  using rl_edge_type = FactorGraph<>::edge21_descriptor;
+  using lr_edge_type = Graph::edge12_descriptor;
+  using rl_edge_type = Graph::edge21_descriptor;
 
-  Arg a = make_arg("edge_a");
-  Arg b = make_arg("edge_b");
-  FactorGraph<> fg;
+  Arg a("edge_a");
+  Arg b("edge_b");
+  Graph fg;
   auto* va = fg.add_argument(a);
   auto* vb = fg.add_argument(b);
   auto* f = fg.add_factor({a, b});
@@ -134,10 +133,10 @@ BOOST_AUTO_TEST_CASE(test_edge_descriptor_basics) {
 }
 
 BOOST_AUTO_TEST_CASE(test_constructors_and_copy_move) {
-  FactorGraph<> g1;
+  Graph g1;
   BOOST_CHECK(g1.empty());
-  Arg a = make_arg("ca");
-  Arg b = make_arg("cb");
+  Arg a("ca");
+  Arg b("cb");
   auto* va = g1.add_argument(a);
   auto* vb = g1.add_argument(b);
   auto* f = g1.add_factor({a, b});
@@ -150,22 +149,22 @@ BOOST_AUTO_TEST_CASE(test_constructors_and_copy_move) {
   BOOST_CHECK_EQUAL(g1.num_arguments(), 2);
   BOOST_CHECK_EQUAL(g1.num_factors(), 1);
 
-  FactorGraph<> g2(g1);
+  Graph g2(g1);
   BOOST_CHECK_EQUAL(g2.num_arguments(), 2);
   BOOST_CHECK_EQUAL(g2.num_factors(), 1);
 }
 
 BOOST_AUTO_TEST_CASE(base_factor_graph_uses_null_property_pointers) {
-  FactorGraph<> fg;
-  Arg a = make_arg("prop_a");
-  Arg b = make_arg("prop_b");
+  Graph fg;
+  Arg a("prop_a");
+  Arg b("prop_b");
   auto* va = fg.add_argument(a);
   fg.add_argument(b);
   auto* f = fg.add_factor({a, b});
 
   BOOST_CHECK(fg.property(va).type_info == typeid(Annotated<Arg, void>));
   BOOST_CHECK(fg.property(va).ptr != nullptr);
-  BOOST_CHECK(fg.property(f).type_info == typeid(Annotated<Domain, void>));
+  BOOST_CHECK(fg.property(f).type_info == typeid(Annotated<libgm::Domain<Arg>, void>));
   BOOST_CHECK(fg.property(f).ptr != nullptr);
 }
 
@@ -175,31 +174,23 @@ BOOST_FIXTURE_TEST_CASE(test_accessors_contains_and_degree, Fixture) {
   BOOST_CHECK_EQUAL(fg.degree(a), 1);
   BOOST_CHECK_EQUAL(fg.degree(b), 2);
   BOOST_CHECK_EQUAL(fg.degree(f_ab), 2);
-  BOOST_CHECK_EQUAL(fg.arguments(f_cde), Domain({c, d, e}));
-  BOOST_CHECK(std::ranges::equal(fg.factors(c), std::vector<FactorGraph<>::Factor*>{f_bc, f_cde}));
+  BOOST_CHECK_EQUAL(fg.arguments(f_cde), libgm::Domain<Arg>({c, d, e}));
+  BOOST_CHECK(std::ranges::equal(fg.factors(c), std::vector<Graph::Factor*>{f_bc, f_cde}));
 }
 
 BOOST_FIXTURE_TEST_CASE(test_in_and_out_edges, Fixture) {
-  std::vector<FactorGraph<>::edge12_descriptor> expected_out_b = {{vb, f_ab}, {vb, f_bc}};
+  std::vector<Graph::edge12_descriptor> expected_out_b = {{vb, f_ab}, {vb, f_bc}};
   BOOST_CHECK(std::ranges::equal(fg.out_edges(vb), expected_out_b));
 
-  std::vector<FactorGraph<>::edge21_descriptor> expected_in_b = {
+  std::vector<Graph::edge21_descriptor> expected_in_b = {
     {f_ab, vb},
     {f_bc, vb}
   };
   BOOST_CHECK(std::ranges::equal(fg.in_edges(vb), expected_in_b));
 }
 
-BOOST_FIXTURE_TEST_CASE(test_markov_network, Fixture) {
-  MarkovNetwork<void> mn = fg.markov_network();
-  BOOST_CHECK_EQUAL(mn.num_vertices(), 5);
-  BOOST_CHECK(mn.contains(a, b));
-  BOOST_CHECK(mn.contains(b, c));
-  BOOST_CHECK(mn.contains(c, d));
-}
-
 BOOST_FIXTURE_TEST_CASE(test_markov_graph, Fixture) {
-  MarkovStructure mg = fg.markov_graph();
+  MarkovStructure<Arg> mg = fg.markov_graph();
 
   BOOST_CHECK_EQUAL(mg.num_vertices(), 5);
   BOOST_CHECK_EQUAL(mg.argument(fg.index(va)), a);
@@ -227,9 +218,9 @@ BOOST_AUTO_TEST_CASE(argument_and_factor_property_addresses_and_lifetime) {
   ArgumentProperty::alive_count = 0;
   FactorProperty::alive_count = 0;
 
-  FactorGraph<ArgumentProperty, FactorProperty> fg;
-  Arg a = make_arg("typed_a");
-  Arg b = make_arg("typed_b");
+  FactorGraph<Arg, ArgumentProperty, FactorProperty> fg;
+  Arg a("typed_a");
+  Arg b("typed_b");
 
   auto* va = fg.add_argument(a, ArgumentProperty(10));
   fg.add_argument(b, ArgumentProperty(20));

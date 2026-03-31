@@ -22,12 +22,12 @@ void time_eliminate(const char* label, const Strategy& strategy) {
   Timer t;
   std::cout << label << std::flush;
   for (size_t side : side_lengths) {
-    MarkovStructure base_graph = make_grid_graph<int>(side, side, make_argument).structure();
-    std::vector<MarkovStructure> graphs(num_reps, base_graph);
+    libgm::MarkovStructure<GridArg> base_graph = make_grid_graph<int, int>(side, side).structure();
+    std::vector<libgm::MarkovStructure<GridArg>> graphs(num_reps, base_graph);
     std::size_t eliminated = 0;
 
     t.restart();
-    for (MarkovStructure& graph : graphs) {
+    for (libgm::MarkovStructure<GridArg>& graph : graphs) {
       graph.eliminate(strategy, [&](size_t) { ++eliminated; });
     }
 

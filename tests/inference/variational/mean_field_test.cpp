@@ -20,19 +20,15 @@
 #include <string>
 #include <vector>
 
-using namespace libgm;
-
 namespace {
 
-using LogTable = LogarithmicTable<double>;
-using LogVector = LogarithmicVector<double>;
-using ProbMatrix = ProbabilityMatrix<double>;
-using ProbTable = ProbabilityTable<double>;
-using ProbVector = ProbabilityVector<double>;
-
-Arg make_arg(const std::string& name) {
-  return NamedFactory::default_factory().make(name);
-}
+using Arg = libgm::NamedArg<16>;
+using ShapeMap = libgm::ShapeMap<Arg>;
+using LogTable = libgm::LogarithmicTable<double>;
+using LogVector = libgm::LogarithmicVector<double>;
+using ProbMatrix = libgm::ProbabilityMatrix<double>;
+using ProbTable = libgm::ProbabilityTable<double>;
+using ProbVector = libgm::ProbabilityVector<double>;
 
 } // namespace
 
@@ -43,20 +39,20 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
 
   std::mt19937 rng(0);
   std::uniform_int_distribution<size_t> side_dist(0, nvertices - 1);
-  UniformVectorGenerator<double> unary_gen(0.1, 1.0);
-  UniformMatrixGenerator<double> pairwise_gen(0.1, 1.0);
+  libgm::UniformVectorGenerator<double> unary_gen(0.1, 1.0);
+  libgm::UniformMatrixGenerator<double> pairwise_gen(0.1, 1.0);
   ShapeMap shape_map = [](Arg) { return size_t(2); };
-  MinFillStrategy strategy;
-  SumProductCalibrate<ProbTable> sp;
+  libgm::MinFillStrategy strategy;
+  libgm::SumProductCalibrate<Arg, ProbTable> sp;
 
-  MarkovNetwork<ProbVector, ProbMatrix> exact_mn;
-  FactorGraph<LogVector, LogTable> mf_fg;
+  libgm::MarkovNetwork<Arg, ProbVector, ProbMatrix> exact_mn;
+  libgm::FactorGraph<Arg, LogVector, LogTable> mf_fg;
   std::vector<Arg> xs;
   std::vector<Arg> ys;
 
   for (size_t i = 0; i < nvertices; ++i) {
-    Arg x = make_arg("x" + std::to_string(i));
-    Arg y = make_arg("y" + std::to_string(i));
+    Arg x("x" + std::to_string(i));
+    Arg y("y" + std::to_string(i));
     xs.push_back(x);
     ys.push_back(y);
 
@@ -77,7 +73,7 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
     Arg x = xs[i];
     Arg y = ys[j];
     ProbMatrix pairwise(pairwise_gen(2, 2, rng));
-    Domain domain{x, y};
+    libgm::Domain<Arg> domain{x, y};
     auto [e, inserted] = exact_mn.add_edge(x, y, pairwise);
     if (!inserted) {
       continue;
@@ -88,7 +84,7 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
 
   sp.reset(exact_mn.structure(), strategy, shape_map);
   for (auto* v : exact_mn.vertices()) {
-    sp.multiply_in(Domain{exact_mn.argument(v)}, exact_mn[v].table());
+    sp.multiply_in(libgm::Domain<Arg>{exact_mn.argument(v)}, exact_mn[v].table());
   }
   for (auto e : exact_mn.edges()) {
     sp.multiply_in(exact_mn.domain(e), exact_mn[e].table());
@@ -96,7 +92,7 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   sp.calibrate();
   sp.normalize();
 
-  MeanField<LogVector, LogTable> mf(mf_fg, shape_map);
+  libgm::MeanField<Arg, LogVector, LogTable> mf(mf_fg, shape_map);
   double diff = 0.0;
   for (size_t it = 0; it < niters; ++it) {
     diff = mf.iterate();
@@ -106,7 +102,7 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   double kl = 0.0;
   for (auto* v : exact_mn.vertices()) {
     Arg u = exact_mn.argument(v);
-    ProbVector exact = sp.belief(Domain{u}).vector();
+    ProbVector exact = sp.belief(libgm::Domain<Arg>{u}).vector();
     kl += exact.kl_divergence(mf.belief(u));
   }
   kl /= exact_mn.num_vertices();

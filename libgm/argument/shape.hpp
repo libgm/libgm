@@ -1,6 +1,6 @@
 #pragma once
 
-#include <libgm/argument/argument.hpp>
+#include <libgm/argument/concepts/argument.hpp>
 #include <libgm/argument/dims.hpp>
 #include <libgm/argument/span.hpp>
 
@@ -122,6 +122,7 @@ Shape join(const Shape& a, const Shape& b, const Dims& i, const Dims& j);
 std::ostream& operator<<(std::ostream& out, const Shape& shape);
 
 /// A mapping from an argument to its size.
+template <Argument Arg>
 using ShapeMap = std::function<size_t(Arg arg)>;
 
 } // namespace libgm

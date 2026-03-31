@@ -11,16 +11,14 @@ using namespace libgm;
 
 namespace {
 
-Arg make_arg(const char* name) {
-  return NamedFactory::default_factory().make(name);
-}
+using Arg = NamedArg<16>;
 
-Domain sorted(Domain d) {
+libgm::Domain<Arg> sorted(libgm::Domain<Arg> d) {
   d.sort();
   return d;
 }
 
-bool equivalent(Domain a, Domain b) {
+bool equivalent(libgm::Domain<Arg> a, libgm::Domain<Arg> b) {
   a.sort();
   b.sort();
   return a == b;
@@ -29,48 +27,48 @@ bool equivalent(Domain a, Domain b) {
 } // namespace
 
 BOOST_AUTO_TEST_CASE(test_constructors) {
-  Arg x = make_arg("x");
-  Arg y = make_arg("y");
+  Arg x("x");
+  Arg y("y");
 
-  Domain a;
+  libgm::Domain<Arg> a;
   BOOST_CHECK(a.empty());
 
-  Domain b({x, y});
+  libgm::Domain<Arg> b({x, y});
   BOOST_CHECK_EQUAL(b.size(), 2);
   BOOST_CHECK_EQUAL(b[0], x);
   BOOST_CHECK_EQUAL(b[1], y);
 
-  Domain c(&x, &x + 1);
+  libgm::Domain<Arg> c(&x, &x + 1);
   BOOST_CHECK_EQUAL(c.size(), 1);
   BOOST_CHECK_EQUAL(c[0], x);
 }
 
 BOOST_AUTO_TEST_CASE(test_operations) {
-  Arg x = make_arg("x");
-  Arg y = make_arg("y");
-  Arg z = make_arg("z");
-  Arg w = make_arg("w");
+  Arg x("x");
+  Arg y("y");
+  Arg z("z");
+  Arg w("w");
 
-  Domain xyz  = {x, y, z};
-  Domain x1   = {x};
-  Domain y1   = {y};
-  Domain z1   = {z};
-  Domain xy   = {x, y};
-  Domain xw   = {x, w};
-  Domain yx   = {y, x};
-  Domain yw   = {y, w};
-  Domain yz   = {y, z};
-  Domain zw   = {z, w};
-  Domain xyw  = {x, y, w};
-  Domain yzw  = {y, z, w};
-  Domain xyzw = {x, y, z, w};
-  Domain xwzy = {x, w, z, y};
-  Domain xywx = {x, y, w, x};
+  libgm::Domain<Arg> xyz  = {x, y, z};
+  libgm::Domain<Arg> x1   = {x};
+  libgm::Domain<Arg> y1   = {y};
+  libgm::Domain<Arg> z1   = {z};
+  libgm::Domain<Arg> xy   = {x, y};
+  libgm::Domain<Arg> xw   = {x, w};
+  libgm::Domain<Arg> yx   = {y, x};
+  libgm::Domain<Arg> yw   = {y, w};
+  libgm::Domain<Arg> yz   = {y, z};
+  libgm::Domain<Arg> zw   = {z, w};
+  libgm::Domain<Arg> xyw  = {x, y, w};
+  libgm::Domain<Arg> yzw  = {y, z, w};
+  libgm::Domain<Arg> xyzw = {x, y, z, w};
+  libgm::Domain<Arg> xwzy = {x, w, z, y};
+  libgm::Domain<Arg> xywx = {x, y, w, x};
 
-  Domain x1y1 = x1;
+  libgm::Domain<Arg> x1y1 = x1;
   x1y1.append(y1);
   BOOST_CHECK_EQUAL(x1y1, xy);
-  Domain xyz_concat = xy;
+  libgm::Domain<Arg> xyz_concat = xy;
   xyz_concat.append(z1);
   BOOST_CHECK_EQUAL(xyz_concat, xyz);
   BOOST_CHECK(xyzw.has_prefix(xy));
@@ -101,39 +99,35 @@ BOOST_AUTO_TEST_CASE(test_operations) {
 }
 
 BOOST_AUTO_TEST_CASE(test_num_univariate) {
-  Domain v;
-  v.push_back(make_arg("a"));
-  v.push_back(make_arg("b"));
-  v.push_back(make_arg("c"));
-  v.push_back(make_arg("d"));
-  v.push_back(make_arg("e"));
-  v.push_back(make_arg("f"));
-  v.push_back(make_arg("g"));
-  v.push_back(make_arg("h"));
-  v.push_back(make_arg("i"));
-  v.push_back(make_arg("j"));
+  libgm::Domain<Arg> v;
+  v.push_back(Arg("a"));
+  v.push_back(Arg("b"));
+  v.push_back(Arg("c"));
+  v.push_back(Arg("d"));
+  v.push_back(Arg("e"));
+  v.push_back(Arg("f"));
+  v.push_back(Arg("g"));
+  v.push_back(Arg("h"));
+  v.push_back(Arg("i"));
+  v.push_back(Arg("j"));
 
   BOOST_CHECK_EQUAL(v.size(), 10);
 
   v.clear();
-  v.push_back(make_arg("k"));
-  v.push_back(make_arg("l"));
-  v.push_back(make_arg("m"));
-  v.push_back(make_arg("n"));
+  v.push_back(Arg("k"));
+  v.push_back(Arg("l"));
+  v.push_back(Arg("m"));
+  v.push_back(Arg("n"));
   BOOST_CHECK_EQUAL(v.size(), 4);
 }
 
 BOOST_AUTO_TEST_CASE(test_argset_constructor_and_sort_state) {
-  Arg x = make_arg("x");
-  Arg y = make_arg("y");
-  Arg z = make_arg("z");
+  Arg x("x");
+  Arg y("y");
+  Arg z("z");
 
-  ArgSet set;
-  set.insert(z);
-  set.insert(x);
-  set.insert(y);
-
-  Domain d(set);
+  libgm::Domain<Arg> d = {z, x, y};
+  d.sort();
   BOOST_CHECK(d.is_sorted());
   BOOST_CHECK_EQUAL(d.size(), 3);
   BOOST_CHECK(d.contains(x));
@@ -142,62 +136,62 @@ BOOST_AUTO_TEST_CASE(test_argset_constructor_and_sort_state) {
 }
 
 BOOST_AUTO_TEST_CASE(test_stream_prefix_suffix_and_bounds) {
-  Arg x = make_arg("x");
-  Arg y = make_arg("y");
-  Arg z = make_arg("z");
+  Arg x("x");
+  Arg y("y");
+  Arg z("z");
 
-  Domain xyz = {x, y, z};
-  Domain p2 = xyz.prefix(2);
-  Domain s2 = xyz.suffix(2);
-  BOOST_CHECK_EQUAL(p2, Domain({x, y}));
-  BOOST_CHECK_EQUAL(s2, Domain({y, z}));
+  libgm::Domain<Arg> xyz = {x, y, z};
+  libgm::Domain<Arg> p2 = xyz.prefix(2);
+  libgm::Domain<Arg> s2 = xyz.suffix(2);
+  BOOST_CHECK_EQUAL(p2, libgm::Domain<Arg>({x, y}));
+  BOOST_CHECK_EQUAL(s2, libgm::Domain<Arg>({y, z}));
 
   BOOST_CHECK_THROW(xyz.prefix(4), std::invalid_argument);
   BOOST_CHECK_THROW(xyz.suffix(4), std::invalid_argument);
 
   std::ostringstream out;
-  out << Domain({x, y});
+  out << libgm::Domain<Arg>({x, y});
   BOOST_CHECK_EQUAL(out.str(), "[x, y]");
 }
 
 BOOST_AUTO_TEST_CASE(test_erase_and_set_ops_in_place) {
-  Arg x = make_arg("x");
-  Arg y = make_arg("y");
-  Arg z = make_arg("z");
-  Arg w = make_arg("w");
+  Arg x("x");
+  Arg y("y");
+  Arg z("z");
+  Arg w("w");
 
-  Domain xyz = sorted(Domain({x, y, z}));
-  Domain yw = sorted(Domain({y, w}));
-  Domain yz = sorted(Domain({y, z}));
-  Domain xw = sorted(Domain({x, w}));
+  libgm::Domain<Arg> xyz = sorted(libgm::Domain<Arg>({x, y, z}));
+  libgm::Domain<Arg> yw = sorted(libgm::Domain<Arg>({y, w}));
+  libgm::Domain<Arg> yz = sorted(libgm::Domain<Arg>({y, z}));
+  libgm::Domain<Arg> xw = sorted(libgm::Domain<Arg>({x, w}));
 
-  Domain inter = xyz;
+  libgm::Domain<Arg> inter = xyz;
   inter &= yw;
-  BOOST_CHECK_EQUAL(inter, Domain({y}));
+  BOOST_CHECK_EQUAL(inter, libgm::Domain<Arg>({y}));
 
-  Domain diff = xyz;
+  libgm::Domain<Arg> diff = xyz;
   diff -= yz;
-  BOOST_CHECK_EQUAL(diff, Domain({x}));
+  BOOST_CHECK_EQUAL(diff, libgm::Domain<Arg>({x}));
 
   BOOST_CHECK_EQUAL(intersection_size(xyz, yz), 2);
   BOOST_CHECK_EQUAL(intersection_size(xyz, xw), 1);
 
-  Domain e = sorted(Domain({x, y, z}));
+  libgm::Domain<Arg> e = sorted(libgm::Domain<Arg>({x, y, z}));
   e.erase(y);
-  BOOST_CHECK_EQUAL(e, Domain({x, z}));
+  BOOST_CHECK_EQUAL(e, libgm::Domain<Arg>({x, z}));
   BOOST_CHECK_THROW(e.erase(w), std::invalid_argument);
 }
 
 BOOST_AUTO_TEST_CASE(test_shape_dims_and_dims_omit) {
-  Arg a = make_arg("a");
-  Arg b = make_arg("b");
-  Arg c = make_arg("c");
-  Arg d = make_arg("d");
-  Arg e = make_arg("e");
+  Arg a("a");
+  Arg b("b");
+  Arg c("c");
+  Arg d("d");
+  Arg e("e");
 
-  Domain abcd = sorted(Domain({a, b, c, d}));
+  libgm::Domain<Arg> abcd = sorted(libgm::Domain<Arg>({a, b, c, d}));
 
-  ShapeMap shape_map = [&](Arg arg) -> size_t {
+  ShapeMap<Arg> shape_map = [&](Arg arg) -> size_t {
     if (arg == a) return 2;
     if (arg == b) return 3;
     if (arg == c) return 5;
@@ -212,7 +206,7 @@ BOOST_AUTO_TEST_CASE(test_shape_dims_and_dims_omit) {
   BOOST_CHECK_EQUAL(shape[2], 5);
   BOOST_CHECK_EQUAL(shape[3], 7);
 
-  Domain ac = {abcd[0], abcd[2]};
+  libgm::Domain<Arg> ac = {abcd[0], abcd[2]};
   Dims dims = abcd.dims(ac);
   BOOST_CHECK(dims.test(0));
   BOOST_CHECK(!dims.test(1));
@@ -225,27 +219,27 @@ BOOST_AUTO_TEST_CASE(test_shape_dims_and_dims_omit) {
   BOOST_CHECK(!omit.test(2));
   BOOST_CHECK(omit.test(3));
 
-  Domain ca = {c, a};
+  libgm::Domain<Arg> ca = {c, a};
   BOOST_CHECK_THROW(abcd.dims(ca), std::invalid_argument);
-  BOOST_CHECK_THROW(abcd.dims(Domain({a, e})), std::invalid_argument);
+  BOOST_CHECK_THROW(abcd.dims(libgm::Domain<Arg>({a, e})), std::invalid_argument);
   BOOST_CHECK_THROW(abcd.dims_omit(e), std::invalid_argument);
 }
 
 BOOST_AUTO_TEST_CASE(test_hashing) {
-  Arg x = make_arg("x");
-  Arg y = make_arg("y");
-  Arg z = make_arg("z");
+  Arg x("x");
+  Arg y("y");
+  Arg z("z");
 
-  Domain a = sorted(Domain({x, y, z}));
-  Domain b = sorted(Domain({x, y, z}));
-  Domain c = sorted(Domain({x, z}));
+  libgm::Domain<Arg> a = sorted(libgm::Domain<Arg>({x, y, z}));
+  libgm::Domain<Arg> b = sorted(libgm::Domain<Arg>({x, y, z}));
+  libgm::Domain<Arg> c = sorted(libgm::Domain<Arg>({x, z}));
 
-  BOOST_CHECK_EQUAL(boost::hash<Domain>()(a), boost::hash<Domain>()(b));
-  BOOST_CHECK_EQUAL(std::hash<Domain>()(a), std::hash<Domain>()(b));
+  BOOST_CHECK_EQUAL(boost::hash<libgm::Domain<Arg>>()(a), boost::hash<libgm::Domain<Arg>>()(b));
+  BOOST_CHECK_EQUAL(std::hash<libgm::Domain<Arg>>()(a), std::hash<libgm::Domain<Arg>>()(b));
   BOOST_CHECK(a == b);
   BOOST_CHECK(a != c);
 
-  std::unordered_set<Domain> set;
+  std::unordered_set<libgm::Domain<Arg>> set;
   set.insert(a);
   BOOST_CHECK(set.contains(b));
   BOOST_CHECK(!set.contains(c));

@@ -35,7 +35,8 @@ template <typename T>
 class LogarithmicVector {
 public:
   /// The result of applying this factor to an index.
-  using assignment_type = DiscreteAssignment;
+  template <Argument Arg>
+  using assignment_t = DiscreteAssignment<Arg>;
   using probability_type = ProbabilityVector<T>;
   using real_type = T;
   using result_type = Exp<T>;

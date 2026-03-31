@@ -13,34 +13,32 @@ using namespace libgm;
 
 namespace {
 
+using Arg = NamedArg<16>;
+
 struct Item {
   int id;
-  IndexedDomain<Item> index;
+  IndexedDomain<Item, Arg> index;
 
-  Item(int id, Domain args)
+  Item(int id, libgm::Domain<Arg> args)
     : id(id)
     , index(std::move(args)) {
     index.owner = this;
   }
 };
 
-Arg make_arg(const std::string& name) {
-  return NamedFactory::default_factory().make(name);
-}
-
 } // namespace
 
 BOOST_AUTO_TEST_CASE(test_domain_index_class_basics) {
-  Arg a = make_arg("cls_a");
-  Arg b = make_arg("cls_b");
-  Arg c = make_arg("cls_c");
-  Arg d = make_arg("cls_d");
+  Arg a("cls_a");
+  Arg b("cls_b");
+  Arg c("cls_c");
+  Arg d("cls_d");
 
-  Item x(1, Domain({a, b}));
-  Item y(2, Domain({b, c}));
-  Item z(3, Domain({c}));
+  Item x(1, libgm::Domain<Arg>({a, b}));
+  Item y(2, libgm::Domain<Arg>({b, c}));
+  Item z(3, libgm::Domain<Arg>({c}));
 
-  DomainIndex<Item> index;
+  DomainIndex<Item, Arg> index;
   index.insert(x.index);
   index.insert(y.index);
   index.insert(z.index);
@@ -56,7 +54,7 @@ BOOST_AUTO_TEST_CASE(test_domain_index_class_basics) {
 
   {
     std::vector<int> ids;
-    for (const IndexedDomain<Item>* indexed : index.adjacency(b)) {
+    for (const IndexedDomain<Item, Arg>* indexed : index.adjacency(b)) {
       ids.push_back(indexed->item()->id);
     }
     std::sort(ids.begin(), ids.end());
@@ -65,9 +63,9 @@ BOOST_AUTO_TEST_CASE(test_domain_index_class_basics) {
   BOOST_CHECK(index.adjacency(d).empty());
 
   {
-    Domain args(index.arguments());
+    libgm::Domain<Arg> args(index.arguments());
     args.sort();
-    BOOST_CHECK(args == Domain({a, b, c}));
+    BOOST_CHECK(args == libgm::Domain<Arg>({a, b, c}));
   }
 
   index.erase(y.index);
@@ -76,7 +74,7 @@ BOOST_AUTO_TEST_CASE(test_domain_index_class_basics) {
 
   {
     std::vector<int> ids;
-    for (const IndexedDomain<Item>* indexed : index.adjacency(b)) {
+    for (const IndexedDomain<Item, Arg>* indexed : index.adjacency(b)) {
       ids.push_back(indexed->item()->id);
     }
     BOOST_CHECK(ids == std::vector<int>({1}));
@@ -89,16 +87,16 @@ BOOST_AUTO_TEST_CASE(test_domain_index_class_basics) {
 }
 
 BOOST_AUTO_TEST_CASE(test_domain_index_swap_and_empty_domain_insert) {
-  Arg a = make_arg("swap_a");
-  Arg b = make_arg("swap_b");
-  Arg c = make_arg("swap_c");
+  Arg a("swap_a");
+  Arg b("swap_b");
+  Arg c("swap_c");
 
-  Item x(10, Domain({a, b}));
-  Item y(20, Domain({c}));
-  Item e(30, Domain());
+  Item x(10, libgm::Domain<Arg>({a, b}));
+  Item y(20, libgm::Domain<Arg>({c}));
+  Item e(30, libgm::Domain<Arg>());
 
-  DomainIndex<Item> left;
-  DomainIndex<Item> right;
+  DomainIndex<Item, Arg> left;
+  DomainIndex<Item, Arg> right;
   left.insert(x.index);
   right.insert(y.index);
   left.insert(e.index); // Empty domain: no adjacency entries.

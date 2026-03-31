@@ -35,7 +35,8 @@ template <typename T> class LogarithmicMatrix;
 template <typename T>
 class ProbabilityMatrix {
 public:
-  using assignment_type = DiscreteAssignment;
+  template <Argument Arg>
+  using assignment_t = DiscreteAssignment<Arg>;
   using real_type = T;
   using result_type = T;
   using value_list = std::vector<size_t>;

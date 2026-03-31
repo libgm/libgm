@@ -9,7 +9,7 @@ factor: FORCE
 	${bin_dir}/factor/canonical_gaussian_timing --max-dims 50 --step-size 5 --num-reps=10000
 
 graph: FORCE
-	${bin_dir}/graph/vector_graph_eliminate_timing --max-side 9 --step-size 1 --num-reps=1000
+	${bin_dir}/graph/vector_graph_eliminate_timing --max-side 20 --step-size 1 --num-reps=1000
 
 factor-experimental: FORCE
 	${bin_dir}/factor/experimental/table_experimental_timing --num-values 2 --max-arity 9 --num-reps 50000

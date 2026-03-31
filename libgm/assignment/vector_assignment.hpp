@@ -13,17 +13,19 @@ namespace libgm {
  * Each vector variable can have a value (of given element type) assigned to it.
  * The assignment can be efficiently represented as a map from Arg to Vector<T>.
  */
-template <typename T>
+template <Argument Arg, typename T>
 class VectorAssignment final
   : public ankerl::unordered_dense::map<Arg, Vector<T>> {
 public:
+  using key_type = Arg;
+  using domain_type = Domain<Arg>;
   using value_list = Vector<T>;
   using Base = ankerl::unordered_dense::map<Arg, Vector<T>>;
   using Base::Base;
   using Base::operator[];
 
-  Domain keys() const {
-    Domain result;
+  domain_type keys() const {
+    domain_type result;
     result.reserve(this->size());
     for (const auto& [arg, _] : *this) {
       result.push_back(arg);
@@ -32,19 +34,19 @@ public:
     return result;
   }
 
-  Vector<T> values(Arg arg) const {
+  Vector<T> values(const Arg& arg) const {
     return this->at(arg);
   }
 
-  Vector<T> values(const Domain& domain) const {
+  Vector<T> values(const domain_type& domain) const {
     size_t size = 0;
-    for (Arg arg : domain) {
+    for (const Arg& arg : domain) {
       size += this->at(arg).size();
     }
 
     Vector<T> result(size);
     size_t i = 0;
-    for (Arg arg : domain) {
+    for (const Arg& arg : domain) {
       const Vector<T>& vec = this->at(arg);
       result.segment(i, vec.size()) = vec;
       i += vec.size();
@@ -52,18 +54,18 @@ public:
     return result;
   }
 
-  void set(Arg arg, const Vector<T>& values) {
+  void set(const Arg& arg, const Vector<T>& values) {
     (*this)[arg] = values;
   }
 
-  void set(const Domain& domain, const Vector<T>& values) {
+  void set(const domain_type& domain, const Vector<T>& values) {
     (void)domain;
     (void)values;
     // TODO: finish
   }
 
-  void partition(const Domain& domain, Domain& present, Domain& absent) const {
-    for (Arg arg : domain) {
+  void partition(const domain_type& domain, domain_type& present, domain_type& absent) const {
+    for (const Arg& arg : domain) {
       if (this->contains(arg)) {
         present.push_back(arg);
       } else {

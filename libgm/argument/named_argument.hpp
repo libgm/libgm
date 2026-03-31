@@ -1,83 +1,87 @@
 #pragma once
 
-#include <libgm/argument/argument.hpp>
+#include <libgm/argument/concepts/argument.hpp>
 
-#include <libgm/archives.hpp>
+#include <boost/container_hash/hash.hpp>
 
-#include <memory>
+#include <array>
+#include <cstddef>
+#include <cstring>
+#include <iosfwd>
 #include <stdexcept>
 #include <string>
-#include <unordered_map>
-#include <utility>
+#include <string_view>
 
 namespace libgm {
 
-class NamedFactory;
+template <std::size_t Size>
+struct NamedArg {
+  static_assert(Size > 0, "NamedArg buffer must have positive size");
 
-class NamedArgument final : public Argument {
-public:
-  NamedArgument();
-  explicit NamedArgument(std::string name, NamedFactory& factory);
+  std::array<char, Size> buffer{};
 
-  bool less(const Argument& other) const override;
-  void print(std::ostream& out) const override;
+  NamedArg() = default;
 
-  template <typename Archive>
-  void save(Archive& ar) const;
-
-  template <typename Archive>
-  void load(Archive& ar);
-
-  std::string name;
-  NamedFactory* factory;
-};
-
-class NamedFactory {
-public:
-  explicit NamedFactory(std::string name_space = "");
-  ~NamedFactory();
-
-  NamedFactory(const NamedFactory&) = delete;
-  NamedFactory& operator=(const NamedFactory&) = delete;
-  NamedFactory(NamedFactory&&) = delete;
-  NamedFactory& operator=(NamedFactory&&) = delete;
-
-  Arg make(std::string name);
-  void register_argument(const std::shared_ptr<NamedArgument>& argument);
-  void clear();
-  bool operator<(const NamedFactory& other) const;
-
-  const std::string& name_space() const {
-    return namespace_;
+  NamedArg(std::string_view name) {
+    assign(name);
   }
 
-  static NamedFactory* find(const std::string& name_space);
-  static NamedFactory& default_factory();
+  NamedArg(const std::string& name)
+    : NamedArg(std::string_view(name)) {}
 
-private:
-  std::string namespace_;
-  std::unordered_map<std::string, std::shared_ptr<NamedArgument>> storage_;
-  static std::unordered_map<std::string, NamedFactory*> registry_;
+  NamedArg(const char* name)
+    : NamedArg(name ? std::string_view(name) : std::string_view()) {}
+
+  void assign(std::string_view name) {
+    if (name.size() > Size - 1) {
+      throw std::length_error("NamedArg: name exceeds fixed buffer");
+    }
+    buffer.fill('\0');
+    std::memcpy(buffer.data(), name.data(), name.size());
+  }
+
+  const char* c_str() const {
+    return buffer.data();
+  }
+
+  std::string_view view() const {
+    return std::string_view(buffer.data());
+  }
+
+  auto operator<=>(const NamedArg&) const = default;
+
+  template <typename Archive>
+  void save(Archive& ar) const {
+    ar(std::string_view(buffer.data()));
+  }
+
+  template <typename Archive>
+  void load(Archive& ar) {
+    std::string value;
+    ar(value);
+    assign(value);
+  }
 };
 
-template <typename Archive>
-void NamedArgument::save(Archive& ar) const {
-  ar(name, factory->name_space());
+template <std::size_t Size>
+std::ostream& operator<<(std::ostream& out, const NamedArg<Size>& arg) {
+  return out << arg.c_str();
 }
 
-template <typename Archive>
-void NamedArgument::load(Archive& ar) {
-  std::string name_space;
-  ar(name, name_space);
-
-  NamedFactory* decoded_factory = name_space.empty()
-      ? &NamedFactory::default_factory()
-      : NamedFactory::find(name_space);
-  if (!decoded_factory) {
-    throw std::invalid_argument("No NamedFactory registered for namespace: " + name_space);
-  }
-  factory = decoded_factory;
-  factory->register_argument(std::static_pointer_cast<NamedArgument>(shared_from_this()));
+template <std::size_t Size>
+std::size_t hash_value(const NamedArg<Size>& arg) noexcept {
+  return boost::hash_range(arg.buffer.begin(), arg.buffer.end());
 }
 
 } // namespace libgm
+
+namespace std {
+
+template <std::size_t Size>
+struct hash<libgm::NamedArg<Size>> {
+  std::size_t operator()(const libgm::NamedArg<Size>& arg) const noexcept {
+    return libgm::hash_value(arg);
+  }
+};
+
+} // namespace std

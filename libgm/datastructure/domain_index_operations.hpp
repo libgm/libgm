@@ -4,23 +4,23 @@
 
 namespace libgm {
 
-template <typename Item, typename VISITOR>
-void visit_covers(const DomainIndex<Item>& index, const Domain& args, VISITOR visitor) {
+template <typename Item, typename Arg, typename VISITOR>
+void visit_covers(const DomainIndex<Item, Arg>& index, const Domain<Arg>& args, VISITOR visitor) {
   assert(!args.empty());
 
   // pick one value and iterate over all domains that contain that value
-  for (IndexedDomain<Item>* indexed : index.adjacency(args.front())) {
+  for (IndexedDomain<Item, Arg>* indexed : index.adjacency(args.front())) {
     if (is_subset(args, indexed->domain())) {
       visitor(indexed->item());
     }
   }
 }
 
-template <typename Item, typename VISITOR>
-void visit_intersections(const DomainIndex<Item>& index, const Domain& args, VISITOR visitor) {
+template <typename Item, typename Arg, typename VISITOR>
+void visit_intersections(const DomainIndex<Item, Arg>& index, const Domain<Arg>& args, VISITOR visitor) {
   ankerl::unordered_dense::set<Item*> result;
-  for (Arg arg : args) {
-    for (IndexedDomain<Item>* indexed : index.adjacency(arg)) {
+  for (const Arg& arg : args) {
+    for (IndexedDomain<Item, Arg>* indexed : index.adjacency(arg)) {
       result.insert(indexed->item());
     }
   }
@@ -30,8 +30,8 @@ void visit_intersections(const DomainIndex<Item>& index, const Domain& args, VIS
   }
 }
 
-template <typename Item>
-Item* find_max_intersection(const DomainIndex<Item>& index, const Domain& args) {
+template <typename Item, typename Arg>
+Item* find_max_intersection(const DomainIndex<Item, Arg>& index, const Domain<Arg>& args) {
   assert(!args.empty());
 
   // A marker of all previously seen items.
@@ -41,8 +41,8 @@ Item* find_max_intersection(const DomainIndex<Item>& index, const Domain& args) 
   Item* result = nullptr;
   size_t max_meet = 0;
   size_t min_size = std::numeric_limits<size_t>::max();
-  for (Arg arg : args) {
-    for (IndexedDomain<Item>* indexed : index.adjacency(arg)) {
+  for (const Arg& arg : args) {
+    for (IndexedDomain<Item, Arg>* indexed : index.adjacency(arg)) {
       Item* item = indexed->item();
       if (visited.contains(item)) continue;
       visited.insert(item);
@@ -60,13 +60,13 @@ Item* find_max_intersection(const DomainIndex<Item>& index, const Domain& args) 
   return result;
 }
 
-template <typename Item>
-Item* find_min_cover(const DomainIndex<Item>& index, const Domain& args) {
+template <typename Item, typename Arg>
+Item* find_min_cover(const DomainIndex<Item, Arg>& index, const Domain<Arg>& args) {
   assert(!args.empty());
 
   size_t min_size = std::numeric_limits<size_t>::max();
   Item* result = nullptr;
-  for (IndexedDomain<Item>* indexed : index.adjacency(args.front())) {
+  for (IndexedDomain<Item, Arg>* indexed : index.adjacency(args.front())) {
     if (indexed->domain().size() < min_size && is_subset(args, indexed->domain())) {
       min_size = indexed->domain().size();
       result = indexed->item();
@@ -75,12 +75,12 @@ Item* find_min_cover(const DomainIndex<Item>& index, const Domain& args) {
   return result;
 }
 
-template <typename Item>
-bool is_maximal(const DomainIndex<Item>& index, const Domain& args) {
+template <typename Item, typename Arg>
+bool is_maximal(const DomainIndex<Item, Arg>& index, const Domain<Arg>& args) {
   assert(!args.empty());
 
   // pick one argument and iterate over all sets that contain that argument
-  for (IndexedDomain<Item>* indexed : index.adjacency(args.front())) {
+  for (IndexedDomain<Item, Arg>* indexed : index.adjacency(args.front())) {
     if (is_subset(args, indexed->domain())) {
       return false;
     }

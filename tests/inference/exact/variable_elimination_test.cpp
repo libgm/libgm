@@ -11,10 +11,14 @@
 namespace libgm {
 
 BOOST_FIXTURE_TEST_CASE(test_grid, Fixture) {
-  FactorGraph<PTable, PTable> fg(mn, [](auto&& factor) { return factor.table(); });
+  using Arg = GridArg;
+  using Domain = libgm::Domain<Arg>;
+  using Graph = libgm::FactorGraph<Arg, PTable, PTable>;
+  using VE = libgm::VariableElimination<Arg, PTable>;
+  Graph fg(mn, [](auto&& factor) { return factor.table(); });
   MinFillStrategy strategy;
   SumProduct<PTable> semiring;
-  VariableElimination<PTable> ve(shape_map, min_fill, sum_product);
+  VE ve(shape_map, min_fill, sum_product);
   Domain arguments;
   for (auto* v : mn.vertices()) {
     arguments.push_back(mn.argument(v));
@@ -27,7 +31,7 @@ BOOST_FIXTURE_TEST_CASE(test_grid, Fixture) {
     Domain retain = mn.domain(e);
     BOOST_CHECK(retain.is_sorted());
 
-    FactorGraph<PTable, PTable> reduced = fg;
+    Graph reduced = fg;
     PTable via_elimination = ve.eliminate_join(reduced, retain);
     PTable direct = joint.marginal_dims(arguments.dims(retain));
     BOOST_CHECK_SMALL(max_diff(via_elimination, direct), 1e-8);

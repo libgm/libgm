@@ -16,28 +16,31 @@
 namespace libgm {
 
 struct Fixture {
+  using Arg = GridArg;
+  using Domain = libgm::Domain<Arg>;
   using PTable = ProbabilityTable<double>;
   using PMatrix = ProbabilityMatrix<double>;
   using PVector = ProbabilityVector<double>;
-  using Factor = typename FactorGraph<PTable, PTable>::Factor;
+  using Graph = libgm::FactorGraph<Arg, PTable, PTable>;
+  using VE = libgm::VariableElimination<Arg, PTable>;
+  using Factor = typename Graph::Factor;
 
   Fixture(size_t rows = 5, size_t cols = 4, unsigned seed = 17)
     : rows(rows),
       cols(cols),
       rng(seed),
-      mn(make_grid_graph<PVector, PMatrix>(rows, cols, make_argument)) {
+      mn(make_grid_graph<PVector, PMatrix>(rows, cols)) {
     UniformVectorGenerator<double> unary_gen(0.1, 1.0);
     DiagonalMatrixGenerator<std::uniform_real_distribution<double>> binary_gen(0.1, 0.2, 1.0);
     mn.init_vertices([&](Arg) { return unary_gen(2, rng); });
     mn.init_edges([&](auto) { return binary_gen(2, rng); });
   }
 
-  void init_engine(JunctionTreeEngine<PTable>& engine) {
+  void init_engine(JunctionTreeEngine<Arg, PTable>& engine) {
     engine.reset(mn.structure(), min_fill, shape_map);
     for (auto* v : mn.vertices()) {
       Arg arg = mn.argument(v);
-      // TODO: multiply by unary factor directly without constructing a temporary table
-      engine.multiply_in({arg}, mn[arg].table());
+      engine.multiply_in(Domain{arg}, mn[arg].table());
     }
     for (auto e : mn.edges()) {
       engine.multiply_in(mn.domain(e), mn[e].table());
@@ -45,8 +48,8 @@ struct Fixture {
   }
 
   PTable expected_belief(const Domain& retain, bool normalize) const {
-    FactorGraph<PTable, PTable> fg(mn, [](auto&& factor) { return factor.table(); });
-    VariableElimination<PTable> ve(shape_map, min_fill, sum_product);
+    Graph fg(mn, [](auto&& factor) { return factor.table(); });
+    VE ve(shape_map, min_fill, sum_product);
     PTable expected = ve.eliminate_join(fg, retain);
     if (normalize) {
       expected.normalize();
@@ -57,14 +60,14 @@ struct Fixture {
   size_t rows;
   size_t cols;
   std::mt19937 rng;
-  ShapeMap shape_map = [](Arg) { return size_t(2); };
+  ShapeMap<Arg> shape_map = [](Arg) { return size_t(2); };
   SumProduct<PTable> sum_product;
   MinFillStrategy min_fill;
-  MarkovNetwork<PVector, PMatrix> mn;
-  DiscreteAssignment evidence = {
-    {make_argument(1, 1), 0},
-    {make_argument(0, 3), 1},
-    {make_argument(1, 3), 0},
+  libgm::MarkovNetwork<Arg, PVector, PMatrix> mn;
+  DiscreteAssignment<Arg> evidence = {
+    {Arg{1, 1}, 0},
+    {Arg{0, 3}, 1},
+    {Arg{1, 3}, 0},
   };
 };
 

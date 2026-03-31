@@ -7,5 +7,4 @@ target_sources(
   directed_graph.cpp
   undirected_graph.cpp
   vector_graph.cpp
-  special/grid_graph.cpp
 )

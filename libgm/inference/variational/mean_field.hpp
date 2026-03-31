@@ -15,23 +15,21 @@ namespace libgm {
  * arguments and then for all factors. The number of worker
  * threads is controlled by a parameter to the constructor.
  */
-template <typename ArgumentF, typename FactorF>
+template <Argument Arg, typename ArgumentF, typename FactorF>
 class MeanField {
 public:
   using real_type = typename ArgumentF::real_type;
   using belief_type = typename ArgumentF::probability_type;
-
-  using graph_type = FactorGraph<ArgumentF, FactorF>;
+  using graph_type = FactorGraph<Arg, ArgumentF, FactorF>;
   using edge_descriptor = typename graph_type::edge21_descriptor;
   using Factor = typename graph_type::Factor;
-  using Argument = typename graph_type::Argument;
 
   /// Creates a mean field engine for the given graph.
   /// The graph vertices must not change after initialization (the potentials may).
   /// \param num_threads the number of worker threads
-  explicit MeanField(const graph_type& graph, ShapeMap shape_map, size_t nthreads = 1)
+  explicit MeanField(const graph_type& graph, ShapeMap<Arg> shape_map, size_t nthreads = 1)
     : graph_(graph), nthreads_(nthreads) {
-    for (Argument* vertex : graph_.vertices1()) {
+    for (typename graph_type::Argument* vertex : graph_.vertices1()) {
       Arg arg = graph_.argument(vertex);
       size_t shape = shape_map(arg);
       belief_type belief(shape, real_type(1));
@@ -69,15 +67,14 @@ public:
 
 private:
   void update_message(edge_descriptor e, ArgumentF& result) const {
-    const Domain& domain = graph_.arguments(e.source());
+    const Domain<Arg>& domain = graph_.arguments(e.source());
     Arg target = graph_.argument(e.target());
     std::vector<belief_type> beliefs;
-    for (Arg arg : domain) {
+    for (const Arg& arg : domain) {
       if (arg != target) {
         beliefs.push_back(beliefs_.at(arg));
       }
     }
-
     result = graph_[e.source()].expected_log_dim(beliefs, domain.index(target));
   }
 
@@ -107,4 +104,4 @@ private:
   ankerl::unordered_dense::map<edge_descriptor, ArgumentF> messages_;
 };
 
-}
+} // namespace libgm

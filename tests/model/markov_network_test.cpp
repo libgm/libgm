@@ -13,12 +13,11 @@ using namespace libgm;
 
 namespace {
 
-Arg make_arg(const char* name) {
-  return NamedFactory::default_factory().make(name);
-}
+using Arg = NamedArg<16>;
+using Graph = MarkovNetwork<Arg>;
 
 Arg make_arg(size_t i) {
-  return NamedFactory::default_factory().make("v" + std::to_string(i));
+  return Arg("v" + std::to_string(i));
 }
 
 struct VertexProperty {
@@ -35,13 +34,15 @@ struct EdgeProperty {
     : value(v) {}
 };
 
-void add_vertices(MarkovNetwork<void>& g, const std::vector<Arg>& vertices) {
+using TypedGraph = MarkovNetwork<Arg, VertexProperty, EdgeProperty>;
+
+void add_vertices(Graph& g, const std::vector<Arg>& vertices) {
   for (Arg v : vertices) {
     g.add_vertex(v);
   }
 }
 
-void add_edges(MarkovNetwork<void>& g, const std::vector<std::pair<Arg, Arg>>& edges) {
+void add_edges(Graph& g, const std::vector<std::pair<Arg, Arg>>& edges) {
   for (auto [u, v] : edges) {
     if (v < u) {
       std::swap(u, v);
@@ -55,10 +56,10 @@ void add_edges(MarkovNetwork<void>& g, const std::vector<std::pair<Arg, Arg>>& e
 } // namespace
 
 BOOST_AUTO_TEST_CASE(test_edge_descriptor_basics) {
-  using edge_type = MarkovNetwork<void>::edge_descriptor;
-  MarkovNetwork g;
-  Arg a = make_arg("a");
-  Arg b = make_arg("b");
+  using edge_type = Graph::edge_descriptor;
+  Graph g;
+  Arg a("a");
+  Arg b("b");
   add_vertices(g, {a, b});
   auto [e, inserted] = g.add_edge(a, b);
   BOOST_CHECK(inserted);
@@ -71,11 +72,11 @@ BOOST_AUTO_TEST_CASE(test_edge_descriptor_basics) {
   BOOST_CHECK_EQUAL(g.argument(e.target()), b);
   BOOST_CHECK_EQUAL(g.argument(e.reverse().source()), b);
   BOOST_CHECK_EQUAL(g.argument(e.reverse().target()), a);
-  BOOST_CHECK_EQUAL(g.domain(e), Domain({a, b}));
+  BOOST_CHECK_EQUAL(g.domain(e), libgm::Domain<Arg>({a, b}));
 }
 
 BOOST_AUTO_TEST_CASE(test_constructors) {
-  MarkovNetwork g1;
+  Graph g1;
   BOOST_CHECK(g1.empty());
   BOOST_CHECK(g1.vertices().empty());
   BOOST_CHECK_EQUAL(g1.num_vertices(), 0);
@@ -92,7 +93,7 @@ BOOST_AUTO_TEST_CASE(test_constructors) {
     {vertices[2], vertices[4]}, {vertices[4], vertices[5]}
   };
 
-  MarkovNetwork g2;
+  Graph g2;
   add_vertices(g2, vertices);
   add_edges(g2, edges);
 
@@ -103,7 +104,7 @@ BOOST_AUTO_TEST_CASE(test_constructors) {
     BOOST_CHECK(g2.contains(v, u));
   }
 
-  MarkovNetwork g3(g2);
+  Graph g3(g2);
   for (auto [u, v] : edges) {
     BOOST_CHECK(g3.contains(u));
     BOOST_CHECK(g3.contains(v));
@@ -113,23 +114,23 @@ BOOST_AUTO_TEST_CASE(test_constructors) {
   BOOST_CHECK_EQUAL(g3.num_vertices(), g2.num_vertices());
   BOOST_CHECK_EQUAL(g3.num_edges(), g2.num_edges());
 
-  MarkovNetwork g4;
+  Graph g4;
   g4 = g2;
   BOOST_CHECK_EQUAL(g4.num_vertices(), g2.num_vertices());
   BOOST_CHECK_EQUAL(g4.num_edges(), g2.num_edges());
 
-  MarkovNetwork g5(std::move(g4));
+  Graph g5(std::move(g4));
   BOOST_CHECK_EQUAL(g5.num_vertices(), g2.num_vertices());
   BOOST_CHECK_EQUAL(g5.num_edges(), g2.num_edges());
 
-  MarkovNetwork g6;
+  Graph g6;
   g6 = std::move(g5);
   BOOST_CHECK_EQUAL(g6.num_vertices(), g2.num_vertices());
   BOOST_CHECK_EQUAL(g6.num_edges(), g2.num_edges());
 }
 
 BOOST_AUTO_TEST_CASE(test_vertices) {
-  MarkovNetwork g;
+  Graph g;
   std::vector<Arg> vertices;
   for (size_t i = 1; i <= 10; ++i) {
     Arg v = make_arg(i);
@@ -145,12 +146,12 @@ BOOST_AUTO_TEST_CASE(test_vertices) {
 }
 
 BOOST_AUTO_TEST_CASE(test_adjacent_vertices) {
-  MarkovNetwork g;
-  Arg a = make_arg("a");
-  Arg b = make_arg("b");
-  Arg c = make_arg("c");
-  Arg d = make_arg("d");
-  Arg e = make_arg("e");
+  Graph g;
+  Arg a("a");
+  Arg b("b");
+  Arg c("c");
+  Arg d("d");
+  Arg e("e");
   add_vertices(g, {a, b, c, d, e});
   add_edges(g, {{c, a}, {c, b}, {c, d}, {e, c}});
 
@@ -162,27 +163,27 @@ BOOST_AUTO_TEST_CASE(test_adjacent_vertices) {
 }
 
 BOOST_AUTO_TEST_CASE(test_in_and_out_edges) {
-  using edge_type = MarkovNetwork<void>::edge_descriptor;
+  using edge_type = Graph::edge_descriptor;
 
-  MarkovNetwork g;
-  Arg c = make_arg("c");
-  Arg a = make_arg("a");
-  Arg b = make_arg("b");
-  Arg d = make_arg("d");
-  Arg e = make_arg("e");
+  Graph g;
+  Arg c("c");
+  Arg a("a");
+  Arg b("b");
+  Arg d("d");
+  Arg e("e");
   add_vertices(g, {a, b, c, d, e});
   add_edges(g, {{c, a}, {c, b}, {c, d}, {e, c}});
 
-  std::unordered_set<Domain> expected_out = {
-    Domain({c, a}), Domain({c, b}), Domain({c, d}), Domain({c, e})
+  std::unordered_set<libgm::Domain<Arg>> expected_out = {
+    libgm::Domain<Arg>({c, a}), libgm::Domain<Arg>({c, b}), libgm::Domain<Arg>({c, d}), libgm::Domain<Arg>({c, e})
   };
   for (edge_type oe : g.out_edges(c)) {
     BOOST_CHECK_EQUAL(expected_out.erase(g.domain(oe)), 1);
   }
   BOOST_CHECK(expected_out.empty());
 
-  std::unordered_set<Domain> expected_in = {
-    Domain({a, c}), Domain({b, c}), Domain({d, c}), Domain({e, c})
+  std::unordered_set<libgm::Domain<Arg>> expected_in = {
+    libgm::Domain<Arg>({a, c}), libgm::Domain<Arg>({b, c}), libgm::Domain<Arg>({d, c}), libgm::Domain<Arg>({e, c})
   };
   for (edge_type ie : g.in_edges(c)) {
     BOOST_CHECK_EQUAL(expected_in.erase(g.domain(ie)), 1);
@@ -191,10 +192,10 @@ BOOST_AUTO_TEST_CASE(test_in_and_out_edges) {
 }
 
 BOOST_AUTO_TEST_CASE(test_contains_and_edge) {
-  MarkovNetwork g;
-  Arg a = make_arg("a");
-  Arg b = make_arg("b");
-  Arg c = make_arg("c");
+  Graph g;
+  Arg a("a");
+  Arg b("b");
+  Arg c("c");
   add_vertices(g, {a, b, c});
   add_edges(g, {{a, b}, {b, c}});
 
@@ -220,11 +221,11 @@ BOOST_AUTO_TEST_CASE(test_contains_and_edge) {
 }
 
 BOOST_AUTO_TEST_CASE(test_degree) {
-  MarkovNetwork g;
-  Arg a = make_arg("a");
-  Arg b = make_arg("b");
-  Arg c = make_arg("c");
-  Arg d = make_arg("d");
+  Graph g;
+  Arg a("a");
+  Arg b("b");
+  Arg c("c");
+  Arg d("d");
   add_vertices(g, {a, b, c, d});
   add_edges(g, {{a, b}, {a, c}, {d, a}});
 
@@ -235,12 +236,12 @@ BOOST_AUTO_TEST_CASE(test_degree) {
 }
 
 BOOST_AUTO_TEST_CASE(test_num_and_removals) {
-  MarkovNetwork g;
-  Arg a = make_arg("a");
-  Arg b = make_arg("b");
-  Arg c = make_arg("c");
-  Arg d = make_arg("d");
-  Arg e = make_arg("e");
+  Graph g;
+  Arg a("a");
+  Arg b("b");
+  Arg c("c");
+  Arg d("d");
+  Arg e("e");
   add_vertices(g, {a, b, c, d, e});
   add_edges(g, {{a, b}, {a, c}, {a, d}, {b, c}, {d, e}});
 
@@ -265,10 +266,10 @@ BOOST_AUTO_TEST_CASE(test_num_and_removals) {
 }
 
 BOOST_AUTO_TEST_CASE(test_remove_returns_zero_on_missing) {
-  MarkovNetwork g;
-  Arg a = make_arg("a");
-  Arg b = make_arg("b");
-  Arg c = make_arg("c");
+  Graph g;
+  Arg a("a");
+  Arg b("b");
+  Arg c("c");
   add_vertices(g, {a, b});
   add_edges(g, {{a, b}});
 
@@ -283,11 +284,11 @@ BOOST_AUTO_TEST_CASE(test_remove_returns_zero_on_missing) {
 }
 
 BOOST_AUTO_TEST_CASE(test_add_clique_and_add_edges) {
-  MarkovNetwork g;
-  Arg a = make_arg("a");
-  Arg b = make_arg("b");
-  Arg c = make_arg("c");
-  Arg d = make_arg("d");
+  Graph g;
+  Arg a("a");
+  Arg b("b");
+  Arg c("c");
+  Arg d("d");
 
   add_vertices(g, {a, b, c, d});
 
@@ -305,25 +306,25 @@ BOOST_AUTO_TEST_CASE(test_add_clique_and_add_edges) {
 }
 
 BOOST_AUTO_TEST_CASE(test_add_edge_requires_canonical_order) {
-  MarkovNetwork mn;
-  Arg a = make_arg("a");
-  Arg b = make_arg("b");
+  Graph mn;
+  Arg a("a");
+  Arg b("b");
 
   BOOST_CHECK_THROW(mn.add_edge(b, a), std::invalid_argument);
 }
 
 BOOST_AUTO_TEST_CASE(test_add_edge_with_property_requires_canonical_order) {
-  MarkovNetwork<VertexProperty, EdgeProperty> mn;
-  Arg a = make_arg("a");
-  Arg b = make_arg("b");
+  TypedGraph mn;
+  Arg a("a");
+  Arg b("b");
 
   BOOST_CHECK_THROW(mn.add_edge(b, a, EdgeProperty(7)), std::invalid_argument);
 }
 
 BOOST_AUTO_TEST_CASE(test_untyped_edge_property_is_null) {
-  MarkovNetwork mn;
-  Arg a = make_arg("typed_a");
-  Arg b = make_arg("typed_b");
+  Graph mn;
+  Arg a("typed_a");
+  Arg b("typed_b");
 
   BOOST_CHECK(mn.add_vertex(a));
   BOOST_CHECK(mn.add_vertex(b));
@@ -334,9 +335,9 @@ BOOST_AUTO_TEST_CASE(test_untyped_edge_property_is_null) {
 }
 
 BOOST_AUTO_TEST_CASE(test_typed_vertex_and_edge_properties) {
-  MarkovNetwork<VertexProperty, EdgeProperty> mn;
-  Arg a = make_arg("typed_a");
-  Arg b = make_arg("typed_b");
+  TypedGraph mn;
+  Arg a("typed_a");
+  Arg b("typed_b");
 
   BOOST_CHECK(mn.add_vertex(a, VertexProperty(10)));
   BOOST_CHECK(mn.add_vertex(b, VertexProperty(20)));
@@ -349,9 +350,9 @@ BOOST_AUTO_TEST_CASE(test_typed_vertex_and_edge_properties) {
 }
 
 BOOST_AUTO_TEST_CASE(test_typed_default_constructed_properties_and_clear) {
-  MarkovNetwork<VertexProperty, EdgeProperty> mn;
-  Arg a = make_arg("default_a");
-  Arg b = make_arg("default_b");
+  TypedGraph mn;
+  Arg a("default_a");
+  Arg b("default_b");
 
   BOOST_CHECK(mn.add_vertex(a));
   BOOST_CHECK(mn.add_vertex(b));
@@ -367,9 +368,9 @@ BOOST_AUTO_TEST_CASE(test_typed_default_constructed_properties_and_clear) {
 }
 
 BOOST_AUTO_TEST_CASE(test_typed_add_edge_does_not_overwrite_existing_property) {
-  MarkovNetwork<VertexProperty, EdgeProperty> mn;
-  Arg a = make_arg("edge_a");
-  Arg b = make_arg("edge_b");
+  TypedGraph mn;
+  Arg a("edge_a");
+  Arg b("edge_b");
 
   BOOST_CHECK(mn.add_vertex(a));
   BOOST_CHECK(mn.add_vertex(b));
@@ -384,10 +385,10 @@ BOOST_AUTO_TEST_CASE(test_typed_add_edge_does_not_overwrite_existing_property) {
 }
 
 BOOST_AUTO_TEST_CASE(test_typed_init_vertex_and_edge_properties) {
-  MarkovNetwork<VertexProperty, EdgeProperty> mn;
-  Arg a = make_arg("init_a");
-  Arg b = make_arg("init_b");
-  Arg c = make_arg("init_c");
+  TypedGraph mn;
+  Arg a("init_a");
+  Arg b("init_b");
+  Arg c("init_c");
 
   BOOST_CHECK(mn.add_vertex(a));
   BOOST_CHECK(mn.add_vertex(b));
@@ -411,7 +412,7 @@ BOOST_AUTO_TEST_CASE(test_typed_init_vertex_and_edge_properties) {
   int edge_calls = 0;
   mn.init_edges([&](auto e) {
     ++edge_calls;
-    if (mn.domain(e) == Domain({a, b})) {
+    if (mn.domain(e) == libgm::Domain<Arg>({a, b})) {
       return EdgeProperty(44);
     }
     return EdgeProperty(55);

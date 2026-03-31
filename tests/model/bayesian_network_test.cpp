@@ -12,17 +12,16 @@ using namespace libgm;
 
 namespace {
 
-Arg make_arg(const char* name) {
-  return NamedFactory::default_factory().make(name);
-}
+using Arg = NamedArg<16>;
+using Graph = BayesianNetwork<Arg>;
 
 struct Fixture {
   Fixture() {
-    x0 = make_arg("x0");
-    x1 = make_arg("x1");
-    x2 = make_arg("x2");
-    x3 = make_arg("x3");
-    x4 = make_arg("x4");
+    x0 = Arg("x0");
+    x1 = Arg("x1");
+    x2 = Arg("x2");
+    x3 = Arg("x3");
+    x4 = Arg("x4");
 
     v0 = bn.add_vertex(x0, {});
     v1 = bn.add_vertex(x1, {});
@@ -31,40 +30,40 @@ struct Fixture {
     v4 = bn.add_vertex(x4, {x0, x3});
   }
 
-  BayesianNetwork<> bn;
+  Graph bn;
   Arg x0;
   Arg x1;
   Arg x2;
   Arg x3;
   Arg x4;
-  BayesianNetwork<>::Vertex* v0 = nullptr;
-  BayesianNetwork<>::Vertex* v1 = nullptr;
-  BayesianNetwork<>::Vertex* v2 = nullptr;
-  BayesianNetwork<>::Vertex* v3 = nullptr;
-  BayesianNetwork<>::Vertex* v4 = nullptr;
+  Graph::Vertex* v0 = nullptr;
+  Graph::Vertex* v1 = nullptr;
+  Graph::Vertex* v2 = nullptr;
+  Graph::Vertex* v3 = nullptr;
+  Graph::Vertex* v4 = nullptr;
 };
 
 } // namespace
 
 BOOST_AUTO_TEST_CASE(test_constructors_and_empty) {
-  BayesianNetwork<> bn;
+  Graph bn;
   BOOST_CHECK(bn.empty());
   BOOST_CHECK_EQUAL(bn.num_vertices(), 0);
   BOOST_CHECK_EQUAL(bn.num_edges(), 0);
 
-  Arg a = make_arg("a");
-  Arg b = make_arg("b");
+  Arg a("a");
+  Arg b("b");
 
   auto* va = bn.add_vertex(a, {});
   auto* vb = bn.add_vertex(b, {a});
   BOOST_CHECK_EQUAL(bn.vertex(a), va);
   BOOST_CHECK_EQUAL(bn.vertex(b), vb);
 
-  BayesianNetwork<> copy(bn);
+  Graph copy(bn);
   BOOST_CHECK(copy.contains(a));
   BOOST_CHECK(copy.contains(copy.vertex(a), copy.vertex(b)));
 
-  BayesianNetwork<> assigned;
+  Graph assigned;
   assigned = bn;
   BOOST_CHECK(assigned.contains(a));
   BOOST_CHECK(assigned.contains(assigned.vertex(a), assigned.vertex(b)));
@@ -86,11 +85,11 @@ BOOST_FIXTURE_TEST_CASE(test_argument_mapping, Fixture) {
 }
 
 BOOST_AUTO_TEST_CASE(test_add_vertex_parent_validation) {
-  BayesianNetwork<> bn;
-  Arg a = make_arg("a");
-  Arg b = make_arg("b");
-  Arg c = make_arg("c");
-  Arg z = make_arg("z");
+  Graph bn;
+  Arg a("a");
+  Arg b("b");
+  Arg c("c");
+  Arg z("z");
 
   bn.add_vertex(a, {});
   bn.add_vertex(b, {});
@@ -111,7 +110,7 @@ BOOST_FIXTURE_TEST_CASE(test_set_parents_preserves_argument_mapping, Fixture) {
 }
 
 BOOST_FIXTURE_TEST_CASE(test_set_parents_validation, Fixture) {
-  Arg z = make_arg("z");
+  Arg z("z");
   BOOST_CHECK_THROW(bn.set_parents(x3, {x3}), std::invalid_argument);
   BOOST_CHECK_THROW(bn.set_parents(x3, {z}), std::out_of_range);
 }
@@ -131,7 +130,7 @@ BOOST_FIXTURE_TEST_CASE(test_remove_and_clear_update_mapping, Fixture) {
 }
 
 BOOST_FIXTURE_TEST_CASE(test_markov_structure_uses_directed_graph_indices, Fixture) {
-  MarkovStructure mg = bn.markov_structure();
+  MarkovStructure<Arg> mg = bn.markov_structure();
 
   BOOST_CHECK_EQUAL(mg.num_vertices(), 5);
 
@@ -146,10 +145,10 @@ BOOST_FIXTURE_TEST_CASE(test_markov_structure_uses_directed_graph_indices, Fixtu
   BOOST_CHECK(bn.indices(v3) == std::vector<size_t>({bn.index(v3), bn.index(v1), bn.index(v2)}));
   BOOST_CHECK(bn.indices(v4) == std::vector<size_t>({bn.index(v4), bn.index(v0), bn.index(v3)}));
 
-  BOOST_CHECK(bn.arguments(v0) == Domain({x0}));
-  BOOST_CHECK(bn.arguments(v2) == Domain({x2, x1}));
-  BOOST_CHECK(bn.arguments(v3) == Domain({x3, x1, x2}));
-  BOOST_CHECK(bn.arguments(v4) == Domain({x4, x0, x3}));
+  BOOST_CHECK(bn.arguments(v0) == libgm::Domain<Arg>({x0}));
+  BOOST_CHECK(bn.arguments(v2) == libgm::Domain<Arg>({x2, x1}));
+  BOOST_CHECK(bn.arguments(v3) == libgm::Domain<Arg>({x3, x1, x2}));
+  BOOST_CHECK(bn.arguments(v4) == libgm::Domain<Arg>({x4, x0, x3}));
 
   BOOST_CHECK(mg.contains(bn.index(v1), bn.index(v2)));
   BOOST_CHECK(mg.contains(bn.index(v1), bn.index(v3)));

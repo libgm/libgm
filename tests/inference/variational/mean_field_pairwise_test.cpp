@@ -16,15 +16,15 @@
 
 #include <random>
 
-using namespace libgm;
-
 namespace {
 
-using LogVector = LogarithmicVector<double>;
-using LogMatrix = LogarithmicMatrix<double>;
-using ProbMatrix = ProbabilityMatrix<double>;
-using ProbVector = ProbabilityVector<double>;
-using ProbTable = ProbabilityTable<double>;
+using Arg = libgm::GridArg;
+using ShapeMap = libgm::ShapeMap<Arg>;
+using LogVector = libgm::LogarithmicVector<double>;
+using LogMatrix = libgm::LogarithmicMatrix<double>;
+using ProbMatrix = libgm::ProbabilityMatrix<double>;
+using ProbVector = libgm::ProbabilityVector<double>;
+using ProbTable = libgm::ProbabilityTable<double>;
 
 } // namespace
 
@@ -35,20 +35,20 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
 
   std::mt19937 rng(0);
   ShapeMap shape_map = [](Arg) { return size_t(2); };
-  MinFillStrategy strategy;
+  libgm::MinFillStrategy strategy;
 
-  auto mn = make_grid_graph<LogVector, LogMatrix>(rows, cols, make_argument);
-  SumProductCalibrate<ProbTable> sp;
+  auto mn = libgm::make_grid_graph<LogVector, LogMatrix>(rows, cols);
+  libgm::SumProductCalibrate<Arg, ProbTable> sp;
   sp.reset(mn.structure(), strategy, shape_map);
 
-  UniformVectorGenerator<double> unary_gen(0.1, 1.0);
+  libgm::UniformVectorGenerator<double> unary_gen(0.1, 1.0);
   mn.init_vertices([&](Arg u) {
     ProbVector factor(unary_gen(2, rng));
-    sp.multiply_in(Domain{u}, factor.table());
+    sp.multiply_in(libgm::Domain<Arg>{u}, factor.table());
     return factor.logarithmic();
   });
 
-  DiagonalMatrixGenerator<std::uniform_real_distribution<double>> pairwise_gen(0.1, 0.2, 1.0);
+  libgm::DiagonalMatrixGenerator<std::uniform_real_distribution<double>> pairwise_gen(0.1, 0.2, 1.0);
   mn.init_edges([&](auto e) {
     ProbMatrix factor(pairwise_gen(2, rng));
     sp.multiply_in(mn.domain(e), factor.table());
@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   sp.calibrate();
   sp.normalize();
 
-  MeanFieldPairwise<LogVector, LogMatrix> mf(mn, shape_map);
+  libgm::MeanFieldPairwise<Arg, LogVector, LogMatrix> mf(mn, shape_map);
   double diff = 0.0;
   for (size_t it = 0; it < niters; ++it) {
     diff = mf.iterate();
@@ -68,7 +68,7 @@ BOOST_AUTO_TEST_CASE(test_convergence) {
   double kl = 0.0;
   for (auto* v : mn.vertices()) {
     Arg u = mn.argument(v);
-    ProbVector exact = sp.belief(Domain{u}).vector();
+    ProbVector exact = sp.belief(libgm::Domain<Arg>{u}).vector();
     kl += exact.kl_divergence(mf.belief(u));
   }
   kl /= mn.num_vertices();

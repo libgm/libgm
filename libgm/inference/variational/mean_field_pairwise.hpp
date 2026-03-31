@@ -2,7 +2,7 @@
 
 #include <ankerl/unordered_dense.h>
 
-#include <libgm/argument/argument.hpp>
+#include <libgm/argument/concepts/argument.hpp>
 #include <libgm/argument/shape.hpp>
 #include <libgm/model/markov_network.hpp>
 
@@ -22,16 +22,15 @@ namespace libgm {
  *         `expected_log_front` and `expected_log_back` with the belief type of
  *         `NodeF`.
  */
-template <typename NodeF, typename EdgeF>
+template <Argument Arg, typename NodeF, typename EdgeF>
 class MeanFieldPairwise {
 public:
   using real_type = typename NodeF::real_type;
   using belief_type = typename NodeF::probability_type;
+  using graph_type = MarkovNetwork<Arg, NodeF, EdgeF>;
 
   /// Creates a mean field engine for the given graph.
-  explicit MeanFieldPairwise(
-      const MarkovNetwork<NodeF, EdgeF>& graph,
-      ShapeMap shape_map)
+  explicit MeanFieldPairwise(const graph_type& graph, ShapeMap<Arg> shape_map)
     : graph_(graph) {
     for (auto* v : graph_.vertices()) {
       Arg arg = graph_.argument(v);
@@ -58,7 +57,7 @@ public:
 
 private:
   /// Computes the next belief for a single vertex using the previous state.
-  real_type update(typename MarkovNetwork<NodeF, EdgeF>::Vertex* v, belief_type& belief) const {
+  real_type update(typename graph_type::Vertex* v, belief_type& belief) const {
     NodeF result = graph_[v];
     for (auto e : graph_.in_edges(v)) {
       if (graph_.is_nominal(e)) {
@@ -76,7 +75,7 @@ private:
   }
 
   /// The underlying graphical model.
-  const MarkovNetwork<NodeF, EdgeF>& graph_;
+  const graph_type& graph_;
 
   /// A map of current beliefs, one for each variable.
   ankerl::unordered_dense::map<Arg, belief_type> beliefs_;

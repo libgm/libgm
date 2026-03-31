@@ -1,6 +1,6 @@
 #pragma once
 
-#include <libgm/argument/argument.hpp>
+#include <libgm/argument/concepts/argument.hpp>
 #include <libgm/argument/domain.hpp>
 #include <libgm/datastructure/indexed_domain.hpp>
 #include <libgm/datastructure/intrusive_list.hpp>
@@ -16,18 +16,18 @@
 namespace libgm {
 
 /**
- * An index over `IndexedDomain<Item>` values that efficiently processes
+ * An index over `IndexedDomain<Item, Arg>` values that efficiently processes
  * intersection and superset queries.
  *
  * The index stores adjacency lists over the indexed domains internally,
  * but its lookup helpers expose the owning `Item*` handles.
  */
-template <typename Item>
+template <typename Item, Argument Arg>
 class DomainIndex {
   // Public types
   //==========================================================================
 public:
-  using value_type = IndexedDomain<Item>;
+  using value_type = IndexedDomain<Item, Arg>;
 
   /// Maps each element to the vector of containing pointers.
   using AdjacencyMap = ankerl::unordered_dense::map<Arg, IntrusiveList<value_type>>;
@@ -100,7 +100,7 @@ public:
    * domain. The domain must not be empty, must not be present in the index.
    */
   void insert(value_type& item) {
-    const Domain& domain = item.domain();
+    const Domain<Arg>& domain = item.domain();
     for (size_t i = 0; i < domain.size(); ++i) {
       adjacency_[domain[i]].push_back(&item, item.hooks[i]);
     }
@@ -108,7 +108,7 @@ public:
 
   /// Removes the set with the given handle from the index.
   void erase(value_type& item) {
-    const Domain& domain = item.domain();
+    const Domain<Arg>& domain = item.domain();
     for (size_t i = 0; i < domain.size(); ++i) {
       adjacency_[domain[i]].erase(&item, item.hooks[i]);
     }
