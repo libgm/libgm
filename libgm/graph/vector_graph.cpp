@@ -6,30 +6,6 @@
 
 namespace libgm {
 
-namespace {
-
-class encoded_inserter {
-public:
-  using difference_type = std::ptrdiff_t;
-
-  explicit encoded_inserter(std::vector<size_t>& output)
-    : output_(&output) {}
-
-  encoded_inserter& operator*() { return *this; }
-  encoded_inserter& operator++() { return *this; }
-  encoded_inserter operator++(int) { return *this; }
-
-  encoded_inserter& operator=(size_t v) {
-    output_->push_back((v << 1) | 1);
-    return *this;
-  }
-
-private:
-  std::vector<size_t>* output_;
-};
-
-} // namespace
-
 std::ranges::subrange<VectorGraph::out_edge_iterator>
 VectorGraph::out_edges(size_t u) const {
   auto neighbors = adjacent_vertices(u);
@@ -51,9 +27,6 @@ VectorGraph::in_edges(size_t u) const {
 std::ranges::subrange<VectorGraph::adjacency_iterator>
 VectorGraph::adjacent_vertices(size_t u) const {
   const auto& neighbors = adjacency_.at(u);
-  if (neighbors.empty()) {
-    return {adjacency_iterator(), adjacency_iterator()};
-  }
   return {
     adjacency_iterator(neighbors.begin()),
     adjacency_iterator(std::prev(neighbors.end()))
@@ -65,23 +38,23 @@ void VectorGraph::add_clique(std::vector<size_t> vertices) {
     return;
   }
 
+  std::ranges::transform(vertices, vertices.begin(), encode_present);
   std::ranges::sort(vertices);
   vertices.erase(std::unique(vertices.begin(), vertices.end()), vertices.end());
-  if (vertices.size() <= 1) {
-    return;
-  }
 
-  for (size_t u : vertices) {
+  for (size_t encoded_u : vertices) {
+    const size_t u = encoded_u >> 1;
     const auto& current = adjacency_.at(u);
     std::vector<size_t> merged;
     merged.reserve(current.size() + vertices.size());
 
-    auto clique = vertices | std::views::filter([u](size_t v) { return v != u; });
-    std::ranges::set_union(adjacent_vertices(u), clique, encoded_inserter(merged));
-
-    if (!merged.empty()) {
-      merged.push_back(null_vertex());
-    }
+    auto clique = vertices | std::views::filter([encoded_u](size_t v) {
+      return v != encoded_u;
+    });
+    auto active_current = current | std::views::filter([](size_t v) {
+      return is_present(v);
+    });
+    std::ranges::set_union(clique, active_current, std::back_inserter(merged));
     adjacency_.at(u) = std::move(merged);
   }
 }
@@ -99,7 +72,7 @@ size_t VectorGraph::clear_vertex(size_t u) {
     mark_erased(v, u);
     ++removed;
   }
-  adjacency_.at(u).clear();
+  adjacency_.at(u).assign(1, null_vertex());
   return removed;
 }
 

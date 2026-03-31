@@ -22,9 +22,10 @@ namespace libgm {
  * A compact undirected graph stored as sorted adjacency vectors.
  *
  * The graph stores no properties and represents each vertex by its integer
- * index. `adjacency_[i]` is the sorted list of vertices adjacent to `i`.
- * Non-empty adjacency lists are terminated by `null_vertex()`, which is
- * intentionally encoded as a present entry so iteration naturally stops there.
+ * index. `adjacency_[i]` is the sorted list of encoded vertices adjacent to
+ * `i`, always followed by `null_vertex()`. Present edges are encoded as
+ * `(v << 1) | 1`, erased edges as `v << 1`, and the sentinel is intentionally
+ * treated as a present entry so iteration naturally stops there.
  */
 class VectorGraph {
 public:
@@ -40,7 +41,7 @@ public:
 
     explicit adjacency_iterator(std::vector<size_t>::const_iterator it)
       : it_(it) {
-      skip_missing();
+      skip_erased();
     }
 
     size_t operator*() const {
@@ -50,7 +51,7 @@ public:
     adjacency_iterator& operator++() {
       assert(*it_ != null_vertex());
       ++it_;
-      skip_missing();
+      skip_erased();
       return *this;
     }
 
@@ -66,8 +67,8 @@ public:
     }
 
   private:
-    void skip_missing() {
-      while ((*it_ & 1) == 0) {
+    void skip_erased() {
+      while (is_erased(*it_)) {
         ++it_;
       }
     }
@@ -106,7 +107,7 @@ public:
 
   /// Creates a graph with `count` isolated vertices.
   explicit VectorGraph(size_t count = 0)
-    : adjacency_(count) {}
+    : adjacency_(count, std::vector<size_t>(1, null_vertex())) {}
 
   /// Returns the sentinel used to terminate non-empty adjacency lists.
   static size_t null_vertex() {
@@ -181,7 +182,7 @@ public:
   //--------------------------------------------------------------------------
   /// Adds an isolated vertex and returns its descriptor.
   size_t add_vertex() {
-    adjacency_.emplace_back();
+    adjacency_.emplace_back(1, null_vertex());
     return adjacency_.size() - 1;
   }
 
@@ -208,6 +209,14 @@ private:
 
   static size_t encode_erased(size_t v) {
     return v << 1;
+  }
+
+  static bool is_present(size_t v) {
+    return (v & 1) != 0;
+  }
+
+  static bool is_erased(size_t v) {
+    return (v & 1) == 0;
   }
 
   void mark_erased(size_t u, size_t v);
